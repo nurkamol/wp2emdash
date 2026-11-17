@@ -99,7 +99,9 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		if (bgImage) fragments.push({ kind: "media", media: bgImage, role: "background" });
 		fragments.push(...processChildren(n.children, path));
 		const color = colourValue(n.attrs.background_color);
-		return { ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}) };
+		const spacer = columnSpacer(n);
+		const overlay = columnOverlay(n.attrs);
+		return { ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -452,10 +454,12 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 			const image = c.fragments.find((f) => f.kind === "media") as Extract<Fragment, { kind: "media" }> | undefined;
 			const icon = c.fragments.find((f) => f.kind === "icon") as Extract<Fragment, { kind: "icon" }> | undefined;
 			const link = c.fragments.find((f) => f.kind === "button") as Extract<Fragment, { kind: "button" }> | undefined;
-			return { ...(titleBlock ? { title: titleBlock.children.map((s) => s.text).join("") } : {}), body, ...(image ? { image: image.media } : {}), ...(icon ? { icon: icon.icon } : {}), ...(link ? { link: link.button } : {}) };
+			return { ...(titleBlock ? { title: titleBlock.children.map((s) => s.text).join("") } : {}), body, ...(image ? { image: image.media } : {}), ...(icon ? { icon: icon.icon } : {}), ...(link ? { link: link.button } : {}), ...(image && c.overlay ? { overlay: c.overlay } : {}) };
 		});
 		const variant = items.every((i) => i.image) ? "image-cards" : "icons";
-		push({ ...base("feature_grid", variant), fields: { intro: [], items, columns: Math.min(6, cols.length) } });
+		const sp = cols[0]?.spacer;
+		const cardSpace = variant === "image-cards" && sp && cols.every((c) => c.spacer?.desktop === sp.desktop && c.spacer?.phone === sp.phone && c.spacer?.inset === sp.inset) ? sp : undefined;
+		push({ ...base("feature_grid", variant), fields: { intro: [], items, columns: Math.min(6, cols.length), ...(cardSpace ? { cardSpace } : {}) } });
 		return sections;
 	}
 
@@ -544,3 +548,41 @@ function splitHeading(blocks: RichText): { heading?: RichText; intro: RichText }
 
 export type { Button };
 export { CONTAINERS };
+
+const SPACERS = new Set(["divider", "vc_empty_space"]);
+const cssLen = (v: string | undefined): string | undefined => {
+	const m = /^\s*(\d+(?:\.\d+)?)\s*(px|vh|svh|vw|rem|em|%)?\s*$/.exec(v ?? "");
+	return m && Number(m[1]) > 0 ? `${m[1]}${m[2] ?? "px"}` : undefined;
+};
+
+/** Spacers at both ends of a column (Salient image cards: divider 35vh · title · link · divider 35vh). */
+export function columnSpacer(col: ShortcodeNode): { desktop: string; phone?: string } | undefined {
+	const kids = col.children.filter((c): c is ShortcodeNode => c.type === "shortcode");
+	const first = kids[0];
+	const last = kids.at(-1);
+	if (!first || !last || first === last || !SPACERS.has(first.tag) || !SPACERS.has(last.tag)) return undefined;
+	const desktop = cssLen(first.attrs.custom_height ?? first.attrs.height);
+	if (!desktop) return undefined;
+	const phone = cssLen(first.attrs.custom_height_phone);
+	const inset = /^padding-(\d+)-percent$/.exec(col.attrs.column_padding ?? "")?.[1];
+	return { desktop, ...(phone ? { phone } : {}), ...(inset ? { inset: Number(inset) } : {}) };
+}
+
+/** Scale the alpha of every colour in a CSS value (Salient's overlay strength = layer opacity). */
+function scaleAlpha(css: string, k: number): string {
+	const r2 = (n: number) => Math.round(n * 1000) / 1000;
+	return css
+		.replace(/rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/g, (_, r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${r2(Number(a) * k)})`)
+		.replace(/#([0-9a-f]{6})\b/gi, (_, h) => `rgba(${Number.parseInt(h.slice(0, 2), 16)}, ${Number.parseInt(h.slice(2, 4), 16)}, ${Number.parseInt(h.slice(4, 6), 16)}, ${r2(k)})`);
+}
+
+/** Salient column overlay → one CSS background (radial / linear gradient or a flat tint). */
+export function columnOverlay(a: Record<string, string>): string | undefined {
+	const c1 = a.color_overlay?.trim();
+	if (!c1 || !/^(?:#[0-9a-f]{6}|rgba?\([\d\s.,]+\))$/i.test(c1)) return undefined;
+	const c2 = /^(?:#[0-9a-f]{6}|rgba?\([\d\s.,]+\))$/i.test(a.color_overlay_2 ?? "") ? (a.color_overlay_2 as string) : "rgba(255,255,255,0)";
+	const strength = Math.min(1, Math.max(0, Number(a.overlay_strength ?? 0.3) || 0.3));
+	const dirs: Record<string, string> = { left_to_right: "90deg", left_t_to_right_b: "135deg", left_b_to_right_t: "45deg", top_to_bottom: "180deg" };
+	const css = a.enable_gradient === "true" ? (a.gradient_direction === "radial" ? `radial-gradient(50% 50%, ${c1} 0%, ${c2} 100%)` : `linear-gradient(${dirs[a.gradient_direction ?? ""] ?? "90deg"}, ${c1} 0%, ${c2} 100%)`) : `linear-gradient(${c1}, ${c1})`;
+	return scaleAlpha(css.replace(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/g, "rgba($1, $2, $3, 1)").replace(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/g, "rgba($1, $2, $3, $4)"), strength);
+}

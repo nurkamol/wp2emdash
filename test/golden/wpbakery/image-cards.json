@@ -12,7 +12,7 @@
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[0]",
-        "rawHash": "4f674a9930"
+        "rawHash": "2b9879a6dd"
       },
       "fields": {
         "intro": [],
@@ -28,7 +28,8 @@
               "label": "Learn More",
               "href": "/pilates/",
               "style": "link"
-            }
+            },
+            "overlay": "radial-gradient(50% 50%, rgba(0, 0, 0, 0.496) 0%, rgba(255, 255, 255, 0) 100%)"
           },
           {
             "title": "Physio",
@@ -42,12 +43,47 @@
               "href": "https://physio.example.org/",
               "style": "link",
               "newTab": true
-            }
+            },
+            "overlay": "linear-gradient(rgba(26, 43, 60, 0.5), rgba(26, 43, 60, 0.5))"
           }
         ],
-        "columns": 2
+        "columns": 2,
+        "cardSpace": {
+          "desktop": "35vh",
+          "phone": "150px",
+          "inset": 5
+        }
       }
     }
   ],
-  "diagnostics": []
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[0]/vc_column[0]/divider[0]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[0]/vc_column[0]/divider[2]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[0]/vc_column[1]/divider[0]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[0]/vc_column[1]/divider[2]",
+      "tag": "divider"
+    }
+  ]
 }

@@ -130,10 +130,18 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .card--image .card__title { font-size: var(--font-size-h2); }
 .card__link::after { content: ""; position: absolute; inset: 0; }
 .card--image .btn--link { position: relative; z-index: 1; }
+.card--image.has-overlay::after { background: var(--card-overlay); }
+.card--image .card__body { display: grid; gap: 0.5rem; justify-items: inherit; }
+.card--image .btn--link { font-family: var(--font-body); font-size: 0.875rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.5em; padding: 0; }
+/* builder spacers around the text set the card height (Salient: 35vh · text · 35vh, 5% padding) */
+.grid.has-card-space { container-type: inline-size; row-gap: 0; }
+.grid.has-card-space > .card--image { min-height: 0; aspect-ratio: auto; padding: calc(var(--card-space-phone, var(--card-space)) + var(--card-inset, 5cqi)) var(--card-inset, 5cqi); }
+.is-full-width .grid:not(.has-card-space) > .card--image { aspect-ratio: 4 / 5; }
+@media (min-width: 600px) { .grid.has-card-space > .card--image { padding-block: calc(var(--card-space) + var(--card-inset, 5cqi)); } }
 /* full-width, no gap: cards touch the screen edges and each other (Salient full-width column rows) */
 .is-full-width.section--feature_grid { padding-block: 0; }
 .is-full-width.gap-none .grid { gap: 0; }
-.is-full-width .card--image { border-radius: 0; min-height: 0; aspect-ratio: 4 / 5; align-content: center; justify-items: center; text-align: center; }
+.is-full-width .card--image { border-radius: 0; min-height: 0; align-content: center; justify-items: center; text-align: center; }
 .is-full-width .section__head, .is-full-width .lead { padding-inline: var(--gutter); }
 
 /* cta + marquee */
@@ -305,3 +313,7 @@ body:not(.over-hero) { padding-top: var(--header-height); }
 .site-footer { background: var(--footer-bg, var(--color-surface)); }
 .site-footer .prose a { text-decoration: none; }
 .site-footer .prose a:hover { text-decoration: underline; }
+
+/* Last on purpose: padding measured on the source page wins over spacing tokens and layout defaults. */
+.section.has-pad-top { padding-top: var(--pad-top); }
+.section.has-pad-bottom { padding-bottom: var(--pad-bottom); }

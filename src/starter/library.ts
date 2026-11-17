@@ -37,6 +37,7 @@ const MD = "Supports **bold**, *italic*, [links](/page/), blank lines between pa
 
 /** Links: site paths, anchors, http(s), mailto, tel. Same rule as the marketing template. */
 const LINK = { pattern: "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$" };
+const PAD = { pattern: "^(?:$|\\d+(?:\\.\\d+)?px|clamp\\(\\d+(?:\\.\\d+)?px, -?\\d+(?:\\.\\d+)?px \\+ -?\\d+(?:\\.\\d+)?vw, \\d+(?:\\.\\d+)?px\\))$" };
 const ANCHOR = { pattern: "^(?:$|[A-Za-z][A-Za-z0-9_-]*)$" };
 const COLOUR = { pattern: "^(?:$|#[0-9a-fA-F]{3,8}|rgba?\\([^)]*\\)|var\\(--[a-z0-9-]+\\))$" };
 
@@ -95,6 +96,8 @@ const appearance: Field[] = [
 	sel("gap", "Space between columns", ["normal", "none"], "normal"),
 	sel("valign", "Vertical position", ["top", "middle", "bottom"], "middle"),
 	sel("phone_align", "Text on phones", ["as-desktop", "center"], "as-desktop"),
+	s("pad_top", "Top padding (overrides spacing)", { validation: PAD, description: "e.g. 50px, or a clamp() from the migration" }),
+	s("pad_bottom", "Bottom padding (overrides spacing)", { validation: PAD }),
 	bool("full_height", "Full screen height"),
 	s("anchor_id", "Anchor id", { validation: ANCHOR, description: "For in-page links, e.g. pricing → /page/#pricing" }),
 ];
@@ -111,15 +114,18 @@ const block = (slug: string, label: string, description: string, variants: strin
 
 export const SECTION_BLOCK_PREFIX = "section_";
 
+const CSS_LENGTH = "^(?:$|\\d+(?:\\.\\d+)?(?:px|vh|svh|vw|rem|em|%))$";
+
 export const BLOCK_TYPES: BlockType[] = [
 	block("section_hero", "Hero", "Page introduction with heading, text, buttons and a background image or video", ["image", "video", "plain"], [...heading("h1"), pt("body", "Text"), buttons(), img("media", "Side image"), sel("align", "Alignment", ["center", "left", "right"], "center")]),
 	block("section_rich_text", "Text", "Formatted text with optional buttons", ["default", "buttons"], [...heading(), pt("body", "Text"), sel("width", "Width", ["narrow", "normal", "wide"], "normal"), sel("align", "Alignment", ["left", "center"], "left"), buttons()]),
 	block("section_media_text", "Image and text", "Image (or two) beside text", ["inline", "cover", "stacked"], [...heading(), pt("body", "Text"), buttons(), img("media", "Image", { required: true }), img("media_2", "Second image"), sel("media_side", "Image side", ["left", "right"], "left"), sel("ratio", "Image width", ["1/3", "1/2", "2/3"], "1/2")]),
 	block("section_columns", "Columns", "Two to four columns of text and images", [], [...heading(), ...[1, 2, 3, 4].flatMap((n) => [pt(`col_${n}_body`, `Column ${n} text`), img(`col_${n}_image`, `Column ${n} image`), { ...buttons(), slug: `col_${n}_buttons`, label: `Column ${n} buttons` }, img(`col_${n}_bg_image`, `Column ${n} background image`), s(`col_${n}_bg_color`, `Column ${n} background colour`, { validation: COLOUR }), sel(`col_${n}_width`, `Column ${n} width`, ["auto", "1/4", "1/3", "1/2", "2/3", "3/4"], "auto")])]),
-	block("section_feature_grid", "Feature grid", "Cards with image or icon, title, text and link", ["image-cards", "icons", "list"], [...heading(), pt("intro", "Intro"), { slug: "columns", label: "Columns", type: "integer", defaultValue: 3, validation: { min: 1, max: 6 } }, rep("items", "Items", [
+	block("section_feature_grid", "Feature grid", "Cards with image or icon, title, text and link", ["image-cards", "icons", "list"], [...heading(), pt("intro", "Intro"), { slug: "columns", label: "Columns", type: "integer", defaultValue: 3, validation: { min: 1, max: 6 } }, { slug: "card_space", label: "Image card space above and below text (e.g. 35vh)", type: "string", validation: { pattern: CSS_LENGTH } }, { slug: "card_space_phone", label: "…on phones (e.g. 150px)", type: "string", validation: { pattern: CSS_LENGTH } }, { slug: "card_inset", label: "Image card padding, % of the section width", type: "integer", validation: { min: 0, max: 20 } }, rep("items", "Items", [
 		{ slug: "title", label: "Title", type: "string" },
 		{ slug: "body", label: "Text", type: "text", description: MD },
 		{ slug: "image", label: "Image", type: "image" },
+		{ slug: "overlay", label: "Image tint (CSS gradient or colour)", type: "string" },
 		{ slug: "icon", label: "Icon", type: "string", description: "Icon name, e.g. ph:phone" },
 		{ slug: "link_label", label: "Link label", type: "string" },
 		{ slug: "link_url", label: "Link", type: "string", validation: LINK },

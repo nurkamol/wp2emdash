@@ -151,6 +151,8 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		...(s.gap ? { gap: s.gap } : {}),
 		...(s.valign ? { valign: s.valign } : {}),
 		...(s.phoneAlign ? { phone_align: s.phoneAlign } : {}),
+		...(s.pad?.top ? { pad_top: s.pad.top } : {}),
+		...(s.pad?.bottom ? { pad_bottom: s.pad.bottom } : {}),
 		...(s.fullHeight ? { full_height: true } : {}),
 		...(s.anchorId ? { anchor_id: s.anchorId } : {}),
 	};
@@ -188,7 +190,8 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 				...head,
 				intro: pt(s.fields.intro),
 				columns: s.fields.columns,
-				items: s.fields.items.map((it) => stripUndefined({ title: it.title, body: ptToMd(it.body) || undefined, image: it.image ? media(it.image) : undefined, icon: it.icon ? `${it.icon.library}:${it.icon.name}` : undefined, link_label: it.link?.label, link_url: it.link?.href, link_new_tab: it.link?.newTab || undefined })),
+				...(s.fields.cardSpace ? { card_space: s.fields.cardSpace.desktop, ...(s.fields.cardSpace.phone ? { card_space_phone: s.fields.cardSpace.phone } : {}), ...(s.fields.cardSpace.inset !== undefined ? { card_inset: s.fields.cardSpace.inset } : {}) } : {}),
+				items: s.fields.items.map((it) => stripUndefined({ title: it.title, overlay: it.overlay, body: ptToMd(it.body) || undefined, image: it.image ? media(it.image) : undefined, icon: it.icon ? `${it.icon.library}:${it.icon.name}` : undefined, link_label: it.link?.label, link_url: it.link?.href, link_new_tab: it.link?.newTab || undefined })),
 			});
 		case "cta_banner":
 			return base("cta_banner", { ...head, body: pt(s.fields.body), buttons: buttons(s.fields.buttons), media: s.fields.media ? media(s.fields.media) : undefined });

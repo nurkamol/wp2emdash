@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
+import { applyMeasuredPadding } from "../src/transform/measured.js";
 import { diffSections, groupSections, sourceRowIndex } from "../src/verify/sections.js";
 
 describe("section pairing", () => {
@@ -63,5 +64,19 @@ describe("section diff", () => {
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
+	});
+});
+
+describe("measured padding", () => {
+	it("puts the source row's measured padding on the first and last section of its group, heroes excluded", () => {
+		const sec = (type: string, path: string) => ({ type, sourceRef: { adapter: "wpbakery", path, rawHash: "x" }, spacing: "normal", fields: {} }) as never;
+		const sections = [sec("hero", "vc_row[0]"), sec("form", "vc_row[1]#0"), sec("feature_grid", "vc_row[1]#1")];
+		const box = (index: number, padTop: number, padBottom: number) => ({ index, y: 0, height: 100, footer: false, kind: "wpbakery", padTop, padBottom });
+		const n = applyMeasuredPadding(sections, { desktop: [box(0, 200, 0), box(1, 50, 0)], mobile: [box(0, 50, 0), box(1, 50, 0)] }, false);
+		const pads = (sections as { pad?: { top?: string; bottom?: string } }[]).map((s) => s.pad);
+		expect(n).toBe(2);
+		expect(pads[0]).toBeUndefined();
+		expect(pads[1]).toEqual({ top: "50px" });
+		expect(pads[2]).toEqual({ bottom: "0px" });
 	});
 });

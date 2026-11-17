@@ -66,6 +66,9 @@ export interface SectionBox {
 	footer: boolean;
 	/** Which builder's markup matched (wpbakery, gutenberg, elementor, divi, bricks, emdash). */
 	kind: string;
+	/** Computed padding of the section box, px. */
+	padTop?: number;
+	padBottom?: number;
 }
 
 export interface ScreenshotResult {
@@ -108,7 +111,8 @@ export async function sectionBoxes(page: Page): Promise<SectionBox[]> {
 			.map(({ el, kind }) => {
 				const r = el.getBoundingClientRect();
 				const footer = isFooter(el);
-				const box = { index: footer ? foot++ : content++, y: Math.round(r.top + sy), height: Math.round(r.height), footer, kind };
+				const cs = getComputedStyle(el);
+				const box = { index: footer ? foot++ : content++, y: Math.round(r.top + sy), height: Math.round(r.height), footer, kind, padTop: Math.round(Number.parseFloat(cs.paddingTop) || 0), padBottom: Math.round(Number.parseFloat(cs.paddingBottom) || 0) };
 				return box;
 			})
 			.filter((b) => b.height > 0);

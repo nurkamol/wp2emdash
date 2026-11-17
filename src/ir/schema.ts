@@ -97,6 +97,8 @@ const base = {
 	valign: z.enum(["top", "middle", "bottom"]).optional(),
 	/** Centre text on phones (WPBakery/Salient phone_text_alignment). */
 	phoneAlign: z.enum(["center"]).optional(),
+	/** Padding measured on the source page (px, or fluid clamp between phone and desktop); wins over spacing. */
+	pad: z.object({ top: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), bottom: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional() }).optional(),
 	sourceRef,
 };
 
@@ -112,8 +114,14 @@ const column = z.object({
 });
 export type Column = z.infer<typeof column>;
 
+/** CSS length a builder spacer used (35vh, 150px, 4rem…). */
+const cssLength = z.string().regex(/^\d+(?:\.\d+)?(?:px|vh|svh|vw|rem|em|%)$/);
+const cssGradient = z.string().regex(/^(?:(?:linear|radial)-gradient\([^;{}<>]*\)|rgba?\([\d\s.,%]+\)|#[0-9a-f]{3,8})$/i);
+
 const featureItem = z.object({
 	title: z.string().optional(),
+	/** Tint over an image card (Salient column overlay, strength folded into the colours). */
+	overlay: cssGradient.optional(),
 	body: richText.default([]),
 	image: mediaRef.optional(),
 	icon: icon.optional(),
@@ -125,7 +133,18 @@ export const section = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("rich_text"), ...base, fields: z.object({ body: richText, width: z.enum(["narrow", "normal", "wide"]).default("normal"), align: z.enum(["left", "center"]).default("left"), buttons: z.array(button).default([]) }) }),
 	z.object({ type: z.literal("media_text"), ...base, fields: z.object({ media: z.array(mediaRef).min(1), body: richText.default([]), buttons: z.array(button).default([]), mediaSide: z.enum(["left", "right"]), ratio: z.string().default("1/2") }) }),
 	z.object({ type: z.literal("columns"), ...base, fields: z.object({ heading, columns: z.array(column).min(1).max(6) }) }),
-	z.object({ type: z.literal("feature_grid"), ...base, fields: z.object({ heading, intro: richText.default([]), items: z.array(featureItem).min(1), columns: z.number().int().min(1).max(6) }) }),
+	z.object({
+		type: z.literal("feature_grid"),
+		...base,
+		fields: z.object({
+			heading,
+			intro: richText.default([]),
+			items: z.array(featureItem).min(1),
+			columns: z.number().int().min(1).max(6),
+			/** Space above and below each card's text (builder spacers around it), per screen. */
+			cardSpace: z.object({ desktop: cssLength, phone: cssLength.optional(), /** Card padding, % of the row width (Salient column_padding). */ inset: z.number().min(0).max(20).optional() }).optional(),
+		}),
+	}),
 	z.object({ type: z.literal("cta_banner"), ...base, fields: z.object({ heading, body: richText.default([]), buttons: z.array(button).default([]), media: mediaRef.optional() }) }),
 	z.object({ type: z.literal("faq"), ...base, fields: z.object({ heading, intro: richText.default([]), items: z.array(z.object({ question: z.string(), answer: richText })).min(1), schema: z.boolean().default(true) }) }),
 	z.object({

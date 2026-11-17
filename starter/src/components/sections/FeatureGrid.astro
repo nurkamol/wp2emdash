@@ -8,17 +8,21 @@ import { Image } from "emdash/ui";
 import { safeHref } from "../../utils/links";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const items = (v.items ?? []) as Array<Record<string, any>>;
+// Values go into style attributes: lengths and gradients only, nothing that can close the declaration.
+const LENGTH = /^\d+(?:\.\d+)?(?:px|vh|svh|vw|rem|em|%)$/;
+const TINT = /^(?:(?:linear|radial)-gradient\([^;{}<>"']*\)|rgba?\([\d\s.,%]+\)|#[0-9a-f]{3,8})$/i;
+const space = [LENGTH.test(v.card_space ?? "") && `--card-space:${v.card_space}`, LENGTH.test(v.card_space_phone ?? "") && `--card-space-phone:${v.card_space_phone}`, Number.isInteger(v.card_inset) && v.card_inset >= 0 && v.card_inset <= 20 && `--card-inset:${v.card_inset}cqi`].filter(Boolean).join(";");
 ---
 
 <Section value={v} type="feature_grid">
 	<Heading value={v} />
 	<Rich value={v.intro} class="lead" />
-	<ul class="grid" style={`--cols:${Math.min(v.columns ?? items.length, 6)}`} role="list">
+	<ul class:list={["grid", { "has-card-space": !!space }]} style={`--cols:${Math.min(v.columns ?? items.length, 6)}${space ? `;${space}` : ""}`} role="list">
 		{
 			items.map((it) => {
 				const href = safeHref(it.link_url);
 				return (
-					<li class:list={["card", { "card--image": it.image && v.variant === "image-cards" }]}>
+					<li class:list={["card", { "card--image": it.image && v.variant === "image-cards", "has-overlay": TINT.test(it.overlay ?? "") }]} style={TINT.test(it.overlay ?? "") ? `--card-overlay:${it.overlay}` : undefined}>
 						{it.image && <Image image={it.image} class="card__image" sizes="(max-width: 900px) 100vw, 40vw" />}
 						{it.icon && <span class="card__icon" data-icon={it.icon} aria-hidden="true" />}
 						<div class="card__body">
