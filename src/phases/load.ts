@@ -40,7 +40,7 @@ const mediaKey = (m: MediaRef) => (m.wpId ? `wp:${m.wpId}` : `url:${m.url}`);
 const COLLECTION: Record<IrPage["kind"], string> = { page: "pages", post: "pages", partial: "site_parts", popup: "popups" };
 
 /** Start `pnpm dev` in the project when nothing listens yet; returns a stop function. */
-async function ensureDevServer(project: string, port: number, log: (m: string) => void): Promise<() => void> {
+export async function ensureDevServer(project: string, port: number, log: (m: string) => void): Promise<() => void> {
 	const url = `http://localhost:${port}/_emdash/api/setup/status`;
 	const up = async () => {
 		try {

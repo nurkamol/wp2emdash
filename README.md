@@ -34,7 +34,7 @@ pnpm wp2emdash status
 | `transform` | WPBakery/Salient, Gutenberg, classic → section IR, coverage & text-conservation gate | ✅ |
 | `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, seed; builds + local preview | ✅ |
 | `load` | Media, content, menus and settings into EmDash via its API; idempotent id-map | ✅ local + staging |
-| `verify` | Old site vs staging, URL by URL | M7 |
+| `verify` | Old site vs staging, URL by URL: text, headings, SEO, links, forms, security, visual diff, a11y, performance, menu motion; HTML report | ✅ runs · pilot fixes in progress |
 | `cutover` | Preflight, delta, deploy, smoke, rollback | M8 |
 
 Each phase ends in a gate; the next phase won't run until it passes or is accepted with a recorded reason.

@@ -17,7 +17,7 @@ const schema = v.schema !== false && items.length ? JSON.stringify({ "@context":
 		{
 			items.map((i) => (
 				<details class="faq__item">
-					<summary class="faq__q">{i.question}</summary>
+					<summary class="faq__q"><h3 class="faq__q-text">{i.question}</h3></summary>
 					<Md text={i.answer} class="faq__a" />
 				</details>
 			))

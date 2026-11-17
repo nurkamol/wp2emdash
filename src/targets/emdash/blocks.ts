@@ -29,10 +29,14 @@ export function splitHeadingBlocks(blocks: RichText | undefined): { eyebrow?: st
 
 /** Leading heading run of a body → heading fields; the rest stays as body. */
 function headingFromBody(body: RichText): { head: ReturnType<typeof splitHeadingBlocks>; rest: RichText } {
+	const level = (b: PtBlock | undefined) => (b && isHeading(b) ? Number(b.style.slice(1)) : 7);
+	if (!body.length) return { head: {}, rest: body };
 	let i = 0;
-	while (i < body.length && isHeading(body[i] as PtBlock)) i++;
-	// eyebrow paragraph (≤ 4 words) directly before a heading
-	if (i === 0 && body.length > 1 && isHeading(body[1] as PtBlock) && plain(body[0] as PtBlock).split(/\s+/).length <= 4) i = 2;
+	if (isHeading(body[0] as PtBlock)) {
+		// One heading; a smaller heading directly before a bigger one is an eyebrow (h5 "Excellence" + h3 title).
+		// Two headings of the same level are two headings: the second stays in the body.
+		i = level(body[0]) > level(body[1]) ? 2 : 1;
+	} else if (body.length > 1 && isHeading(body[1] as PtBlock) && plain(body[0] as PtBlock).split(/\s+/).length <= 4) i = 2; // eyebrow paragraph
 	if (!i) return { head: {}, rest: body };
 	return { head: splitHeadingBlocks(body.slice(0, i)), rest: body.slice(i) };
 }

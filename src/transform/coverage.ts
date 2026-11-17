@@ -31,6 +31,10 @@ const CHROME = [
 	"#masthead",
 	"#site-navigation",
 	".wp-block-template-part header",
+	// wp2emdash starter chrome (verify compares the migrated site's HTML the same way)
+	"#menu-panel",
+	".menu-overlay",
+	"dialog.popup",
 ];
 
 export function sourceText(html: string): string {

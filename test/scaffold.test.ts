@@ -47,6 +47,17 @@ describe("IR → EmDash blocks", () => {
 		expect(r.dropped).toEqual(["spacing=huge (not an option)", "nope=1", "items[].extra"]);
 	});
 
+	it("keeps two same-level leading headings as heading + body, smaller-before-bigger as eyebrow", () => {
+		const k = new Keys("h");
+		const b = (style: "h2" | "h3" | "h5" | "normal", text: string) => ({ _type: "block" as const, _key: k.next(), style, children: [{ _type: "span" as const, _key: k.next(), text, marks: [] }], markDefs: [] });
+		const sec = (body: ReturnType<typeof b>[]) => ({ type: "rich_text" as const, theme: { tone: "light" as const }, spacing: "normal" as const, sourceRef: { adapter: "wpbakery" as const, path: "r", rawHash: "x" }, fields: { body, width: "normal" as const, align: "left" as const, buttons: [] } });
+		const two = sectionToBlock(sec([b("h2", "Move with purpose."), b("h2", "Second"), b("normal", "Text")]) as never, "a", media);
+		expect([two.heading, two.eyebrow]).toEqual(["Move with purpose.", undefined]);
+		expect((two.body as { children: { text: string }[] }[]).map((x) => x.children[0]?.text)).toEqual(["Second", "Text"]);
+		const eyebrow = sectionToBlock(sec([b("h5", "Excellence"), b("h3", "Title"), b("normal", "Text")]) as never, "b", media);
+		expect([eyebrow.eyebrow, eyebrow.heading, eyebrow.heading_level]).toEqual(["Excellence", "Title", "h3"]);
+	});
+
 	it("splits heading blocks and writes the Markdown subset", () => {
 		const k = new Keys();
 		const b = (style: "h3" | "normal", text: string) => ({ _type: "block" as const, _key: k.next(), style, children: [{ _type: "span" as const, _key: k.next(), text, marks: [] }], markDefs: [] });

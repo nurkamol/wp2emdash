@@ -229,6 +229,7 @@ Implemented in M6 (`src/phases/load.ts`, `src/targets/emdash/api.ts`); API facts
 **Gate:** target reachable and authenticated; section library and collections present; every media reference on the target; every document written; menus and settings written; entry counts equal the IR with no duplicate slugs; no WordPress host links, upload URLs or shortcodes in stored content; every media id exists; id-map complete; every published page renders (200) and shows its first heading. Verified idempotent: a second run uploads and creates nothing.
 
 ### Phase 6 — `verify` (old live site vs staging, URL by URL)
+Implemented in M7 (`src/phases/verify.ts`, `src/verify/`): HTTP checks per page (status, text recall, headings, SEO title/description/canonical/robots/JSON-LD/OpenGraph, external links, alt text, form fields), internal link crawl, security headers, WordPress endpoints, form endpoints; browser checks reuse the audit's capture (screenshots → pixel diff over the overlapping height, axe WCAG 2.1 AA, lab LCP/CLS on mobile, burger-menu capture → motion recipe comparison). Fresh `workers.dev` hosts are reached with the pinned addresses (`--host-resolver-rules`, no proxy). Report: `reports/verify/index.html` (gate summary, per-page table, slider / side-by-side / diff per viewport) + `verify.json`.
 | Check | Pass rule (defaults, configurable) |
 |---|---|
 | Content | normalised visible text similarity ≥ 0.98 per page; heading outline identical; every source image present with alt |

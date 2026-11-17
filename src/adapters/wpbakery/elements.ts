@@ -159,7 +159,15 @@ export const HANDLERS: Record<string, Handler> = {
 		if (text !== undefined && text.trim()) {
 			const style = /^h[1-6]$/.test(fs) ? (fs as PtBlock["style"]) : "normal";
 			const marks = fs === "i" ? ["em"] : [];
-			return [{ kind: "rich", blocks: [textBlock(text, ctx.keys, style, marks)] }];
+			const block = textBlock(text, ctx.keys, style, marks);
+			// Salient lets the whole line be a link (link_href + link_target): keep it as a link mark.
+			const href = n.attrs.link_href?.trim();
+			if (href) {
+				const key = ctx.keys.next();
+				block.markDefs.push({ _type: "link", _key: key, href, ...(n.attrs.link_target === "_blank" ? { blank: true } : {}) });
+				for (const c of block.children) c.marks.push(key);
+			}
+			return [{ kind: "rich", blocks: [block] }];
 		}
 		// Enclosed form: inner HTML is the heading.
 		return richFromHtml(innerSource(n), ctx, /^h[1-6]$/.test(fs) ? (fs as PtBlock["style"]) : undefined);

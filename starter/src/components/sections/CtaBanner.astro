@@ -15,6 +15,7 @@ const words = Array.from({ length: 6 }, () => v.heading ?? "");
 		marquee ? (
 			<div class="marquee">
 				{v.media && <Image image={v.media} class="marquee__image" sizes="60vw" />}
+				<Heading value={{ ...v, eyebrow: undefined }} class="visually-hidden" />
 				<a class="marquee__track" href={v.buttons?.[0]?.url ?? "#"} aria-label={v.heading}>
 					{words.map((w) => <span class="marquee__item" aria-hidden="true">{w}</span>)}
 				</a>

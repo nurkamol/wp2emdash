@@ -9,6 +9,7 @@ import { runInitGate } from "./init.js";
 import { runLoad } from "./load.js";
 import { runScaffold } from "./scaffold.js";
 import { runTransform } from "./transform.js";
+import { runVerify } from "./verify.js";
 
 export interface PhaseContext {
 	config: KitConfig;
@@ -39,6 +40,6 @@ export const RUNNERS: Record<PhaseId, PhaseRunner> = {
 	transform: runTransform,
 	scaffold: (ctx) => runScaffold(ctx),
 	load: runLoad,
-	verify: notYet("verify"),
+	verify: runVerify,
 	cutover: notYet("cutover"),
 };

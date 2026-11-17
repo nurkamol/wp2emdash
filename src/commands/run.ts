@@ -14,7 +14,7 @@ export interface RunOptions {
 }
 
 /** Phases that only read from WordPress (GET) or local files, write only inside the site workspace, and never touch Cloudflare. */
-export const PREVIEWABLE: PhaseId[] = ["audit", "extract", "transform", "scaffold", "load"];
+export const PREVIEWABLE: PhaseId[] = ["audit", "extract", "transform", "scaffold", "load", "verify"];
 
 export interface RunResult {
 	phase: PhaseId;

@@ -117,6 +117,95 @@
           }
         ]
       }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[4]",
+        "rawHash": "3841c4abac"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "1 Main Street",
+                    "marks": [
+                      "t8"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t8",
+                    "href": "https://maps.example.com/acme",
+                    "blank": true
+                  }
+                ]
+              },
+              {
+                "_type": "block",
+                "_key": "t9",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "ta",
+                    "text": "F: 555-0199",
+                    "marks": [
+                      "tb"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "tb",
+                    "href": "tel:555-0199"
+                  }
+                ]
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "No link here",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
     }
   ],
   "diagnostics": [
