@@ -4,14 +4,19 @@
       "type": "media_text",
       "variant": "cover",
       "theme": {
-        "tone": "light"
+        "tone": "light",
+        "background": {
+          "gradient": "radial-gradient(circle at top right, rgb(255,200,129) 0%, rgba(243,243,243,0) 41%)"
+        }
       },
       "spacing": "normal",
       "anchorId": "intro",
+      "width": "full",
+      "valign": "middle",
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[0]",
-        "rawHash": "e2940ef3ba"
+        "rawHash": "1c9a10e4f8"
       },
       "fields": {
         "media": [

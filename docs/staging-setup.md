@@ -120,11 +120,11 @@ password manager, so losing one device does not lock you out.
 |---|---|
 | `content:read`, `content:write` | Create, update and publish pages, footer, popups |
 | `media:read`, `media:write` | Find existing media by hash, upload the rest |
-| `schema:read` | Check the section library is present |
+| `schema:read`, `schema:write` | Check the section library and update it on the site when the kit's section types gain fields |
 | `menus:manage` | Write the navigation menus |
 | `settings:read`, `settings:manage` | Site title, tagline, title separator, staging flag |
 
-It does not need `admin`, `schema:write` or the transfer scopes. Put it in the **site's** `.env`
+It does not need `admin` or the transfer scopes. Put it in the **site's** `.env`
 (each site has its own EmDash):
 
 ```

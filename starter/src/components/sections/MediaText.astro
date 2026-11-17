@@ -13,12 +13,13 @@ const ratio = String(v.ratio ?? "1/2").replace("/", "-");
 	<div class="media-text">
 		<div class="media-text__media">
 			{v.media && <Image image={v.media} sizes="(max-width: 900px) 100vw, 50vw" />}
-			{v.media_2 && <Image image={v.media_2} class="media-text__media-2" sizes="(max-width: 900px) 100vw, 40vw" />}
 		</div>
 		<div class="media-text__text">
 			<Heading value={v} />
 			<Rich value={v.body} />
 			<Buttons items={v.buttons} />
+			{/* The second image belongs to the text column (it sat under the text in the source layout). */}
+			{v.media_2 && <Image image={v.media_2} class="media-text__media-2" sizes="(max-width: 900px) 100vw, 30vw" />}
 		</div>
 	</div>
 </Section>

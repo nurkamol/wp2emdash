@@ -206,6 +206,138 @@
           }
         ]
       }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4ece2"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[6]",
+        "rawHash": "0c1c589e27"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Feel stronger",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Classes for every level.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/4",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "Address",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tk",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tl",
+                    "text": "1 Main Street",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/4",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tm",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tn",
+                    "text": "Connect",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "to",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tp",
+                    "text": "T: 555-0100",
+                    "marks": [
+                      "tq"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "tq",
+                    "href": "tel:555-0100"
+                  }
+                ]
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
     }
   ],
   "diagnostics": [

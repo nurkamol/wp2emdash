@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { adaptWpbakery } from "../src/adapters/wpbakery/index.js";
 import { Keys } from "../src/ir/portable-text.js";
 import { fluentFormToDefinition } from "../src/scaffold/forms.js";
-import { fluid, toHex } from "../src/scaffold/generate.js";
+import { applyStackBreakpoint, fluid, stackBreakpoint, toHex } from "../src/scaffold/generate.js";
 import { routeToSlug } from "../src/scaffold/seed.js";
 import { BLOCK_TYPES } from "../src/starter/library.js";
 import { conformToBlockType, ptToMd, sectionToBlock, splitHeadingBlocks } from "../src/targets/emdash/blocks.js";
@@ -74,6 +74,15 @@ describe("scaffold generators", () => {
 		expect(fluid(46.8, 86.4)).toBe("clamp(46.8px, 32.09px + 3.771vw, 86.4px)");
 		expect(toHex("rgb(244, 236, 226)")).toBe("#f4ece2");
 		expect(toHex("rgba(0, 0, 0, 0.5)")).toBe("rgba(0, 0, 0, 0.5)");
+	});
+
+	it("picks the stacking breakpoint from the theme's CSS and rewrites marked queries", () => {
+		const d = (bps: number[]) => [{ breakpoints: bps }] as never;
+		expect(stackBreakpoint(d([480, 768, 999, 1300]))).toBe(1000);
+		expect(stackBreakpoint(d([600, 1024]))).toBe(1024);
+		expect(stackBreakpoint(d([767]))).toBe(768);
+		expect(stackBreakpoint(d([]))).toBe(900);
+		expect(applyStackBreakpoint("@media (min-width: 900px) /* stack */ {} @media (min-width: 600px) and (max-width: 899.98px) /* stack-below */ {} @media (min-width: 900px) {}", 1000)).toBe("@media (min-width: 1000px) {} @media (min-width: 600px) and (max-width: 999.98px) {} @media (min-width: 900px) {}");
 	});
 
 	it("maps routes to EmDash slugs", () => {

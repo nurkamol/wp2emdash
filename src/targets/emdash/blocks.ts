@@ -145,7 +145,12 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		...(s.theme.background?.image ? { bg_image: media(s.theme.background.image) } : {}),
 		...(s.theme.background?.video ? { bg_video: media(s.theme.background.video) } : {}),
 		...(s.theme.background?.overlay !== undefined ? { bg_overlay: s.theme.background.overlay } : {}),
+		...(s.theme.background?.gradient ? { bg_gradient: s.theme.background.gradient } : {}),
 		spacing: s.spacing,
+		...(s.width ? { layout_width: s.width } : {}),
+		...(s.gap ? { gap: s.gap } : {}),
+		...(s.valign ? { valign: s.valign } : {}),
+		...(s.phoneAlign ? { phone_align: s.phoneAlign } : {}),
 		...(s.fullHeight ? { full_height: true } : {}),
 		...(s.anchorId ? { anchor_id: s.anchorId } : {}),
 	};
@@ -169,8 +174,8 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 			const cols: Record<string, unknown> = {};
 			s.fields.columns.slice(0, 4).forEach((c, i) => {
 				const n = i + 1;
-				const body = [...c.body, ...c.buttons.map((b) => linkParagraph(b, `${key}c${n}b`))];
-				cols[`col_${n}_body`] = pt(body);
+				cols[`col_${n}_body`] = pt(c.body);
+				if (c.buttons.length) cols[`col_${n}_buttons`] = buttons(c.buttons);
 				if (c.media[0]) cols[`col_${n}_image`] = media(c.media[0]);
 				if (c.background?.image) cols[`col_${n}_bg_image`] = media(c.background.image);
 				if (c.background?.color) cols[`col_${n}_bg_color`] = c.background.color;

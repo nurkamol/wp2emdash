@@ -7,10 +7,12 @@
         "tone": "dark"
       },
       "spacing": "normal",
+      "width": "full",
+      "gap": "none",
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[0]",
-        "rawHash": "8b26e09517"
+        "rawHash": "4f674a9930"
       },
       "fields": {
         "intro": [],

@@ -10,12 +10,13 @@ interface Props {
 const { value: v, type, class: extra } = Astro.props;
 const bg = v.bg_color || undefined;
 const overlay = typeof v.bg_overlay === "number" ? v.bg_overlay : v.bg_image || v.bg_video ? 0 : undefined;
-const style = [bg ? `--section-bg:${bg}` : "", overlay !== undefined ? `--section-overlay:${overlay}` : ""].filter(Boolean).join(";");
+const gradient = /^(?:linear|radial)-gradient\([^;{}<>]*\)$/.test(v.bg_gradient ?? "") ? v.bg_gradient : undefined;
+const style = [bg ? `--section-bg:${bg}` : "", gradient ? `--section-gradient:${gradient}` : "", overlay !== undefined ? `--section-overlay:${overlay}` : ""].filter(Boolean).join(";");
 ---
 
 <section
 	id={v.anchor_id || undefined}
-	class:list={["section", `section--${type}`, v.variant && `section--${type}--${v.variant}`, `tone-${v.tone ?? "light"}`, `space-${v.spacing ?? "normal"}`, { "section--full": v.full_height, "section--media-bg": v.bg_image || v.bg_video }, extra]}
+	class:list={["section", `section--${type}`, v.variant && `section--${type}--${v.variant}`, `tone-${v.tone ?? "light"}`, `space-${v.spacing ?? "normal"}`, v.valign && `valign-${v.valign}`, { "section--full": v.full_height, "section--media-bg": v.bg_image || v.bg_video, "is-full-width": v.layout_width === "full", "gap-none": v.gap === "none", "has-gradient": gradient, "phone-center": v.phone_align === "center" }, extra]}
 	style={style || undefined}
 	data-reveal
 >

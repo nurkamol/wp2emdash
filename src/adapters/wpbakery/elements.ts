@@ -33,6 +33,8 @@ export interface Col {
 	width?: string;
 	fragments: Fragment[];
 	background?: { color?: string };
+	/** Source asks for centred text on phones. */
+	phoneCenter?: boolean;
 }
 
 export interface HandlerCtx {
@@ -186,7 +188,9 @@ export const HANDLERS: Record<string, Handler> = {
 	nectar_cta: (n, ctx) => {
 		const out: Fragment[] = [];
 		if (n.attrs.text?.trim()) out.push({ kind: "rich", blocks: [textBlock(n.attrs.text, ctx.keys, headingStyle(n.attrs.heading_tag))] });
-		out.push(...buttonFrom(n.attrs.link_text, n.attrs.url, ctx, { style: /underline|text-reveal|arrow/i.test(n.attrs.btn_style ?? "") ? "link" : "primary", newTab: n.attrs.link_type === "new_tab", ...(n.attrs.class ? { classes: n.attrs.class } : {}) }));
+		// Salient: "underline" / "arrow…" styles are text links; "text-reveal-wave" with a button colour is a pill.
+		const ctaStyle = /underline|arrow/i.test(n.attrs.btn_style ?? "") || (/text-reveal/i.test(n.attrs.btn_style ?? "") && (!n.attrs.button_color || n.attrs.button_color === "default")) ? "link" : "primary";
+		out.push(...buttonFrom(n.attrs.link_text, n.attrs.url, ctx, { style: ctaStyle, newTab: n.attrs.link_type === "new_tab", ...(n.attrs.class ? { classes: n.attrs.class } : {}) }));
 		return out;
 	},
 	vc_btn: (n, ctx) => {

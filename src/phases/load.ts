@@ -14,7 +14,7 @@ import { loadSiteEnv } from "../extract/credentials.js";
 import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
 import { routeToSlug } from "../scaffold/seed.js";
 import { BLOCK_TYPES } from "../starter/library.js";
-import { EmDashApi, type MediaItem } from "../targets/emdash/api.js";
+import { EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
 import { sectionToBlock } from "../targets/emdash/blocks.js";
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
 import type { MediaEntry } from "./extract.js";
@@ -121,11 +121,37 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 		const site = siteIr;
 		// ── Schema on the target ─────────────────────────────────────────────────
 		try {
-			const [bt, cols] = await Promise.all([api.blockTypes(), api.collections()]);
-			const missing = [...BLOCK_TYPES.map((b) => b.slug).filter((s) => !bt.some((x) => x.slug === s)), ...["pages", "site_parts", "popups"].filter((c) => !cols.some((x) => x.slug === c))];
+			const [bt, cols] = await Promise.all([api.blockTypesFull(), api.collections()]);
 			check("target", `Target reachable and authenticated (${target})`, true, api.baseUrl);
-			check("schema", "Section library and collections present on the target", missing.length === 0, missing.join(", ") || `${bt.length} block types`);
-			if (missing.length) return checks;
+			// Schema sync: block types live in the target's database (seeded once at setup). When the kit's section
+			// library gains fields, update them before writing content that uses those fields.
+			// EmDash stores field definitions with its own key order: compare with keys sorted at every level.
+			const sortKeys = (v: unknown): unknown => (Array.isArray(v) ? v.map(sortKeys) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, sortKeys(x)])) : v);
+			const canon = (v: unknown) => JSON.stringify(sortKeys(v));
+			const schemaChanges: string[] = [];
+			const schemaErrors: string[] = [];
+			for (const lib of BLOCK_TYPES) {
+				const want = lib.versions[lib.versions.length - 1]?.fields ?? [];
+				const have = bt.find((x) => x.slug === lib.slug);
+				try {
+					if (!have) {
+						await api.createBlockType({ slug: lib.slug, label: lib.label, description: lib.description, category: lib.category, fields: want });
+						schemaChanges.push(`${lib.slug} created`);
+						continue;
+					}
+					const active = have.versions.find((v) => v.active) ?? have.versions.find((v) => v.version === have.currentVersion);
+					if (active && canon(active.fields) !== canon(want)) {
+						await api.updateBlockType(lib.slug, { expectedFingerprint: active.fingerprint, fields: want });
+						schemaChanges.push(`${lib.slug} updated`);
+					}
+				} catch (e) {
+					const err = e as EmDashHttpError;
+					schemaErrors.push(`${lib.slug}: ${err.code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : err.code === "BLOCK_TYPE_BREAKING_CHANGE" ? "incompatible change — needs a new block type version (owner decision)" : err.message}`);
+				}
+			}
+			const missingCols = ["pages", "site_parts", "popups"].filter((c) => !cols.some((x) => x.slug === c));
+			check("schema", "Section library in sync and collections present on the target", schemaErrors.length === 0 && missingCols.length === 0, [...schemaErrors.slice(0, 4), ...missingCols.map((c) => `collection ${c} missing`)].join("; ") || (schemaChanges.length ? schemaChanges.join(", ") : `${bt.length} block types up to date`));
+			if (schemaErrors.length || missingCols.length) return checks;
 		} catch (e) {
 			const cause = (e as { cause?: { code?: string; message?: string } }).cause;
 			check("target", `Target reachable and authenticated (${target})`, false, `${(e as Error).message}${cause ? ` (${cause.code ?? ""} ${cause.message ?? ""})`.trimEnd() : ""}`);

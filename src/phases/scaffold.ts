@@ -12,7 +12,7 @@ import { KIT_ROOT } from "../core/paths.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
 import { fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
-import { buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras } from "../scaffold/generate.js";
+import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras, stackBreakpoint } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import type { MediaEntry } from "./extract.js";
@@ -142,6 +142,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	write(join(project, "src", "site.config.json"), siteConfig);
 	write(join(project, "src", "styles", "tokens.css"), tokens.css + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);
+	const basePath = join(project, "src", "styles", "base.css");
+	write(basePath, applyStackBreakpoint(readFileSync(basePath, "utf8"), stackBreakpoint(designs)));
 
 	// Forms (generated files are cleared first so removed forms do not linger)
 	for (const f of existsSync(join(project, "src", "forms")) ? readdirSync(join(project, "src", "forms")) : []) if (f.endsWith(".json")) rmSync(join(project, "src", "forms", f));

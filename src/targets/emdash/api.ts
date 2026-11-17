@@ -103,6 +103,17 @@ export class EmDashApi {
 	async blockTypes(): Promise<{ slug: string }[]> {
 		return (await this.request<{ items: { slug: string }[] }>("GET", "/schema/block-types")).items;
 	}
+	/** Block types with their versions (active fields + fingerprint). */
+	async blockTypesFull(): Promise<{ slug: string; currentVersion: number; versions: { version: number; fields: unknown[]; fingerprint: string; active?: boolean }[] }[]> {
+		return (await this.request<{ items: never[] }>("GET", "/schema/block-types")).items;
+	}
+	async createBlockType(input: { slug: string; label: string; description?: string; category?: string; fields: unknown[] }): Promise<void> {
+		await this.request("POST", "/schema/block-types", input);
+	}
+	/** Compatible changes update the active version in place; incompatible ones need `breaking` (a new version). */
+	async updateBlockType(slug: string, input: { expectedFingerprint: string; fields: unknown[]; label?: string; description?: string | null; breaking?: boolean }): Promise<void> {
+		await this.request("PUT", `/schema/block-types/${encodeURIComponent(slug)}`, input);
+	}
 	async collections(): Promise<{ slug: string }[]> {
 		return (await this.request<{ items: { slug: string }[] }>("GET", "/schema/collections")).items;
 	}

@@ -65,6 +65,8 @@ export const background = z.object({
 	video: mediaRef.optional(),
 	/** 0–1 overlay strength over image/video. */
 	overlay: z.number().min(0).max(1).optional(),
+	/** CSS linear-/radial-gradient layered over the colour (WPBakery/Salient "advanced gradient"). */
+	gradient: z.string().regex(/^(?:linear|radial)-gradient\([^;{}<>]*\)$/).optional(),
 });
 
 export const sectionTheme = z.object({
@@ -87,6 +89,14 @@ const base = {
 	spacing: z.enum(["none", "compact", "normal", "spacious"]).default("normal"),
 	fullHeight: z.boolean().optional(),
 	anchorId: z.string().optional(),
+	/** full = edge to edge (WPBakery "full width content", Gutenberg align full); default contained. */
+	width: z.enum(["contained", "full"]).optional(),
+	/** Space between columns; none = columns touch (WPBakery column_margin="none"). */
+	gap: z.enum(["none", "normal"]).optional(),
+	/** Vertical placement of content in a tall section (WPBakery full_screen_row_position). */
+	valign: z.enum(["top", "middle", "bottom"]).optional(),
+	/** Centre text on phones (WPBakery/Salient phone_text_alignment). */
+	phoneAlign: z.enum(["center"]).optional(),
 	sourceRef,
 };
 

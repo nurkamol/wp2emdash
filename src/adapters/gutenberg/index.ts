@@ -250,7 +250,7 @@ function gutenbergStyle(b: Block): Record<string, string> {
 	if (text) a.text_color = /white|light|#fff/i.test(text) ? "light" : "dark";
 	const anchor = str(b.attrs.anchor);
 	if (anchor) a.id = anchor;
-	if (str(b.attrs.align) === "full") a.type = "full_width_background";
+	if (str(b.attrs.align) === "full") a.type = "full_width_content";
 	return a;
 }
 

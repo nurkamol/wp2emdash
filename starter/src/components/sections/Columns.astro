@@ -7,8 +7,8 @@ import Md from "../Md.astro";
 import { Image } from "emdash/ui";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const cols = [1, 2, 3, 4]
-	.map((n) => ({ body: v[`col_${n}_body`], image: v[`col_${n}_image`], bgImage: v[`col_${n}_bg_image`], bgColor: v[`col_${n}_bg_color`], width: v[`col_${n}_width`] }))
-	.filter((c) => (c.body && c.body.length) || c.image || c.bgImage);
+	.map((n) => ({ body: v[`col_${n}_body`], image: v[`col_${n}_image`], buttons: v[`col_${n}_buttons`], bgImage: v[`col_${n}_bg_image`], bgColor: v[`col_${n}_bg_color`], width: v[`col_${n}_width`] }))
+	.filter((c) => (c.body && c.body.length) || c.image || c.bgImage || (c.buttons && c.buttons.length));
 ---
 
 <Section value={v} type="columns">
@@ -20,6 +20,7 @@ const cols = [1, 2, 3, 4]
 					{c.bgImage && <Image image={c.bgImage} class="columns__bg" sizes="50vw" />}
 					{c.image && <Image image={c.image} sizes="(max-width: 900px) 100vw, 33vw" />}
 					<Rich value={c.body} />
+					<Buttons items={c.buttons} />
 				</div>
 			))
 		}

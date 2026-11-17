@@ -99,7 +99,7 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		if (bgImage) fragments.push({ kind: "media", media: bgImage, role: "background" });
 		fragments.push(...processChildren(n.children, path));
 		const color = colourValue(n.attrs.background_color);
-		return { ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}) };
+		return { ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -198,7 +198,7 @@ export function mergeCollections(sections: Section[]): Section[] {
 export function splitRow(row: Row): Row[] {
 	const nonEmpty = row.columns.filter((c) => c.fragments.length);
 	if (!nonEmpty.length) return [];
-	if (nonEmpty.length > 1) return [{ ...row, columns: nonEmpty.map((c) => ({ ...c, fragments: flattenSubrows(c.fragments) })) }];
+	if (nonEmpty.length > 1) return [{ ...row, columns: expandColumns(nonEmpty) }];
 	const col = nonEmpty[0] as Col;
 	if (!col.fragments.some((f) => f.kind === "subrow")) return [row];
 	const out: Row[] = [];
@@ -216,6 +216,33 @@ export function splitRow(row: Row): Row[] {
 	flushRun();
 	// Only the first virtual row keeps the anchor id.
 	return out.map((r, i) => (i === 0 ? r : { ...r, attrs: { ...r.attrs, id: "", el_id: "" } }));
+}
+
+/**
+ * A column that is only an inner multi-column row (plus maybe text before it) becomes those inner
+ * columns, with widths multiplied (½ × ½ → ¼): a footer "text | address | connect" stays three
+ * side-by-side columns instead of collapsing two of them into one.
+ */
+function expandColumns(cols: Col[]): Col[] {
+	const out: Col[] = [];
+	const frac = (w?: string) => {
+		const m = /^(\d+)\/(\d+)$/.exec(w ?? "");
+		return m ? Number(m[1]) / Number(m[2]) : undefined;
+	};
+	const toWidth = (f: number) => [[1 / 4, "1/4"], [1 / 3, "1/3"], [1 / 2, "1/2"], [2 / 3, "2/3"], [3 / 4, "3/4"], [1 / 6, "1/6"]].find(([v]) => Math.abs((v as number) - f) < 0.01)?.[1] as string | undefined;
+	for (const c of cols) {
+		const subrows = c.fragments.filter((f) => f.kind === "subrow") as Extract<Fragment, { kind: "subrow" }>[];
+		const others = c.fragments.filter((f) => f.kind !== "subrow");
+		const sub = subrows[0];
+		if (subrows.length === 1 && sub && others.every((f) => f.kind === "media" && f.role === "background")) {
+			const outer = frac(c.width) ?? 1;
+			for (const ic of sub.columns.filter((x) => x.fragments.length)) {
+				const w = toWidth(outer * (frac(ic.width) ?? 1 / sub.columns.length));
+				out.push({ ...ic, ...(w ? { width: w } : {}), fragments: flattenSubrows(ic.fragments) });
+			}
+		} else out.push({ ...c, fragments: flattenSubrows(c.fragments) });
+	}
+	return out;
 }
 
 function flattenSubrows(frags: Fragment[]): Fragment[] {
@@ -247,7 +274,7 @@ type CollectionKind = (typeof COLLECTIONS)[number];
 const isHeading = (b: PtBlock) => /^h[1-6]$/.test(b.style);
 const words = (blocks: RichText) => blocks.map((b) => b.children.map((c) => c.text).join("")).join(" ").split(/\s+/).filter(Boolean).length;
 
-function rowTheme(row: Row): { theme: Section["theme"]; spacing: Section["spacing"]; fullHeight?: boolean; anchorId?: string } {
+function rowTheme(row: Row): { theme: Section["theme"]; spacing: Section["spacing"]; fullHeight?: boolean; anchorId?: string; width?: "full"; gap?: "none"; valign?: "top" | "middle" | "bottom" } {
 	const a = row.attrs;
 	const color = colourValue(a.bg_color);
 	const image = mediaFrom(a.bg_image);
@@ -261,12 +288,17 @@ function rowTheme(row: Row): { theme: Section["theme"]; spacing: Section["spacin
 	const css = parseVcCss(a.css);
 	const spacing = spacingFromPadding(a.top_padding ?? css["padding-top"], a.bottom_padding ?? css["padding-bottom"]) ?? "normal";
 	const anchor = (a.el_id || a.id || "").trim();
-	const background = color || image || video ? { ...(color ? { color } : {}), ...(image ? { image } : {}), ...(video ? { video } : {}), ...(overlay !== undefined ? { overlay } : {}) } : undefined;
+	const gradient = a.gradient_type === "advanced" && /^(?:linear|radial)-gradient\([^;{}<>]*\)$/.test(a.advanced_gradient ?? "") ? a.advanced_gradient : undefined;
+	const background = color || image || video || gradient ? { ...(color ? { color } : {}), ...(image ? { image } : {}), ...(video ? { video } : {}), ...(overlay !== undefined ? { overlay } : {}), ...(gradient ? { gradient } : {}) } : undefined;
+	const valign = a.full_height === "yes" || a.content_placement ? ({ top: "top", middle: "middle", bottom: "bottom" } as const)[(a.full_screen_row_position ?? a.content_placement ?? "") as "top"] : undefined;
 	return {
 		theme: { tone, ...(background ? { background } : {}) },
 		spacing,
 		...(a.full_height === "yes" ? { fullHeight: true } : {}),
 		...(anchor && /^[A-Za-z][\w-]*$/.test(anchor) ? { anchorId: anchor } : {}),
+		...(a.type === "full_width_content" ? { width: "full" as const } : {}),
+		...(a.column_margin === "none" ? { gap: "none" as const } : {}),
+		...(valign ? { valign } : {}),
 	};
 }
 
@@ -285,6 +317,10 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 		spacing: look.spacing,
 		...(look.fullHeight ? { fullHeight: true } : {}),
 		...(look.anchorId ? { anchorId: look.anchorId } : {}),
+		...(look.width ? { width: look.width } : {}),
+		...(look.gap ? { gap: look.gap } : {}),
+		...(look.valign ? { valign: look.valign } : {}),
+		...(row.columns.some((c) => c.fragments.length) && row.columns.filter((c) => c.fragments.length).every((c) => c.phoneCenter) ? { phoneAlign: "center" as const } : {}),
 		sourceRef: { adapter: row.adapter ?? ("wpbakery" as const), path: row.path, rawHash: hash(row.raw) },
 	});
 	const cols = row.columns.filter((c) => c.fragments.length);

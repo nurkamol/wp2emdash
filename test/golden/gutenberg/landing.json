@@ -15,6 +15,7 @@
       },
       "spacing": "normal",
       "fullHeight": true,
+      "width": "full",
       "sourceRef": {
         "adapter": "gutenberg",
         "path": "blocks[0]",

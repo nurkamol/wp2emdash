@@ -20,6 +20,7 @@
       "spacing": "normal",
       "fullHeight": true,
       "anchorId": "hero",
+      "width": "full",
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[0]",

@@ -89,7 +89,12 @@ const appearance: Field[] = [
 	img("bg_image", "Background image"),
 	{ slug: "bg_video", label: "Background video", type: "file", validation: { allowedMimeTypes: ["video/mp4", "video/webm"] } },
 	{ slug: "bg_overlay", label: "Overlay strength (0–1)", type: "number", validation: { min: 0, max: 1 } },
+	s("bg_gradient", "Background gradient", { validation: { pattern: "^(?:$|(?:linear|radial)-gradient\\([^;{}<>]*\\))$" }, description: "CSS linear-/radial-gradient over the colour" }),
 	sel("spacing", "Spacing", ["none", "compact", "normal", "spacious"], "normal"),
+	sel("layout_width", "Section width", ["contained", "full"], "contained"),
+	sel("gap", "Space between columns", ["normal", "none"], "normal"),
+	sel("valign", "Vertical position", ["top", "middle", "bottom"], "middle"),
+	sel("phone_align", "Text on phones", ["as-desktop", "center"], "as-desktop"),
 	bool("full_height", "Full screen height"),
 	s("anchor_id", "Anchor id", { validation: ANCHOR, description: "For in-page links, e.g. pricing → /page/#pricing" }),
 ];
@@ -110,7 +115,7 @@ export const BLOCK_TYPES: BlockType[] = [
 	block("section_hero", "Hero", "Page introduction with heading, text, buttons and a background image or video", ["image", "video", "plain"], [...heading("h1"), pt("body", "Text"), buttons(), img("media", "Side image"), sel("align", "Alignment", ["center", "left", "right"], "center")]),
 	block("section_rich_text", "Text", "Formatted text with optional buttons", ["default", "buttons"], [...heading(), pt("body", "Text"), sel("width", "Width", ["narrow", "normal", "wide"], "normal"), sel("align", "Alignment", ["left", "center"], "left"), buttons()]),
 	block("section_media_text", "Image and text", "Image (or two) beside text", ["inline", "cover", "stacked"], [...heading(), pt("body", "Text"), buttons(), img("media", "Image", { required: true }), img("media_2", "Second image"), sel("media_side", "Image side", ["left", "right"], "left"), sel("ratio", "Image width", ["1/3", "1/2", "2/3"], "1/2")]),
-	block("section_columns", "Columns", "Two to four columns of text and images", [], [...heading(), ...[1, 2, 3, 4].flatMap((n) => [pt(`col_${n}_body`, `Column ${n} text`), img(`col_${n}_image`, `Column ${n} image`), img(`col_${n}_bg_image`, `Column ${n} background image`), s(`col_${n}_bg_color`, `Column ${n} background colour`, { validation: COLOUR }), sel(`col_${n}_width`, `Column ${n} width`, ["auto", "1/4", "1/3", "1/2", "2/3", "3/4"], "auto")])]),
+	block("section_columns", "Columns", "Two to four columns of text and images", [], [...heading(), ...[1, 2, 3, 4].flatMap((n) => [pt(`col_${n}_body`, `Column ${n} text`), img(`col_${n}_image`, `Column ${n} image`), { ...buttons(), slug: `col_${n}_buttons`, label: `Column ${n} buttons` }, img(`col_${n}_bg_image`, `Column ${n} background image`), s(`col_${n}_bg_color`, `Column ${n} background colour`, { validation: COLOUR }), sel(`col_${n}_width`, `Column ${n} width`, ["auto", "1/4", "1/3", "1/2", "2/3", "3/4"], "auto")])]),
 	block("section_feature_grid", "Feature grid", "Cards with image or icon, title, text and link", ["image-cards", "icons", "list"], [...heading(), pt("intro", "Intro"), { slug: "columns", label: "Columns", type: "integer", defaultValue: 3, validation: { min: 1, max: 6 } }, rep("items", "Items", [
 		{ slug: "title", label: "Title", type: "string" },
 		{ slug: "body", label: "Text", type: "text", description: MD },
