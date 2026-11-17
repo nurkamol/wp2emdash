@@ -32,6 +32,8 @@ The official `EmDashClient` (`emdash/client`) covers content and media but not m
 - Wrangler auto-provisions the adapter's `SESSION` KV namespace on first deploy (`<worker>-session`).
 - **D1 migrations must run before the first request.** In the default `auto` mode the first request runs EmDash's core migrations; if that request is cut off (a client timeout), the migration lock stays held and every request answers 503 (`database migrations are required … migration lock has been held since …`). The supported path (docs: deployment/core-migrations) is deployment-managed: `astro build` writes `.emdash/migrations.json` → `emdash migrate --wrangler-config wrangler.jsonc --wrangler-env staging` → `wrangler deploy` → `emdash migrate --check`. `emdash migrate` needs `CLOUDFLARE_ACCOUNT_ID` and a `CLOUDFLARE_API_TOKEN` with **D1 Edit** in the shell environment (it does not read `.env`); taking over a stuck lock uses the same command.
 - `.emdash/migrations.json` is a build artifact: gitignored, kept together with the build it came from.
+- **Recovery that worked on the pilot:** `emdash migrate --status` (lock id, 65 applied / 32 pending) → `emdash migrate --take-over-lock=<id> --expected-target-fingerprint=<fp>` (applied 066–097) → `--check` exit 0 → redeploy the same build. Generated projects now run migrate between build and deploy (`deploy:staging`).
+- First-run admin setup lives at `/_emdash/admin/setup` (`/_emdash/admin` redirects there); `/_emdash/api/setup/status` reports `needsSetup` and the seed it will apply.
 
 ## Not done yet
 

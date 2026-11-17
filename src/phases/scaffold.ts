@@ -170,7 +170,10 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", // The Cloudflare adapter flattens wrangler.jsonc at BUILD time: the environment must be chosen
 			// with CLOUDFLARE_ENV during the build; `wrangler deploy --env` after the build is ignored.
 			"build:staging": "CLOUDFLARE_ENV=staging astro build",
-			"deploy:staging": "CLOUDFLARE_ENV=staging astro build && wrangler deploy",
+			// EmDash core migrations run BEFORE the new build serves traffic (docs: deployment/core-migrations).
+			// emdash migrate reads CLOUDFLARE_API_TOKEN/ACCOUNT_ID from the shell: the kit exports them from its .env.
+			"migrate:staging": "emdash migrate --wrangler-config wrangler.jsonc --wrangler-env staging",
+			"deploy:staging": "CLOUDFLARE_ENV=staging astro build && emdash migrate --wrangler-config wrangler.jsonc --wrangler-env staging && wrangler deploy && emdash migrate --check --wrangler-config wrangler.jsonc --wrangler-env staging",
 			deploy: "astro build && wrangler deploy",
 		},
 		dependencies: {

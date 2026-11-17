@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { KIT_ROOT } from "../core/paths.js";
+import { existsSync, readdirSync } from "node:fs";
+import { KIT_ROOT, SITES_DIR } from "../core/paths.js";
 import { loadEnv } from "../extract/credentials.js";
 import { join } from "node:path";
 
@@ -38,7 +39,14 @@ export function versionAtLeast(have: string, want: string): boolean {
 export async function cloudflareTokenCheck(): Promise<DoctorCheck> {
 	const token = process.env.CLOUDFLARE_API_TOKEN ?? loadEnv(join(KIT_ROOT, ".env")).CLOUDFLARE_API_TOKEN;
 	const base = { id: "cloudflare-token", label: "Cloudflare API token", required: false };
-	if (!token) return { ...base, ok: false, detail: "not set — see docs/cloudflare-api-token.md (needed for staging, migrations, deploy)" };
+	if (!token) {
+		const siteOnly = existsSync(SITES_DIR) ? readdirSync(SITES_DIR).filter((d) => loadEnv(join(SITES_DIR, d, ".env")).CLOUDFLARE_API_TOKEN) : [];
+		return {
+			...base,
+			ok: false,
+			detail: siteOnly.length ? `only in sites/${siteOnly.join(", sites/")}/.env — move it to the kit .env to share it across projects (docs/cloudflare-api-token.md)` : "not set — see docs/cloudflare-api-token.md (needed for staging, migrations, deploy)",
+		};
+	}
 	try {
 		const r = await fetch("https://api.cloudflare.com/client/v4/user/tokens/verify", { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
 		const j = (await r.json()) as { success?: boolean; result?: { status?: string; expires_on?: string } };
