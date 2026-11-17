@@ -260,11 +260,14 @@ export async function captureMenu(browser: Browser, url: string, viewport: { nam
 				const type =
 					r.width >= vw * 0.9 && r.height >= vh * 0.9 ? "fullscreen" : r.height >= vh * 0.8 ? (r.x + r.width / 2 > vw / 2 ? "off-canvas-right" : "off-canvas-left") : r.y < vh * 0.4 ? "dropdown" : "unknown";
 				panelInfo = { selector: describe(panel), type, rect: { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) }, background: cs.backgroundColor, zIndex: cs.zIndex };
-				const links = Array.from(panel.querySelectorAll<HTMLAnchorElement>("a")).filter((a) => a.offsetWidth > 0 && (a.innerText || "").trim());
+				// Laid-out links (collapsed sub-menus included, whether hidden by height or by visibility);
+				// textContent, not innerText, so visibility-hidden and visually-hidden labels still count.
+				const linkText = (a: HTMLElement) => (a.textContent ?? "").trim().replace(/\s+/g, " ");
+				const links = Array.from(panel.querySelectorAll<HTMLAnchorElement>("a")).filter((a) => a.offsetWidth > 0 && linkText(a));
 				items = links.map((a) => {
 					let depth = 0;
 					for (let p = a.parentElement; p && p !== panel; p = p.parentElement) if (p.tagName === "UL" || p.tagName === "OL") depth++;
-					return { text: a.innerText.trim().replace(/\s+/g, " ").slice(0, 60), href: a.getAttribute("href") ?? "", depth: Math.max(0, depth - 1) };
+					return { text: linkText(a).slice(0, 60), href: a.getAttribute("href") ?? "", depth: Math.max(0, depth - 1) };
 				});
 				const first = links[0];
 				if (first) {
@@ -391,7 +394,9 @@ export interface MotionRecipe {
  * Condenses raw animation records into the handful of numbers a header component needs:
  * overlay fade, burger icon morph, and the menu-item reveal (duration, easing, first delay, stagger step).
  */
-export function motionRecipe(m: MenuCapture): MotionRecipe {
+export function motionRecipe(raw: MenuCapture): MotionRecipe {
+	// Browsers report delays like 300.00000000000006 ms: round to whole milliseconds first.
+	const m = { ...raw, animations: raw.animations.map((a) => ({ ...a, durationMs: Math.round(a.durationMs), delayMs: Math.round(a.delayMs) })) };
 	const recipe: MotionRecipe = { panelType: m.panel?.type, totalMs: m.openDurationMs };
 	const overlay = m.animations.find((a) => a.name === "opacity" && /widget-area-bg|overlay|backdrop|-bg\b/i.test(a.target));
 	if (overlay) recipe.overlay = { durationMs: overlay.durationMs, easing: overlay.easing, background: m.overlay?.background, opacity: m.overlay?.opacity };
@@ -402,7 +407,8 @@ export function motionRecipe(m: MenuCapture): MotionRecipe {
 		recipe.icon = { durationMs: icon[0].durationMs, easing: icon[0].easing, staggerMs: delays.length > 1 ? (delays[1] as number) - (delays[0] as number) : 0 };
 	}
 
-	const items = m.animations.filter((a) => /\bli\b|menu-item/i.test(a.target.split(/[.#]/)[0] + a.target));
+	// A menu item is an <li> (any classes) or anything with a menu-item class.
+	const items = m.animations.filter((a) => (a.target.split(/[.#\s:[]/)[0] ?? "").toLowerCase() === "li" || /menu-item/i.test(a.target));
 	if (items.length) {
 		// The longest-running property defines the reveal; group by it.
 		const main = [...items].sort((a, b) => b.durationMs - a.durationMs)[0] as AnimationSpec;

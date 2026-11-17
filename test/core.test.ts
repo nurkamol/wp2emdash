@@ -169,4 +169,21 @@ describe("motion recipe", () => {
 		expect(recipe.items).toMatchObject({ durationMs: 850, easing: "cubic-bezier(0.2, 0.75, 0.5, 1)", startDelayMs: 160, staggerMs: 20, count: 4 });
 		expect(recipe.items?.properties.sort()).toEqual(["opacity", "transform"]);
 	});
+
+	it("recognises bare <li> items and rounds float-noise delays", async () => {
+		const { motionRecipe } = await import("../src/audit/interactions.js");
+		const a = (target: string, name: string, durationMs: number, delayMs: number) => ({ target, kind: "transition" as const, name, durationMs, delayMs, easing: "ease", iterations: 1 as const, keyframes: [] });
+		const r = motionRecipe({
+			viewport: "mobile",
+			url: "x",
+			found: true,
+			items: [],
+			themeSettings: {},
+			files: { frames: [] },
+			behaviour: { bodyScrollLocked: true, focusMovedIntoPanel: true, escCloses: true, toggleClosesAgain: true },
+			openDurationMs: 900,
+			animations: [a("li", "opacity", 850, 160), a("li.has-children", "opacity", 850, 180.00000000000003), a("li", "opacity", 850, 200), a("p.credit", "opacity", 850, 220)],
+		});
+		expect(r.items).toMatchObject({ durationMs: 850, startDelayMs: 160, staggerMs: 20, count: 3 });
+	});
 });

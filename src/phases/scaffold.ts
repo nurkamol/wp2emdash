@@ -12,7 +12,7 @@ import { KIT_ROOT } from "../core/paths.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
 import { fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
-import { buildMotion, buildSiteConfig, buildTokens, type DesignCapture, type HeaderCapture, headerTokens } from "../scaffold/generate.js";
+import { buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import type { MediaEntry } from "./extract.js";
@@ -129,9 +129,18 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	};
 	const lang = (readJson<{ site?: { language?: string } }>(join(paths.raw, "exporter", "probe.json"))?.site?.language ?? "en").split(/[-_]/)[0] ?? "en";
 	const trailing = config.target.trailingSlash === "preserve" ? (pages.every((p) => !p.route || p.route.path === "/" || p.route.path.endsWith("/")) ? "always" : "never") : config.target.trailingSlash;
-	const siteConfig = { ...buildSiteConfig(config, tokens, motion, interactions.menus, interactions.headers, brand, lang), trailingSlash: trailing };
+	const baseConfig = buildSiteConfig(config, tokens, motion, interactions.menus, interactions.headers, brand, lang);
+	const primaryLabels = (site.menus.find((mm) => mm.role === "primary")?.items ?? []).map((i) => i.label);
+	const mobileMenu = interactions.menus.find((mm) => mm.found && mm.viewport === "mobile");
+	const desktopMenu = interactions.menus.find((mm) => mm.found && mm.viewport === "desktop");
+	const itemPx = (mm?: MenuCapture) => Number.parseFloat((mm as unknown as { itemStyle?: { fontSize?: string } } | undefined)?.itemStyle?.fontSize ?? "");
+	const siteConfig = {
+		...baseConfig,
+		header: { ...baseConfig.header, panelExtras: panelExtras(interactions.menus, primaryLabels), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
+		trailingSlash: trailing,
+	};
 	write(join(project, "src", "site.config.json"), siteConfig);
-	write(join(project, "src", "styles", "tokens.css"), tokens.css + headerTokens(interactions.headers));
+	write(join(project, "src", "styles", "tokens.css"), tokens.css + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);
 
 	// Forms (generated files are cleared first so removed forms do not linger)

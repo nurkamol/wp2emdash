@@ -192,7 +192,26 @@ export interface SiteConfig {
 	productionUrl: string;
 	favicon?: string;
 	fonts: { body: string; display: string; googleHref?: string };
-	header: { panel: string; breakpoint: number; transparentOnTop: boolean; hideOnScroll: boolean; logo?: string; logoOnTop?: string; logoHeight: number };
+	header: {
+		panel: string;
+		/** centered: toggle | logo | actions (Salient "centered-logo…", many agency themes); logo-left: logo | nav | actions. */
+		layout: "centered" | "logo-left";
+		/** Inline menu links on wide screens; false when the source shows only the toggle at every width. */
+		inlineNav: boolean;
+		togglePosition: "left" | "right";
+		/** Text next to the burger icon on the source ("MENU"), if any. */
+		toggleLabel?: string;
+		breakpoint: number;
+		transparentOnTop: boolean;
+		hideOnScroll: boolean;
+		logo?: string;
+		logoOnTop?: string;
+		logoHeight: number;
+		/** What the source's open menu shows around the main menu (from the audit's panel capture). */
+		panelExtras?: PanelExtras;
+		/** Main menu item text size in the panel, from the capture. */
+		panelItemSize?: string;
+	};
 }
 
 export function buildSiteConfig(config: KitConfig, tokens: Tokens, motion: { panel: string }, menus: MenuCapture[], headers: HeaderCapture[], brand: { logo?: string; logoOnTop?: string; favicon?: string }, lang: string): SiteConfig {
@@ -208,21 +227,96 @@ export function buildSiteConfig(config: KitConfig, tokens: Tokens, motion: { pan
 		fonts: tokens.fonts,
 		header: {
 			panel: motion.panel,
+			...headerLayout(menus),
 			breakpoint: Number(m?.themeSettings?.headerBreakpoint) || 1050,
 			transparentOnTop,
 			hideOnScroll,
 			...(brand.logo ? { logo: brand.logo } : {}),
 			...(brand.logoOnTop ? { logoOnTop: brand.logoOnTop } : {}),
-			logoHeight: Math.min(desktopHeader?.top.logoHeight ?? 56, 96),
+			logoHeight: desktopHeader?.top.logoHeight ?? 56,
 		},
 	};
 }
 
-/** Header height token from the captured header (desktop) — appended to tokens.css. */
-export function headerTokens(headers: HeaderCapture[]): string {
+export interface PanelExtras {
+	/** Items shown above the main menu, e.g. a large phone number. */
+	lead: { label: string; href: string }[];
+	/** Icon links below the menu (phone, email, social). */
+	contacts: { icon: "phone" | "email" | "instagram" | "facebook" | "linkedin" | "x" | "youtube" | "tiktok" | "link"; href: string; label: string }[];
+	/** A "© year Site" line at the bottom. */
+	credit: boolean;
+}
+
+/**
+ * Splits the captured panel items around the main menu: leading extras, contact icon links after it,
+ * and a trailing home link (Salient prints "© year Site" there). Items that are the main menu stay out.
+ */
+export function panelExtras(menus: MenuCapture[], primaryLabels: string[]): PanelExtras {
+	const m = menus.find((x) => x.found && x.viewport === "mobile") ?? menus.find((x) => x.found);
+	const out: PanelExtras = { lead: [], contacts: [], credit: false };
+	if (!m) return out;
+	const norm = (t: string) => t.trim().toLowerCase();
+	const primary = new Set(primaryLabels.map(norm));
+	const top = m.items.filter((i) => i.depth === 0);
+	const firstMenu = top.findIndex((i) => primary.has(norm(i.text)));
+	let lastMenu = -1;
+	top.forEach((i, k) => {
+		if (primary.has(norm(i.text))) lastMenu = k;
+	});
+	if (firstMenu < 0) return out;
+	out.lead = top.slice(0, firstMenu).map((i) => ({ label: i.text, href: i.href }));
+	const iconOf = (i: { text: string; href: string }): PanelExtras["contacts"][number]["icon"] | undefined => {
+		const h = i.href.toLowerCase();
+		if (h.startsWith("tel:")) return "phone";
+		if (h.startsWith("mailto:")) return "email";
+		for (const s of ["instagram", "facebook", "linkedin", "youtube", "tiktok"] as const) if (h.includes(s)) return s;
+		if (/twitter\.com|x\.com/.test(h)) return "x";
+		return undefined;
+	};
+	for (const i of top.slice(lastMenu + 1)) {
+		const icon = iconOf(i);
+		if (icon) out.contacts.push({ icon, href: i.href, label: i.text.trim() || `${icon[0]?.toUpperCase()}${icon.slice(1)}` });
+		else if (i.href === "/" || /^https?:\/\/[^/]+\/?$/.test(i.href)) out.credit = true;
+	}
+	return out;
+}
+
+/**
+ * Header arrangement from the audit: a toggle visible on desktop means the source has no inline menu;
+ * a theme "centered" header format (or a toggle left of the middle) means toggle | logo | actions.
+ */
+export function headerLayout(menus: MenuCapture[]): Pick<SiteConfig["header"], "layout" | "inlineNav" | "togglePosition" | "toggleLabel"> {
+	const desktop = menus.find((x) => x.viewport === "desktop");
+	const any = menus.find((x) => x.found && x.toggle);
+	const format = String(any?.themeSettings?.headerFormat ?? "");
+	const vpWidth = any?.viewport === "mobile" ? 390 : any?.viewport === "tablet" ? 768 : 1440;
+	const toggleLeft = !!any?.toggle && any.toggle.rect.x + any.toggle.rect.width / 2 < vpWidth / 2;
+	const label = any?.toggle?.label?.trim();
+	return {
+		layout: /centered/i.test(format) || toggleLeft ? "centered" : "logo-left",
+		inlineNav: !desktop?.found,
+		togglePosition: toggleLeft ? "left" : "right",
+		...(label && label.length <= 12 && !/^(menu toggle|toggle|open menu|navigation)$/i.test(label) ? { toggleLabel: label } : {}),
+	};
+}
+
+/**
+ * Header height and logo size from the captured header. When the tablet capture equals the mobile one,
+ * the source switches at its header breakpoint (Salient and most themes do), so the tokens step there
+ * instead of scaling fluidly. Appended to tokens.css.
+ */
+export function headerTokens(headers: HeaderCapture[], breakpoint = 1050): string {
 	const d = headers.find((h) => h.viewport === "desktop") ?? headers[0];
 	const m = headers.find((h) => h.viewport === "mobile");
+	const t = headers.find((h) => h.viewport === "tablet");
 	if (!d) return "";
-	const color = toHex(d.top.color);
-	return `:root {\n\t--header-h: ${m ? fluid(m.top.height, d.top.height) : `${d.top.height}px`};\n\t--logo-h: ${m?.top.logoHeight && d.top.logoHeight ? fluid(Math.min(m.top.logoHeight, 72), Math.min(d.top.logoHeight, 96)) : "56px"};${color ? `\n\t--header-color-top: ${color};` : ""}\n}\n`;
+	// The header element's computed colour is not the colour of its links (Salient sets it per link), so a
+	// header that swaps to a light logo over the hero gets white text; otherwise the captured colour.
+	const color = d.top.logoSrc && d.scrolled.logoSrc && d.top.logoSrc !== d.scrolled.logoSrc ? "#ffffff" : toHex(d.top.color);
+	const colorLine = color ? `\n\t--header-color-top: ${color};` : "";
+	const stepped = m && t && t.top.height === m.top.height && (t.top.logoHeight ?? 0) === (m.top.logoHeight ?? 0);
+	if (m && stepped) {
+		return `:root {\n\t--header-h: ${m.top.height}px;\n\t--logo-h: ${m.top.logoHeight ?? 56}px;${colorLine}\n}\n@media (min-width: ${breakpoint + 1}px) {\n\t:root { --header-h: ${d.top.height}px; --logo-h: ${d.top.logoHeight ?? 56}px; }\n}\n`;
+	}
+	return `:root {\n\t--header-h: ${m ? fluid(m.top.height, d.top.height) : `${d.top.height}px`};\n\t--logo-h: ${m?.top.logoHeight && d.top.logoHeight ? fluid(m.top.logoHeight, d.top.logoHeight) : "56px"};${colorLine}\n}\n`;
 }

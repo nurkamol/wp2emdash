@@ -75,6 +75,16 @@ document.addEventListener("keydown", (e) => {
 	}
 });
 
+// Sub-menus in the panel open on their chevron button (the parent link still navigates).
+for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-submenu-toggle]")) {
+	btn.addEventListener("click", () => {
+		const open = btn.getAttribute("aria-expanded") !== "true";
+		btn.setAttribute("aria-expanded", String(open));
+		const sub = document.getElementById(btn.getAttribute("aria-controls") ?? "");
+		sub?.toggleAttribute("data-open", open);
+	});
+}
+
 // ── Popups ─────────────────────────────────────────────────────────────────────
 const dialogs = [...document.querySelectorAll<HTMLDialogElement>("dialog.popup")];
 const openPopup = (id: string) => {
