@@ -218,12 +218,15 @@ Implemented in M5 (`src/phases/scaffold.ts`, `src/scaffold/`, `src/starter/libra
 - Staging resources: separate D1 + R2 + secrets per environment (`emdash secrets generate`). Staging host from `target.staging.host` (e.g. `staging.example.com` on the client zone; empty = `*.workers.dev`), protected per `target.staging.protection`: `access` (default: Cloudflare Access login wall + robots `Disallow: /` + `X-Robots-Tag: noindex`) or `noindex` only. Canonicals on staging already point at the production host. Behind Access, `verify` and Playwright authenticate with an Access service token kept in `sites/<slug>/.env`. See §7a.
 **Gate (local, M5):** every IR section type has a block type and component; every form section has a definition; brand assets copied; install; `seed.json` passes EmDash's validator; build; Worker < 10 MB gzip. **Staging gate (with load, M6, owner-approved deploy):** staging deploy answers, admin login works, every route renders.
 
-### Phase 5 — `load` (staging)
-1. Snapshot staging D1 before every load.
-2. Official importer (exporter path preferred, WXR fallback): posts, taxonomies, authors, menus, media → R2, SEO fields, site identity. Driven via CLI/API where possible; admin UI steps documented when not.
-3. **Overlay:** for each IR page, upsert the entry through `id-map.json` (never by slug alone), write the `layout` blocks, `template`, SEO fields.
-4. **Fix-ups:** rewrite internal links (absolute domain, `?p=`, old permalinks) to final paths; rewrite every `wp-content/uploads` URL (incl. size variants) to EmDash media; remap ACF relationship/media fields from WP IDs; resolve server-rendered-block HTML leftovers; drafts/private/password-protected content kept unpublished and listed.
-**Gate:** per-type counts match; 0 `wp-content` references; 0 raw shortcodes (`[vc_`, `[nectar`, any `[a-z_]+ ...]` pattern) in published content; 0 orphan media refs; id-map complete; no duplicate slugs.
+### Phase 5 — `load` (local, then staging)
+Implemented in M6 (`src/phases/load.ts`, `src/targets/emdash/api.ts`); API facts in `docs/spikes/M6-findings.md`.
+- **Targets:** `local` (default: the kit starts the project's dev server, applies the seed structure with `?content=0`, logs in with dev-bypass) and `staging` (`WP2EMDASH_LOAD_TARGET=staging`, `target.stagingUrl`, `EMDASH_TOKEN` in `.env`). Staging is owner-approved: deploy, admin passkey and API token are human steps.
+- **Media:** every IR media reference → file from `raw/media/` (external media per `overrides.media.external`: `copy` downloads it) → sha1 → reuse the target's item with that `contentHash`, else upload.
+- **Content:** pages / `site_parts` (footer) / `popups` written through the id-map (`load/id-map.<target>.json`, keyed by WordPress type + id; first load adopts an entry with the same slug). Updates send the entry's `_rev`. SEO title/description/canonical/noindex from the IR. Published in WordPress → published; private/draft → draft.
+- **Fix-ups:** links to the WordPress host become paths; WordPress upload URLs become EmDash media URLs.
+- **Menus and settings:** menus recreated from the IR (popup triggers as `popup-<slug>` classes); title, tagline, title separator; `staging: true` until cutover.
+- Before every staging load: snapshot (`site export`) — with the first staging run.
+**Gate:** target reachable and authenticated; section library and collections present; every media reference on the target; every document written; menus and settings written; entry counts equal the IR with no duplicate slugs; no WordPress host links, upload URLs or shortcodes in stored content; every media id exists; id-map complete; every published page renders (200) and shows its first heading. Verified idempotent: a second run uploads and creates nothing.
 
 ### Phase 6 — `verify` (old live site vs staging, URL by URL)
 | Check | Pass rule (defaults, configurable) |
@@ -520,7 +523,7 @@ Any failed assumption changes the plan before code depends on it.
 | M3 | Extract | Raw WXR/REST/options/media manifest for the pilot site; counts gate green |
 | M4 | IR + WPBakery/Salient adapter + Gutenberg adapter, fixture/golden tests | Pilot coverage report: 0 unmapped content nodes |
 | M5 | Starter project + section library + tokens + header/footer (menu variants from the motion recipe) | All section types editable in admin; header/menu matches the recipe; staging deploys |
-| M6 | Load: importer driver, overlay, fix-ups, id-map | Load gate green on staging, rerun is idempotent |
+| M6 | Load: media, content, menus, settings via the EmDash API; fix-ups; id-map | Load gate green locally (done) and on staging (owner-approved deploy); rerun is idempotent (verified) |
 | M7 | Verify suite + dashboard (§10b features 1–3, MCP server, approval queue, secrets form) | Full report for the pilot; reds fixed or decided; every owner decision possible from the browser |
 | M8 | Cutover tooling + pilot go-live | Production live, smoke green, rollback tested, monitoring running |
 | M8a | Docs: client project docs generated for the pilot; kit GitHub docs complete | Both repos pass a docs review checklist; every command in docs verified by running it |

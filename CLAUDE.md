@@ -14,6 +14,7 @@ pnpm wp2emdash status     # phase timeline for all sites (--json for machines)
 pnpm wp2emdash run <slug> <phase> [--json]   # exit 0 pass · 2 gate failed · 3 not built yet · 1 error
 pnpm wp2emdash accept <slug> <phase> --reason "…" --by "…"
 pnpm wp2emdash doctor
+WP2EMDASH_LOAD_TARGET=staging pnpm wp2emdash run <slug> load   # default target: local dev server
 pnpm test && pnpm typecheck   # run both before saying a change is done
 ```
 
