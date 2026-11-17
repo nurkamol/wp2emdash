@@ -1,0 +1,34 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { Image } from "emdash/ui";
+import { safeHref } from "../../utils/links";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const items = (v.items ?? []) as Array<Record<string, any>>;
+---
+
+<Section value={v} type="feature_grid">
+	<Heading value={v} />
+	<Rich value={v.intro} class="lead" />
+	<ul class="grid" style={`--cols:${Math.min(v.columns ?? items.length, 6)}`} role="list">
+		{
+			items.map((it) => {
+				const href = safeHref(it.link_url);
+				return (
+					<li class:list={["card", { "card--image": it.image && v.variant === "image-cards" }]}>
+						{it.image && <Image image={it.image} class="card__image" sizes="(max-width: 900px) 100vw, 40vw" />}
+						{it.icon && <span class="card__icon" data-icon={it.icon} aria-hidden="true" />}
+						<div class="card__body">
+							{it.title && <h3 class="card__title">{href && v.variant === "image-cards" ? <a href={href} class="card__link" target={it.link_new_tab ? "_blank" : undefined}>{it.title}</a> : it.title}</h3>}
+							<Md text={it.body} />
+							{href && it.link_label && <a href={href} class="btn btn--link" target={it.link_new_tab ? "_blank" : undefined} rel={it.link_new_tab ? "noopener" : undefined}>{it.link_label}</a>}
+						</div>
+					</li>
+				);
+			})
+		}
+	</ul>
+</Section>

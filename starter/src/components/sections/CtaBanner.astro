@@ -1,0 +1,30 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { Image } from "emdash/ui";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const marquee = v.variant === "marquee";
+const words = Array.from({ length: 6 }, () => v.heading ?? "");
+---
+
+<Section value={v} type="cta_banner">
+	{
+		marquee ? (
+			<div class="marquee">
+				{v.media && <Image image={v.media} class="marquee__image" sizes="60vw" />}
+				<a class="marquee__track" href={v.buttons?.[0]?.url ?? "#"} aria-label={v.heading}>
+					{words.map((w) => <span class="marquee__item" aria-hidden="true">{w}</span>)}
+				</a>
+			</div>
+		) : (
+			<>
+				<Heading value={v} />
+				<Rich value={v.body} class="lead" />
+				<Buttons items={v.buttons} />
+			</>
+		)
+	}
+</Section>

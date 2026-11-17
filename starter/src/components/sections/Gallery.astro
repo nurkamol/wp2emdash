@@ -1,0 +1,26 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { Image } from "emdash/ui";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const images = (v.images ?? []) as Array<{ image: any; caption?: string }>;
+---
+
+<Section value={v} type="gallery">
+	<Heading value={v} />
+	<ul class:list={["gallery", `gallery--${v.variant ?? "grid"}`]} role="list" data-lightbox={v.lightbox ? "" : undefined}>
+		{
+			images.map((i) => (
+				<li class="gallery__item">
+					<figure>
+						<Image image={i.image} sizes="(max-width: 900px) 100vw, 33vw" />
+						{i.caption && <figcaption>{i.caption}</figcaption>}
+					</figure>
+				</li>
+			))
+		}
+	</ul>
+</Section>

@@ -1,0 +1,18 @@
+---
+/** Eyebrow + heading at the configured level. */
+interface Props {
+	value: Record<string, any>;
+	class?: string;
+}
+const { value: v, class: extra } = Astro.props;
+const Tag = (/^h[1-6]$/.test(v.heading_level ?? "") ? v.heading_level : "h2") as "h2";
+---
+
+{
+	(v.eyebrow || v.heading) && (
+		<header class:list={["section__head", extra]}>
+			{v.eyebrow && <p class="eyebrow">{v.eyebrow}</p>}
+			{v.heading && <Tag class:list={["heading", `heading--${v.heading_level ?? "h2"}`]}>{v.heading}</Tag>}
+		</header>
+	)
+}

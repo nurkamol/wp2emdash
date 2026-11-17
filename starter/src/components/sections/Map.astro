@@ -1,0 +1,15 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const src = /^https:\/\/(www\.)?google\.[a-z.]+\/maps|^https:\/\/maps\.google\./.test(v.embed_url ?? "") ? v.embed_url : v.address ? `https://www.google.com/maps?q=${encodeURIComponent(v.address)}&output=embed` : undefined;
+---
+
+<Section value={v} type="map">
+	<Heading value={v} />
+	{src && <iframe class="map" src={src} title={v.heading || "Map"} loading="lazy" referrerpolicy="no-referrer-when-downgrade" style={`height:${v.height ?? "420px"}`} />}
+	{v.address && <address class="map__address">{v.address}</address>}
+</Section>

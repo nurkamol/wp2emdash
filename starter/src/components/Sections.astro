@@ -1,0 +1,53 @@
+---
+/** Renders a `blocks` field with the kit's section library. */
+import { Blocks, defineBlockComponents } from "emdash/ui";
+import Hero from "./sections/Hero.astro";
+import RichText from "./sections/RichText.astro";
+import MediaText from "./sections/MediaText.astro";
+import Columns from "./sections/Columns.astro";
+import FeatureGrid from "./sections/FeatureGrid.astro";
+import CtaBanner from "./sections/CtaBanner.astro";
+import Faq from "./sections/Faq.astro";
+import Pricing from "./sections/Pricing.astro";
+import Testimonials from "./sections/Testimonials.astro";
+import Team from "./sections/Team.astro";
+import Gallery from "./sections/Gallery.astro";
+import LogoStrip from "./sections/LogoStrip.astro";
+import Stats from "./sections/Stats.astro";
+import Steps from "./sections/Steps.astro";
+import Tabs from "./sections/Tabs.astro";
+import Video from "./sections/Video.astro";
+import Form from "./sections/Form.astro";
+import Map from "./sections/Map.astro";
+import Embed from "./sections/Embed.astro";
+import LegacyHtml from "./sections/LegacyHtml.astro";
+
+interface Props {
+	value?: any[] | null;
+}
+const { value } = Astro.props;
+const components = defineBlockComponents<any>({
+	section_hero: Hero,
+	section_rich_text: RichText,
+	section_media_text: MediaText,
+	section_columns: Columns,
+	section_feature_grid: FeatureGrid,
+	section_cta_banner: CtaBanner,
+	section_faq: Faq,
+	section_pricing: Pricing,
+	section_testimonials: Testimonials,
+	section_team: Team,
+	section_gallery: Gallery,
+	section_logo_strip: LogoStrip,
+	section_stats: Stats,
+	section_steps: Steps,
+	section_tabs: Tabs,
+	section_video: Video,
+	section_form: Form,
+	section_map: Map,
+	section_embed: Embed,
+	section_legacy_html: LegacyHtml,
+});
+---
+
+<Blocks value={value ?? []} {components} />

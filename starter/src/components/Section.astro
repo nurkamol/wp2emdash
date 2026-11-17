@@ -1,0 +1,34 @@
+---
+/** Shell shared by every section: tone, background (colour/image/video + overlay), spacing, full height, anchor. */
+import { Image, Media } from "emdash/ui";
+
+interface Props {
+	value: Record<string, any>;
+	type: string;
+	class?: string;
+}
+const { value: v, type, class: extra } = Astro.props;
+const bg = v.bg_color || undefined;
+const overlay = typeof v.bg_overlay === "number" ? v.bg_overlay : v.bg_image || v.bg_video ? 0 : undefined;
+const style = [bg ? `--section-bg:${bg}` : "", overlay !== undefined ? `--section-overlay:${overlay}` : ""].filter(Boolean).join(";");
+---
+
+<section
+	id={v.anchor_id || undefined}
+	class:list={["section", `section--${type}`, v.variant && `section--${type}--${v.variant}`, `tone-${v.tone ?? "light"}`, `space-${v.spacing ?? "normal"}`, { "section--full": v.full_height, "section--media-bg": v.bg_image || v.bg_video }, extra]}
+	style={style || undefined}
+	data-reveal
+>
+	{
+		(v.bg_image || v.bg_video) && (
+			<div class="section__bg" aria-hidden="true">
+				{v.bg_image && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" />}
+				{v.bg_video && <Media value={v.bg_video} class="section__bg-media" autoplay muted loop playsinline preload="metadata" />}
+				{overlay ? <span class="section__overlay" /> : null}
+			</div>
+		)
+	}
+	<div class="section__inner container">
+		<slot />
+	</div>
+</section>

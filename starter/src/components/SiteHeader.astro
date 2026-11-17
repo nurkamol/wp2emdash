@@ -1,0 +1,73 @@
+---
+/**
+ * Header + mobile/burger menu. Variant and motion come from the audit (src/site.config.json and
+ * styles/motion.css), so the numbers are data, not code. Accessible regardless of the source:
+ * real <button>, aria-expanded/controls, focus trap, Esc, focus return, inert page, scroll lock,
+ * prefers-reduced-motion = instant.
+ */
+import site from "../site.config.json";
+import { safeHref } from "../utils/links";
+
+interface Item {
+	label: string;
+	url: string;
+	target?: string | null;
+	cssClasses?: string | null;
+	children?: Item[];
+}
+interface Props {
+	primary: Item[];
+	secondary: Item[];
+	siteTitle: string;
+}
+const { primary, secondary, siteTitle } = Astro.props;
+const h = site.header;
+const popupOf = (i: Item) => /(?:^|\s)popup-([\w-]+)/.exec(i.cssClasses ?? "")?.[1];
+const path = Astro.url.pathname;
+---
+
+<header
+	class:list={["site-header", `panel-${h.panel}`, { "is-transparent": h.transparentOnTop, "hides-on-scroll": h.hideOnScroll }]}
+	data-header
+	style={`--header-breakpoint:${h.breakpoint}px`}
+>
+	<div class="site-header__bar container">
+		<a href="/" class="site-header__logo" aria-label={siteTitle}>
+			{h.logo ? <img src={h.logo} alt="" class="logo logo--default" height={h.logoHeight} /> : <span class="wordmark">{siteTitle}</span>}
+			{h.logoOnTop && <img src={h.logoOnTop} alt="" class="logo logo--top" height={h.logoHeight} />}
+		</a>
+		<nav class="site-header__nav" aria-label="Main">
+			<ul role="list">
+				{primary.map((i) => <li><a href={safeHref(i.url) ?? "#"} aria-current={i.url === path ? "page" : undefined}>{i.label}</a></li>)}
+			</ul>
+		</nav>
+		<div class="site-header__actions">
+			{secondary.map((i) => {
+				const popup = popupOf(i);
+				return <a href={safeHref(i.url) ?? "#"} class:list={["header-link", { "btn btn--primary": popup || /button/.test(i.cssClasses ?? "") }]} data-popup={popup}>{i.label}</a>;
+			})}
+			<button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu-panel" data-menu-toggle>
+				<span class="visually-hidden">Menu</span>
+				<span class="menu-toggle__icon" aria-hidden="true"><i /><i /><i /></span>
+			</button>
+		</div>
+	</div>
+</header>
+<div class="menu-overlay" data-menu-overlay hidden></div>
+<div id="menu-panel" class:list={["menu-panel", `menu-panel--${h.panel}`]} role="dialog" aria-modal="true" aria-label="Menu" data-menu-panel hidden>
+	<nav aria-label="Mobile">
+		<ul class="menu-panel__items" role="list">
+			{
+				primary.map((i, n) => (
+					<li style={`--i:${n}`}>
+						<a href={safeHref(i.url) ?? "#"} aria-current={i.url === path ? "page" : undefined}>{i.label}</a>
+						{i.children && i.children.length > 0 && (
+							<ul role="list">{i.children.map((c) => <li><a href={safeHref(c.url) ?? "#"}>{c.label}</a></li>)}</ul>
+						)}
+					</li>
+				))
+			}
+		</ul>
+		{secondary.length > 0 && <ul class="menu-panel__secondary" role="list">{secondary.map((i, n) => <li style={`--i:${primary.length + n}`}><a href={safeHref(i.url) ?? "#"} data-popup={popupOf(i)}>{i.label}</a></li>)}</ul>}
+	</nav>
+</div>

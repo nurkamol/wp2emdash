@@ -1,0 +1,29 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { Image } from "emdash/ui";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const items = (v.items ?? []) as Array<Record<string, any>>;
+---
+
+<Section value={v} type="testimonials">
+	<Heading value={v} />
+	<ul class:list={["quotes", `quotes--${v.variant ?? "slider"}`]} role="list">
+		{
+			items.map((q) => (
+				<li class="quote">
+					<blockquote><Md text={q.quote} /></blockquote>
+					{q.rating ? <p class="quote__stars" aria-label={`${q.rating} out of 5`}>{"★".repeat(q.rating)}</p> : null}
+					<p class="quote__by">
+						{q.photo && <Image image={q.photo} class="quote__photo" width={48} height={48} />}
+						{q.name && <strong>{q.name}</strong>}
+						{q.role && <span>{q.role}</span>}
+					</p>
+				</li>
+			))
+		}
+	</ul>
+</Section>

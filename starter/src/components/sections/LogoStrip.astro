@@ -1,0 +1,17 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { Image } from "emdash/ui";
+import { safeHref } from "../../utils/links";
+const { value: v } = Astro.props as { value: Record<string, any> };
+---
+
+<Section value={v} type="logo_strip">
+	<Heading value={v} />
+	<ul class="logos" role="list">
+		{((v.logos ?? []) as Array<{ image: any; url?: string }>).map((l) => <li>{safeHref(l.url) ? <a href={safeHref(l.url)}><Image image={l.image} height={48} /></a> : <Image image={l.image} height={48} />}</li>)}
+	</ul>
+</Section>

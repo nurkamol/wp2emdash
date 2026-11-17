@@ -1,0 +1,15 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { sanitizeEmbed } from "../../utils/embed";
+const { value: v } = Astro.props as { value: Record<string, any> };
+// Legacy HTML is rendered without scripts/iframes: anything interactive must become a real section.
+const html = sanitizeEmbed(String(v.html ?? ""), "");
+---
+
+<Section value={v} type="legacy_html">
+	<div class="legacy" set:html={html} />
+</Section>

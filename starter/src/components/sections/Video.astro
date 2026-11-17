@@ -1,0 +1,25 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { Media } from "emdash/ui";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const embed = (() => {
+	const u = String(v.embed_url ?? "");
+	const yt = /(?:youtu\.be\/|v=|embed\/)([\w-]{6,})/.exec(u)?.[1];
+	if (yt) return `https://www.youtube-nocookie.com/embed/${yt}`;
+	const vm = /vimeo\.com\/(?:video\/)?(\d+)/.exec(u)?.[1];
+	if (vm) return `https://player.vimeo.com/video/${vm}`;
+	return undefined;
+})();
+---
+
+<Section value={v} type="video">
+	<Heading value={v} />
+	<figure class="video">
+		{v.video ? <Media value={v.video} controls preload="metadata" /> : embed ? <iframe src={embed} title={v.heading || v.caption || "Video"} loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen /> : null}
+		{v.caption && <figcaption>{v.caption}</figcaption>}
+	</figure>
+</Section>

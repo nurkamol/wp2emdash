@@ -143,6 +143,8 @@ export interface DesignCapture {
 	breakpoints: number[];
 	header: { height: number; position: string; background: string } | null;
 	footer: { height: number; background: string; color: string } | null;
+	/** First opaque background walking up from the main content area: the page colour sections sit on. */
+	pageBackground?: string;
 	logo?: { src: string; width: number; height: number };
 	favicon?: string;
 	cssVariables: Record<string, string>;
@@ -236,6 +238,15 @@ export async function captureDesign(browser: Browser, url: string, viewport: { n
 			const footer = firstVisible("#footer-outer, footer, .site-footer, #colophon, [class*='footer']");
 			const logo = document.querySelector<HTMLImageElement>("#logo img, .logo img, .custom-logo, header img");
 			const favicon = document.querySelector<HTMLLinkElement>("link[rel~='icon']")?.href;
+			const opaque = (c: string) => c && c !== "transparent" && !/rgba\([^)]*,\s*0\)$/.test(c);
+			let pageBackground: string | undefined;
+			for (let el: HTMLElement | null = document.querySelector<HTMLElement>("main, #ajax-content-wrap .container-wrap, .container-wrap, #content, .site-content, #page") ?? document.body; el; el = el.parentElement) {
+				const c = getComputedStyle(el).backgroundColor;
+				if (opaque(c)) {
+					pageBackground = c;
+					break;
+				}
+			}
 
 			const cssVariables: Record<string, string> = {};
 			const rootCs = getComputedStyle(document.documentElement);
@@ -260,6 +271,7 @@ export async function captureDesign(browser: Browser, url: string, viewport: { n
 				footer: footer ? { height: footer.offsetHeight, background: getComputedStyle(footer).backgroundColor, color: getComputedStyle(footer).color } : null,
 				logo: logo ? { src: logo.currentSrc || logo.src, width: logo.naturalWidth, height: logo.naturalHeight } : undefined,
 				favicon,
+				...(pageBackground ? { pageBackground } : {}),
 				cssVariables,
 			};
 		});

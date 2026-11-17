@@ -1,0 +1,12 @@
+---
+/** Markdown-subset text from repeater fields (escaped, see utils/md.ts). */
+import { md } from "../utils/md";
+interface Props {
+	text?: string | null;
+	class?: string;
+}
+const { text, class: extra } = Astro.props;
+const html = md(text);
+---
+
+{html && <div class:list={["prose", extra]} set:html={html} />}

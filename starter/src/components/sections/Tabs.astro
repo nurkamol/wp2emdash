@@ -1,0 +1,20 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const tabs = (v.tabs ?? []) as Array<{ label: string; body: string }>;
+const id = `tabs-${Math.random().toString(36).slice(2, 8)}`;
+---
+
+<Section value={v} type="tabs">
+	<Heading value={v} />
+	<div class="tabs" data-tabs>
+		<div role="tablist">
+			{tabs.map((t, i) => <button role="tab" id={`${id}-t${i}`} aria-controls={`${id}-p${i}`} aria-selected={i === 0 ? "true" : "false"} tabindex={i === 0 ? 0 : -1}>{t.label}</button>)}
+		</div>
+		{tabs.map((t, i) => <div role="tabpanel" id={`${id}-p${i}`} aria-labelledby={`${id}-t${i}`} hidden={i !== 0}><Md text={t.body} /></div>)}
+	</div>
+</Section>

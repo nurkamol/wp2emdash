@@ -1,0 +1,27 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { mdPlain } from "../../utils/md";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const items = (v.items ?? []) as Array<{ question: string; answer: string }>;
+const schema = v.schema !== false && items.length ? JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: items.map((i) => ({ "@type": "Question", name: i.question, acceptedAnswer: { "@type": "Answer", text: mdPlain(i.answer) } })) }) : "";
+---
+
+<Section value={v} type="faq">
+	<Heading value={v} />
+	<Rich value={v.intro} />
+	<div class="faq">
+		{
+			items.map((i) => (
+				<details class="faq__item">
+					<summary class="faq__q">{i.question}</summary>
+					<Md text={i.answer} class="faq__a" />
+				</details>
+			))
+		}
+	</div>
+	{schema && <script type="application/ld+json" set:html={schema} />}
+</Section>

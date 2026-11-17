@@ -35,5 +35,6 @@
   },
   "exports": {
     "./config": "./src/config/schema.ts"
-  }
+  },
+  "packageManager": "pnpm@11.18.0"
 }

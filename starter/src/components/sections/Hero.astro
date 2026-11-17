@@ -1,0 +1,18 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { Image } from "emdash/ui";
+const { value: v } = Astro.props as { value: Record<string, any> };
+---
+
+<Section value={v} type="hero" class={`align-${v.align ?? "center"}`}>
+	<div class="hero__content">
+		<Heading value={{ ...v, heading_level: v.heading_level ?? "h1" }} />
+		<Rich value={v.body} class="lead" />
+		<Buttons items={v.buttons} />
+	</div>
+	{v.media && <figure class="hero__media"><Image image={v.media} priority sizes="(max-width: 900px) 100vw, 50vw" /></figure>}
+</Section>

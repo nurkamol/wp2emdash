@@ -1,0 +1,15 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { sanitizeEmbed } from "../../utils/embed";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const html = sanitizeEmbed(String(v.html ?? ""), String(v.provider ?? ""));
+---
+
+<Section value={v} type="embed">
+	<Heading value={v} />
+	<div class="embed" style={v.height ? `min-height:${v.height}` : undefined} set:html={html} />
+</Section>

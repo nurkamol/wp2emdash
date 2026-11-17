@@ -1,0 +1,15 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+const { value: v } = Astro.props as { value: Record<string, any> };
+---
+
+<Section value={v} type="stats">
+	<Heading value={v} />
+	<dl class="stats">
+		{((v.items ?? []) as Array<Record<string, string>>).map((s) => <div class="stat"><dt>{s.label}</dt><dd>{s.prefix}{s.value}{s.suffix}</dd></div>)}
+	</dl>
+</Section>

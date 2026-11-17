@@ -1,0 +1,32 @@
+---
+/** Buttons/links; a button with `popup` opens that site popup (<dialog>) instead of navigating. */
+import { isExternal, safeHref } from "../utils/links";
+
+interface Props {
+	items?: Array<{ label?: string; url?: string; style?: string; new_tab?: boolean; popup?: string }> | null;
+	class?: string;
+}
+const { items, class: extra } = Astro.props;
+const list = (items ?? []).filter((b) => b?.label);
+---
+
+{
+	list.length > 0 && (
+		<div class:list={["actions", extra]}>
+			{list.map((b) => {
+				const href = safeHref(b.url) ?? (b.popup ? `#${b.popup}` : "#");
+				return (
+					<a
+						href={href}
+						class:list={["btn", `btn--${b.style ?? "primary"}`]}
+						data-popup={b.popup || undefined}
+						target={b.new_tab ? "_blank" : undefined}
+						rel={b.new_tab || isExternal(href) ? "noopener" : undefined}
+					>
+						<span>{b.label}</span>
+					</a>
+				);
+			})}
+		</div>
+	)
+}

@@ -1,0 +1,24 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { Image } from "emdash/ui";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const ratio = String(v.ratio ?? "1/2").replace("/", "-");
+---
+
+<Section value={v} type="media_text" class={`media-${v.media_side ?? "left"} ratio-${ratio}`}>
+	<div class="media-text">
+		<div class="media-text__media">
+			{v.media && <Image image={v.media} sizes="(max-width: 900px) 100vw, 50vw" />}
+			{v.media_2 && <Image image={v.media_2} class="media-text__media-2" sizes="(max-width: 900px) 100vw, 40vw" />}
+		</div>
+		<div class="media-text__text">
+			<Heading value={v} />
+			<Rich value={v.body} />
+			<Buttons items={v.buttons} />
+		</div>
+	</div>
+</Section>

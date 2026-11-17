@@ -1,0 +1,13 @@
+---
+/** Portable Text with dynamic tokens filled ({year}). */
+import { PortableText } from "emdash/ui";
+import { fillTokens, hasContent } from "../utils/pt";
+
+interface Props {
+	value?: any[] | null;
+	class?: string;
+}
+const { value, class: extra } = Astro.props;
+---
+
+{hasContent(value) && <div class:list={["prose", extra]}><PortableText value={fillTokens(value as any[])} /></div>}

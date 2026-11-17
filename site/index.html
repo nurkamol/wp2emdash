@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wp2emdash — WordPress to EmDash migration kit</title>
+<meta name="description" content="An open-source kit that migrates WordPress sites (WPBakery, Salient, Gutenberg, classic) to EmDash on Cloudflare Workers — and proves the result with automated gates.">
+<meta property="og:title" content="wp2emdash — WordPress to EmDash, verified">
+<meta property="og:description" content="Audit, extract, transform, scaffold, load, verify, cut over. Every phase ends in a gate.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0f1115">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ff7a45'/%3E%3Cpath d='M8 16h16' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+	--bg: #fbfaf8; --surface: #ffffff; --text: #16181d; --muted: #5d6270; --line: #e7e4df;
+	--accent: #ff7a45; --accent-ink: #1b0d05; --ok: #1f9d6b; --code-bg: #f3f1ed;
+	--radius: 14px; --max: 1120px;
+	--font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) { --bg: #0f1115; --surface: #161922; --text: #eceef3; --muted: #9aa1b2; --line: #262a35; --code-bg: #1b1f29; --accent-ink: #1b0d05; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #0f1115; --surface: #161922; --text: #eceef3; --muted: #9aa1b2; --line: #262a35; --code-bg: #1b1f29; color-scheme: dark; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--font); -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+.wrap { width: min(100% - 32px, var(--max)); margin-inline: auto; }
+.skip { position: absolute; left: 16px; top: -48px; background: var(--text); color: var(--bg); padding: 8px 12px; border-radius: 8px; }
+.skip:focus { top: 12px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+/* nav */
+header.nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--line); }
+.nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; letter-spacing: -0.01em; }
+.brand-mark { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; }
+.brand-mark::after { content: ""; width: 12px; height: 2.5px; background: #fff; border-radius: 2px; }
+.nav-links { display: flex; gap: 22px; align-items: center; font-size: 14px; }
+.nav-links a { text-decoration: none; color: var(--muted); }
+.nav-links a:hover { color: var(--text); }
+.nav-links .gh { color: var(--text); border: 1px solid var(--line); padding: 6px 12px; border-radius: 999px; }
+@media (max-width: 720px) { .nav-links a:not(.gh) { display: none; } }
+
+/* hero */
+.hero { padding: clamp(56px, 10vw, 120px) 0 clamp(40px, 6vw, 72px); }
+.eyebrow { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); border: 1px solid var(--line); padding: 5px 12px; border-radius: 999px; background: var(--surface); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+h1 { font-size: clamp(36px, 6.2vw, 68px); line-height: 1.04; letter-spacing: -0.035em; margin: 22px 0 18px; max-width: 16ch; }
+h1 em { font-style: normal; color: var(--accent); }
+.lead { font-size: clamp(17px, 2vw, 20px); color: var(--muted); max-width: 60ch; margin: 0; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 15px; border: 1px solid transparent; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.05); }
+.btn-ghost { border-color: var(--line); background: var(--surface); }
+.terminal { margin-top: 44px; background: #0d0f14; color: #d7dbe5; border-radius: var(--radius); border: 1px solid #222634; overflow: hidden; box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.45); }
+.terminal-bar { display: flex; gap: 6px; padding: 12px 14px; border-bottom: 1px solid #1d212c; }
+.terminal-bar i { width: 10px; height: 10px; border-radius: 50%; background: #2c313f; }
+.terminal pre { margin: 0; padding: 18px 20px 22px; font: 13.5px/1.75 var(--mono); overflow-x: auto; }
+.t-dim { color: #7b8296; } .t-ok { color: #4fd39a; } .t-acc { color: #ff9d73; } .t-cmd { color: #fff; }
+
+/* sections */
+section.block { padding: clamp(56px, 8vw, 96px) 0; border-top: 1px solid var(--line); }
+h2 { font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -0.025em; line-height: 1.12; margin: 0 0 12px; }
+.sub { color: var(--muted); max-width: 62ch; margin: 0 0 36px; }
+.grid { display: grid; gap: 16px; }
+@media (min-width: 760px) { .grid-3 { grid-template-columns: repeat(3, 1fr); } .grid-2 { grid-template-columns: repeat(2, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+.card h3 { margin: 0 0 6px; font-size: 17px; letter-spacing: -0.01em; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+.icon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); margin-bottom: 14px; }
+.icon svg { width: 18px; height: 18px; }
+
+/* pipeline */
+.pipeline { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; counter-reset: p; }
+@media (min-width: 900px) { .pipeline { grid-template-columns: repeat(4, 1fr); } }
+.phase { counter-increment: p; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 14px; position: relative; }
+.phase::before { content: counter(p, decimal-leading-zero); font: 12px var(--mono); color: var(--muted); }
+.phase h3 { margin: 4px 0 4px; font: 600 15px var(--mono); }
+.phase p { margin: 0; color: var(--muted); font-size: 14px; }
+.badge { position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.done { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.next { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.plan { background: var(--code-bg); color: var(--muted); }
+
+/* proof */
+.stats { display: grid; gap: 16px; grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 900px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+.stat b { display: block; font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.03em; line-height: 1.1; }
+.stat span { color: var(--muted); font-size: 14px; }
+
+/* table */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 560px; }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+th { font-size: 13px; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+.yes { color: var(--ok); font-weight: 600; }
+.soon { color: var(--muted); }
+
+/* code */
+.code { background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; overflow-x: auto; font: 14px/1.8 var(--mono); }
+.code .c { color: var(--muted); }
+footer { border-top: 1px solid var(--line); padding: 36px 0 48px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
+.theme-toggle { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 6px 10px; cursor: pointer; font: inherit; font-size: 13px; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav">
+	<div class="wrap">
+		<a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span>wp2emdash</a>
+		<nav class="nav-links" aria-label="Main">
+			<a href="#how">How it works</a>
+			<a href="#features">Features</a>
+			<a href="#builders">Builders</a>
+			<a href="#start">Get started</a>
+			<a class="gh" data-repo-link href="#">GitHub</a>
+		</nav>
+	</div>
+</header>
+
+<main id="main">
+	<section class="hero" id="top">
+		<div class="wrap">
+			<span class="eyebrow"><span class="dot" aria-hidden="true"></span>Open source · MIT · audit → transform → scaffold working</span>
+			<h1>Move WordPress to EmDash. <em>Prove</em> nothing was lost.</h1>
+			<p class="lead">wp2emdash migrates WordPress sites built with WPBakery, Salient, Gutenberg or the classic editor to <a href="https://docs.emdashcms.com/">EmDash</a> on Cloudflare Workers. It rebuilds pages as editable sections, keeps every URL, image, form and menu animation, and stops at a gate whenever something doesn't match.</p>
+			<div class="cta">
+				<a class="btn btn-primary" href="#start">Get started</a>
+				<a class="btn btn-ghost" data-repo-link href="#">View on GitHub →</a>
+			</div>
+			<div class="terminal" role="img" aria-label="Example terminal session running the transform phase">
+				<div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+<pre><span class="t-dim">$</span> <span class="t-cmd">pnpm wp2emdash run acme transform</span>
+
+<span class="t-acc">▶ transform</span>
+  <span class="t-ok">✔</span> Adapt content <span class="t-dim">— 15 documents</span>
+  <span class="t-ok">✔</span> IR validates against the schema
+  <span class="t-ok">✔</span> No unmapped content in published pages, footer and popups
+  <span class="t-ok">✔</span> Every image used by published content is in the IR
+  <span class="t-ok">✔</span> Internal links point at migrated pages, anchors, popups or files
+  <span class="t-ok">✔</span> Live page text found in the IR ≥ 99% <span class="t-dim">— lowest 100.0%</span>
+<span class="t-ok">✔ transform gate passed</span></pre>
+			</div>
+		</div>
+	</section>
+
+	<section class="block" id="how">
+		<div class="wrap">
+			<h2>Eight phases. Each one ends in a gate.</h2>
+			<p class="sub">A phase runs only when every earlier gate has passed or was accepted with a written reason. Gates are data — checks with ids and pass/fail — so the terminal, a CI job, the dashboard and Claude Code all read the same result.</p>
+			<ol class="pipeline">
+				<li class="phase"><span class="badge done">ready</span><h3>init</h3><p>Workspace, config, access &amp; backup checklist the owner signs off.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>audit</h3><p>Crawl, screenshots, design tokens, menu motion, forms &amp; integrations — public site only.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>extract</h3><p>Raw content, meta, SEO, menus, form definitions and media via the EmDash Exporter. Read-only.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>transform</h3><p>Builder layouts → a typed section format, with coverage and text-conservation gates.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>scaffold</h3><p>EmDash project: section library, tokens, header &amp; burger menu from the recipe, local preview.</p></li>
+				<li class="phase"><span class="badge next">next</span><h3>load</h3><p>Content and media into staging; id-map makes reruns idempotent.</p></li>
+				<li class="phase"><span class="badge plan">planned</span><h3>verify</h3><p>Old vs new, URL by URL: text, SEO, links, visual diff, forms, a11y, performance.</p></li>
+				<li class="phase"><span class="badge plan">planned</span><h3>cutover</h3><p>Worker route in front of WordPress, smoke tests, one-step rollback.</p></li>
+			</ol>
+		</div>
+	</section>
+
+	<section class="block" id="features">
+		<div class="wrap">
+			<h2>Built for migrations that have to be right</h2>
+			<p class="sub">The hard parts of leaving WordPress aren't the posts. They're page builders, theme options, forms, booking widgets, menus that animate, and URLs Google already knows. wp2emdash treats each of those as a check.</p>
+			<div class="grid grid-3">
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg></div><h3>Real builder adapters</h3><p>A shortcode parser and block parser, not regex. WPBakery rows, Salient elements and Gutenberg blocks become hero, FAQ, pricing, team and 16 more section types.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div><h3>Text conservation</h3><p>Every word on the live page is compared with the migrated content — against WordPress's own HTML, not the adapter's opinion of it.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h3>Motion parity</h3><p>The burger menu's animation is measured with the Web Animations API — durations, easing, stagger — and reproduced as CSS variables, with accessibility fixed rather than copied.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></div><h3>Forms &amp; integrations</h3><p>Every form and widget found, with fields, recipients and a decision: keep, rebuild natively, replace or drop. Booking embeds stay on an allowlist.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 7v6c0 4 3.5 7 8 8 4.5-1 8-4 8-8V7z"/></svg></div><h3>Safe by default</h3><p>Read-only towards WordPress. Never reads form submissions. Secrets stay in a local <code>.env</code>. Production changes need the owner's explicit approval.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H4zM8 20h8"/></svg></div><h3>Editable afterwards</h3><p>Pages arrive as EmDash sections with plain fields — the client edits text, images, buttons and menus in the admin; the design stays consistent.</p></div>
+			</div>
+		</div>
+	</section>
+
+	<section class="block" id="proof">
+		<div class="wrap">
+			<h2>Tested on a real site first</h2>
+			<p class="sub">The pilot is a ten-page clinic site on Salient + WPBakery with Rank Math, Fluent Forms, Popup Maker and two booking systems.</p>
+			<div class="stats">
+				<div class="stat"><b>0</b><span>unmapped content nodes</span></div>
+				<div class="stat"><b>100%</b><span>of live-page words carried over</span></div>
+				<div class="stat"><b>5.2 MB</b><span>Worker bundle (gzip), well under the limit</span></div>
+				<div class="stat"><b>54</b><span>tests incl. golden fixtures per element</span></div>
+			</div>
+		</div>
+	</section>
+
+	<section class="block" id="builders">
+		<div class="wrap">
+			<h2>What it migrates</h2>
+			<p class="sub">Builders are adapters. Anything an adapter can't map shows up in the coverage report and blocks the gate — nothing is dropped silently.</p>
+			<div class="table-wrap">
+				<table>
+					<thead><tr><th scope="col">Source</th><th scope="col">Status</th><th scope="col">Notes</th></tr></thead>
+					<tbody>
+						<tr><td>WPBakery Page Builder</td><td class="yes">Supported</td><td>Rows, inner rows, columns, backgrounds, raw HTML, custom CSS spacing</td></tr>
+						<tr><td>Salient theme (nectar_*)</td><td class="yes">Supported</td><td>Headings, CTAs, team, testimonials, pricing lists, marquees, global sections, page headers</td></tr>
+						<tr><td>Gutenberg / block editor</td><td class="yes">Supported</td><td>Core blocks, reusable blocks, cover, media &amp; text, columns, details</td></tr>
+						<tr><td>Classic editor</td><td class="yes">Supported</td><td>wpautop-faithful paragraphs; shortcodes inside go through the shortcode adapter</td></tr>
+						<tr><td>Popup Maker, Fluent Forms, Rank Math</td><td class="yes">Supported</td><td>Popups → dialogs with their triggers; form definitions; SEO titles and descriptions</td></tr>
+						<tr><td>Elementor, Bricks, Divi</td><td class="soon">Planned</td><td>Same section format; adapters after the first migrations ship</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</section>
+
+	<section class="block" id="start">
+		<div class="wrap">
+			<h2>Get started</h2>
+			<p class="sub">Requires Node.js 24+ and pnpm. Generated sites deploy to Cloudflare Workers (Workers Paid plan) on the latest Astro that EmDash supports.</p>
+<pre class="code"><span class="c"># install</span>
+git clone <span data-repo-clone>https://github.com/OWNER/wp2emdash</span>
+cd wp2emdash &amp;&amp; pnpm install
+pnpm wp2emdash doctor
+
+<span class="c"># create a site workspace (or just run `pnpm wp2emdash` for the wizard)</span>
+pnpm wp2emdash init --slug acme --name "Acme Clinic" --source https://www.example.com
+
+<span class="c"># run the phases in order; each stops at its gate</span>
+pnpm wp2emdash run acme audit
+pnpm wp2emdash run acme extract
+pnpm wp2emdash run acme transform
+pnpm wp2emdash run acme scaffold
+
+<span class="c"># preview the migrated site locally</span>
+cd sites/acme/project &amp;&amp; pnpm dev</pre>
+			<div class="grid grid-2" style="margin-top:16px">
+				<a class="card" data-repo-link data-path="/blob/main/docs/PLAN.md" href="#" style="text-decoration:none"><h3>Read the plan →</h3><p>Architecture, phases, gates, section library and the roadmap.</p></a>
+				<a class="card" data-repo-link data-path="/tree/main/docs/spikes" href="#" style="text-decoration:none"><h3>Verified platform facts →</h3><p>Every EmDash and Cloudflare behaviour the kit relies on, checked against the installed versions.</p></a>
+			</div>
+		</div>
+	</section>
+</main>
+
+<footer>
+	<div class="wrap">
+		<span>wp2emdash · MIT licensed · an independent project, not affiliated with EmDash or Cloudflare.</span>
+		<span><a data-repo-link href="#">GitHub</a> · <button class="theme-toggle" type="button" data-theme-toggle>Toggle theme</button></span>
+	</div>
+</footer>
+
+<script>
+// Link to the repository this page is published from (works on <owner>.github.io/<repo>).
+(function () {
+	var host = location.hostname, owner = host.endsWith(".github.io") ? host.split(".")[0] : null;
+	var repo = location.pathname.split("/").filter(Boolean)[0] || "wp2emdash";
+	var base = owner ? "https://github.com/" + owner + "/" + repo : "https://github.com/";
+	document.querySelectorAll("[data-repo-link]").forEach(function (a) { a.href = base + (owner ? a.getAttribute("data-path") || "" : ""); });
+	document.querySelectorAll("[data-repo-clone]").forEach(function (el) { if (owner) el.textContent = base; });
+	var t = document.querySelector("[data-theme-toggle]");
+	try { var saved = localStorage.getItem("theme"); if (saved) document.documentElement.dataset.theme = saved; } catch (e) {}
+	t && t.addEventListener("click", function () {
+		var dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+		document.documentElement.dataset.theme = dark ? "light" : "dark";
+		try { localStorage.setItem("theme", document.documentElement.dataset.theme); } catch (e) {}
+	});
+})();
+</script>
+</body>
+</html>

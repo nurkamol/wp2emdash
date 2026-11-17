@@ -1,0 +1,37 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { safeHref } from "../../utils/links";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const plans = (v.plans ?? []) as Array<Record<string, any>>;
+---
+
+<Section value={v} type="pricing">
+	<Heading value={v} />
+	<Rich value={v.intro} />
+	<ul class:list={["pricing", `pricing--${v.variant ?? "list"}`]} role="list">
+		{
+			plans.map((p) => {
+				const href = safeHref(p.button_url);
+				const features = String(p.features ?? "").split("\n").map((f) => f.trim()).filter(Boolean);
+				return (
+					<li class:list={["plan", { "plan--highlight": p.highlight }]}>
+						<div class="plan__main">
+							<h3 class="plan__name">{p.name}</h3>
+							{p.description && <p class="plan__desc">{p.description}</p>}
+							{features.length > 0 && <ul class="plan__features">{features.map((f) => <li>{f}</li>)}</ul>}
+						</div>
+						<div class="plan__side">
+							{p.price && <p class="plan__price">{p.price}{p.period && <span class="plan__period"> / {p.period}</span>}</p>}
+							{href && p.button_label && <a href={href} class="btn btn--secondary" target={p.button_new_tab ? "_blank" : undefined} rel={p.button_new_tab ? "noopener" : undefined}>{p.button_label}</a>}
+						</div>
+					</li>
+				);
+			})
+		}
+	</ul>
+	<Buttons items={v.buttons} />
+</Section>

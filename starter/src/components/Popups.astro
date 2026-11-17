@@ -1,0 +1,17 @@
+---
+/** Site popups (from Popup Maker) as native <dialog>s; links with data-popup or matching selectors open them. */
+import Sections from "./Sections.astro";
+interface Props {
+	popups: Array<{ id: string; data: { title: string; content?: any[]; selectors?: string; auto_open_delay?: number } }>;
+}
+const { popups } = Astro.props;
+---
+
+{
+	popups.map((p) => (
+		<dialog id={p.id} class="popup" data-selectors={p.data.selectors ?? ""} data-auto-open={p.data.auto_open_delay ?? undefined} aria-label={p.data.title}>
+			<button type="button" class="popup__close" data-popup-close aria-label="Close">×</button>
+			<Sections value={p.data.content} />
+		</dialog>
+	))
+}

@@ -6,6 +6,7 @@ import type { GateCheck } from "../core/state.js";
 import { runAudit } from "./audit.js";
 import { runExtract } from "./extract.js";
 import { runInitGate } from "./init.js";
+import { runScaffold } from "./scaffold.js";
 import { runTransform } from "./transform.js";
 
 export interface PhaseContext {
@@ -35,7 +36,7 @@ export const RUNNERS: Record<PhaseId, PhaseRunner> = {
 	audit: runAudit,
 	extract: runExtract,
 	transform: runTransform,
-	scaffold: notYet("scaffold"),
+	scaffold: (ctx) => runScaffold(ctx),
 	load: notYet("load"),
 	verify: notYet("verify"),
 	cutover: notYet("cutover"),

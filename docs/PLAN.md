@@ -207,12 +207,16 @@ Implemented in M4 (`src/phases/transform.ts`, `src/adapters/`, `src/ir/`). Pure 
 **Gate:** IR validates; 0 unmapped nodes carrying content in published pages, footer and popups; 0 unapproved `legacy_html`; every media reference resolves to the extract; every image published content uses in WordPress is in the IR; every internal link points at a migrated page, anchor, popup or file; **text conservation** — share of distinct words of the live page's own server HTML (theme chrome removed) found in the IR ≥ `gates.textConservation` (default 99%). Unpublished content is transformed and reported but not gated.
 
 ### Phase 4 — `scaffold`
+Implemented in M5 (`src/phases/scaffold.ts`, `src/scaffold/`, `src/starter/library.ts`, `starter/`). Facts it relies on: `docs/spikes/M5-findings.md`.
+- **Section library = one TypeScript definition** (`src/starter/library.ts`) → seed `blockTypes`, the starter's components and the IR → block mapping (`src/targets/emdash/blocks.ts`, which conforms every value to its block type).
+- **Generated per site:** `tokens.css` (design capture: colours, fluid type scale between the mobile and desktop captures, container, radii), `motion.css` (menu motion recipe), `site.config.json` (header panel variant, breakpoint, transparent/hide-on-scroll, logos, fonts, URL style), forms (`src/forms/*.json` from the form plugin, published forms only), `seed/seed.json` (block types, `pages` / `site_parts` / `popups` collections, menus, settings with `staging: true`, and the migrated content for local preview), `package.json` with exact verified versions, `astro.config.mjs`, `wrangler.jsonc` (production + `staging` env, separate D1/R2).
+- **Local preview:** `pnpm dev` in `sites/<slug>/project`, then `/_emdash/api/setup/dev-bypass?redirect=/` — the migrated site with live WordPress media.
 - **Runtime pins (every generated project):** Node 24+ for install/build/CI (`engines`, `.nvmrc`, CI image); the Worker itself runs on workerd (V8), not Node — Node APIs come from the `nodejs_compat` flag, and `compatibility_date` is set to the scaffold date so the newest runtime behaviour is used. Astro = latest stable that EmDash's peer range allows (checked by `doctor`: EmDash 1.5 needs `astro >=6`; latest is 7.4.12 on 2026-11-17, used by the M0 spike). Exact versions in the lockfile; upgrades are a deliberate step with a rerun of verify.
 - Copy `starter/` into `sites/<slug>/project/` (or create with `npm create emdash@latest` and apply the starter as an overlay — decided in M0).
 - Write `tokens.css` from design capture; generate header/footer from captured structure; register per-site section variants.
 - Seed: collections (pages with `template` + `layout` blocks field, posts, CPTs), `blockTypes`, menus, widget areas, site settings.
 - Staging resources: separate D1 + R2 + secrets per environment (`emdash secrets generate`). Staging host from `target.staging.host` (e.g. `staging.example.com` on the client zone; empty = `*.workers.dev`), protected per `target.staging.protection`: `access` (default: Cloudflare Access login wall + robots `Disallow: /` + `X-Robots-Tag: noindex`) or `noindex` only. Canonicals on staging already point at the production host. Behind Access, `verify` and Playwright authenticate with an Access service token kept in `sites/<slug>/.env`. See §7a.
-**Gate:** `emdash seed --validate` passes, project builds, staging deploy answers, admin login works, empty-database render of every route doesn't crash.
+**Gate (local, M5):** every IR section type has a block type and component; every form section has a definition; brand assets copied; install; `seed.json` passes EmDash's validator; build; Worker < 10 MB gzip. **Staging gate (with load, M6, owner-approved deploy):** staging deploy answers, admin login works, every route renders.
 
 ### Phase 5 — `load` (staging)
 1. Snapshot staging D1 before every load.
@@ -443,10 +447,35 @@ Deterministic code does the bulk of the work; Claude handles the long tail (unkn
 |---|---|---|
 | **Engine** | Every phase is a pure command over `sites/<slug>/state.json`: resumable, idempotent, `--json` output, exit code = gate result. Works in CI. | M1 |
 | **Terminal wizard** | `wp2emdash` with no args: pick/create a site, see the phase timeline (done / running / red gate / next), run the next phase with live per-step progress, answer decision prompts (keep/rebuild/drop a form, accept a diff). | M1 (shell), grows with each phase |
-| **Local web dashboard** | `wp2emdash ui`: same state files, for what a terminal can't show — side-by-side screenshots and diffs, coverage review with source snippets, integrations approvals, the final report. Local only, no hosting. | M7 |
+| **Local web dashboard** | `wp2emdash ui`: same state files, for what a terminal can't show — side-by-side screenshots and diffs, coverage review with source snippets, integrations approvals, the final report. Local only, no hosting. Paired with Claude Code — see §10b. | M7 |
 | **Claude Code** | Kit skills call the CLI and read `--json`; subagents only for parallel long-tail work (one per unmapped element family, one per red visual page). Every result lands in `overrides.ts` / `decisions.md`. | M4 onward |
 
 Progress model: phases → steps → items (e.g. `audit › screenshots › 34/120 URLs`), streamed to the terminal and appended to `sites/<slug>/runs/<id>.jsonl`, which the dashboard and the agents read.
+
+### 10b. Local dashboard paired with Claude Code (M7)
+
+`wp2emdash ui` serves a dashboard on `127.0.0.1` (random port, one-time token in the URL, no remote access). It drives the same engine as the CLI and streams progress from `runs/*.jsonl` (server-sent events).
+
+**Division of work**
+- **Browser — the human loop:** see progress, compare, approve, enter secrets, sign off. Everything the owner decides is written to `overrides.ts` / `decisions.md` / `ACCESS.md`, exactly as if done by hand.
+- **Claude Code — the reasoning loop:** a kit MCP server (`wp2emdash mcp`) exposes typed tools: `status`, `run_phase`, `read_report`, `list_diagnostics`, `propose_override` (writes a pending change with its diff), `explain_gate`. Claude never writes `overrides.ts` directly from the dashboard flow: proposals land in an **approval queue** in the browser; approve applies the change and reruns the affected phase.
+- **Secrets:** a form in the dashboard writes `.env` directly (migration key, app password, provider API keys); values are never shown again, never sent to Claude, never logged. Revocation reminders after import.
+
+**Features (priority order)**
+| # | Feature | What it does |
+|---|---|---|
+| 1 | Visual diff viewer | Old vs new per page × viewport: slider, onion-skin and pixel-diff modes, masked regions; approve/reject writes `decisions.md`; menu open-state and motion timing shown next to the recipe. |
+| 2 | Section inspector | Click a region on the source screenshot → the WordPress row/block, the IR section it became, and the rendered staging section. Change the section type or drop it → `overrides.elements`, rerun transform for that page only. |
+| 3 | Launch readiness score | One score per site from every gate (content, URLs, SEO, visual, forms, a11y, performance, security, editing); "what blocks launch" list with links to the fix. |
+| 4 | Launch cockpit | Cutover preflight, Worker route switch (owner-confirmed), live smoke checks, one-click rollback (delete routes), post-launch timer. |
+| 5 | Change watcher | Polls the exporter for `modified_gmt` changes during the project; shows which pages changed in WordPress and resyncs only those (cutover delta made continuous). |
+| 6 | Client sign-off page | Static export of the verify report + screenshots that the client reviews and signs; signature and date recorded in `decisions.md`. |
+| 7 | Post-launch monitor | 404 log → suggested redirects, form deliverability, Lighthouse and Core Web Vitals before vs after, Search Console coverage. |
+| 8 | Portfolio view | Every site in `sites/` with phase, readiness score, blockers and last run. |
+| 9 | Run history | Every run's IR and reports kept; diff two runs; restore an earlier IR. |
+| 10 | Guided owner checklist | ACCESS.md as a step-by-step guide with screenshots; automatic checks where possible (exporter installed, key valid, backup file present, DNS export parsed). |
+
+Built in the order above; 1–3 with M7, 4 with M8, 5–10 after the pilot launch.
 
 ---
 
@@ -492,7 +521,7 @@ Any failed assumption changes the plan before code depends on it.
 | M4 | IR + WPBakery/Salient adapter + Gutenberg adapter, fixture/golden tests | Pilot coverage report: 0 unmapped content nodes |
 | M5 | Starter project + section library + tokens + header/footer (menu variants from the motion recipe) | All section types editable in admin; header/menu matches the recipe; staging deploys |
 | M6 | Load: importer driver, overlay, fix-ups, id-map | Load gate green on staging, rerun is idempotent |
-| M7 | Verify suite | Full report for the pilot; reds fixed or decided |
+| M7 | Verify suite + dashboard (§10b features 1–3, MCP server, approval queue, secrets form) | Full report for the pilot; reds fixed or decided; every owner decision possible from the browser |
 | M8 | Cutover tooling + pilot go-live | Production live, smoke green, rollback tested, monitoring running |
 | M8a | Docs: client project docs generated for the pilot; kit GitHub docs complete | Both repos pass a docs review checklist; every command in docs verified by running it |
 | M9 | Second site (Gutenberg-heavy) to harden the kit | Runs end-to-end with only config + overrides |

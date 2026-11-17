@@ -1,0 +1,43 @@
+---
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import Buttons from "../Buttons.astro";
+import Md from "../Md.astro";
+import { getForm } from "../../forms";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const form = getForm(v.form_id);
+---
+
+<Section value={v} type="form">
+	<div class="form-layout">
+		<div class="form-layout__text">
+			<Heading value={v} />
+			<Rich value={v.intro} />
+			<Rich value={v.aside} />
+		</div>
+		{
+			form ? (
+				<form class="form" method="post" action={`/api/forms/${form.id}`} data-form={form.id} novalidate>
+					{form.fields.map((f) => (
+						<label class:list={["field", `field--${f.type}`, { "field--half": f.half }]}>
+							<span class="field__label">{f.label}{f.required && <span aria-hidden="true"> *</span>}</span>
+							{f.type === "textarea" ? (
+								<textarea name={f.name} required={f.required} placeholder={f.placeholder} rows={5} />
+							) : f.type === "select" ? (
+								<select name={f.name} required={f.required}>{(f.options ?? []).map((o) => <option value={o}>{o}</option>)}</select>
+							) : (
+								<input type={f.type} name={f.name} required={f.required} placeholder={f.placeholder} autocomplete={f.autocomplete} />
+							)}
+						</label>
+					))}
+					<input type="text" name="_hp" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true" />
+					<button type="submit" class="btn btn--primary">{form.submitLabel}</button>
+					<p class="form__status" role="status" aria-live="polite" />
+				</form>
+			) : (
+				<p class="form__missing">Form “{v.form_id}” is not configured.</p>
+			)
+		}
+	</div>
+</Section>
