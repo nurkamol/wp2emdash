@@ -1,4 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { KIT_ROOT } from "../core/paths.js";
 
 /** Parse a dotenv file. Values are never logged. */
 export function loadEnv(file: string): Record<string, string> {
@@ -14,6 +16,14 @@ export function loadEnv(file: string): Record<string, string> {
 		out[line.slice(0, eq).trim()] = value;
 	}
 	return out;
+}
+
+/**
+ * Secrets for one site: the kit-level `.env` (shared, e.g. the agency's Cloudflare token — see
+ * docs/cloudflare-api-token.md) overlaid by `sites/<slug>/.env` (per-site values win). Both gitignored.
+ */
+export function loadSiteEnv(siteRoot: string, kitRoot = KIT_ROOT): Record<string, string> {
+	return { ...loadEnv(join(kitRoot, ".env")), ...loadEnv(join(siteRoot, ".env")) };
 }
 
 export interface WpCredentials {

@@ -489,6 +489,7 @@ Built in the order above; 1–3 with M7, 4 with M8, 5–10 after the pilot launc
 - Staging and production use separate D1, R2 and secrets.
 - No passwords, migration keys, tokens or patient data in prompts, Git, screenshots or logs.
 - Irreversible or outward-facing steps (DNS, routes, production deploy, deleting anything) need explicit owner approval at the time.
+- Cloudflare access uses two tokens (`docs/cloudflare-api-token.md`): a reusable account-scoped build & staging token without zone access, and a per-launch go-live token scoped to the client's zone, revoked after monitoring.
 - Final switch only after owner sign-off on the verify report and a tested rollback.
 
 ---

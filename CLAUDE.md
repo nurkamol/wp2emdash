@@ -30,7 +30,8 @@ A phase runner (`src/phases/<id>.ts`) does its work, emits progress through `ctx
 
 - Write to the live WordPress site, its database or its DNS.
 - Change production DNS, routes, or deploy to production without explicit owner approval in the current conversation.
-- Put passwords, API keys, migration keys, tokens or form submissions in prompts, code, logs, commits or reports. Secrets live in `sites/<slug>/.env` (gitignored) or Wrangler secrets.
+- Put passwords, API keys, migration keys, tokens or form submissions in prompts, code, logs, commits or reports. Secrets live in the kit `.env` (shared, e.g. the Cloudflare token — `docs/cloudflare-api-token.md`), `sites/<slug>/.env` (per site, wins) or Wrangler secrets. All gitignored.
+- Use the go-live token (zone DNS/routes) for anything but cutover, or keep it after the monitoring window.
 - Hand-edit generated output (`sites/<slug>/ir/`, imported content). Put the decision in `overrides.ts` or `decisions.md` and rerun, so a full rerun from raw exports reproduces the result.
 - Silently drop source content. Unmapped nodes must appear in the coverage report.
 - Route sensitive form data (health, legal, finance) into Workers, D1, email or analytics when `sensitiveData: true`.

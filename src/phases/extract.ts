@@ -13,7 +13,7 @@ import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import { extractReport } from "../extract/report.js";
 import { WpClient, WpHttpError, versionAtLeast } from "../extract/client.js";
-import { loadEnv, redact, resolveCredentials } from "../extract/credentials.js";
+import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.js";
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
 import type { PhaseContext } from "./index.js";
 
@@ -120,7 +120,7 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	const overrides = await loadOverrides(paths.overrides);
 
 	// ── Credentials ────────────────────────────────────────────────────────────
-	const env = loadEnv(join(paths.root, ".env"));
+	const env = loadSiteEnv(paths.root);
 	let creds: ReturnType<typeof resolveCredentials>;
 	try {
 		creds = resolveCredentials(env);

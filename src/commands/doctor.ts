@@ -1,4 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { KIT_ROOT } from "../core/paths.js";
+import { loadEnv } from "../extract/credentials.js";
+import { join } from "node:path";
 
 export interface DoctorCheck {
 	id: string;
@@ -26,6 +29,24 @@ export function versionAtLeast(have: string, want: string): boolean {
 		if (x !== y) return x > y;
 	}
 	return true;
+}
+
+/**
+ * Verifies the shared Cloudflare API token (kit .env or environment) with Cloudflare's
+ * token-verify endpoint. The token is sent only to api.cloudflare.com and never printed.
+ */
+export async function cloudflareTokenCheck(): Promise<DoctorCheck> {
+	const token = process.env.CLOUDFLARE_API_TOKEN ?? loadEnv(join(KIT_ROOT, ".env")).CLOUDFLARE_API_TOKEN;
+	const base = { id: "cloudflare-token", label: "Cloudflare API token", required: false };
+	if (!token) return { ...base, ok: false, detail: "not set — see docs/cloudflare-api-token.md (needed for staging, migrations, deploy)" };
+	try {
+		const r = await fetch("https://api.cloudflare.com/client/v4/user/tokens/verify", { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
+		const j = (await r.json()) as { success?: boolean; result?: { status?: string; expires_on?: string } };
+		const active = j.success && j.result?.status === "active";
+		return { ...base, ok: !!active, detail: active ? `active${j.result?.expires_on ? `, expires ${j.result.expires_on.slice(0, 10)}` : ""}` : `not active (HTTP ${r.status})` };
+	} catch (e) {
+		return { ...base, ok: false, detail: `could not verify: ${(e as Error).message}` };
+	}
 }
 
 /** Local prerequisites. Required ones block `audit`/`scaffold`; optional ones are reported. */

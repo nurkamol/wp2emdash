@@ -79,12 +79,13 @@ Never write passwords, keys or tokens in this file — store them in a password 
 - [ ] Redirects exported (Rank Math → Redirections → Export / Redirection plugin → Export) to raw/redirects.csv, or "no redirects" noted in decisions.md
 
 ## Before scaffold
-- [ ] Cloudflare account access with Workers, D1, R2 permissions (\`npx wrangler login\`)
+- [ ] Cloudflare API token A (build & staging) in the kit \`.env\` — permissions in docs/cloudflare-api-token.md; \`pnpm wp2emdash doctor\` shows it active
 - [ ] Email provider account + API key stored as a Wrangler secret (provider: see kit.config.ts)
 - [ ] Turnstile site/secret key created
 
 ## Before cutover
 - [ ] Domain zone access in Cloudflare (or registrar access + plan for DNS change)
+- [ ] Go-live token B scoped to this zone (docs/cloudflare-api-token.md), revoked after the monitoring window
 - [ ] Search Console access
 - [ ] Booking / forms / analytics provider access confirmed
 - [ ] Rollback owner named:

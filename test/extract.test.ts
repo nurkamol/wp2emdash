@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { versionAtLeast } from "../src/extract/client.js";
-import { loadEnv, parseMigrationKey, redact, resolveCredentials } from "../src/extract/credentials.js";
+import { loadEnv, loadSiteEnv, parseMigrationKey, redact, resolveCredentials } from "../src/extract/credentials.js";
 import { decodeRawBlocks, findMediaRefs, uploadsKey } from "../src/extract/refs.js";
 
 const fakeKey = (o: object) => `em1.${Buffer.from(JSON.stringify(o)).toString("base64url")}`;
@@ -33,6 +33,20 @@ describe("credentials", () => {
 		}
 		const creds = { user: "u", password: "s3cretpass", source: "app-password" as const };
 		expect(redact("failed em1.abcdefghijklmnop with s3cretpass and Basic dXNlcjpwYXNz", creds)).toBe("failed em1.[redacted] with [redacted] and Basic [redacted]");
+	});
+
+	it("layers the kit .env under the site .env (site wins)", () => {
+		const kit = mkdtempSync(join(tmpdir(), "wp2e-kit-"));
+		const site = mkdtempSync(join(tmpdir(), "wp2e-site-"));
+		try {
+			writeFileSync(join(kit, ".env"), "CLOUDFLARE_API_TOKEN=shared\nCLOUDFLARE_ACCOUNT_ID=agency\n");
+			writeFileSync(join(site, ".env"), "CLOUDFLARE_ACCOUNT_ID=client\nEMDASH_TOKEN=x\n");
+			expect(loadSiteEnv(site, kit)).toEqual({ CLOUDFLARE_API_TOKEN: "shared", CLOUDFLARE_ACCOUNT_ID: "client", EMDASH_TOKEN: "x" });
+			expect(loadSiteEnv(site, join(kit, "missing"))).toEqual({ CLOUDFLARE_ACCOUNT_ID: "client", EMDASH_TOKEN: "x" });
+		} finally {
+			rmSync(kit, { recursive: true, force: true });
+			rmSync(site, { recursive: true, force: true });
+		}
 	});
 
 	it("compares exporter versions", () => {

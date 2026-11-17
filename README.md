@@ -10,7 +10,8 @@
 
 ```bash
 pnpm install
-pnpm wp2emdash doctor      # check prerequisites
+cp .env.example .env       # Cloudflare token: see docs/cloudflare-api-token.md
+pnpm wp2emdash doctor      # check prerequisites (verifies the token)
 pnpm wp2emdash             # interactive wizard: create a site, run phases
 ```
 
@@ -43,6 +44,7 @@ Each phase ends in a gate; the next phase won't run until it passes or is accept
 - [Plan](docs/PLAN.md)
 - [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md)
 - [Site workspaces](sites/README.md)
+- [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token
 - [Agent rules](CLAUDE.md)
 
 Full GitHub docs (configuration reference, adapters, troubleshooting, …) are produced in milestone M8a.

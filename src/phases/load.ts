@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { dirname, extname, join } from "node:path";
 import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
-import { loadEnv } from "../extract/credentials.js";
+import { loadSiteEnv } from "../extract/credentials.js";
 import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
 import { routeToSlug } from "../scaffold/seed.js";
 import { BLOCK_TYPES } from "../starter/library.js";
@@ -70,7 +70,7 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 	const checks: GateCheck[] = [];
 	const check = (id: string, label: string, ok: boolean, detail?: string) => checks.push({ id, label, ok, ...(detail ? { detail } : {}) });
 	const target = (process.env.WP2EMDASH_LOAD_TARGET ?? "local") as "local" | "staging";
-	const env = loadEnv(join(paths.root, ".env"));
+	const env = loadSiteEnv(paths.root);
 	const overrides = await loadOverrides(paths.overrides);
 	const site = readJson<IrSite>(join(paths.ir, "site.json"));
 	if (!site || !existsSync(join(paths.project, "package.json"))) {

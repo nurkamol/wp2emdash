@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import pc from "picocolors";
-import { doctor } from "../commands/doctor.js";
+import { cloudflareTokenCheck, doctor } from "../commands/doctor.js";
 import { initSite, validateSlug, validateUrl } from "../commands/init.js";
 import { acceptPhase, runPhase } from "../commands/run.js";
 import { formatTimeline, listSites, statusJson } from "../commands/status.js";
@@ -96,8 +96,8 @@ program
 	.command("doctor")
 	.description("Check local prerequisites")
 	.option("--json")
-	.action((o) => {
-		const checks = doctor();
+	.action(async (o) => {
+		const checks = [...doctor(), await cloudflareTokenCheck()];
 		if (o.json) return console.log(JSON.stringify(checks, null, 2));
 		for (const c of checks) {
 			const icon = c.ok ? pc.green("✔") : c.required ? pc.red("✖") : pc.yellow("!");

@@ -7,3 +7,7 @@ spikes/*/
 # exports. Each one is a local folder, optionally its own private repo. Only the README is tracked.
 sites/*
 !sites/README.md
+# Kit-level secrets shared by every site (e.g. the agency's Cloudflare API token)
+.env
+.env.*
+!.env.example
