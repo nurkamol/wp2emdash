@@ -67,6 +67,8 @@ export const background = z.object({
 	overlay: z.number().min(0).max(1).optional(),
 	/** CSS linear-/radial-gradient layered over the colour (WPBakery/Salient "advanced gradient"). */
 	gradient: z.string().regex(/^(?:linear|radial)-gradient\([^;{}<>]*\)$/).optional(),
+	/** The image moves with scroll on the source (parallax). */
+	motion: z.enum(["parallax"]).optional(),
 });
 
 export const sectionTheme = z.object({
@@ -122,6 +124,8 @@ const featureItem = z.object({
 	title: z.string().optional(),
 	/** Tint over an image card (Salient column overlay, strength folded into the colours). */
 	overlay: cssGradient.optional(),
+	/** The card image moves with scroll on the source (parallax). */
+	imageMotion: z.enum(["parallax"]).optional(),
 	body: richText.default([]),
 	image: mediaRef.optional(),
 	icon: icon.optional(),

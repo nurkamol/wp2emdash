@@ -12,7 +12,7 @@
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[0]",
-        "rawHash": "2b9879a6dd"
+        "rawHash": "4db1840955"
       },
       "fields": {
         "intro": [],
@@ -29,7 +29,8 @@
               "href": "/pilates/",
               "style": "link"
             },
-            "overlay": "radial-gradient(50% 50%, rgba(0, 0, 0, 0.496) 0%, rgba(255, 255, 255, 0) 100%)"
+            "overlay": "radial-gradient(50% 50%, rgba(0, 0, 0, 0.496) 0%, rgba(255, 255, 255, 0) 100%)",
+            "imageMotion": "parallax"
           },
           {
             "title": "Physio",

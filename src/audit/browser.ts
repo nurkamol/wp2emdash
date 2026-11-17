@@ -1,5 +1,5 @@
 import { mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { type Browser, chromium, type Page } from "playwright";
 import type { KitConfig } from "../config/schema.js";
 import type { Reporter } from "../core/progress.js";
@@ -71,6 +71,52 @@ export interface SectionBox {
 	padBottom?: number;
 }
 
+export interface Rect {
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+}
+
+/**
+ * Regions whose pixels depend on scroll position: parallax layers of the common builders (clipped to
+ * the element they move inside) and the starter's [data-motion="parallax"] images.
+ */
+const MOVING = [
+	"[data-motion='parallax']",
+	".parallax-layer", // Salient (rows and columns)
+	".row-bg.using-image[data-parallax-speed]", // Salient rows (older)
+	".jarallax-img, [data-jarallax] > .jarallax-container",
+	".elementor-motion-effects-layer",
+	".et_parallax_bg",
+	".vc_parallax-inner", // WPBakery core
+].join(",");
+
+/** Same flat grey on both sides, so tint, text and layout over a moving photo stay comparable. */
+const STILL_CSS = `
+.parallax-layer, .row-bg.using-image[data-parallax-speed], .jarallax-container, .elementor-motion-effects-layer, .et_parallax_bg, .vc_parallax-inner { background-image: none !important; background-color: #8a8a8a !important; transform: none !important; }
+.jarallax-img, .jarallax-container img { visibility: hidden !important; }
+[data-motion='parallax'] { background-color: #8a8a8a !important; }
+[data-motion='parallax'] img, [data-motion='parallax'] video, [data-motion='parallax'] picture { visibility: hidden !important; }`;
+
+export async function movingRegions(page: Page): Promise<Rect[]> {
+	return page.evaluate((sel) => {
+		const sy = window.scrollY;
+		const sx = window.scrollX;
+		return Array.from(document.querySelectorAll<HTMLElement>(sel))
+			.map((el) => {
+				const r = el.getBoundingClientRect();
+				const clip = (el.parentElement ?? el).getBoundingClientRect();
+				const x1 = Math.max(r.left, clip.left);
+				const y1 = Math.max(r.top, clip.top);
+				const x2 = Math.min(r.right, clip.right);
+				const y2 = Math.min(r.bottom, clip.bottom);
+				return { x: Math.round(x1 + sx), y: Math.round(y1 + sy), w: Math.round(x2 - x1), h: Math.round(y2 - y1) };
+			})
+			.filter((r) => r.w > 20 && r.h > 20);
+	}, MOVING);
+}
+
 export interface ScreenshotResult {
 	url: string;
 	viewport: string;
@@ -78,6 +124,10 @@ export interface ScreenshotResult {
 	height?: number;
 	/** Top-level page sections at the moment of the screenshot (for section-by-section comparison). */
 	sections?: SectionBox[];
+	/** Images that move with scroll (parallax), page coordinates. */
+	moving?: Rect[];
+	/** Second screenshot with every moving image replaced by flat grey (only when `moving` is set). */
+	stillFile?: string;
 	error?: string;
 	consoleErrors: number;
 }
@@ -169,8 +219,19 @@ export async function captureScreenshots(
 					// Clip to the viewport width: marquees/off-canvas menus can make the document wider than the screen.
 					const height = await page.evaluate(() => document.documentElement.scrollHeight);
 					const sections = await sectionBoxes(page).catch(() => undefined);
+					const moving = await movingRegions(page).catch(() => undefined);
 					await page.screenshot({ path: file, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height }, timeout: 60_000 });
-					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), consoleErrors });
+					let stillFile: string | undefined;
+					if (moving?.length) {
+						// Parallax framing depends on scroll position: compare a still copy with the photos greyed out.
+						stillFile = join(outDir, "still", vp.name, `${screenName(url)}.png`);
+						mkdirSync(dirname(stillFile), { recursive: true });
+						const tag = await page.addStyleTag({ content: STILL_CSS });
+						await page.waitForTimeout(150);
+						await page.screenshot({ path: stillFile, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height }, timeout: 60_000 });
+						await tag.evaluate((el) => (el as Element).remove());
+					}
+					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), consoleErrors });
 				} catch (e) {
 					results.push({ url, viewport: vp.name, error: (e as Error).message.split("\n")[0], consoleErrors });
 				}

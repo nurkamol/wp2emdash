@@ -212,7 +212,9 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 				const ir = irPages.find((p) => p.route?.path === r.path);
 				if (existsSync(src) && srcShot?.sections?.length && s.sections?.length && ir) {
 					const groups = [...groupSections(ir.sections.map((x) => ({ type: x.type, path: x.sourceRef.path })), false), ...footerGroups];
-					r.sections[s.viewport] = diffSections(src, s.file, srcShot.sections, s.sections, groups, (k, part) => join(outDir, "sections", s.viewport, r.name, `${String(k).padStart(2, "0")}-${part}.png`));
+					// Moving (parallax) photos on both sides: compare the still copies, photos greyed out.
+					const still = !!(srcShot.stillFile && s.stillFile && existsSync(srcShot.stillFile) && existsSync(s.stillFile));
+					r.sections[s.viewport] = diffSections(still ? (srcShot.stillFile as string) : src, still ? (s.stillFile as string) : s.file, srcShot.sections, s.sections, groups, (k, part) => join(outDir, "sections", s.viewport, r.name, `${String(k).padStart(2, "0")}-${part}.png`), still);
 				}
 			}
 			reporter.emit({ type: "step:end", step: "Visual diff", ok: true });

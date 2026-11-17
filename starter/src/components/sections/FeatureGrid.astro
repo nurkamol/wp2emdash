@@ -22,7 +22,7 @@ const space = [LENGTH.test(v.card_space ?? "") && `--card-space:${v.card_space}`
 			items.map((it) => {
 				const href = safeHref(it.link_url);
 				return (
-					<li class:list={["card", { "card--image": it.image && v.variant === "image-cards", "has-overlay": TINT.test(it.overlay ?? "") }]} style={TINT.test(it.overlay ?? "") ? `--card-overlay:${it.overlay}` : undefined}>
+					<li class:list={["card", { "card--image": it.image && v.variant === "image-cards", "has-overlay": TINT.test(it.overlay ?? "") }]} style={TINT.test(it.overlay ?? "") ? `--card-overlay:${it.overlay}` : undefined} data-motion={it.image && it.image_motion === "parallax" ? "parallax" : undefined}>
 						{it.image && <Image image={it.image} class="card__image" sizes="(max-width: 900px) 100vw, 40vw" />}
 						{it.icon && <span class="card__icon" data-icon={it.icon} aria-hidden="true" />}
 						<div class="card__body">

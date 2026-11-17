@@ -39,6 +39,8 @@ export interface Col {
 	spacer?: { desktop: string; phone?: string; inset?: number };
 	/** Tint over the column background (Salient column overlay). */
 	overlay?: string;
+	/** Column background image moves with scroll (Salient parallax_bg). */
+	parallax?: boolean;
 }
 
 export interface HandlerCtx {

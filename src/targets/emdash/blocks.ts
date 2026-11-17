@@ -145,6 +145,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		...(s.theme.background?.image ? { bg_image: media(s.theme.background.image) } : {}),
 		...(s.theme.background?.video ? { bg_video: media(s.theme.background.video) } : {}),
 		...(s.theme.background?.overlay !== undefined ? { bg_overlay: s.theme.background.overlay } : {}),
+		...(s.theme.background?.motion ? { bg_motion: s.theme.background.motion } : {}),
 		...(s.theme.background?.gradient ? { bg_gradient: s.theme.background.gradient } : {}),
 		spacing: s.spacing,
 		...(s.width ? { layout_width: s.width } : {}),
@@ -191,7 +192,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 				intro: pt(s.fields.intro),
 				columns: s.fields.columns,
 				...(s.fields.cardSpace ? { card_space: s.fields.cardSpace.desktop, ...(s.fields.cardSpace.phone ? { card_space_phone: s.fields.cardSpace.phone } : {}), ...(s.fields.cardSpace.inset !== undefined ? { card_inset: s.fields.cardSpace.inset } : {}) } : {}),
-				items: s.fields.items.map((it) => stripUndefined({ title: it.title, overlay: it.overlay, body: ptToMd(it.body) || undefined, image: it.image ? media(it.image) : undefined, icon: it.icon ? `${it.icon.library}:${it.icon.name}` : undefined, link_label: it.link?.label, link_url: it.link?.href, link_new_tab: it.link?.newTab || undefined })),
+				items: s.fields.items.map((it) => stripUndefined({ title: it.title, overlay: it.overlay, image_motion: it.imageMotion, body: ptToMd(it.body) || undefined, image: it.image ? media(it.image) : undefined, icon: it.icon ? `${it.icon.library}:${it.icon.name}` : undefined, link_label: it.link?.label, link_url: it.link?.href, link_new_tab: it.link?.newTab || undefined })),
 			});
 		case "cta_banner":
 			return base("cta_banner", { ...head, body: pt(s.fields.body), buttons: buttons(s.fields.buttons), media: s.fields.media ? media(s.fields.media) : undefined });

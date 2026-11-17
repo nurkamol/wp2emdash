@@ -26,6 +26,8 @@ export interface SectionDiff extends SectionGroup {
 	targetHeight: number;
 	files?: { source: string; target: string; diff: string };
 	note?: string;
+	/** Compared on the still screenshots (moving photos greyed out on both sides). */
+	still?: boolean;
 }
 
 /** `vc_row[3]#1` → 3; `blocks[4-9]` → undefined (Gutenberg ranges are compared as a whole page). */
@@ -66,7 +68,7 @@ function crop(img: PNG, y: number, h: number, w: number): PNG {
  * Compare each group: source row box vs the union of its migrated sections' boxes. The difference is
  * measured over the taller of the two crops, so a missing or extra height counts as different pixels.
  */
-export function diffSections(sourcePng: string, targetPng: string, sourceBoxes: SectionBox[], targetBoxes: SectionBox[], groups: SectionGroup[], out: (k: number, part: "source" | "target" | "diff") => string): SectionDiff[] {
+export function diffSections(sourcePng: string, targetPng: string, sourceBoxes: SectionBox[], targetBoxes: SectionBox[], groups: SectionGroup[], out: (k: number, part: "source" | "target" | "diff") => string, still = false): SectionDiff[] {
 	const a = PNG.sync.read(readFileSync(sourcePng));
 	const b = PNG.sync.read(readFileSync(targetPng));
 	const w = Math.min(a.width, b.width);
@@ -86,6 +88,6 @@ export function diffSections(sourcePng: string, targetPng: string, sourceBoxes: 
 		writeFileSync(files.source, PNG.sync.write(crop(a, src.y, src.height, w)));
 		writeFileSync(files.target, PNG.sync.write(crop(b, ty, th, w)));
 		writeFileSync(files.diff, PNG.sync.write(diff));
-		return { ...g, ratio: n / (w * h), sourceHeight: src.height, targetHeight: th, files };
+		return { ...g, ratio: n / (w * h), sourceHeight: src.height, targetHeight: th, files, ...(still ? { still: true } : {}) };
 	});
 }

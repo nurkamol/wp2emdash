@@ -101,7 +101,7 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const color = colourValue(n.attrs.background_color);
 		const spacer = columnSpacer(n);
 		const overlay = columnOverlay(n.attrs);
-		return { ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}) };
+		return { ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -291,7 +291,7 @@ function rowTheme(row: Row): { theme: Section["theme"]; spacing: Section["spacin
 	const spacing = spacingFromPadding(a.top_padding ?? css["padding-top"], a.bottom_padding ?? css["padding-bottom"]) ?? "normal";
 	const anchor = (a.el_id || a.id || "").trim();
 	const gradient = a.gradient_type === "advanced" && /^(?:linear|radial)-gradient\([^;{}<>]*\)$/.test(a.advanced_gradient ?? "") ? a.advanced_gradient : undefined;
-	const background = color || image || video || gradient ? { ...(color ? { color } : {}), ...(image ? { image } : {}), ...(video ? { video } : {}), ...(overlay !== undefined ? { overlay } : {}), ...(gradient ? { gradient } : {}) } : undefined;
+	const background = color || image || video || gradient ? { ...(color ? { color } : {}), ...(image ? { image } : {}), ...(video ? { video } : {}), ...(overlay !== undefined ? { overlay } : {}), ...(gradient ? { gradient } : {}), ...(image && (a.parallax_bg === "true" || a.bg_image_animation === "parallax") ? { motion: "parallax" as const } : {}) } : undefined;
 	const valign = a.full_height === "yes" || a.content_placement ? ({ top: "top", middle: "middle", bottom: "bottom" } as const)[(a.full_screen_row_position ?? a.content_placement ?? "") as "top"] : undefined;
 	return {
 		theme: { tone, ...(background ? { background } : {}) },
@@ -454,7 +454,7 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 			const image = c.fragments.find((f) => f.kind === "media") as Extract<Fragment, { kind: "media" }> | undefined;
 			const icon = c.fragments.find((f) => f.kind === "icon") as Extract<Fragment, { kind: "icon" }> | undefined;
 			const link = c.fragments.find((f) => f.kind === "button") as Extract<Fragment, { kind: "button" }> | undefined;
-			return { ...(titleBlock ? { title: titleBlock.children.map((s) => s.text).join("") } : {}), body, ...(image ? { image: image.media } : {}), ...(icon ? { icon: icon.icon } : {}), ...(link ? { link: link.button } : {}), ...(image && c.overlay ? { overlay: c.overlay } : {}) };
+			return { ...(titleBlock ? { title: titleBlock.children.map((s) => s.text).join("") } : {}), body, ...(image ? { image: image.media } : {}), ...(icon ? { icon: icon.icon } : {}), ...(link ? { link: link.button } : {}), ...(image && c.overlay ? { overlay: c.overlay } : {}), ...(image?.role === "background" && c.parallax ? { imageMotion: "parallax" as const } : {}) };
 		});
 		const variant = items.every((i) => i.image) ? "image-cards" : "icons";
 		const sp = cols[0]?.spacer;
