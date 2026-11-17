@@ -16,6 +16,7 @@ import { routeToSlug } from "../scaffold/seed.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { EmDashApi, type MediaItem } from "../targets/emdash/api.js";
 import { sectionToBlock } from "../targets/emdash/blocks.js";
+import { kitFetch, pinHost } from "../targets/emdash/net.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
 
@@ -87,6 +88,13 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 			check("target", "Staging target configured", false, "Set target.stagingUrl in kit.config.ts and EMDASH_TOKEN (an EmDash API token) in .env");
 			return checks;
 		}
+		// Optional pinned addresses for a fresh workers.dev host (see docs/staging-setup.md → DNS).
+		const cf = readJson<{ staging?: { worker?: { addresses?: string[] } } }>(join(paths.root, "cloudflare.json"));
+		const pins = cf?.staging?.worker?.addresses ?? [];
+		if (pins.length) {
+			pinHost(new URL(config.target.stagingUrl).hostname, pins);
+			reporter.emit({ type: "log", level: "info", message: `connecting to ${new URL(config.target.stagingUrl).hostname} via pinned addresses (${pins.join(", ")})` });
+		}
 		api = new EmDashApi(config.target.stagingUrl, { token: env.EMDASH_TOKEN });
 	} else {
 		const port = Number(process.env.WP2EMDASH_DEV_PORT ?? 4399);
@@ -119,7 +127,8 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 			check("schema", "Section library and collections present on the target", missing.length === 0, missing.join(", ") || `${bt.length} block types`);
 			if (missing.length) return checks;
 		} catch (e) {
-			check("target", `Target reachable and authenticated (${target})`, false, (e as Error).message);
+			const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+			check("target", `Target reachable and authenticated (${target})`, false, `${(e as Error).message}${cause ? ` (${cause.code ?? ""} ${cause.message ?? ""})`.trimEnd() : ""}`);
 			return checks;
 		}
 
@@ -347,7 +356,7 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 		for (const d of docs.filter((x) => x.kind === "page" && x.source.status === "publish")) {
 			const path = d.route?.path ?? "/";
 			try {
-				const r = await fetch(`${api.baseUrl}${path}`, { redirect: "manual" });
+				const r = await kitFetch(`${api.baseUrl}${path}`, { redirect: "manual" });
 				const html = await r.text();
 				const firstHeading = d.sections.flatMap((s) => (Array.isArray((s.fields as { heading?: unknown }).heading) ? ((s.fields as { heading: { children: { text: string }[] }[] }).heading) : [])).flatMap((b) => b.children.map((c) => c.text))[0];
 				if (r.status !== 200) renderFails.push(`${path} HTTP ${r.status}`);

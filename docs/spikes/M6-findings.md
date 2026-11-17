@@ -35,9 +35,15 @@ The official `EmDashClient` (`emdash/client`) covers content and media but not m
 - **Recovery that worked on the pilot:** `emdash migrate --status` (lock id, 65 applied / 32 pending) → `emdash migrate --take-over-lock=<id> --expected-target-fingerprint=<fp>` (applied 066–097) → `--check` exit 0 → redeploy the same build. Generated projects now run migrate between build and deploy (`deploy:staging`).
 - First-run admin setup lives at `/_emdash/admin/setup` (`/_emdash/admin` redirects there); `/_emdash/api/setup/status` reports `needsSetup` and the seed it will apply.
 
+## Staging load (2026-11-17)
+
+- **DNS for a new `*.workers.dev` host is unreliable for a while:** the local resolver cached NXDOMAIN, `cloudflare-dns.com` alternated between SERVFAIL ("No Reachable Authority at delegation workers.dev") and the right answer, and `dns.google` was unreachable from the operator's network. The browser (its own secure DNS) worked. The kit's `kitFetch` (undici) now: system lookup → Cloudflare DoH with retries and a 10-minute cache → optional pinned addresses from `cloudflare.json` (`staging.worker.addresses`), like `curl --resolve`; the connect timeout covers the lookup (60 s).
+- **The undici package's `fetch` does not recognise Node's built-in `FormData`** (different class) and sends it as text → EmDash answers `UPLOAD_ERROR` ("Unrecognized Content-Type … FormData can only parse multipart/form-data"). `kitFetch` encodes form bodies with Node's `Request` first and sends bytes with the multipart boundary.
+- Result: 24 media uploaded to R2 (incl. the hero video copied from the external CDN), 15 documents, menus, settings; gate passed. A partial first run (uploads failing) left 10 documents without media; the next run created the 5 missing and updated the 10 through the id-map — recovery without cleanup. Second full run: 0 uploads, 0 creates.
+- EmDash API token scopes used: `content:read/write`, `media:read/write`, `schema:read`, `menus:manage`, `settings:read/manage` — sufficient for create, update, publish, menus and settings.
+
 ## Not done yet
 
-- Staging target needs (owner-approved): Cloudflare login, D1 + R2 for the `staging` env, first deploy, admin passkey setup at `/_emdash/setup`, an API token → `EMDASH_TOKEN`.
 - `site export` snapshot before each staging load (A9) — add with the staging run.
 - Redirect import from `raw/redirects.csv` (pilot has none) and the `?p=` / uploads-URL middleware from A6.
 - Form submission endpoint (`/api/forms/<id>`).

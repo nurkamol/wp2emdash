@@ -18,7 +18,7 @@ const ok = (data: unknown) => new Response(JSON.stringify({ data }), { status: 2
 describe("EmDash REST client", () => {
 	it("sends the API token, and CSRF headers only on mutations", async () => {
 		stubFetch(() => ok({ item: { id: "1", slug: "a", status: "draft", data: {} } }));
-		const api = new EmDashApi("https://staging.example.com/", { token: "t0k" });
+		const api = new EmDashApi("https://staging.example.com/", { token: "t0k" }, (u, i) => globalThis.fetch(u, i));
 		await api.get("pages", "1");
 		await api.create("pages", { data: { title: "A" }, slug: "a" });
 		const [get, post] = calls;
@@ -33,7 +33,7 @@ describe("EmDash REST client", () => {
 
 	it("logs in once with dev-bypass and forwards the session cookie", async () => {
 		stubFetch((url) => (url.endsWith("/auth/dev-bypass") ? new Response(null, { status: 302, headers: { "set-cookie": "emdash_session=abc; Path=/; HttpOnly" } }) : ok({ items: [] })));
-		const api = new EmDashApi("http://localhost:4399", { devBypass: true });
+		const api = new EmDashApi("http://localhost:4399", { devBypass: true }, (u, i) => globalThis.fetch(u, i));
 		await api.blockTypes();
 		await api.collections();
 		expect(calls.filter((c) => c.url.endsWith("/auth/dev-bypass"))).toHaveLength(1);
@@ -42,7 +42,7 @@ describe("EmDash REST client", () => {
 
 	it("surfaces EmDash error codes", async () => {
 		stubFetch(() => new Response(JSON.stringify({ error: { code: "VERSION_CONFLICT", message: "stale rev" } }), { status: 409 }));
-		const api = new EmDashApi("https://s.example.com", { token: "x" });
+		const api = new EmDashApi("https://s.example.com", { token: "x" }, (u, i) => globalThis.fetch(u, i));
 		const err = await api.update("pages", "1", { data: {}, _rev: "old" }).catch((e) => e);
 		expect(err).toBeInstanceOf(EmDashHttpError);
 		expect(err).toMatchObject({ status: 409, code: "VERSION_CONFLICT" });

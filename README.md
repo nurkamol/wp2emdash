@@ -2,7 +2,7 @@
 
 > Migrates WordPress sites to [EmDash](https://docs.emdashcms.com/) on Cloudflare Workers (D1 + R2) and proves the result with automated gates: content, URLs, SEO, design, forms and integrations.
 
-**Status:** `init` → `load` work end to end on a real Salient + WPBakery site: 0 unmapped content, 100% of page text carried over, a generated EmDash project, and an idempotent load of all media and content into a running EmDash site (locally; staging next). `verify` and `cutover` are next — see [`docs/PLAN.md`](docs/PLAN.md) §13.
+**Status:** `init` → `load` work end to end on a real Salient + WPBakery site: 0 unmapped content, 100% of page text carried over, a generated EmDash project, and an idempotent load of all media and content into EmDash — locally and on a Cloudflare staging deployment. `verify` and `cutover` are next — see [`docs/PLAN.md`](docs/PLAN.md) §13.
 
 **Requires:** Node.js 24+ and pnpm. Generated sites run on Cloudflare Workers (Workers Paid plan — the EmDash Worker is above the free plan's 3 MB limit) with the latest Astro that EmDash supports.
 
@@ -33,7 +33,7 @@ pnpm wp2emdash status
 | `extract` | EmDash Exporter API: raw content, meta, SEO, menus, forms, media download | ✅ |
 | `transform` | WPBakery/Salient, Gutenberg, classic → section IR, coverage & text-conservation gate | ✅ |
 | `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, seed; builds + local preview | ✅ |
-| `load` | Media, content, menus and settings into EmDash via its API; idempotent id-map | ✅ local · staging next |
+| `load` | Media, content, menus and settings into EmDash via its API; idempotent id-map | ✅ local + staging |
 | `verify` | Old site vs staging, URL by URL | M7 |
 | `cutover` | Preflight, delta, deploy, smoke, rollback | M8 |
 

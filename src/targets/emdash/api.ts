@@ -4,6 +4,8 @@
  * (EMDASH_TOKEN). Mutations carry X-EmDash-Request + Origin (EmDash's CSRF rule).
  */
 
+import { kitFetch } from "./net.js";
+
 export class EmDashHttpError extends Error {
 	constructor(
 		public status: number,
@@ -38,17 +40,22 @@ export class EmDashApi {
 	private cookie?: string;
 	readonly baseUrl: string;
 
+	private fetchImpl: typeof fetch;
+
 	constructor(
 		baseUrl: string,
 		private auth: { token?: string; devBypass?: boolean },
+		/** Defaults to kitFetch (DNS fallback for fresh workers.dev hosts); tests inject a stub. */
+		fetchImpl?: typeof fetch,
 	) {
 		this.baseUrl = baseUrl.replace(/\/+$/, "");
+		this.fetchImpl = fetchImpl ?? kitFetch;
 	}
 
 	/** Local dev only: GET /_emdash/api/auth/dev-bypass → session cookie. */
 	async login(): Promise<void> {
 		if (!this.auth.devBypass || this.cookie) return;
-		const res = await fetch(`${this.baseUrl}/_emdash/api/auth/dev-bypass`, { redirect: "manual" });
+		const res = await this.fetchImpl(`${this.baseUrl}/_emdash/api/auth/dev-bypass`, { redirect: "manual" });
 		const set = res.headers.getSetCookie?.() ?? [res.headers.get("set-cookie") ?? ""];
 		this.cookie = set.map((c) => c.split(";")[0]).filter(Boolean).join("; ");
 		await res.body?.cancel();
@@ -70,7 +77,7 @@ export class EmDashApi {
 	async request<T>(method: string, path: string, body?: unknown, attempt = 0): Promise<T> {
 		await this.login();
 		const isForm = typeof FormData !== "undefined" && body instanceof FormData;
-		const res = await fetch(`${this.baseUrl}/_emdash/api${path}`, {
+		const res = await this.fetchImpl(`${this.baseUrl}/_emdash/api${path}`, {
 			method,
 			headers: this.headers(method, body !== undefined && !isForm),
 			...(body !== undefined ? { body: isForm ? (body as FormData) : JSON.stringify(body) } : {}),
