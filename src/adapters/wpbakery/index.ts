@@ -106,7 +106,10 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
 	function subrowFragments(n: ShortcodeNode, path: string): Fragment[] {
-		const cols = n.children.flatMap((c, i) => (c.type === "shortcode" && c.tag === "vc_column_inner" ? [columnOf(c, `${path}/vc_column_inner[${i}]`)] : []));
+		const gap = /^\d+px$/.test(n.attrs.column_margin ?? "") ? n.attrs.column_margin : undefined;
+		const cols = n.children
+			.flatMap((c, i) => (c.type === "shortcode" && c.tag === "vc_column_inner" ? [columnOf(c, `${path}/vc_column_inner[${i}]`)] : []))
+			.map((c) => (gap ? { ...c, fragments: c.fragments.map((f) => (f.kind === "team" ? { ...f, gap } : f)) } : c));
 		const stray = n.children.filter((c) => c.type === "shortcode" && c.tag !== "vc_column_inner") as ShortcodeNode[];
 		const strayFrags = stray.flatMap((s) => dispatch(s, `${path}/${s.tag}`));
 		const nonEmpty = cols.filter((c) => c.fragments.length);
@@ -370,7 +373,11 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					break;
 				case "team":
 					// One member per inner column → the source's columns per row (Salient: 3).
-					push({ ...base("team"), fields: { ...h, intro, ...(cols.length > 1 ? { columns: Math.min(6, cols.length) } : {}), members: items("team").map((f) => f.member) } });
+					{
+						const first = items("team")[0];
+						const look = { ...first?.look, ...(first?.gap ? { gap: first.gap } : {}) };
+						push({ ...base("team"), fields: { ...h, intro, ...(cols.length > 1 ? { columns: Math.min(6, cols.length) } : {}), ...(Object.keys(look).length ? { look } : {}), members: items("team").map((f) => f.member) } });
+					}
 					break;
 				case "testimonial":
 					push({ ...base("testimonials"), fields: { ...h, items: items("testimonial").map((f) => f.item) } });

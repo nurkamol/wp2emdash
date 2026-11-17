@@ -15,7 +15,7 @@ export type Fragment =
 	| { kind: "icon"; icon: { library: string; name: string } }
 	| { kind: "faq"; question: string; answer: RichText }
 	| { kind: "tab"; label: string; body: RichText }
-	| { kind: "team"; member: { name: string; role?: string; photo?: MediaRef; summary?: string; bio: RichText; links: Button[] } }
+	| { kind: "team"; member: { name: string; role?: string; photo?: MediaRef; summary?: string; bio: RichText; links: Button[] }; look?: TeamLook; gap?: string }
 	| { kind: "testimonial"; item: { quote: string; name?: string; role?: string; photo?: MediaRef; rating?: number } }
 	| { kind: "gallery"; images: MediaRef[]; layout: "grid" | "masonry" | "carousel" | "stack" }
 	| { kind: "price"; plan: { name: string; price?: string; period?: string; description?: string; features: string[]; button?: Button; highlight: boolean } }
@@ -28,6 +28,20 @@ export type Fragment =
 	| { kind: "marquee"; blocks: RichText; media?: MediaRef; link?: Button }
 	| { kind: "legacy"; html: string; reason: string }
 	| { kind: "subrow"; columns: Col[] };
+
+/** Card look of a team style (theme CSS defaults, not shortcode attributes). */
+export interface TeamLook {
+	photoHeight?: string;
+	nameSize?: string;
+}
+
+/**
+ * Salient team_member styles → their theme CSS defaults, measured on a live Salient site (2026-11):
+ * bio_fullscreen_alt = photo 500px tall at every width, name 38px.
+ */
+const SALIENT_TEAM: Record<string, TeamLook> = {
+	bio_fullscreen_alt: { photoHeight: "500px", nameSize: "38px" },
+};
 
 export interface Col {
 	width?: string;
@@ -280,7 +294,8 @@ export const HANDLERS: Record<string, Handler> = {
 		}
 		const photo = mediaFrom(n.attrs.image_url);
 		const bio = richOf(ctx.children(n, ctx.path), ctx);
-		return [{ kind: "team", member: { name: (n.attrs.name ?? "").trim(), ...(n.attrs.job_position ? { role: n.attrs.job_position } : {}), ...(photo ? { photo } : {}), ...(n.attrs.team_member_mini_bio ? { summary: n.attrs.team_member_mini_bio } : {}), bio, links } }];
+		const look = SALIENT_TEAM[n.attrs.team_memeber_style ?? n.attrs.team_member_style ?? ""];
+		return [{ kind: "team", member: { name: (n.attrs.name ?? "").trim(), ...(n.attrs.job_position ? { role: n.attrs.job_position } : {}), ...(photo ? { photo } : {}), ...(n.attrs.team_member_mini_bio ? { summary: n.attrs.team_member_mini_bio } : {}), bio, links }, ...(look ? { look } : {}) }];
 	},
 	testimonial: (n, ctx) => {
 		const photo = mediaFrom(n.attrs.image);

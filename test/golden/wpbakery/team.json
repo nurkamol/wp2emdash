@@ -1,18 +1,18 @@
 {
   "sections": [
     {
-      "type": "team",
+      "type": "rich_text",
       "theme": {
         "tone": "light"
       },
       "spacing": "normal",
       "sourceRef": {
         "adapter": "wpbakery",
-        "path": "vc_row[0]",
-        "rawHash": "3a608f876d"
+        "path": "vc_row[0]#0",
+        "rawHash": "1f4dff65d4"
       },
       "fields": {
-        "heading": [
+        "body": [
           {
             "_type": "block",
             "_key": "t0",
@@ -28,7 +28,30 @@
             "markDefs": []
           }
         ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "team",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]#1",
+        "rawHash": "1f4dff65d4"
+      },
+      "fields": {
         "intro": [],
+        "columns": 2,
+        "look": {
+          "photoHeight": "500px",
+          "nameSize": "38px",
+          "gap": "80px"
+        },
         "members": [
           {
             "name": "Dr. Alex Rivera",

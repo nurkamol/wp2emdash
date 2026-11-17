@@ -7,12 +7,14 @@ import Md from "../Md.astro";
 import { Image } from "emdash/ui";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const members = (v.members ?? []) as Array<Record<string, any>>;
+const LENGTH = /^\d+(?:\.\d+)?(?:px|vh|svh|vw|rem|em|%)$/;
+const look = [`--cols:${v.columns ?? 3}`, LENGTH.test(v.photo_height ?? "") && `--photo-h:${v.photo_height}`, LENGTH.test(v.name_size ?? "") && `--name-size:${v.name_size}`, LENGTH.test(v.card_gap ?? "") && `--team-gap:${v.card_gap}`].filter(Boolean).join(";");
 ---
 
 <Section value={v} type="team">
 	<Heading value={v} />
 	<Rich value={v.intro} />
-	<ul class:list={["team", `team--${v.variant ?? "grid"}`]} role="list" style={`--cols:${v.columns ?? 3}`}>
+	<ul class:list={["team", `team--${v.variant ?? "grid"}`]} role="list" style={look}>
 		{
 			members.map((m) => (
 				<li class="person">

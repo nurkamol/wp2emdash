@@ -39,6 +39,8 @@ export interface DesignCapture {
 	typography: Record<string, TypographyEntry | undefined>;
 	buttons: { text: string; styles: Record<string, string> }[];
 	containerWidths: { width: number; count: number }[];
+	/** Most common left edge of content text, px (page gutter). */
+	gutter?: number;
 	header: { height: number; background: string } | null;
 	footer: { height: number; background: string; color: string } | null;
 	logo?: { src: string; width: number; height: number };
@@ -94,6 +96,11 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 		return Number.isFinite(r) ? `${round(r, 3)}em` : "0";
 	};
 	const container = Math.min(Math.max(...desktop.containerWidths.map((c) => c.width), 1140), 1680);
+	// Page gutter measured on the source (phone → desktop); the starter default when not captured.
+	const gutterOf = (vp: string) => designs.find((d) => d.viewport === vp && d.gutter)?.gutter;
+	const gd = gutterOf("desktop");
+	const gm = gutterOf("mobile");
+	const gutter = gd && gm ? fluid(gm, gd) : "clamp(20px, 5vw, 64px)";
 	const radius = btn?.styles.borderRadius ?? "6px";
 	const weights = [...new Set([400, 500, 600, 700, Number(t.h1?.fontWeight) || 400])].sort();
 	const isGeneric = (f: string) => /^(system-ui|sans-serif|serif|monospace|-apple-system|arial|helvetica|georgia|times)/i.test(f);
@@ -150,7 +157,7 @@ ${eyebrowVars}
 
 	--container: ${container}px;
 	--container-text: 46rem;
-	--gutter: clamp(20px, 5vw, 64px);
+	--gutter: ${gutter};
 	--space-compact: clamp(32px, 4vw, 56px);
 	--space-normal: clamp(56px, 8vw, 120px);
 	--space-spacious: clamp(80px, 12vw, 180px);

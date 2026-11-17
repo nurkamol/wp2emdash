@@ -255,6 +255,8 @@ export interface DesignCapture {
 	typography: Record<string, { fontFamily: string; fontSize: string; fontWeight: string; lineHeight: string; letterSpacing: string; color: string; textTransform: string } | null>;
 	buttons: { selector: string; text: string; styles: Record<string, string> }[];
 	containerWidths: { width: number; count: number }[];
+	/** Most common left edge of body text and headings in the main content: the page gutter, px. */
+	gutter?: number;
 	breakpoints: number[];
 	header: { height: number; position: string; background: string } | null;
 	footer: { height: number; background: string; color: string } | null;
@@ -381,6 +383,19 @@ export async function captureDesign(browser: Browser, url: string, viewport: { n
 				typography,
 				buttons,
 				containerWidths: [...widths.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([width, count]) => ({ width, count })),
+				...(() => {
+					// Gutter: the left edge most text starts at (outside header/footer, within the first fifth of the screen).
+					const lefts = new Map<number, number>();
+					for (const el of Array.from(document.querySelectorAll<HTMLElement>("p, h1, h2, h3, h4, li"))) {
+						if (el.closest("header, footer, nav, #header-outer, #footer-outer, .nectar-global-section, [role=dialog]")) continue;
+						const r = el.getBoundingClientRect();
+						if (r.width < 40 || r.height === 0 || r.left < 4 || r.left > window.innerWidth / 5) continue;
+						const x = Math.round(r.left);
+						lefts.set(x, (lefts.get(x) ?? 0) + 1);
+					}
+					const best = [...lefts.entries()].sort((a, b) => b[1] - a[1])[0];
+					return best && best[1] >= 3 ? { gutter: best[0] } : {};
+				})(),
 				breakpoints: [...breakpoints].sort((a, b) => a - b),
 				header: header ? { height: header.offsetHeight, position: getComputedStyle(header).position, background: getComputedStyle(header).backgroundColor } : null,
 				footer: footer ? { height: footer.offsetHeight, background: getComputedStyle(footer).backgroundColor, color: getComputedStyle(footer).color } : null,

@@ -156,7 +156,7 @@ export const BLOCK_TYPES: BlockType[] = [
 		{ slug: "photo", label: "Photo", type: "image" },
 		{ slug: "rating", label: "Stars (1–5)", type: "integer", validation: { min: 1, max: 5 } },
 	], 1, 30)]),
-	block("section_team", "Team", "People with photo, role and bio", ["grid", "list"], [...heading(), pt("intro", "Intro"), { slug: "columns", label: "Columns", type: "integer", defaultValue: 3, validation: { min: 1, max: 6 } }, rep("members", "People", [
+	block("section_team", "Team", "People with photo, role and bio", ["grid", "list"], [...heading(), pt("intro", "Intro"), { slug: "columns", label: "Columns", type: "integer", defaultValue: 3, validation: { min: 1, max: 6 } }, { slug: "photo_height", label: "Photo height (e.g. 500px; empty = 3:4)", type: "string", validation: { pattern: CSS_LENGTH } }, { slug: "name_size", label: "Name size (e.g. 38px)", type: "string", validation: { pattern: CSS_LENGTH } }, { slug: "card_gap", label: "Gap between people (e.g. 80px)", type: "string", validation: { pattern: CSS_LENGTH } }, rep("members", "People", [
 		{ slug: "name", label: "Name", type: "string", required: true },
 		{ slug: "role", label: "Role", type: "string" },
 		{ slug: "photo", label: "Photo", type: "image" },
