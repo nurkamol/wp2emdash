@@ -83,6 +83,12 @@ Never write passwords, keys or tokens in this file — store them in a password 
 - [ ] Email provider account + API key stored as a Wrangler secret (provider: see kit.config.ts)
 - [ ] Turnstile site/secret key created
 
+## Before load (staging) — docs/staging-setup.md
+- [ ] Staging D1 + R2 created with the right --location and recorded in cloudflare.json
+- [ ] Staging deployed (pnpm deploy:staging: build → migrate → deploy → check)
+- [ ] Admin created at /_emdash/admin/setup with "Empty site"; a second passkey added
+- [ ] EmDash API token (load scopes) in .env as EMDASH_TOKEN; target.stagingUrl set
+
 ## Before cutover
 - [ ] Domain zone access in Cloudflare (or registrar access + plan for DNS change)
 - [ ] Go-live token B scoped to this zone (docs/cloudflare-api-token.md), revoked after the monitoring window

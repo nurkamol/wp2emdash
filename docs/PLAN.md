@@ -219,7 +219,7 @@ Implemented in M5 (`src/phases/scaffold.ts`, `src/scaffold/`, `src/starter/libra
 **Gate (local, M5):** every IR section type has a block type and component; every form section has a definition; brand assets copied; install; `seed.json` passes EmDash's validator; build; Worker < 10 MB gzip. **Staging gate (with load, M6, owner-approved deploy):** staging deploy answers, admin login works, every route renders.
 
 ### Phase 5 — `load` (local, then staging)
-Implemented in M6 (`src/phases/load.ts`, `src/targets/emdash/api.ts`); API facts in `docs/spikes/M6-findings.md`.
+Implemented in M6 (`src/phases/load.ts`, `src/targets/emdash/api.ts`); API facts in `docs/spikes/M6-findings.md`; operator runbook for staging in `docs/staging-setup.md`.
 - **Targets:** `local` (default: the kit starts the project's dev server, applies the seed structure with `?content=0`, logs in with dev-bypass) and `staging` (`WP2EMDASH_LOAD_TARGET=staging`, `target.stagingUrl`, `EMDASH_TOKEN` in `.env`). Staging is owner-approved: deploy, admin passkey and API token are human steps.
 - **Media:** every IR media reference → file from `raw/media/` (external media per `overrides.media.external`: `copy` downloads it) → sha1 → reuse the target's item with that `contentHash`, else upload.
 - **Content:** pages / `site_parts` (footer) / `popups` written through the id-map (`load/id-map.<target>.json`, keyed by WordPress type + id; first load adopts an entry with the same slug). Updates send the entry's `_rev`. SEO title/description/canonical/noindex from the IR. Published in WordPress → published; private/draft → draft.

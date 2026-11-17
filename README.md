@@ -44,6 +44,7 @@ Each phase ends in a gate; the next phase won't run until it passes or is accept
 - [Plan](docs/PLAN.md)
 - [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md)
 - [Site workspaces](sites/README.md)
+- [Staging setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, troubleshooting
 - [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token
 - [Agent rules](CLAUDE.md)
 
