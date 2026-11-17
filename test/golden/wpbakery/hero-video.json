@@ -1,0 +1,58 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "video",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#2b323a",
+          "image": {
+            "wpId": 590,
+            "kind": "image"
+          },
+          "video": {
+            "url": "https://cdn.example.net/acme/hero.mp4",
+            "kind": "video"
+          }
+        }
+      },
+      "spacing": "normal",
+      "fullHeight": true,
+      "anchorId": "hero",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "7f9b57e4fa"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Acme Studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [],
+        "buttons": [
+          {
+            "label": "Book a class",
+            "href": "/book/",
+            "style": "primary"
+          }
+        ],
+        "align": "center"
+      }
+    }
+  ],
+  "diagnostics": []
+}

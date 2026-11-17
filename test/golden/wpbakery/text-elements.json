@@ -1,0 +1,279 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "3b6a013bca"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Our approach",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "We focus on ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t4",
+                "text": "form",
+                "marks": [
+                  "strong"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": ", ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t6",
+                "text": "breath",
+                "marks": [
+                  "em"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": " and ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "consistency",
+                "marks": [
+                  "t8"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "ta",
+                "text": ".",
+                "marks": []
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t8",
+                "href": "https://acme.example/classes/"
+              }
+            ]
+          },
+          {
+            "_type": "block",
+            "_key": "tb",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tc",
+                "text": "Small groups",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "td",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "te",
+                "text": "Max 8 people",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 2
+          },
+          {
+            "_type": "block",
+            "_key": "tf",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tg",
+                "text": "Expert instructors",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "th",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "ti",
+                "text": "Plain text after the list, with a line\nbreak and a second line.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tj",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tk",
+                "text": "Rehab",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tl",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tm",
+                "text": "Mobility",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tn",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "to",
+                "text": "Move with ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "tp",
+                "text": "purpose.",
+                "marks": [
+                  "em"
+                ]
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tq",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tr",
+                "text": "Unknown element with real text.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ts",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tt",
+                "text": "[escaped_shortcode]",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "About us",
+            "href": "/about/",
+            "style": "link",
+            "newTab": true
+          },
+          {
+            "label": "Read more",
+            "href": "https://acme.example/blog/",
+            "style": "secondary",
+            "newTab": true
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Highlight/scribble animation not reproduced; text kept",
+      "path": "vc_row[0]/vc_column[0]/nectar_highlighted_text[3]"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "vc_empty_space dropped (decorative)",
+      "path": "vc_row[0]/vc_column[0]/vc_empty_space[4]",
+      "tag": "vc_empty_space"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "No handler for [acme_custom_quote] (carries content)",
+      "path": "vc_row[0]/vc_column[0]/acme_custom_quote[5]",
+      "carriesContent": true,
+      "tag": "acme_custom_quote"
+    }
+  ]
+}

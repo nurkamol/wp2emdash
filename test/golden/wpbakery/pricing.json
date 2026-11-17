@@ -1,0 +1,84 @@
+{
+  "sections": [
+    {
+      "type": "pricing",
+      "variant": "list",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4ece2"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "cac5ea378b"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Classes",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Prices include equipment.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "plans": [
+          {
+            "name": "Drop-in",
+            "price": "$35",
+            "description": "Single class",
+            "features": [],
+            "button": {
+              "label": "Buy",
+              "href": "https://shop.example.com/drop-in",
+              "style": "primary",
+              "newTab": true
+            },
+            "highlight": false
+          },
+          {
+            "name": "10 Pack",
+            "price": "$300",
+            "description": "10 classes, 3 months",
+            "features": [],
+            "highlight": false
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book now",
+            "href": "/book/",
+            "style": "primary"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

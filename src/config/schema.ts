@@ -1,0 +1,135 @@
+import { z } from "zod";
+
+/** Builders the kit can detect. Adapters exist for the `supported` ones. */
+export const BUILDERS = ["gutenberg", "classic", "wpbakery", "elementor", "bricks", "divi"] as const;
+export const SUPPORTED_BUILDERS = ["gutenberg", "classic", "wpbakery"] as const;
+
+/** Email providers for rebuilt forms. All are HTTP APIs callable from a Worker. */
+/** Where the migrated site lives. See docs/PLAN.md §2.3. */
+export const TARGETS = ["emdash", "astro-pagescms"] as const;
+
+export const EMAIL_PROVIDERS = [
+	"brevo",
+	"resend",
+	"sendgrid",
+	"postmark",
+	"mailgun",
+	"ses",
+	"google-workspace",
+	"microsoft-365",
+	"cloudflare-email",
+] as const;
+
+const viewport = z.object({
+	name: z.string(),
+	width: z.number().int().positive(),
+	height: z.number().int().positive(),
+});
+
+const emailConfig = z.object({
+	provider: z.enum(EMAIL_PROVIDERS).default("brevo"),
+	/** Verified sender address, e.g. "Website <noreply@client.com>". */
+	from: z.string().optional(),
+	/** Default notification recipients; individual forms can override. */
+	to: z.array(z.string()).default([]),
+	/** Name of the Wrangler secret holding the API key / service-account JSON. Never the value itself. */
+	secretName: z.string().default("EMAIL_API_KEY"),
+	/** Provider-specific, non-secret options (e.g. Mailgun region, SES region, Workspace delegated user). */
+	options: z.record(z.string(), z.string()).default({}),
+});
+
+export const kitConfigSchema = z.object({
+	/** Short identifier, also the folder name under sites/. */
+	slug: z.string().regex(/^[a-z0-9-]+$/, "lowercase letters, digits and hyphens"),
+	name: z.string(),
+
+	source: z.object({
+		/** Live WordPress origin, e.g. https://www.example.com */
+		url: z.url(),
+		/** Hosts that count as internal (www/apex variants, old domains). */
+		alternateHosts: z.array(z.string()).default([]),
+		/** Leave empty to auto-detect during audit. */
+		builders: z.array(z.enum(BUILDERS)).default([]),
+		theme: z.string().optional(),
+	}),
+
+	target: z.object({
+		/** emdash = Worker + D1 + R2 with admin/visual editing; astro-pagescms = static site edited through Pages CMS (Git). */
+		kind: z.enum(TARGETS).default("emdash"),
+		/** Production URL after cutover. */
+		productionUrl: z.url(),
+		/** Staging URL once deployed; filled in by scaffold. */
+		stagingUrl: z.url().optional(),
+		/** Where staging lives before launch. See docs/PLAN.md Phase 4 and §7a. */
+		staging: z
+			.object({
+				/** e.g. "staging.example.com" on the client's zone. Empty = the free *.workers.dev address. */
+				host: z.string().optional(),
+				/** access = Cloudflare Access login wall + noindex; noindex = robots + X-Robots-Tag only. */
+				protection: z.enum(["access", "noindex"]).default("access"),
+			})
+			.prefault({}),
+		/** How production traffic moves to the Worker. See docs/PLAN.md §7a. */
+		cutover: z
+			.object({
+				/**
+				 * route = Worker route in front of the existing proxied record (zone on Cloudflare; instant rollback by deleting the route).
+				 * custom-domain = Worker Custom Domain straight away (replaces the DNS record).
+				 * dns = zone not on Cloudflare; repoint DNS with lowered TTL.
+				 */
+				method: z.enum(["route", "custom-domain", "dns"]).default("route"),
+				/** Days of post-launch monitoring before the route can become a Custom Domain. */
+				monitorDays: z.number().int().min(1).default(14),
+				/** Days WordPress stays running (not public) and restorable after launch. */
+				keepWordPressDays: z.number().int().min(0).default(30),
+			})
+			.prefault({}),
+		/** EmDash starter template passed to `npm create emdash`. */
+		template: z.string().default("cloudflare:marketing"),
+		trailingSlash: z.enum(["always", "never", "preserve"]).default("preserve"),
+		canonicalHost: z.enum(["apex", "www"]).default("apex"),
+	}),
+
+	audit: z
+		.object({
+			viewports: z.array(viewport).default([
+				{ name: "mobile", width: 390, height: 844 },
+				{ name: "tablet", width: 768, height: 1024 },
+				{ name: "desktop", width: 1440, height: 900 },
+			]),
+			/** CSS selectors hidden before screenshots (sliders, tickers, cookie banners). */
+			maskSelectors: z.array(z.string()).default([]),
+			/** URL patterns never crawled (e.g. /cart, /wp-admin). */
+			exclude: z.array(z.string()).default(["/wp-admin", "/wp-login.php", "/wp-json", "/xmlrpc.php", "/cdn-cgi"]),
+			maxUrls: z.number().int().positive().default(2000),
+			concurrency: z.number().int().positive().default(4),
+		})
+		.prefault({}),
+
+	gates: z
+		.object({
+			/** Normalised visible-text similarity per page (0–1). */
+			textSimilarity: z.number().min(0).max(1).default(0.98),
+			/** Transform: share of the live page's distinct words found in the IR. */
+			textConservation: z.number().min(0).max(1).default(0.99),
+			/** Max pixel difference per page × viewport after masks (0–1). */
+			visualDiff: z.number().min(0).max(1).default(0.03),
+			lighthousePerformance: z.number().min(0).max(100).default(90),
+			maxLcpMs: z.number().default(2500),
+			maxCls: z.number().default(0.1),
+		})
+		.prefault({}),
+
+	email: emailConfig.prefault({}),
+
+	/** Site handles sensitive data (health, legal, finance): forms never store or email field values that look sensitive. */
+	sensitiveData: z.boolean().default(false),
+});
+
+export type KitConfigInput = z.input<typeof kitConfigSchema>;
+export type KitConfig = z.output<typeof kitConfigSchema>;
+
+/** Typed helper for sites/<slug>/kit.config.ts */
+export function defineConfig(config: KitConfigInput): KitConfigInput {
+	return config;
+}

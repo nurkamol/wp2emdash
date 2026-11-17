@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+*.tmp
+# Spike projects are throwaway; findings live in docs/spikes/
+spikes/*/
+# Client workspaces never enter this (public) repo: they hold client content, credentials and
+# exports. Each one is a local folder, optionally its own private repo. Only the README is tracked.
+sites/*
+!sites/README.md

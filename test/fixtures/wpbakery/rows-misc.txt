@@ -1,0 +1,6 @@
+[vc_row disable_element="yes"][vc_column width="1/1"][vc_column_text]Hidden on the live site.[/vc_column_text][/vc_column][/vc_row]
+[vc_section][vc_row][vc_column width="1/1"][vc_column_text]<p>Inside a section.</p>[/vc_column_text][/vc_column][/vc_row][/vc_section]
+[vc_row][vc_column width="1/4"][milestone number="250" subject="Clients" symbol="+" symbol_position="after"][/vc_column][vc_column width="1/4"][milestone number="12" subject="Years"][/vc_column][/vc_row]
+[vc_row][vc_column width="1/1"][nectar_icon_list][nectar_icon_list_item header="Assess" text="We start with a full assessment." icon_family="fontawesome" icon_fontawesome="fa-search"][nectar_icon_list_item header="Plan" text="Then build your plan."][/nectar_icon_list][/vc_column][/vc_row]
+[vc_row][vc_column width="1/1"][image_with_animation image_url="658" animation="Fade In From Bottom" alt="Studio interior"][vc_column_text]<p>Our studio opened in 2020.</p>[/vc_column_text][/vc_column][/vc_row]
+[vc_row][vc_column width="1/1"][nectar_post_grid post_type="post"][/vc_column][/vc_row]

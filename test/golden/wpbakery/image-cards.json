@@ -1,0 +1,51 @@
+{
+  "sections": [
+    {
+      "type": "feature_grid",
+      "variant": "image-cards",
+      "theme": {
+        "tone": "dark"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "8b26e09517"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Pilates",
+            "body": [],
+            "image": {
+              "wpId": 581,
+              "kind": "image"
+            },
+            "link": {
+              "label": "Learn More",
+              "href": "/pilates/",
+              "style": "link"
+            }
+          },
+          {
+            "title": "Physio",
+            "body": [],
+            "image": {
+              "wpId": 659,
+              "kind": "image"
+            },
+            "link": {
+              "label": "Learn More",
+              "href": "https://physio.example.org/",
+              "style": "link",
+              "newTab": true
+            }
+          }
+        ],
+        "columns": 2
+      }
+    }
+  ],
+  "diagnostics": []
+}

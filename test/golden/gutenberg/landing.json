@@ -1,0 +1,374 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "image",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "image": {
+            "wpId": 120,
+            "kind": "image"
+          },
+          "overlay": 0.5
+        }
+      },
+      "spacing": "normal",
+      "fullHeight": true,
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0]",
+        "rawHash": "fbbb854db1"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Feel better, move better",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Physio and Pilates under one roof.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book now",
+            "href": "#book-now",
+            "style": "primary",
+            "opensPopup": "book-now"
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "media_text",
+      "variant": "inline",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "anchorId": "about",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[1]",
+        "rawHash": "8c9179a999"
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 121,
+            "kind": "image"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "About the studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Opened in 2020 with ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "a small team",
+                "marks": [
+                  "t8"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "ta",
+                "text": ".",
+                "marks": []
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t8",
+                "href": "/team/"
+              }
+            ]
+          }
+        ],
+        "buttons": [],
+        "mediaSide": "right",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "image-cards",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[2]",
+        "rawHash": "d2ea411af8"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Pilates",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "td",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "te",
+                    "text": "Small classes.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 130,
+              "kind": "image",
+              "url": "https://acme.example/wp-content/uploads/2025/02/a.jpg",
+              "alt": "Reformer"
+            }
+          },
+          {
+            "title": "Physio",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "th",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "ti",
+                    "text": "One-to-one care.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 131,
+              "kind": "image",
+              "url": "https://acme.example/wp-content/uploads/2025/02/b.jpg",
+              "alt": "Treatment"
+            }
+          }
+        ],
+        "columns": 2
+      }
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[4-9]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "tj",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tk",
+                "text": "Questions",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "Do I need experience?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "tl",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tm",
+                    "text": "No, beginners are welcome.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[4-9]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tn",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "to",
+                "text": "First visit is 60 minutes",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tp",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tq",
+                "text": "Bring comfortable clothes",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tr",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "ts",
+                "text": "Shared notice from a reusable block.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[4-9]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "embedUrl": "https://www.youtube.com/watch?v=abc123"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "core/spacer dropped (decorative)",
+      "path": "blocks[3]",
+      "tag": "core/spacer"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Reusable block #99 inlined",
+      "path": "blocks[8]"
+    },
+    {
+      "level": "error",
+      "code": "dynamic",
+      "message": "core/latest-posts: server-rendered block, content comes from the live render — needs a handler",
+      "path": "blocks[9]",
+      "carriesContent": true,
+      "tag": "core/latest-posts"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "Row mixes faq + video; secondary items emitted as separate sections",
+      "path": "blocks[4-9]"
+    }
+  ]
+}

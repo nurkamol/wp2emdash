@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: true
+
+# Supply-chain hardening: skip brand-new releases for a day; no exotic transitive sources.
+minimumReleaseAge: 1440
+blockExoticSubdeps: true

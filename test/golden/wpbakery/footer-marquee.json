@@ -1,0 +1,131 @@
+{
+  "sections": [
+    {
+      "type": "cta_banner",
+      "variant": "marquee",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "anchorId": "cta",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "93455a571d"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t2",
+                "text": "BOOK NOW",
+                "marks": [
+                  "t1"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t1",
+                "href": "/book/"
+              }
+            ]
+          }
+        ],
+        "body": [],
+        "buttons": [
+          {
+            "label": "BOOK NOW",
+            "href": "/book/",
+            "style": "primary"
+          }
+        ],
+        "media": {
+          "wpId": 574,
+          "kind": "image"
+        }
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4ece2"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]",
+        "rawHash": "9853c0166e"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t3",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t4",
+                    "text": "©",
+                    "marks": [
+                      "strong"
+                    ]
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": " {year} Acme Studio",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/2",
+            "body": [],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Book Now",
+                "href": "#book-now",
+                "style": "link",
+                "opensPopup": "book-now"
+              },
+              {
+                "label": "Privacy Policy",
+                "href": "/privacy-policy/",
+                "style": "link"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[nectar_current_year] rendered dynamically as {year}",
+      "path": "vc_row[2]/vc_column[0]/vc_column_text[0]/nectar_current_year[1]",
+      "tag": "nectar_current_year"
+    }
+  ]
+}

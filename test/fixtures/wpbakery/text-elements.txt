@@ -1,0 +1,9 @@
+[vc_row][vc_column width="2/3" offset="vc_col-lg-offset-2"][vc_custom_heading text="Our approach" font_container="tag:h2|text_align:left" link="url:%2Fabout%2F|title:About%20us|target:_blank"][vc_column_text]
+<p>We focus on <strong>form</strong>, <em>breath</em> and <a href="https://acme.example/classes/">consistency</a>.</p>
+<ul>
+<li>Small groups<ul><li>Max 8 people</li></ul></li>
+<li>Expert instructors</li>
+</ul>
+Plain text after the list, with a line
+break and a second line.
+[/vc_column_text][fancy-ul icon_type="standard_dot"]</p><ul><li>Rehab</li><li>Mobility</li></ul><p>[/fancy-ul][nectar_highlighted_text style="scribble"]</p><h2>Move with <em>purpose.</em></h2><p>[/nectar_highlighted_text][vc_empty_space height="32px"][acme_custom_quote author="Pat"]Unknown element with real text.[/acme_custom_quote][vc_btn title="Read more" link="url:https%3A%2F%2Facme.example%2Fblog%2F|title:Blog|target:%20_blank" style="outline"][[escaped_shortcode]][/vc_column][/vc_row]

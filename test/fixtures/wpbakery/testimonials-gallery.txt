@@ -1,0 +1,2 @@
+[vc_row][vc_column width="1/1"][testimonial_slider style="minimal"][testimonial name="Jordan P." subtitle="Member since 2023" quote="Best studio in town." star_rating="5"][testimonial name="Casey M." quote="Friendly, expert staff."][/testimonial_slider][/vc_column][/vc_row]
+[vc_row][vc_column width="1/1"][vc_gallery type="flickity_static_height_style" images="361,31,231"][/vc_column][/vc_row]

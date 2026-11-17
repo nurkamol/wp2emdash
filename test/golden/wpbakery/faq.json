@@ -1,0 +1,156 @@
+{
+  "sections": [
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "daf1546adf"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Questions",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "What should I bring?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Grip socks and water. We provide ",
+                    "marks": []
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t4",
+                    "text": "mats",
+                    "marks": [
+                      "strong"
+                    ]
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": ".",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Can I cancel?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Up to 6 hours before class. ",
+                    "marks": []
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "See our policies",
+                    "marks": [
+                      "t8"
+                    ]
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "ta",
+                    "text": ".",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t8",
+                    "href": "/policies/"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]",
+        "rawHash": "aac1b547b4"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "question": "Do you offer gift cards?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "tb",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tc",
+                    "text": "Yes, at the front desk.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[0]/vc_column[0]/divider[1]",
+      "tag": "divider"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "sections": [
+    {
+      "type": "team",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "3a608f876d"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Meet the team",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "members": [
+          {
+            "name": "Dr. Alex Rivera",
+            "role": "PT, DPT",
+            "photo": {
+              "wpId": 734,
+              "kind": "image"
+            },
+            "summary": "Founder and lead therapist.",
+            "bio": [
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Alex has 10 years of experience in sports rehab.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "links": []
+          },
+          {
+            "name": "Sam Lee",
+            "role": "Instructor",
+            "photo": {
+              "wpId": 735,
+              "kind": "image"
+            },
+            "bio": [],
+            "links": [
+              {
+                "label": "instagram",
+                "href": "https://instagram.com/example",
+                "style": "link",
+                "newTab": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

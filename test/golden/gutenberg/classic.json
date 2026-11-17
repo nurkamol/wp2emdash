@@ -1,0 +1,102 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "classic",
+        "path": "loose[3]",
+        "rawHash": "21d27730f4"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Welcome to our ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t2",
+                "text": "classic",
+                "marks": [
+                  "strong"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": " page.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "This paragraph has a line\nbreak inside it.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "classic",
+        "path": "loose[3]",
+        "rawHash": "21d27730f4"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Contact",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "formRef": {
+          "provider": "fluent-forms",
+          "id": "1"
+        },
+        "aside": []
+      }
+    }
+  ],
+  "diagnostics": []
+}

@@ -1,0 +1,191 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_section[1]/vc_row[0]",
+        "rawHash": "fdbfe8d3f0"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Inside a section.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "stats",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[3]",
+        "rawHash": "ef7c2bbdf8"
+      },
+      "fields": {
+        "items": [
+          {
+            "value": "250",
+            "label": "Clients",
+            "suffix": "+"
+          },
+          {
+            "value": "12",
+            "label": "Years"
+          }
+        ]
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[5]",
+        "rawHash": "83870acd97"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Assess",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "We start with a full assessment.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "fa-search"
+            }
+          },
+          {
+            "title": "Plan",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Then build your plan.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "columns": 1
+      }
+    },
+    {
+      "type": "media_text",
+      "variant": "stacked",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[7]",
+        "rawHash": "f72525d816"
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 658,
+            "kind": "image",
+            "alt": "Studio interior"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Our studio opened in 2020.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "Row is disabled in WPBakery (hidden on the live site) — not migrated",
+      "path": "vc_row[0]"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Entrance animation \"Fade In From Bottom\" replaced by the starter's default reveal",
+      "path": "vc_row[7]/vc_column[0]/image_with_animation[0]"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "nectar_post_grid: lists post entries, but the site has none — dropped",
+      "path": "vc_row[9]/vc_column[0]/nectar_post_grid[0]",
+      "tag": "nectar_post_grid"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Stacked image + text in one column converted to media_text",
+      "path": "vc_row[7]"
+    }
+  ]
+}

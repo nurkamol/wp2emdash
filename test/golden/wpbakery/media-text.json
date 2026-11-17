@@ -1,0 +1,115 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "cover",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "anchorId": "intro",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "e2940ef3ba"
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 581,
+            "kind": "image"
+          },
+          {
+            "wpId": 655,
+            "kind": "image"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Welcome",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Strength meets recovery",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Small classes, expert coaching and a calm studio.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Move well, feel better.",
+                "marks": [
+                  "em"
+                ]
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[0]/vc_column[0]/vc_row_inner[0]/vc_column_inner[0]/divider[0]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[0]/vc_column[1]/vc_row_inner[1]/vc_column_inner[0]/divider[0]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "1 image(s) from the text column moved into the section's media list",
+      "path": "vc_row[0]"
+    }
+  ]
+}

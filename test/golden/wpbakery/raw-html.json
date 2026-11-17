@@ -1,0 +1,79 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "a36f42f782"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Book",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "momence",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]",
+        "rawHash": "82b2d70288"
+      },
+      "fields": {
+        "provider": "momence",
+        "html": "<div id=\"schedule\"></div><script async type=\"module\" src=\"https://momence.com/plugin/host-schedule/host-schedule.js\"></script>"
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[4]",
+        "rawHash": "205ef08654"
+      },
+      "fields": {
+        "html": "<div class=\"promo\"><strong>Spring offer</strong> 20% off</div>",
+        "reason": "vc_raw_html"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (vc_raw_html); replace with a section or approve in decisions.md",
+      "path": "vc_row[4]/vc_column[0]/vc_raw_html[0]",
+      "carriesContent": true
+    }
+  ]
+}

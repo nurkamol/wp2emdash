@@ -1,0 +1,62 @@
+{
+  "sections": [
+    {
+      "type": "testimonials",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "e76a109073"
+      },
+      "fields": {
+        "items": [
+          {
+            "quote": "Best studio in town.",
+            "name": "Jordan P.",
+            "role": "Member since 2023",
+            "rating": 5
+          },
+          {
+            "quote": "Friendly, expert staff.",
+            "name": "Casey M."
+          }
+        ]
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "carousel",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]",
+        "rawHash": "5a4a944885"
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 361,
+            "kind": "image"
+          },
+          {
+            "wpId": 31,
+            "kind": "image"
+          },
+          {
+            "wpId": 231,
+            "kind": "image"
+          }
+        ],
+        "layout": "carousel",
+        "lightbox": true
+      }
+    }
+  ],
+  "diagnostics": []
+}
