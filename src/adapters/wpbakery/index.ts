@@ -367,7 +367,8 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					push({ ...base("tabs"), fields: { ...h, tabs: items("tab").map((f) => ({ label: f.label, body: f.body })) } });
 					break;
 				case "team":
-					push({ ...base("team"), fields: { ...h, intro, members: items("team").map((f) => f.member) } });
+					// One member per inner column → the source's columns per row (Salient: 3).
+					push({ ...base("team"), fields: { ...h, intro, ...(cols.length > 1 ? { columns: Math.min(6, cols.length) } : {}), members: items("team").map((f) => f.member) } });
 					break;
 				case "testimonial":
 					push({ ...base("testimonials"), fields: { ...h, items: items("testimonial").map((f) => f.item) } });

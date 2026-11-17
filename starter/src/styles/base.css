@@ -52,6 +52,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .valign-bottom.section--full { align-items: end; }
 .space-none { padding-block: 0; }
 .space-compact { padding-block: var(--space-compact); }
+.site-footer .columns__col .actions { margin-top: 0.75rem; }
 .space-normal { padding-block: var(--space-normal); }
 .space-spacious { padding-block: var(--space-spacious); }
 .section--full { min-height: 100svh; display: grid; align-items: center; }
@@ -132,7 +133,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 /* full-width, no gap: cards touch the screen edges and each other (Salient full-width column rows) */
 .is-full-width.section--feature_grid { padding-block: 0; }
 .is-full-width.gap-none .grid { gap: 0; }
-.is-full-width .card--image { border-radius: 0; min-height: clamp(360px, 56vw, 820px); align-content: center; justify-items: center; text-align: center; }
+.is-full-width .card--image { border-radius: 0; min-height: 0; aspect-ratio: 4 / 5; align-content: center; justify-items: center; text-align: center; }
 .is-full-width .section__head, .is-full-width .lead { padding-inline: var(--gutter); }
 
 /* cta + marquee */
@@ -175,11 +176,14 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .quote blockquote { margin: 0 0 1rem; font-family: var(--font-display); font-size: var(--font-size-h4); }
 .quote__by { display: flex; gap: 0.75rem; align-items: center; margin: 0; }
 .quote__photo { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
-@media (min-width: 700px) { .team--grid, .gallery--grid { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); } }
-.person__photo { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-media); margin-bottom: 1rem; }
-.person__name { font-size: var(--font-size-h4); margin: 0; }
-.person__role { margin: 0.25rem 0 0.75rem; opacity: 0.8; }
-.person__bio summary { cursor: pointer; text-decoration: underline; text-underline-offset: 0.3em; }
+@media (min-width: 700px) { .gallery--grid { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); } }
+@media (min-width: 900px) /* stack */ { .team--grid { grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); column-gap: clamp(1.5rem, 3vw, 3rem); row-gap: clamp(2rem, 4vw, 3.5rem); } }
+.person__photo { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--radius-media); margin-bottom: 1.25rem; }
+.person__role { margin: 0 0 0.35rem; }
+.person__name { font-size: var(--font-size-h3); margin: 0 0 0.5rem; }
+.person__summary { margin: 0 0 0.75rem; }
+.person__bio summary { cursor: pointer; list-style: none; font-size: 1.25rem; }
+.person__bio summary::-webkit-details-marker { display: none; }
 .gallery--carousel { grid-auto-flow: column; grid-auto-columns: min(85%, 42rem); overflow-x: auto; scroll-snap-type: x mandatory; }
 .gallery__item { scroll-snap-align: start; }
 .gallery img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-media); }

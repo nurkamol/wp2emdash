@@ -55,7 +55,20 @@ export function verifyReport(siteName: string, v: VerifyResult, checks: GateChec
 				...(p.a11y?.serious ?? []).map((a) => `<li>Accessibility (${esc(a.impact)}): ${esc(a.help)} — ${a.nodes} element(s) <code>${esc(a.id)}</code></li>`),
 				p.perf ? `<li class="muted">Lab performance (mobile): TTFB ${p.perf.ttfbMs ?? "—"} ms · LCP ${p.perf.lcpMs ?? "—"} ms · CLS ${p.perf.cls ?? "—"} · ${p.perf.transferKb ?? "—"} KB</li>` : "",
 			].filter(Boolean);
-			return `<section class="page" id="p-${esc(p.name)}"><h3>${esc(p.path)} <a class="ext" href="${esc(p.sourceUrl)}">WordPress ↗</a> <a class="ext" href="${esc(p.targetUrl)}">EmDash ↗</a></h3>${issues.length ? `<ul class="issues">${issues.join("")}</ul>` : `<p class="muted">No issues.</p>`}${shots}</section>`;
+			const rel = (f: string) => f.slice(f.lastIndexOf("/reports/verify/") + "/reports/verify/".length);
+			const sectionTables = Object.entries(p.sections ?? {})
+				.map(([vp, list]) => {
+					if (!list.length) return "";
+					const sorted = [...list].sort((a, b) => b.ratio - a.ratio);
+					return `<details class="sections"${sorted.some((x) => x.ratio > visualLimit) ? " open" : ""}><summary><b>${esc(vp)}</b> — ${list.length} sections, ${list.filter((x) => x.ratio <= visualLimit).length} within ${(visualLimit * 100).toFixed(0)}%</summary>
+<table class="sec"><thead><tr><th scope="col">Section</th><th scope="col">Type</th><th scope="col">Difference</th><th scope="col">Height WP → EmDash</th><th scope="col">WordPress</th><th scope="col">EmDash</th><th scope="col">Diff</th></tr></thead><tbody>
+${sorted
+	.map((x) => `<tr><th scope="row">${esc(x.label)}</th><td>${esc(x.types.join(" + "))}</td><td class="${x.ratio <= visualLimit ? "ok" : "bad"}">${pct(x.ratio)}${x.note ? ` <small>${esc(x.note)}</small>` : ""}</td><td>${x.sourceHeight} → ${x.targetHeight}px</td>${x.files ? `<td><a href="${esc(rel(x.files.source))}"><img loading="lazy" src="${esc(rel(x.files.source))}" alt="WordPress ${esc(x.label)}"></a></td><td><a href="${esc(rel(x.files.target))}"><img loading="lazy" src="${esc(rel(x.files.target))}" alt="EmDash ${esc(x.label)}"></a></td><td><a href="${esc(rel(x.files.diff))}"><img loading="lazy" src="${esc(rel(x.files.diff))}" alt="Difference ${esc(x.label)}"></a></td>` : "<td></td><td></td><td></td>"}</tr>`)
+	.join("")}
+</tbody></table></details>`;
+				})
+				.join("");
+			return `<section class="page" id="p-${esc(p.name)}"><h3>${esc(p.path)} <a class="ext" href="${esc(p.sourceUrl)}">WordPress ↗</a> <a class="ext" href="${esc(p.targetUrl)}">EmDash ↗</a></h3>${issues.length ? `<ul class="issues">${issues.join("")}</ul>` : `<p class="muted">No issues.</p>`}${sectionTables}${shots}</section>`;
 		})
 		.join("");
 
@@ -110,6 +123,11 @@ a { color:var(--accent); }
 .mode-side .old, .mode-side .new { position:relative; }
 .range { position:sticky; bottom:8px; left:0; width:calc(100% - 32px); margin:8px 16px; z-index:4; }
 .mode-side .range, .mode-diff .range { display:none; }
+.sections { margin:12px 0; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 14px; }
+.sections summary { cursor:pointer; }
+table.sec { min-width:0; margin-top:8px; }
+table.sec td, table.sec th { white-space:normal; vertical-align:top; }
+table.sec img { display:block; width:160px; max-height:220px; object-fit:cover; object-position:top; border:1px solid var(--line); border-radius:6px; background:#fff; }
 </style>
 </head>
 <body>

@@ -57,13 +57,62 @@ async function settle(page: Page, maskSelectors: string[]): Promise<void> {
 	await page.waitForTimeout(400);
 }
 
+export interface SectionBox {
+	/** Ordinal among content sections (footer sections counted separately). */
+	index: number;
+	y: number;
+	height: number;
+	/** In the site footer / global footer section. */
+	footer: boolean;
+	/** Which builder's markup matched (wpbakery, gutenberg, elementor, divi, bricks, emdash). */
+	kind: string;
+}
+
 export interface ScreenshotResult {
 	url: string;
 	viewport: string;
 	file?: string;
 	height?: number;
+	/** Top-level page sections at the moment of the screenshot (for section-by-section comparison). */
+	sections?: SectionBox[];
 	error?: string;
 	consoleErrors: number;
+}
+
+/**
+ * Outermost section-level blocks of a rendered page, for any of the supported builders and for the
+ * wp2emdash starter. Measured in the same render as the screenshot so the boxes line up with it.
+ */
+export async function sectionBoxes(page: Page): Promise<SectionBox[]> {
+	return page.evaluate(() => {
+		const kinds: [string, string][] = [
+			["section.section", "emdash"],
+			[".wpb_row", "wpbakery"],
+			[".et_pb_section", "divi"],
+			[".elementor-top-section, .e-con.e-parent", "elementor"],
+			["section.brxe-section", "bricks"],
+			[".entry-content > .alignfull, .entry-content > .wp-block-group, .entry-content > .wp-block-cover", "gutenberg"],
+		];
+		const all = kinds.flatMap(([sel, kind]) => Array.from(document.querySelectorAll<HTMLElement>(sel)).map((el) => ({ el, kind })));
+		const set = new Set(all.map((x) => x.el));
+		const outer = all.filter(({ el }) => {
+			for (let p = el.parentElement; p; p = p.parentElement) if (set.has(p)) return false;
+			return true;
+		});
+		outer.sort((a, b) => (a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+		const isFooter = (el: Element) => !!el.closest("footer, .site-footer, #footer-outer, .nectar-global-section, [data-elementor-type='footer']");
+		let content = 0;
+		let foot = 0;
+		const sy = window.scrollY;
+		return outer
+			.map(({ el, kind }) => {
+				const r = el.getBoundingClientRect();
+				const footer = isFooter(el);
+				const box = { index: footer ? foot++ : content++, y: Math.round(r.top + sy), height: Math.round(r.height), footer, kind };
+				return box;
+			})
+			.filter((b) => b.height > 0);
+	});
 }
 
 /** tsx/esbuild wraps named functions with a \`__name\` helper; page.evaluate code runs in the browser, which lacks it. */
@@ -115,8 +164,9 @@ export async function captureScreenshots(
 					await settle(page, config.audit.maskSelectors);
 					// Clip to the viewport width: marquees/off-canvas menus can make the document wider than the screen.
 					const height = await page.evaluate(() => document.documentElement.scrollHeight);
+					const sections = await sectionBoxes(page).catch(() => undefined);
 					await page.screenshot({ path: file, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height }, timeout: 60_000 });
-					results.push({ url, viewport: vp.name, file, height, consoleErrors });
+					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), consoleErrors });
 				} catch (e) {
 					results.push({ url, viewport: vp.name, error: (e as Error).message.split("\n")[0], consoleErrors });
 				}

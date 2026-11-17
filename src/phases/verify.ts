@@ -6,7 +6,7 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { captureScreenshots, screenName } from "../audit/browser.js";
+import { captureScreenshots, type ScreenshotResult, screenName } from "../audit/browser.js";
 import { captureMenu, type MenuCapture, motionRecipe } from "../audit/interactions.js";
 import { type PageSnapshot, parsePage } from "../audit/page.js";
 import { siteHosts } from "../audit/urls.js";
@@ -17,6 +17,7 @@ import { sourceText } from "../transform/coverage.js";
 import { accessibility, type A11yResult, launchFor, measurePerformance, type PerfResult, visualDiff, type VisualResult } from "../verify/browser.js";
 import { compareHeadings, compareMotion, compareSeo, compareText, type HeadingResult, missingExternalLinks, missingMenuItems, type SeoResult, type TextResult } from "../verify/compare.js";
 import { verifyReport } from "../verify/report.js";
+import { diffSections, groupSections, type SectionDiff } from "../verify/sections.js";
 import type { PhaseContext } from "./index.js";
 import { ensureDevServer } from "./load.js";
 
@@ -40,6 +41,8 @@ export interface PageResult {
 	imagesWithoutAlt: string[];
 	forms: { ok: boolean; detail: string }[];
 	visual: Record<string, VisualResult>;
+	/** Section-by-section comparison per viewport (needs section boxes from the audit and verify screenshots). */
+	sections: Record<string, SectionDiff[]>;
 	a11y?: A11yResult;
 	perf?: PerfResult;
 }
@@ -110,7 +113,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			const name = screenName(u.url);
 			const targetUrl = `${base}${u.path}`;
 			reporter.emit({ type: "step:progress", step: "Pages", done: i + 1, total: pagesToCheck.length, item: u.path });
-			const r: PageResult = { path: u.path, name, sourceUrl: u.url, targetUrl, status: 0, missingExternal: [], imagesWithoutAlt: [], forms: [], visual: {} };
+			const r: PageResult = { path: u.path, name, sourceUrl: u.url, targetUrl, status: 0, missingExternal: [], imagesWithoutAlt: [], forms: [], visual: {}, sections: {} };
 			try {
 				const res = await kitFetch(targetUrl, { redirect: "manual" });
 				r.status = res.status;
@@ -196,11 +199,21 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		try {
 			const shots = await captureScreenshots(browser, results.filter((r) => r.status === 200).map((r) => r.targetUrl), config, join(outDir, "screens"), reporter);
 			reporter.emit({ type: "step:start", step: "Visual diff", total: shots.length });
+			const sourceShots = readJson<ScreenshotResult[]>(join(paths.snapshot, "screens.json")) ?? [];
+			const footerDoc = readJson<{ partials?: { role: string; file: string }[] }>(join(paths.ir, "site.json"))?.partials?.find((p) => p.role === "footer");
+			const footerIr = footerDoc ? readJson<IrPage>(join(paths.ir, footerDoc.file)) : undefined;
+			const footerGroups = groupSections((footerIr?.sections ?? []).map((x) => ({ type: x.type, path: x.sourceRef.path })), true);
 			for (const s of shots) {
 				const r = results.find((x) => x.targetUrl === s.url);
 				if (!r || !s.file) continue;
 				const src = join(paths.snapshot, "screens", s.viewport, `${r.name}.png`);
 				r.visual[s.viewport] = existsSync(src) ? visualDiff(src, s.file, join(outDir, "diff", s.viewport, `${r.name}.png`)) : { ratio: 1, comparedHeight: 0, sourceHeight: 0, targetHeight: s.height ?? 0, error: "no audit screenshot" };
+				const srcShot = sourceShots.find((x) => x.viewport === s.viewport && new URL(x.url).pathname === r.path);
+				const ir = irPages.find((p) => p.route?.path === r.path);
+				if (existsSync(src) && srcShot?.sections?.length && s.sections?.length && ir) {
+					const groups = [...groupSections(ir.sections.map((x) => ({ type: x.type, path: x.sourceRef.path })), false), ...footerGroups];
+					r.sections[s.viewport] = diffSections(src, s.file, srcShot.sections, s.sections, groups, (k, part) => join(outDir, "sections", s.viewport, r.name, `${String(k).padStart(2, "0")}-${part}.png`));
+				}
 			}
 			reporter.emit({ type: "step:end", step: "Visual diff", ok: true });
 
@@ -254,8 +267,17 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		check("security-headers", "Security headers set", missingHeaders.length === 0, missingHeaders.length ? `missing: ${missingHeaders.join(", ")}` : undefined);
 		const wpOpen = wpPaths.filter((w) => w.status !== 404 && w.status !== 410);
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);
-		const visualFails = results.flatMap((r) => Object.entries(r.visual).filter(([, v]) => v.ratio > g.visualDiff).map(([vp, v]) => `${r.path} ${vp} ${(v.ratio * 100).toFixed(1)}%`));
-		check("visual", `Visual difference ≤ ${(g.visualDiff * 100).toFixed(0)}% per page × viewport`, visualFails.length === 0, visualFails.length ? `${visualFails.length} over: ${visualFails.slice(0, 6).join("; ")}` : undefined);
+		// Gate on sections where we can pair them; whole-page difference where we cannot (e.g. Gutenberg pages).
+		const sectionFails = results.flatMap((r) => Object.entries(r.sections).flatMap(([vp, list]) => list.filter((x) => x.ratio > g.visualDiff).map((x) => ({ text: `${r.path} ${vp} ${x.label} (${x.types.join("+")}) ${(x.ratio * 100).toFixed(1)}%`, ratio: x.ratio }))));
+		const pageFails = results.flatMap((r) => Object.entries(r.visual).filter(([vp, v]) => !r.sections[vp]?.length && v.ratio > g.visualDiff).map(([vp, v]) => ({ text: `${r.path} ${vp} whole page ${(v.ratio * 100).toFixed(1)}%`, ratio: v.ratio })));
+		const allSections = results.flatMap((r) => Object.values(r.sections).flat());
+		const visualFails = [...sectionFails, ...pageFails].sort((a, b) => b.ratio - a.ratio);
+		check(
+			"visual",
+			`Visual difference ≤ ${(g.visualDiff * 100).toFixed(0)}% per section × viewport`,
+			visualFails.length === 0,
+			visualFails.length ? `${visualFails.length} over (${allSections.length} sections compared); worst: ${visualFails.slice(0, 5).map((f) => f.text).join("; ")}` : `${allSections.length} sections compared`,
+		);
 		const a11y = results.filter((r) => r.a11y && (r.a11y.serious.length || r.a11y.error));
 		check("a11y", "Accessibility: no serious or critical axe violations", a11y.length === 0, a11y.map((r) => `${r.path}: ${r.a11y?.error ?? r.a11y?.serious.map((v) => v.id).join(", ")}`).slice(0, 6).join("; ") || undefined);
 		const perfFail = results.filter((r) => r.perf && ((r.perf.lcpMs ?? 0) > g.maxLcpMs || (r.perf.cls ?? 0) > g.maxCls || r.perf.error));

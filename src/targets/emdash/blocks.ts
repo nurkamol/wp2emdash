@@ -204,7 +204,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		case "testimonials":
 			return base("testimonials", { ...head, items: s.fields.items.map((q) => stripUndefined({ quote: q.quote, name: q.name, role: q.role, photo: q.photo ? media(q.photo) : undefined, rating: q.rating })) });
 		case "team":
-			return base("team", { ...head, intro: pt(s.fields.intro), members: s.fields.members.map((m) => stripUndefined({ name: m.name, role: m.role, photo: m.photo ? media(m.photo) : undefined, summary: m.summary, bio: ptToMd(m.bio) || undefined, link_url: m.links[0]?.href })) });
+			return base("team", { ...head, intro: pt(s.fields.intro), ...(s.fields.columns ? { columns: s.fields.columns } : {}), members: s.fields.members.map((m) => stripUndefined({ name: m.name, role: m.role, photo: m.photo ? media(m.photo) : undefined, summary: m.summary, bio: ptToMd(m.bio) || undefined, link_url: m.links[0]?.href })) });
 		case "gallery":
 			return base("gallery", { ...head, images: s.fields.images.map((im) => ({ image: media(im) })), lightbox: s.fields.lightbox, variant: s.fields.layout });
 		case "logo_strip":
