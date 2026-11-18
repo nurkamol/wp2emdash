@@ -445,8 +445,8 @@ body:not(.over-hero) { padding-top: var(--header-height); }
 
 /* footer */
 .site-footer { background: var(--footer-bg, var(--color-surface)); }
-/* a whole line that is a link (address, phone) is plain; a link inside a sentence keeps its underline */
-.site-footer .prose p > a:only-child { text-decoration: none; }
+/* lines that are links (address, phone — alone or stacked with line breaks) are plain; a link inside a sentence keeps its underline */
+.site-footer .prose p > a:only-child, .site-footer .prose p:not(:has(> :not(a, br))) > a { text-decoration: none; }
 .site-footer .prose a:hover { text-decoration: underline; }
 
 /* Last on purpose: padding measured on the source page wins over spacing tokens and layout defaults. */
