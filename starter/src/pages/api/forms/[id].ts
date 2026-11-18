@@ -3,7 +3,8 @@
  *
  * Order: known form → honeypot → rate limit → Turnstile (fails closed) → validation against the form
  * definition (only its fields are read; anything else in the request is ignored) → email through the
- * site's provider. Nothing is stored. Field values never reach logs. A form generated for a site with
+ * site's provider — EmDash's own email pipeline when one is set up in Settings → Email (SMTP, editable in the admin),
+ * otherwise the provider API key from Wrangler secrets (Brevo by default). Nothing is stored. Field values never reach logs. A form generated for a site with
  * sensitive data only has the fields the owner approved (e.g. contact details), so that is all this can send.
  */
 import { env } from "cloudflare:workers";
@@ -48,7 +49,13 @@ async function turnstileOk(secret: string, token: string, ip: string | null): Pr
 	return out.success === true;
 }
 
-export const POST: APIRoute = async ({ params, request }) => {
+/** EmDash's email pipeline (Settings → Email), when a provider is configured there. */
+interface EmDashEmail {
+	isAvailable(): boolean;
+	send(message: { to: string; cc?: string[]; replyTo?: string; subject: string; text: string; html?: string }, source: string): Promise<void>;
+}
+
+export const POST: APIRoute = async ({ params, request, locals }) => {
 	const e = env as unknown as Env;
 	const form = getForm(params.id);
 	if (!form) return reply(request, 404, { ok: false, message: "This form does not exist." });
@@ -94,20 +101,27 @@ export const POST: APIRoute = async ({ params, request }) => {
 
 	const from = parseAddress(e.FORM_FROM);
 	const to = (e.FORM_TO ?? "").split(",").map((x) => x.trim()).filter((x) => EMAIL.test(x));
-	if (!e.EMAIL_API_KEY || !from || !to.length) return fail(503, "The form is not available right now. Please call or email us instead.", "email not configured");
+	const pipeline = (locals as { emdash?: { email?: EmDashEmail | null } }).emdash?.email;
+	const viaEmDash = !!pipeline?.isAvailable();
+	if (!to.length || (!viaEmDash && (!e.EMAIL_API_KEY || !from))) return fail(503, "The form is not available right now. Please call or email us instead.", "email not configured");
 
 	const replyEmail = values.find((v) => v.field.type === "email")?.value;
 	const name = values.filter((v) => /name/i.test(v.field.name) || /name/.test(v.field.autocomplete ?? "")).map((v) => v.value).join(" ");
 	const page = request.headers.get("referer") ?? "";
-	const result = await deliver(e.EMAIL_PROVIDER ?? "brevo", e.EMAIL_API_KEY, {
-		from,
-		to,
-		...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}),
-		subject: `New website message${name ? ` from ${name}` : ""}`,
-		text: [...values.map((v) => `${v.field.label}: ${v.value}`), "", page ? `Sent from ${page}` : ""].join("\n").trim(),
-		html: `<table cellpadding="6" style="border-collapse:collapse;font:14px/1.5 sans-serif">${values.map((v) => `<tr><th align="left" valign="top">${esc(v.field.label)}</th><td>${esc(v.value).replace(/\n/g, "<br>")}</td></tr>`).join("")}</table>${page ? `<p style="font:12px sans-serif;color:#666">Sent from ${esc(page)}</p>` : ""}`,
-	});
-	if (!result.ok) return fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
-	console.log(JSON.stringify({ form: form.id, outcome: "sent" }));
+	const subject = `New website message${name ? ` from ${name}` : ""}`;
+	const text = [...values.map((v) => `${v.field.label}: ${v.value}`), "", page ? `Sent from ${page}` : ""].join("\n").trim();
+	const html = `<table cellpadding="6" style="border-collapse:collapse;font:14px/1.5 sans-serif">${values.map((v) => `<tr><th align="left" valign="top">${esc(v.field.label)}</th><td>${esc(v.value).replace(/\n/g, "<br>")}</td></tr>`).join("")}</table>${page ? `<p style="font:12px sans-serif;color:#666">Sent from ${esc(page)}</p>` : ""}`;
+	if (viaEmDash && pipeline) {
+		try {
+			// Sender, host and credentials come from Settings → Email (or EMAIL_SMTP_*); recipients from FORM_TO.
+			await pipeline.send({ to: to[0] as string, ...(to.length > 1 ? { cc: to.slice(1) } : {}), ...(replyEmail ? { replyTo: replyEmail } : {}), subject, text, html }, `form:${form.id}`);
+		} catch (err) {
+			return fail(502, "Your message could not be sent. Please call or email us instead.", `emdash email: ${(err as Error).name}`);
+		}
+	} else {
+		const result = await deliver(e.EMAIL_PROVIDER ?? "brevo", e.EMAIL_API_KEY as string, { from: from as { email: string; name?: string }, to, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html });
+		if (!result.ok) return fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
+	}
+	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: viaEmDash ? "emdash" : (e.EMAIL_PROVIDER ?? "brevo") }));
 	return reply(request, 200, { ok: true, message: form.successMessage });
 };
