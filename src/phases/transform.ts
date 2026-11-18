@@ -9,6 +9,7 @@ import { adaptWpbakery } from "../adapters/wpbakery/index.js";
 import { loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import { Keys } from "../ir/portable-text.js";
+import { businessFromJsonLd } from "../transform/business.js";
 import { type Diagnostic, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
 import { conservation, irText, missingContext, sourceText } from "../transform/coverage.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
@@ -254,7 +255,10 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		return { name: m.name, role: menuRole(m.locations), wpLocations: m.locations, items: build(null) };
 	});
 	const siteIconId = typeof options.site_icon === "number" && options.site_icon > 0 ? options.site_icon : undefined;
-	const site: IrSite = { version: IR_VERSION, title: siteTitle, ...(typeof options.blogdescription === "string" && options.blogdescription ? { tagline: options.blogdescription } : {}), ...(frontId ? { frontPage: "/" } : {}), ...(siteIconId ? { siteIcon: { wpId: siteIconId, kind: "image" } } : {}), menus, partials, popups };
+	// The business from the live home page's structured data (Rank Math/Yoast LocalBusiness/Organization).
+	const homeSnap = existsSync(pagesDir) ? readdirSync(pagesDir).map((f) => readJson<{ url?: string; seo?: { jsonLd?: unknown[] } }>(join(pagesDir, f))).find((x) => { try { return !!x?.url && new URL(x.url).pathname === "/"; } catch { return false; } }) : undefined;
+	const business = businessFromJsonLd(homeSnap?.seo?.jsonLd ?? []);
+	const site: IrSite = { version: IR_VERSION, title: siteTitle, ...(business ? { business } : {}), ...(typeof options.blogdescription === "string" && options.blogdescription ? { tagline: options.blogdescription } : {}), ...(frontId ? { frontPage: "/" } : {}), ...(siteIconId ? { siteIcon: { wpId: siteIconId, kind: "image" } } : {}), menus, partials, popups };
 	const siteValid = irSite.safeParse(site);
 	if (!siteValid.success) invalid.push(`site.json: ${siteValid.error.issues[0]?.message}`);
 	write(join(paths.ir, "site.json"), site);

@@ -1,0 +1,72 @@
+---
+/**
+ * Structured data that EmDash's head does not emit: the business (an Organization or LocalBusiness subtype, carried
+ * over from the WordPress site's SEO plugin), this page's WebPage node and its breadcrumb. Node ids join EmDash's own
+ * WebSite node (`<origin>/#website`) and the organization id EmDash refers to (`<origin>/#organization`).
+ * FAQ sections add their own FAQPage.
+ */
+import site from "../site.config.json";
+
+interface Props {
+	/** Absolute canonical URL of this page. */
+	canonical: string;
+	/** The page's own title (without the site name). */
+	pageTitle: string;
+	description?: string | null;
+}
+const { canonical, pageTitle, description } = Astro.props;
+
+type Business = { type: string; name: string; description?: string; url?: string; email?: string; telephone?: string; priceRange?: string; address?: Record<string, string>; geo?: { latitude: string; longitude: string }; hasMap?: string; openingHours?: string[]; sameAs?: string[] };
+const sd = (site as { structuredData?: { business?: Business; pageTypes?: Record<string, string> } }).structuredData ?? {};
+const origin = new URL(site.productionUrl).origin;
+const path = new URL(canonical).pathname;
+const isHome = path === "/";
+const orgId = `${origin}/#organization`;
+const logo = (site as { header?: { logo?: string } }).header?.logo;
+const b = sd.business;
+
+const graph: Record<string, unknown>[] = [];
+if (b) {
+	graph.push({
+		"@type": b.type === "Organization" ? "Organization" : [b.type, "Organization"],
+		"@id": orgId,
+		name: b.name,
+		url: `${origin}/`,
+		...(b.description ? { description: b.description } : {}),
+		...(logo ? { logo: { "@type": "ImageObject", url: new URL(logo, origin).href }, image: new URL(logo, origin).href } : {}),
+		...(b.email ? { email: b.email } : {}),
+		...(b.telephone ? { telephone: b.telephone } : {}),
+		...(b.priceRange && b.type !== "Organization" ? { priceRange: b.priceRange } : {}),
+		...(b.address ? { address: { "@type": "PostalAddress", ...b.address } } : {}),
+		...(b.geo && b.type !== "Organization" ? { geo: { "@type": "GeoCoordinates", ...b.geo } } : {}),
+		...(b.hasMap ? { hasMap: b.hasMap } : {}),
+		...(b.openingHours?.length && b.type !== "Organization" ? { openingHours: b.openingHours } : {}),
+		...(b.sameAs?.length ? { sameAs: b.sameAs } : {}),
+	});
+}
+graph.push({
+	"@type": sd.pageTypes?.[path] ?? "WebPage",
+	"@id": `${canonical}#webpage`,
+	url: canonical,
+	name: pageTitle,
+	...(description ? { description } : {}),
+	isPartOf: { "@id": `${origin}/#website` },
+	...(b ? { [isHome ? "about" : "publisher"]: { "@id": orgId } } : {}),
+	...(!isHome ? { breadcrumb: { "@id": `${canonical}#breadcrumb` } } : {}),
+	inLanguage: site.lang,
+});
+if (!isHome) {
+	graph.push({
+		"@type": "BreadcrumbList",
+		"@id": `${canonical}#breadcrumb`,
+		itemListElement: [
+			{ "@type": "ListItem", position: 1, name: "Home", item: `${origin}/` },
+			{ "@type": "ListItem", position: 2, name: pageTitle, item: canonical },
+		],
+	});
+}
+// JSON in a script element: "<" escaped so content can never close the tag.
+const json = JSON.stringify({ "@context": "https://schema.org", "@graph": graph }).replace(/</g, "\\u003c");
+---
+
+<script type="application/ld+json" set:html={json} />

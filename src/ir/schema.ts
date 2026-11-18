@@ -267,6 +267,23 @@ export const irSite = z.object({
 	tagline: z.string().optional(),
 	frontPage: z.string().optional(),
 	siteIcon: mediaRef.optional(),
+	/** The business the live site describes in its structured data (Rank Math/Yoast LocalBusiness/Organization), schema.org fields only. */
+	business: z
+		.object({
+			type: z.string(),
+			name: z.string(),
+			description: z.string().optional(),
+			url: z.string().optional(),
+			email: z.string().optional(),
+			telephone: z.string().optional(),
+			priceRange: z.string().optional(),
+			address: z.object({ streetAddress: z.string().optional(), addressLocality: z.string().optional(), addressRegion: z.string().optional(), postalCode: z.string().optional(), addressCountry: z.string().optional() }).optional(),
+			geo: z.object({ latitude: z.string(), longitude: z.string() }).optional(),
+			hasMap: z.string().optional(),
+			openingHours: z.array(z.string()).optional(),
+			sameAs: z.array(z.string()).optional(),
+		})
+		.optional(),
 	menus: z.array(z.object({ name: z.string(), role: z.enum(["primary", "secondary", "footer", "other"]), wpLocations: z.array(z.string()), items: z.array(irMenuItem) })),
 	partials: z.array(z.object({ role: z.enum(["footer", "header", "other"]), file: z.string() })),
 	popups: z.array(z.object({ slug: z.string(), file: z.string() })),

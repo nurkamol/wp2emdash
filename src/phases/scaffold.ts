@@ -138,6 +138,14 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		...baseConfig,
 		header: { ...baseConfig.header, panelExtras: panelExtras(interactions.menus, primaryLabels), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
 		trailingSlash: trailing,
+		// Structured data: the business (from the live site's JSON-LD) and each page's schema type (AboutPage, ContactPage…).
+		structuredData: {
+			...(site.business ? { business: site.business } : {}),
+			pageTypes: Object.fromEntries(pages.flatMap((p) => {
+				const t = (p.seo.jsonLdTypes ?? []).flatMap((x) => x.split("+")).find((x) => /^(AboutPage|ContactPage|FAQPage|CollectionPage|ItemPage|ProfilePage|CheckoutPage|MedicalWebPage)$/.test(x));
+				return p.route && t ? [[p.route.path, t]] : [];
+			})),
+		},
 	};
 	write(join(project, "src", "site.config.json"), siteConfig);
 	write(join(project, "src", "styles", "tokens.css"), tokens.css + headerTokens(interactions.headers, siteConfig.header.breakpoint));
