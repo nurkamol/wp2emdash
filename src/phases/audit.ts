@@ -171,7 +171,9 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 		const desktop = config.audit.viewports.at(-1) ?? { name: "desktop", width: 1440, height: 900 };
 		const mobile = config.audit.viewports[0] ?? { name: "mobile", width: 390, height: 844 };
 		for (const [i, url] of pagesForDesign.entries()) {
-			for (const vp of [desktop, mobile]) {
+			// Tablet too when configured (between the two): page gutter and spacing often follow their own rule there.
+			const tablet = config.audit.viewports.find((v) => v.name === "tablet" && v !== desktop && v !== mobile);
+			for (const vp of [desktop, mobile, ...(tablet ? [tablet] : [])]) {
 				try {
 					design.push(await captureDesign(browser, url, vp, config.audit.maskSelectors));
 				} catch (e) {

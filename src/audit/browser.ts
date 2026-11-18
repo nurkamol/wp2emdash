@@ -51,6 +51,24 @@ async function settle(page: Page, maskSelectors: string[]): Promise<void> {
 	});
 	await page.evaluate(() => document.fonts?.ready).catch(() => {});
 	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+	// Every visible image decoded: a cold media fetch (R2 through the Worker) can outlast network idle.
+	const allDecoded = () => page.waitForFunction(() => Array.from(document.images).every((i) => i.complete && (i.naturalWidth > 0 || !i.getAttribute("src"))), undefined, { timeout: 20_000, polling: 250 }).catch(() => {});
+	await allDecoded();
+	// An image that failed under parallel captures (cold media fetch, rate limit) gets one more request.
+	const retried = await page.evaluate(() => {
+		let n = 0;
+		for (const i of Array.from(document.images)) {
+			if (i.complete && i.naturalWidth === 0 && i.getAttribute("src")) {
+				i.loading = "eager";
+				const src = i.src;
+				i.src = "";
+				i.src = src;
+				n++;
+			}
+		}
+		return n;
+	});
+	if (retried) await allDecoded();
 	if (maskSelectors.length) {
 		await page.addStyleTag({ content: `${maskSelectors.join(",")} { visibility: hidden !important; }` }).catch(() => {});
 	}
@@ -187,6 +205,12 @@ export async function captureScreenshots(
 	config: KitConfig,
 	outDir: string,
 	reporter: Reporter,
+	/**
+	 * The source is captured with reduced motion (fewer moving parts); a builder theme's scroll parallax ignores that
+	 * setting, while the generated site honours it. The target is therefore captured with motion on, so both show the
+	 * same scroll-linked positions.
+	 */
+	reducedMotion: "reduce" | "no-preference" = "reduce",
 ): Promise<ScreenshotResult[]> {
 	const results: ScreenshotResult[] = [];
 	const total = urls.length * config.audit.viewports.length;
@@ -198,7 +222,7 @@ export async function captureScreenshots(
 		const context = await browser.newContext({ bypassCSP: true, 
 			viewport: { width: vp.width, height: vp.height },
 			userAgent: `${USER_AGENT} ${vp.name}`,
-			reducedMotion: "reduce",
+			reducedMotion,
 			deviceScaleFactor: 1,
 		});
 		await context.addInitScript(NAME_SHIM);
@@ -262,6 +286,9 @@ export interface DesignCapture {
 	mediaRadius?: number;
 	/** Space between consecutive paragraphs (text to text, px): the most common value in the content. */
 	paragraphGap?: number;
+	/** Space between list items and the item text's offset from the list edge (px), most common in content. */
+	listItemGap?: number;
+	listIndent?: number;
 	breakpoints: number[];
 	header: { height: number; position: string; background: string } | null;
 	footer: { height: number; background: string; color: string } | null;
@@ -456,6 +483,25 @@ export async function captureDesign(browser: Browser, url: string, viewport: { n
 					}
 					const best = [...gaps.entries()].sort((a, b) => b[1] - a[1])[0];
 					return best && best[1] >= 2 ? { paragraphGap: best[0] } : {};
+				})(),
+				...(() => {
+					// List rhythm: space between items and where item text starts relative to the list's edge.
+					const gaps = new Map<number, number>();
+					const indents = new Map<number, number>();
+					for (const li of Array.from(document.querySelectorAll<HTMLElement>("ul > li + li, ol > li + li"))) {
+						if (li.closest("header, footer, nav, #header-outer, #footer-outer, .nectar-global-section, [role=dialog], .menu, [class*=menu]")) continue;
+						const prev = li.previousElementSibling as HTMLElement | null;
+						const list = li.parentElement as HTMLElement;
+						if (!prev?.offsetHeight || !li.offsetHeight || !(li.textContent ?? "").trim()) continue;
+						const gap = Math.round(li.getBoundingClientRect().top - prev.getBoundingClientRect().bottom);
+						if (gap >= 0 && gap <= 60) gaps.set(gap, (gaps.get(gap) ?? 0) + 1);
+						const indent = Math.round(li.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(li).paddingLeft) - list.getBoundingClientRect().left);
+						if (indent >= 0 && indent <= 80) indents.set(indent, (indents.get(indent) ?? 0) + 1);
+					}
+					const top = (m: Map<number, number>) => [...m.entries()].sort((a, b) => b[1] - a[1])[0];
+					const g = top(gaps);
+					const i = top(indents);
+					return { ...(g && g[1] >= 3 ? { listItemGap: g[0] } : {}), ...(i && i[1] >= 3 ? { listIndent: i[0] } : {}) };
 				})(),
 				breakpoints: [...breakpoints].sort((a, b) => a - b),
 				header: header ? { height: header.offsetHeight, position: getComputedStyle(header).position, background: getComputedStyle(header).backgroundColor } : null,

@@ -57,7 +57,10 @@ const PAGE_BOILERPLATE_LD = new Set(["Article", "Person"]);
 export function compareSeo(source: PageSnapshot["seo"], target: PageSnapshot["seo"], expectedCanonical: string, isStaging: boolean, kind: "page" | "post" | string = "page"): SeoResult {
 	const robotsT = lower([target.robots, target.xRobotsTag].filter(Boolean).join(", "));
 	const missingLd = source.jsonLdTypes.filter((t) => !target.jsonLdTypes.includes(t) && !(kind === "page" && PAGE_BOILERPLATE_LD.has(t)));
-	const ogKeys = ["og:title", "og:description", "og:type", "og:url"].filter((k) => source.og[k] && !target.og[k]);
+	// Sharing previews: every OpenGraph tag the source had, the image included, and the same Twitter/X card size.
+	const ogKeys = ["og:title", "og:description", "og:type", "og:url", "og:image", "og:locale"].filter((k) => source.og[k] && !target.og[k]);
+	const card = (s: PageSnapshot["seo"]) => (s as { twitter?: Record<string, string> }).twitter?.["twitter:card"];
+	if (card(source) && card(source) !== card(target)) ogKeys.push(`twitter:card ${card(target) ?? "none"} (source ${card(source)})`);
 	const canon = (u?: string) => (u ?? "").replace(/\/+$/, "");
 	return {
 		title: { ok: lower(source.title) === lower(target.title), ...(source.title ? { source: source.title } : {}), ...(target.title ? { target: target.title } : {}) },

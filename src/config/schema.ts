@@ -122,6 +122,22 @@ export const kitConfigSchema = z.object({
 
 	email: emailConfig.prefault({}),
 
+	/**
+	 * Analytics carried over from the live site. Unset = the tracking ids the audit found (Google tag GT-/G-/AW-,
+	 * Tag Manager GTM-); false = none. Loaded only on the production domain and never for signed-in editors.
+	 * cloudflareToken: a Web Analytics beacon to add in code — leave unset when Cloudflare injects it at the edge.
+	 */
+	analytics: z
+		.union([
+			z.literal(false),
+			z.object({
+				google: z.array(z.string().regex(/^(?:GT|G|AW)-[A-Z0-9]{4,14}$/)).default([]),
+				gtm: z.string().regex(/^GTM-[A-Z0-9]{4,10}$/).optional(),
+				cloudflareToken: z.string().regex(/^[a-f0-9]{32}$/).optional(),
+			}),
+		])
+		.optional(),
+
 	forms: z
 		.object({
 			/**

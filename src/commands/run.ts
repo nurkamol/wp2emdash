@@ -14,7 +14,8 @@ export interface RunOptions {
 }
 
 /** Phases that only read from WordPress (GET) or local files, write only inside the site workspace, and never touch Cloudflare. */
-export const PREVIEWABLE: PhaseId[] = ["audit", "extract", "transform", "scaffold", "load", "verify"];
+// cutover: its runner is the read-only preflight; the traffic switch is a separate owner-approved step (cutover/runbook.md).
+export const PREVIEWABLE: PhaseId[] = ["audit", "extract", "transform", "scaffold", "load", "verify", "cutover"];
 
 export interface RunResult {
 	phase: PhaseId;

@@ -65,6 +65,8 @@ export interface DesignCapture {
 	mediaRadius?: number;
 	/** Space between consecutive paragraphs, px. */
 	paragraphGap?: number;
+	listItemGap?: number;
+	listIndent?: number;
 	header: { height: number; background: string } | null;
 	footer: { height: number; background: string; color: string } | null;
 	logo?: { src: string; width: number; height: number };
@@ -148,6 +150,12 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 	const gutterOf = (vp: string) => designs.find((d) => d.viewport === vp && d.gutter)?.gutter;
 	const gd = gutterOf("desktop");
 	const gm = gutterOf("mobile");
+	// Tablet gutter as a share of the width (themes use a percentage there), when it is off the phone→desktop line.
+	const tabletDesign = designs.find((d) => d.viewport === "tablet" && d.gutter);
+	const tabletWidth = (tabletDesign as { width?: number } | undefined)?.width ?? 768;
+	const gt = tabletDesign?.gutter;
+	const onLine = gd && gm ? gm + ((gd - gm) * (tabletWidth - 390)) / (1440 - 390) : undefined;
+	const gutterTablet = gt && onLine !== undefined && Math.abs(gt - onLine) > 2 ? `${round((gt / tabletWidth) * 100, 3)}vw` : undefined;
 	// Photo corners measured on the source; 8px when not captured.
 	const radiusVotes = new Map<number, number>();
 	for (const d of designs) if (d.mediaRadius !== undefined) radiusVotes.set(d.mediaRadius, (radiusVotes.get(d.mediaRadius) ?? 0) + 1);
@@ -156,6 +164,12 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 	const gapVotes = new Map<number, number>();
 	for (const d of designs) if (d.paragraphGap !== undefined) gapVotes.set(d.paragraphGap, (gapVotes.get(d.paragraphGap) ?? 0) + 1);
 	const paragraphGap = [...gapVotes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+	const vote = (k: "listItemGap" | "listIndent") => {
+		const v = new Map<number, number>();
+		for (const d of designs) if (d[k] !== undefined) v.set(d[k] as number, (v.get(d[k] as number) ?? 0) + 1);
+		return [...v.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+	};
+	const listItemGap = vote("listItemGap");
 	const gutter = gd && gm ? fluid(gm, gd) : "clamp(20px, 5vw, 64px)";
 	const radius = btn?.styles.borderRadius ?? "6px";
 	// Buttons in the page content (not the header pill): their type and text colour, voted across pages.
@@ -247,7 +261,7 @@ ${eyebrowVars}
 
 	--radius-button: ${radius};
 	--radius-card: 12px;
-	--radius-media: ${mediaRadius}px;${paragraphGap !== undefined ? `\n\t--para-gap: ${round(paragraphGap / 16, 3)}em;` : ""}
+	--radius-media: ${mediaRadius}px;${paragraphGap !== undefined ? `\n\t--para-gap: ${round(paragraphGap / 16, 3)}em;` : ""}${listItemGap !== undefined ? `\n\t--li-gap: ${listItemGap}px;` : ""}
 	--radius-input: 8px;
 	--btn-padding: 0.95em 2em;
 ${contentBtnVars}
@@ -257,7 +271,9 @@ ${contentBtnVars}
 	--header-bg: ${toHex(desktop.header?.background) && !/rgba/.test(toHex(desktop.header?.background) ?? "") ? toHex(desktop.header?.background) : bg};
 	--footer-bg: ${toHex(desktop.footer?.background) ?? surface};
 }
-`;
+${gutterTablet ? `/* Tablet gutter measured on the source (a share of the width there, not on the phone→desktop line). */
+@media (min-width: 691px) and (max-width: 999.98px) { :root { --gutter: ${gutterTablet}; } }
+` : ""}`;
 	return { css, fonts: { body: bodyFont, display: displayFont, displayWeight, ...(googleHref ? { googleHref } : {}) }, colors: { bg, text, accent, accentContrast, surface } };
 }
 

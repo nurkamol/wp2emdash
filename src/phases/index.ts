@@ -4,6 +4,7 @@ import { getPhase, type PhaseId } from "../core/phases.js";
 import type { Reporter } from "../core/progress.js";
 import type { GateCheck } from "../core/state.js";
 import { runAudit } from "./audit.js";
+import { runCutover } from "./cutover.js";
 import { runExtract } from "./extract.js";
 import { runInitGate } from "./init.js";
 import { runLoad } from "./load.js";
@@ -41,5 +42,5 @@ export const RUNNERS: Record<PhaseId, PhaseRunner> = {
 	scaffold: (ctx) => runScaffold(ctx),
 	load: runLoad,
 	verify: runVerify,
-	cutover: notYet("cutover"),
+	cutover: runCutover,
 };

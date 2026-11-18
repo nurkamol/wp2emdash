@@ -41,6 +41,8 @@ export interface PageSnapshot {
 		xRobotsTag?: string;
 		og: Record<string, string>;
 		twitter: Record<string, string>;
+		/** Site-ownership meta tags (Search Console, Bing, Pinterest, Facebook, Yandex): they must survive the move. */
+		verification?: Record<string, string>;
 		jsonLdTypes: string[];
 		jsonLd: unknown[];
 		hreflang: { lang: string; href: string }[];
@@ -305,6 +307,12 @@ export function parsePage(html: string, meta: Pick<PageSnapshot, "url" | "finalU
 			xRobotsTag: meta.xRobotsTag,
 			og,
 			twitter,
+			verification: Object.fromEntries(
+				$('meta[name="google-site-verification"], meta[name="msvalidate.01"], meta[name="p:domain_verify"], meta[name="facebook-domain-verification"], meta[name="yandex-verification"]')
+					.map((_, m) => [[$(m).attr("name") ?? "", $(m).attr("content") ?? ""]])
+					.get()
+					.filter(([k, v]: string[]) => k && v),
+			),
 			jsonLdTypes: [...jsonLdTypes].sort(),
 			jsonLd,
 			hreflang: $('link[rel="alternate"][hreflang]')
@@ -342,7 +350,7 @@ export function parsePage(html: string, meta: Pick<PageSnapshot, "url" | "finalU
 		builders: detectBuilders(html, bodyClasses),
 		buttonCount: html.match(CONTENT_BUTTON)?.length ?? 0,
 		shortcodeLeftovers: [...new Set([...text.matchAll(/\[\/?([a-z][a-z0-9_-]{2,})(?:\s[^\]]*)?\]/g)].map((m) => m[1] as string))],
-		trackingIds: [...new Set([...html.matchAll(/\b(G-[A-Z0-9]{8,12}|GTM-[A-Z0-9]{5,9}|AW-\d{8,12}|UA-\d{4,10}-\d{1,4})\b/g)].map((m) => m[1] as string))].sort(),
+		trackingIds: [...new Set([...html.matchAll(/\b(GT-[A-Z0-9]{6,12}|G-[A-Z0-9]{8,12}|GTM-[A-Z0-9]{5,9}|AW-\d{8,12}|UA-\d{4,10}-\d{1,4})\b/g)].map((m) => m[1] as string))].sort(),
 		wpId: idClass ? Number(idClass.split("-").pop()) : undefined,
 		wpType: typeClass,
 	};

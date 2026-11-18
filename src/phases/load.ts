@@ -180,6 +180,19 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 			else for (const x of Object.values(o)) collect(x);
 		};
 		for (const d of docs) collect([d.sections, d.featuredImage]);
+		// Social sharing image (og:image from the SEO plugin): uploaded like any other picture and set as the page's SEO image.
+		const uploadPath = (u: string) => /\/(?:wp-content\/uploads|storage)\/(.+)$/.exec(u.split(/[?#]/)[0] ?? "")?.[1]?.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/i, "").toLowerCase();
+		const ogRef = (d: IrPage): MediaRef | undefined => {
+			const u = d.seo.ogImage;
+			if (!u || !/^https?:/.test(u)) return undefined;
+			const path = uploadPath(u);
+			const m = path ? manifest.find((x) => x.id && x.file?.toLowerCase() === path) : undefined;
+			return m ? { kind: "image", wpId: m.id as number, ...(m.alt ? { alt: m.alt } : {}) } : siteHosts.has(new URL(u).host.replace(/^www\./, "")) ? undefined : { kind: "image", url: u };
+		};
+		for (const d of docs) {
+			const r = ogRef(d);
+			if (r) refs.set(mediaKey(r), r);
+		}
 
 		reporter.emit({ type: "step:start", step: "Media", total: refs.size });
 		const existing = await api.mediaList();
@@ -294,7 +307,12 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 					if (doc.popup?.autoOpen) data.auto_open_delay = doc.popup.autoOpen.delayMs;
 				}
 				const seoTitle = doc.seo.title?.replace(new RegExp(`\\s*[${sep}]\\s*${site.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`), "").trim();
-				const seo = doc.kind === "page" || doc.kind === "post" ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: doc.seo.canonical } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}) } : undefined;
+				const seo = doc.kind === "page" || doc.kind === "post" ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: doc.seo.canonical } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
+					const r = ogRef(doc);
+					// The file path, not the media id: EmDash expands a bare id to /media/file/<id>, which 404s (files are served by storage key).
+					const url = r ? idMap.media[mediaKey(r)]?.url : undefined;
+					return url?.startsWith("/_emdash/api/media/file/") ? { image: url } : {};
+				})() } : undefined;
 
 				let entryId = idMap.content[key]?.id;
 				const list = existingByCollection.get(collection) ?? [];

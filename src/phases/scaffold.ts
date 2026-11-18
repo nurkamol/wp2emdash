@@ -112,6 +112,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const media = seedMediaResolver(library, (u) => rewrite(u.startsWith("/") ? `${config.source.url.replace(/\/$/, "")}${u}` : u));
 
 	// Brand assets: copy captured logos/favicon from raw/media into public/brand.
+	const legacyFiles: Record<string, string> = {};
 	const brandFile = (url: string | undefined, name: string): string | undefined => {
 		if (!url) return undefined;
 		// Match by uploads path, ignoring WordPress size variants (-32x32, -scaled): the library holds the original.
@@ -123,7 +124,12 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		const dest = join(project, "public", "brand", `${name}.${ext}`);
 		mkdirSync(dirname(dest), { recursive: true });
 		cpSync(join(paths.raw, "media", entry.file), dest);
-		return `/brand/${name}.${ext}`;
+		const local = `/brand/${name}.${ext}`;
+		// The old address keeps working (other sites, email signatures, cached previews): middleware 301s it here.
+		try {
+			legacyFiles[new URL(url, config.source.url).pathname] = local;
+		} catch {}
+		return local;
 	};
 	const header = interactions.headers.find((h) => h.viewport === "desktop") ?? interactions.headers[0];
 	const desktopDesign = designs.find((d) => d.viewport === "desktop");
@@ -144,10 +150,24 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const mobileMenu = interactions.menus.find((mm) => mm.found && mm.viewport === "mobile");
 	const desktopMenu = interactions.menus.find((mm) => mm.found && mm.viewport === "desktop");
 	const itemPx = (mm?: MenuCapture) => Number.parseFloat((mm as unknown as { itemStyle?: { fontSize?: string } } | undefined)?.itemStyle?.fontSize ?? "");
+	// Analytics: the config's choice, else the ids the audit saw on the live pages (UA- is retired and dropped).
+	const snapPages = readdirSync(join(paths.snapshot, "pages")).map((f) => readJson<{ trackingIds?: string[]; seo?: { og?: Record<string, string>; verification?: Record<string, string> } }>(join(paths.snapshot, "pages", f)) ?? {});
+	// Ownership meta tags (Search Console etc.) from any captured page.
+	const verification = Object.assign({}, ...snapPages.map((p) => p.seo?.verification ?? {})) as Record<string, string>;
+	const audited = [...new Set(snapPages.flatMap((p) => p.trackingIds ?? []))];
+	// og:locale as the SEO plugin published it (en_US); EmDash's head does not emit one.
+	const ogLocale = snapPages.map((p) => p.seo?.og?.["og:locale"]).find((l) => l && /^[a-z]{2}(?:_[A-Z]{2})?$/.test(l));
+	const analytics = config.analytics === false ? undefined : (config.analytics ?? { google: audited.filter((id) => /^(?:GT|G|AW)-/.test(id)).sort(), ...(audited.find((id) => id.startsWith("GTM-")) ? { gtm: audited.find((id) => id.startsWith("GTM-")) } : {}) });
+	const hasAnalytics = !!analytics && (analytics.google.length > 0 || !!analytics.gtm || !!analytics.cloudflareToken);
+	if (hasAnalytics) reporter.emit({ type: "log", level: "info", message: `analytics on the production domain: ${[...(analytics?.google ?? []), analytics?.gtm, analytics?.cloudflareToken ? "Cloudflare beacon" : ""].filter(Boolean).join(", ")}` });
 	const siteConfig = {
 		...baseConfig,
 		header: { ...baseConfig.header, panelExtras: panelExtras(interactions.menus, primaryLabels), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
 		trailingSlash: trailing,
+		...(hasAnalytics ? { analytics } : {}),
+		...(ogLocale ? { ogLocale } : {}),
+		...(Object.keys(legacyFiles).length ? { legacyFiles } : {}),
+		...(Object.keys(verification).length ? { verification } : {}),
 		// Structured data: the business (from the live site's JSON-LD) and each page's schema type (AboutPage, ContactPage…).
 		structuredData: {
 			...(site.business ? { business: site.business } : {}),
@@ -321,6 +341,7 @@ export default defineConfig({
 			forms: forms.map((f) => ({ id: f.id, title: f.title, fields: f.fields.map((x) => x.label), withheld: f.withheld ?? [] })),
 			email: { provider: config.email.provider, ...(config.email.from ? { from: config.email.from } : {}), to: config.email.to },
 			turnstileProduction: !!config.forms.turnstileSiteKey,
+			...(hasAnalytics && analytics ? { analytics } : {}),
 			sensitiveData: config.sensitiveData,
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
 		}),

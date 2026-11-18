@@ -25,6 +25,8 @@ export interface ClientRepoInput {
 	forms: { id: string; title: string; fields: string[]; withheld: string[] }[];
 	email: { provider: string; from?: string; to: string[] };
 	turnstileProduction: boolean;
+	/** Tracking carried over from the old site (Google tag ids, Tag Manager container, Cloudflare beacon token). */
+	analytics?: { google: string[]; gtm?: string; cloudflareToken?: string };
 	sensitiveData: boolean;
 	stack: Record<string, string>;
 }
@@ -89,7 +91,7 @@ The local database and uploads stay on your machine (\`.wrangler/\`, gitignored)
 - **Content** (pages, header and footer, popups, menus, SEO fields) lives in the database and is edited in the admin, not in files. See [docs/editor-guide.md](docs/editor-guide.md).
 - **Design and behaviour** live in the code: \`src/components/\` (one component per section type), \`src/styles/\` (\`tokens.css\` holds colours, fonts and sizes), \`src/scripts/site.ts\`.
 - **Forms** are defined in \`src/forms/\` and sent by \`src/pages/api/forms/[id].ts\`. See [docs/forms-and-integrations.md](docs/forms-and-integrations.md).
-- **Deployment, environments and secrets:** [docs/deployment.md](docs/deployment.md).
+- **Deployment, environments and secrets:** [docs/deployment.md](docs/deployment.md). Launch and rollback: [docs/go-live.md](docs/go-live.md).
 
 Generated with [wp2emdash](https://github.com/nurkamol/wp2emdash). Files marked "${MARKER}" are rewritten when the
 migration kit runs again; delete that first line to keep your own version.
@@ -213,10 +215,59 @@ Recipients and sender are the \`FORM_TO\` / \`FORM_FROM\` settings in \`wrangler
 Worker secret \`EMAIL_API_KEY\`. The sender address must be verified in the ${i.email.provider} account.
 ${i.turnstileProduction ? "" : "\n**Before going live:** create a Turnstile widget for the production domain in the Cloudflare dashboard, put its site key in the migration kit's config (`forms.turnstileSiteKey`) and set its secret: `npx wrangler secret put TURNSTILE_SECRET_KEY`."}
 
+## Analytics
+
+${i.analytics ? `Carried over from the WordPress site, loaded only on ${i.productionUrl} (never on staging, previews or your computer) and never for signed-in editors:
+
+${[...i.analytics.google.map((id) => `- Google tag \`${id}\` (Google Analytics 4)`), ...(i.analytics.gtm ? [`- Google Tag Manager container \`${i.analytics.gtm}\``] : []), ...(i.analytics.cloudflareToken ? ["- Cloudflare Web Analytics"] : [])].join("\n")}
+
+The ids are in \`src/site.config.json\` (\`analytics\`) and loaded by \`src/components/Analytics.astro\`; the security
+policy in \`src/middleware.ts\` allows Google's and Cloudflare's analytics addresses only when they are configured.
+Search Console stays verified after the move if it uses a DNS record (keep the record at switch-over) or a
+verification meta tag (carried over into \`site.config.json\` → \`verification\`). Re-submit
+\`/sitemap.xml\` there after the switch-over (the old \`sitemap_index.xml\` redirects to it).` : "No analytics."}
+
 ## Embedded services
 
 Booking widgets, maps and videos load from their providers only. The allowed providers are listed in
 \`src/utils/embed.ts\`; the page's security policy (\`src/middleware.ts\`) only lets those load.
+`);
+
+	const host = new URL(i.productionUrl).host;
+	files["docs/go-live.md"] = md(`
+# Go-live and rollback
+
+${i.productionReady ? "" : "Not live yet: WordPress still serves " + i.productionUrl + ".\n\n"}The switch puts this site's Worker in front of the existing WordPress records with Cloudflare **Worker routes**
+(\`${host}/*\` and \`www.${host}/*\`). Nothing in DNS changes, so the switch takes seconds and so does the way back.
+
+## Before
+
+- [ ] Staging approved by the owner (content, forms, booking, look on phone and desktop)
+- [ ] Production database, file bucket and secrets created; production deployed and checked on its workers.dev address
+- [ ] Production Turnstile widget and form email sender verified; a test message received
+- [ ] Content frozen on WordPress, last changes copied over, final check run against production
+- [ ] DNS records written down (mail, SPF, DKIM, DMARC, verification) — they must not change
+- [ ] Owner's go-ahead for the switch, and who decides on a rollback
+
+## Switch
+
+Add the two Worker routes (zone \`${host}\` → Worker \`${i.workerName}\`). Then: open the site logged out on a phone and
+a computer, send a test form, check \`/sitemap.xml\`, and submit it in Google Search Console.
+
+The site itself sends \`www.${host}\` (or the bare domain, whichever is not canonical) and plain \`http://\` to
+${i.productionUrl} with one permanent redirect, as WordPress did.
+
+## Rollback
+
+Delete the two Worker routes. WordPress answers again immediately (it keeps running, unreachable, during the
+monitoring period). Content edited here after the switch has to be copied back by hand, so note any edits.
+
+## After
+
+- Watch the 404 log (admin → Redirects) and add redirects for old addresses people still use.
+- Check form deliveries and Worker errors for the first two weeks.
+- Later, with the owner's approval: replace the routes with a Worker Custom Domain and retire WordPress hosting
+  (keep the final backup).
 `);
 
 	files[".env.example"] = `# ${MARKER}.

@@ -189,6 +189,42 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			wpPaths.push({ path: p, status: res.status });
 		}
 
+		const snaps = existsSync(join(paths.snapshot, "pages")) ? readdirSync(join(paths.snapshot, "pages")).map((f) => readJson<PageSnapshot>(join(paths.snapshot, "pages", f))).filter((x): x is PageSnapshot => !!x) : [];
+		// Analytics: every tracking id the old site loaded is carried over (unless the owner set analytics: false);
+		// staging and local load none (no test traffic in the client's reports), production loads them.
+		const siteCfg = readJson<{ analytics?: { google?: string[]; gtm?: string } }>(join(paths.project, "src", "site.config.json")) ?? {};
+		const carried = new Set([...(siteCfg.analytics?.google ?? []), ...(siteCfg.analytics?.gtm ? [siteCfg.analytics.gtm] : [])]);
+		const sourceIds = [...new Set(snaps.flatMap((x) => x.trackingIds ?? []))].filter((id) => !id.startsWith("UA-"));
+		const notCarried = config.analytics === false ? [] : sourceIds.filter((id) => !carried.has(id));
+		const homeHtml = await (await kitFetch(`${base}/`)).text();
+		const loads = /name="site-analytics"/.test(homeHtml);
+		const analyticsProblem = [notCarried.length ? `not carried over: ${notCarried.join(", ")}` : "", (want as string) === "production" ? (carried.size && !loads ? "production does not load analytics" : "") : loads ? `${want} loads analytics (must not)` : ""].filter(Boolean).join("; ");
+
+		// Legacy addresses search engines and other sites keep: the WordPress sitemap index and upload URLs
+		// (sharing images first, then a few content images) must redirect to something that answers 200.
+		const uploadPath = (u: string | undefined) => {
+			try {
+				const p = new URL(u ?? "").pathname;
+				return /^\/(?:wp-content\/uploads|storage)\/\d{4}\/\d{2}\/[^/]+$/.test(p) ? p : undefined;
+			} catch {
+				return undefined;
+			}
+		};
+		const legacy = [...new Set(["/sitemap_index.xml", ...snaps.map((x) => uploadPath(x.seo.og["og:image"])), ...snaps.flatMap((x) => x.images.map((i) => uploadPath(i.src))).slice(0, 5)].filter((x): x is string => !!x))];
+		const legacyBad: string[] = [];
+		for (const p of legacy) {
+			const first = await kitFetch(`${base}${p}`, { redirect: "manual" });
+			await first.body?.cancel();
+			const loc = first.headers.get("location");
+			if (first.status !== 301 && first.status !== 308) {
+				legacyBad.push(`${p} HTTP ${first.status}`);
+				continue;
+			}
+			const end = await kitFetch(new URL(loc ?? "/", `${base}${p}`).href);
+			await end.body?.cancel();
+			if (end.status !== 200) legacyBad.push(`${p} → ${loc} HTTP ${end.status}`);
+		}
+
 		// Sitemap: every entry answers 200 at its own address (no redirects), every published page is listed.
 		const sitemapLocs: string[] = [];
 		const sitemapErrors: string[] = [];
@@ -226,7 +262,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const browser = await launchFor(pins);
 		let menu: VerifyResult["menu"];
 		try {
-			const shots = await captureScreenshots(browser, results.filter((r) => r.status === 200).map((r) => r.targetUrl), config, join(outDir, "screens"), reporter);
+			const shots = await captureScreenshots(browser, results.filter((r) => r.status === 200).map((r) => r.targetUrl), config, join(outDir, "screens"), reporter, "no-preference");
 			reporter.emit({ type: "step:start", step: "Visual diff", total: shots.length });
 			const sourceShots = readJson<ScreenshotResult[]>(join(paths.snapshot, "screens.json")) ?? [];
 			const footerDoc = readJson<{ partials?: { role: string; file: string }[] }>(join(paths.ir, "site.json"))?.partials?.find((p) => p.role === "footer");
@@ -298,6 +334,8 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		check("security-headers", "Security headers set", missingHeaders.length === 0, missingHeaders.length ? `missing: ${missingHeaders.join(", ")}` : undefined);
 		check("sitemap", "Sitemap lists every published page at its own address (200, no redirects)", sitemapErrors.length === 0 && unlisted.length === 0 && sitemapLocs.length > 0, [...sitemapErrors.slice(0, 6), ...(unlisted.length ? [`not listed: ${unlisted.slice(0, 6).join(", ")}`] : [])].join("; ") || `${sitemapLocs.length} URLs`);
 		const wpOpen = wpPaths.filter((w) => w.status !== 404 && w.status !== 410);
+		check("analytics", (want as string) === "production" ? "Analytics carried over and loading" : "Analytics carried over, not loaded before go-live", !analyticsProblem, analyticsProblem || (carried.size ? `${[...carried].join(", ")}${(want as string) === "production" ? "" : " (production only)"}` : "none on the old site"));
+		check("legacy-urls", "Old sitemap and upload addresses redirect to working files", legacyBad.length === 0, legacyBad.slice(0, 6).join("; ") || `${legacy.length} checked`);
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);
 		// Gate on sections where we can pair them; whole-page difference where we cannot (e.g. Gutenberg pages).
 		const sectionFails = results.flatMap((r) => Object.entries(r.sections).flatMap(([vp, list]) => list.filter((x) => x.ratio > g.visualDiff).map((x) => ({ text: `${r.path} ${vp} ${x.label} (${x.types.join("+")}) ${(x.ratio * 100).toFixed(1)}%`, ratio: x.ratio }))));
@@ -321,7 +359,8 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		}
 
 		const out: VerifyResult = { target: want, targetUrl: base, ranAt: new Date().toISOString(), pages: results, brokenLinks, security: { headers, missing: missingHeaders, wpPaths }, ...(menu ? { menu } : {}), forms: formEndpoints };
-		write(join(outDir, "verify.json"), out);
+		// The gate checks go with the report so cutover preflight can read the last result (preview runs are not recorded in state).
+		write(join(outDir, "verify.json"), { ...out, checks });
 		write(join(outDir, "index.html"), verifyReport(config.name, out, checks, g.visualDiff));
 		reporter.emit({ type: "log", level: "info", message: `Report: ${join(outDir, "index.html")}` });
 		return checks;

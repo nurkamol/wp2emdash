@@ -6,6 +6,7 @@ import SiteHeader from "../components/SiteHeader.astro";
 import Sections from "../components/Sections.astro";
 import Popups from "../components/Popups.astro";
 import StructuredData from "../components/StructuredData.astro";
+import Analytics from "../components/Analytics.astro";
 import site from "../site.config.json";
 import "../styles/fonts.css";
 import "../styles/tokens.css";
@@ -65,11 +66,16 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{fullTitle}</title>
 		<EmDashHead page={pageCtx} />
+		{/* EmDash's head has no og:locale; SEO plugins publish it (en-US → en_US). */}
+		<meta property="og:locale" content={(site as { ogLocale?: string }).ogLocale ?? (site.lang ?? "en").replace("-", "_")} />
+		{image && <meta property="og:image:alt" content={pageTitle ?? title ?? siteTitle} />}
 		<StructuredData canonical={canonicalUrl} pageTitle={pageTitle ?? title ?? siteTitle} description={description || settings.data?.tagline} />
 		{((site.fonts as { preload?: string[] }).preload ?? []).map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
 		{googleHref && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}
 		{googleHref && <link rel="stylesheet" href={googleHref} />}
 		{site.favicon && <link rel="icon" href={site.favicon} />}
+		{Object.entries((site as { verification?: Record<string, string> }).verification ?? {}).map(([name, content]) => <meta name={name} content={content} />)}
+		<Analytics />
 	</head>
 	<body class:list={{ "over-hero": overHero }}>
 		<EmDashBodyStart page={pageCtx} />
