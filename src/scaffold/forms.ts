@@ -20,7 +20,26 @@ export interface FormDefinitionOut {
 	successMessage: string;
 	fields: FormFieldOut[];
 	sensitive?: boolean;
+	notice?: string;
 	warnings: string[];
+	/** Fields of the WordPress form left out by the site's sensitive-form policy (reported, never silent). */
+	withheld?: string[];
+}
+
+/** Contact details: email, phone, and name fields. Everything else may carry what a sensitive site must not send. */
+export function isContactField(f: FormFieldOut): boolean {
+	if (f.type === "email" || f.type === "tel") return true;
+	return f.type === "text" && (/(^|[-_])name($|[-_])|^names?$/i.test(f.name) || /name/.test(f.autocomplete ?? ""));
+}
+
+/** Apply a sensitive site's form policy to a definition. */
+export function applySensitivePolicy(def: FormDefinitionOut, policy: "contact-only" | undefined, notice: string): FormDefinitionOut {
+	if (!def.sensitive) return def;
+	if (!policy) return { ...def, warnings: [...def.warnings, "site has sensitiveData: set forms.sensitive in kit.config (owner decision) before this form can be rebuilt"] };
+	const keep = def.fields.filter(isContactField);
+	const withheld = def.fields.filter((f) => !isContactField(f)).map((f) => f.label || f.name);
+	if (!keep.some((f) => f.type === "email" || f.type === "tel")) return { ...def, warnings: [...def.warnings, "contact-only policy leaves no email or phone field to reply to"] };
+	return { ...def, fields: keep, notice, ...(withheld.length ? { withheld } : {}) };
 }
 
 type Obj = Record<string, unknown>;

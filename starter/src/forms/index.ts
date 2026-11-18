@@ -15,8 +15,10 @@ export interface FormDefinition {
 	submitLabel: string;
 	successMessage: string;
 	fields: FormField[];
-	/** true when the site handles sensitive data: submissions must not be stored or emailed in full. */
+	/** true when the site handles sensitive data: only the fields the owner approved are in `fields`, nothing is stored. */
 	sensitive?: boolean;
+	/** Shown above the submit button (e.g. "Please don't include health details here"). */
+	notice?: string;
 }
 
 const files = import.meta.glob<{ default: FormDefinition }>("./*.json", { eager: true });

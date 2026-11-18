@@ -48,4 +48,4 @@ The official `EmDashClient` (`emdash/client`) covers content and media but not m
 
 - `site export` snapshot before each staging load (A9) — add with the staging run.
 - Redirect import from `raw/redirects.csv` (pilot has none) and the `?p=` / uploads-URL middleware from A6.
-- Form submission endpoint (`/api/forms/<id>`).
+- Form submission endpoint (`/api/forms/<id>`) — done in M7, see M7-findings.md.

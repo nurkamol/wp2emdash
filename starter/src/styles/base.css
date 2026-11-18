@@ -149,7 +149,10 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .grid { list-style: none; padding: 0; margin: 0; display: grid; gap: clamp(1rem, 3vw, 2rem); }
 @media (min-width: 900px) /* stack */ { .grid { grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); } }
 .card { position: relative; display: grid; gap: 0.75rem; align-content: start; }
-.card__icon { width: 2.5rem; height: 2.5rem; border-radius: 50%; background: var(--color-accent); opacity: 0.9; }
+/* icon on a soft accent disc (Salient soft-bg: accent at 11%, 10px around a 40px icon) */
+.card__icon { display: grid; place-items: center; width: 80px; height: 80px; padding: 10px; border-radius: 50%; color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 11%, transparent); }
+.card__icon .icon { width: 40px; height: 40px; }
+.card__icon:not(:has(svg)) { display: none; }
 .card__title { font-size: var(--font-size-h4); margin: 0; }
 .card--image { min-height: clamp(320px, 55vw, 640px); align-content: end; padding: clamp(1.5rem, 4vw, 3rem); color: #fff; overflow: hidden; border-radius: var(--radius-card); isolation: isolate; }
 .card--image .card__image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; transition: transform 1.2s var(--ease-out); }
@@ -298,6 +301,11 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .field input, .field textarea, .field select { font: inherit; padding: 0.8rem 1rem; border: 1px solid var(--color-line-strong, var(--color-line)); border-radius: var(--radius-input); background: var(--color-input-bg, #fff); color: var(--color-text); }
 .form .btn { justify-self: start; grid-column: span 2; }
 .form__status { grid-column: span 2; margin: 0; min-height: 1.5em; }
+.form__notice, .form .cf-turnstile { grid-column: span 2; margin: 0; }
+.form__notice { font-size: var(--font-size-small); opacity: 0.8; }
+.field__error { font-size: var(--font-size-small); color: #b42318; min-height: 0; }
+.field__error:empty { display: none; }
+.field.is-invalid input, .field.is-invalid textarea, .field.is-invalid select { border-color: #b42318; }
 
 /* ── Header ── */
 :root { --header-height: var(--header-h, 88px); }

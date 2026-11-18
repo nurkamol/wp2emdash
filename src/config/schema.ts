@@ -122,6 +122,23 @@ export const kitConfigSchema = z.object({
 
 	email: emailConfig.prefault({}),
 
+	forms: z
+		.object({
+			/**
+			 * How forms are rebuilt on a site with sensitiveData (an owner decision, recorded in decisions.md):
+			 * "contact-only" keeps only contact fields (name, email, phone) and drops free text, so nothing
+			 * sensitive can pass through the Worker or email. Unset on a sensitive site = the scaffold gate fails.
+			 */
+			sensitive: z.enum(["contact-only"]).optional(),
+			/** Note shown above the submit button of a sensitive form. */
+			notice: z.string().default("Please don't include health details here — we'll get back to you."),
+			/** Submissions per visitor (IP) and form, per period (Workers rate limiting: 10 or 60 s). */
+			rateLimit: z.object({ limit: z.number().int().positive().default(5), period: z.union([z.literal(10), z.literal(60)]).default(60) }).prefault({}),
+			/** Production Turnstile site key (public). Staging uses Cloudflare's always-pass test key. */
+			turnstileSiteKey: z.string().optional(),
+		})
+		.prefault({}),
+
 	/** Site handles sensitive data (health, legal, finance): forms never store or email field values that look sensitive. */
 	sensitiveData: z.boolean().default(false),
 });

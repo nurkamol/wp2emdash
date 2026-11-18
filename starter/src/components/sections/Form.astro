@@ -4,9 +4,12 @@ import Heading from "../Heading.astro";
 import Rich from "../Rich.astro";
 import Buttons from "../Buttons.astro";
 import Md from "../Md.astro";
+import { env } from "cloudflare:workers";
 import { getForm } from "../../forms";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const form = getForm(v.form_id);
+// Turnstile site key (public): a Worker var, the Cloudflare test key on staging.
+const siteKey = (env as { TURNSTILE_SITE_KEY?: string }).TURNSTILE_SITE_KEY;
 ---
 
 <Section value={v} type="form">
@@ -20,7 +23,7 @@ const form = getForm(v.form_id);
 			form ? (
 				<form class="form" method="post" action={`/api/forms/${form.id}`} data-form={form.id} novalidate>
 					{form.fields.map((f) => (
-						<label class:list={["field", `field--${f.type}`, { "field--half": f.half }]}>
+						<label class:list={["field", `field--${f.type}`, { "field--half": f.half }]} data-field={f.name}>
 							<span class="field__label">{f.label}{f.required && <span aria-hidden="true"> *</span>}</span>
 							{f.type === "textarea" ? (
 								<textarea name={f.name} required={f.required} placeholder={f.placeholder} rows={5} />
@@ -29,9 +32,12 @@ const form = getForm(v.form_id);
 							) : (
 								<input type={f.type} name={f.name} required={f.required} placeholder={f.placeholder} autocomplete={f.autocomplete} />
 							)}
+							<span class="field__error" aria-live="polite" />
 						</label>
 					))}
 					<input type="text" name="_hp" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true" />
+					{form.notice && <p class="form__notice">{form.notice}</p>}
+					{siteKey && <div class="cf-turnstile" data-sitekey={siteKey} data-theme="light" data-size="flexible" />}
 					<button type="submit" class="btn btn--primary">{form.submitLabel}</button>
 					<p class="form__status" role="status" aria-live="polite" />
 				</form>
@@ -41,3 +47,4 @@ const form = getForm(v.form_id);
 		}
 	</div>
 </Section>
+{form && siteKey && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}

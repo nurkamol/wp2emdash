@@ -175,6 +175,12 @@ if (!reduce && "IntersectionObserver" in window) {
 }
 
 // ── Forms ──────────────────────────────────────────────────────────────────────
+// Without JavaScript the endpoint sends the browser back with ?form=sent|error: say so on the form.
+{
+	const state = new URLSearchParams(location.search).get("form");
+	const status = document.querySelector<HTMLElement>("form[data-form] .form__status");
+	if (state && status) status.textContent = state === "sent" ? "Thank you — your message was sent." : "Your message could not be sent. Please try again, or call or email us.";
+}
 for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")) {
 	form.addEventListener("submit", async (e) => {
 		e.preventDefault();
@@ -185,15 +191,26 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")
 		}
 		const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
 		if (button) button.disabled = true;
+		for (const el of form.querySelectorAll<HTMLElement>(".field__error")) el.textContent = "";
+		for (const el of form.querySelectorAll(".field.is-invalid")) el.classList.remove("is-invalid");
 		try {
 			const res = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { Accept: "application/json" } });
-			const body = (await res.json().catch(() => ({}))) as { message?: string };
+			const body = (await res.json().catch(() => ({}))) as { message?: string; errors?: Record<string, string> };
 			if (status) status.textContent = body.message ?? (res.ok ? "Thank you — we will be in touch." : "Something went wrong. Please try again.");
+			for (const [name, msg] of Object.entries(body.errors ?? {})) {
+				const field = form.querySelector<HTMLElement>(`[data-field="${CSS.escape(name)}"]`);
+				field?.classList.add("is-invalid");
+				const err = field?.querySelector<HTMLElement>(".field__error");
+				if (err) err.textContent = msg;
+				field?.querySelector<HTMLElement>("input, textarea, select")?.setAttribute("aria-invalid", "true");
+			}
 			if (res.ok) form.reset();
 		} catch {
 			if (status) status.textContent = "Network error. Please try again.";
 		} finally {
 			if (button) button.disabled = false;
+			// Turnstile tokens are single use: get a fresh one for the next attempt.
+			(window as { turnstile?: { reset(el?: Element): void } }).turnstile?.reset(form.querySelector(".cf-turnstile") ?? undefined);
 		}
 	});
 }

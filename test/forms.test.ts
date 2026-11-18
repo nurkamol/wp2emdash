@@ -1,0 +1,58 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { applySensitivePolicy, type FormDefinitionOut } from "../src/scaffold/forms.js";
+import { deliver, parseAddress } from "../starter/src/forms/deliver.js";
+
+const def = (sensitive: boolean): FormDefinitionOut => ({
+	id: "fluent-forms-1",
+	title: "Contact",
+	submitLabel: "Send",
+	successMessage: "Thanks",
+	fields: [
+		{ name: "first_name", label: "First Name", type: "text", required: true, autocomplete: "given-name" },
+		{ name: "email", label: "Email", type: "email", required: true },
+		{ name: "phone", label: "Phone", type: "tel" },
+		{ name: "description", label: "Comment", type: "textarea" },
+		{ name: "injury", label: "Injury", type: "text" },
+	],
+	...(sensitive ? { sensitive: true } : {}),
+	warnings: [],
+});
+
+describe("sensitive form policy", () => {
+	it("leaves non-sensitive forms alone", () => {
+		expect(applySensitivePolicy(def(false), undefined, "n").fields).toHaveLength(5);
+	});
+	it("blocks a sensitive form until the owner chooses a policy", () => {
+		expect(applySensitivePolicy(def(true), undefined, "n").warnings[0]).toMatch(/forms\.sensitive/);
+	});
+	it("contact-only keeps name, email and phone, reports the rest and adds the notice", () => {
+		const out = applySensitivePolicy(def(true), "contact-only", "No health details, please.");
+		expect(out.fields.map((f) => f.name)).toEqual(["first_name", "email", "phone"]);
+		expect(out.withheld).toEqual(["Comment", "Injury"]);
+		expect(out.notice).toBe("No health details, please.");
+		expect(out.warnings).toEqual([]);
+	});
+});
+
+describe("email delivery", () => {
+	afterEach(() => vi.unstubAllGlobals());
+	it("parses sender addresses", () => {
+		expect(parseAddress("Website <noreply@example.com>")).toEqual({ email: "noreply@example.com", name: "Website" });
+		expect(parseAddress("noreply@example.com")).toEqual({ email: "noreply@example.com" });
+		expect(parseAddress("not an address")).toBeUndefined();
+	});
+	it("sends through Brevo's transactional API", async () => {
+		const fetch = vi.fn(async () => new Response(JSON.stringify({ messageId: "<x@relay>" }), { status: 201 }));
+		vi.stubGlobal("fetch", fetch);
+		const r = await deliver("brevo", "key-123", { from: { email: "noreply@example.com", name: "Site" }, to: ["owner@example.com"], replyTo: { email: "visitor@example.com" }, subject: "S", text: "T", html: "<p>H</p>" });
+		expect(r).toEqual({ ok: true });
+		const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toBe("https://api.brevo.com/v3/smtp/email");
+		expect((init.headers as Record<string, string>)["api-key"]).toBe("key-123");
+		expect(JSON.parse(String(init.body))).toEqual({ sender: { email: "noreply@example.com", name: "Site" }, to: [{ email: "owner@example.com" }], replyTo: { email: "visitor@example.com" }, subject: "S", htmlContent: "<p>H</p>", textContent: "T" });
+	});
+	it("reports a provider error without the message content", async () => {
+		vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 401 })));
+		expect(await deliver("brevo", "bad", { from: { email: "a@b.co" }, to: ["c@d.co"], subject: "secret subject", text: "secret", html: "secret" })).toEqual({ ok: false, status: 401, reason: "brevo HTTP 401" });
+	});
+});

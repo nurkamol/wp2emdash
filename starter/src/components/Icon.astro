@@ -1,0 +1,71 @@
+---
+/**
+ * Line icons for icon names carried over from WordPress icon fonts (Salient iconsmind / linea, Font Awesome,
+ * Steadysets…). The name is matched by keyword ("iconsmind-Telephone" → phone, "fa-envelope" → mail), so any
+ * library's common icons resolve. An unknown name renders nothing rather than an empty shape.
+ */
+interface Props {
+	name?: string | null;
+	class?: string;
+}
+const { name, class: extra } = Astro.props;
+
+// 24×24, stroked with currentColor.
+const ICONS: Record<string, string> = {
+	phone: '<path d="M7.5 3h-2A2.5 2.5 0 0 0 3 5.6C3.6 13.8 10.2 20.4 18.4 21A2.5 2.5 0 0 0 21 18.5v-2a1.5 1.5 0 0 0-1.1-1.4l-3-.9a1.5 1.5 0 0 0-1.6.5l-.9 1.2a12.5 12.5 0 0 1-5.7-5.7l1.2-.9a1.5 1.5 0 0 0 .5-1.6l-.9-3A1.5 1.5 0 0 0 7.5 3z"/>',
+	mail: '<rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="m3.5 6.5 8.5 7 8.5-7"/>',
+	pin: '<path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.4"/>',
+	clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+	calendar: '<rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
+	user: '<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5c.8-3.9 3.8-6 7.5-6s6.7 2.1 7.5 6"/>',
+	users: '<circle cx="9" cy="9" r="3.3"/><path d="M3 19.5c.7-3.3 3-5 6-5s5.3 1.7 6 5"/><path d="M15.5 6a3.2 3.2 0 0 1 0 6.2M17.5 14.7c1.8.6 3.1 2.2 3.5 4.8"/>',
+	heart: '<path d="M12 20s-7.5-4.6-7.5-10.1A4.2 4.2 0 0 1 12 7.4a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/>',
+	star: '<path d="m12 3.8 2.5 5.2 5.7.8-4.1 4 1 5.6L12 16.7l-5.1 2.7 1-5.6-4.1-4 5.7-.8z"/>',
+	check: '<circle cx="12" cy="12" r="8.5"/><path d="m8 12.3 2.7 2.7L16 9.6"/>',
+	arrow: '<path d="M4.5 12h15M13.5 6l6 6-6 6"/>',
+	globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5S9.6 5.8 12 3.5z"/>',
+	home: '<path d="M4 11 12 4l8 7"/><path d="M6 9.5V20h12V9.5M10 20v-5.5h4V20"/>',
+	chat: '<path d="M4 5.5h16v10H9.5L5 19.5v-4H4z"/>',
+	info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.4"/>',
+	shield: '<path d="M12 3.5 5 6v5.5c0 4.4 3 7.6 7 9 4-1.4 7-4.6 7-9V6z"/>',
+	award: '<circle cx="12" cy="9" r="5.5"/><path d="m8.8 13.5-1.3 7 4.5-2.3 4.5 2.3-1.3-7"/>',
+	activity: '<path d="M3 12h4l2.5-6 5 12 2.5-6h4"/>',
+	leaf: '<path d="M5 19c0-8 5-13.5 14.5-14-.5 9.5-6 14.5-14 14.5z"/><path d="M5 19c3.5-3.8 6.5-6.5 10-8.5"/>',
+	instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><circle cx="12" cy="12" r="3.8"/><circle cx="17" cy="7" r=".6"/>',
+	facebook: '<path d="M14 21v-7.5h2.6l.4-3H14V8.6c0-.9.3-1.6 1.6-1.6H17V4.3a20 20 0 0 0-2.3-.1c-2.3 0-3.8 1.4-3.8 4v2.3H8.3v3H11V21"/>',
+	linkedin: '<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M8 10.5V16M8 7.5v.2M11.5 16v-5.5M11.5 13c0-1.5 1-2.5 2.3-2.5S16 11.3 16 13v3"/>',
+	youtube: '<rect x="3" y="6" width="18" height="12" rx="3.5"/><path d="m10.5 9.5 4 2.5-4 2.5z"/>',
+};
+
+// Keyword → icon, most specific first.
+const MATCH: [RegExp, string][] = [
+	[/instagram/, "instagram"],
+	[/facebook/, "facebook"],
+	[/linkedin/, "linkedin"],
+	[/youtube/, "youtube"],
+	[/phone|telephone|mobile|call/, "phone"],
+	[/mail|envelope|letter|inbox/, "mail"],
+	[/map|location|marker|pin|address|compass|direction/, "pin"],
+	[/clock|time|hour|watch|alarm/, "clock"],
+	[/calendar|date|event|schedule|book/, "calendar"],
+	[/users|people|group|team|family/, "users"],
+	[/user|person|profile|man|woman|male|female/, "user"],
+	[/heart|love|care|health/, "heart"],
+	[/star|rating|favou?rite/, "star"],
+	[/check|tick|done|ok\b|approve/, "check"],
+	[/arrow|right|next|chevron/, "arrow"],
+	[/globe|world|earth|web|internet/, "globe"],
+	[/home|house/, "home"],
+	[/chat|comment|message|bubble|speech|talk/, "chat"],
+	[/info|question|help/, "info"],
+	[/shield|secure|safe|protect|lock/, "shield"],
+	[/award|medal|trophy|certificate|badge|ribbon/, "award"],
+	[/pulse|activity|heartbeat|fitness|gym|dumbbell|yoga|running|sport|body|spine|bone/, "activity"],
+	[/leaf|plant|nature|eco|flower|tree/, "leaf"],
+];
+const key = String(name ?? "").toLowerCase().replace(/^(?:iconsmind|linea|fa[srb]?|steadysets|linecons|icon)[-_\s]+/, "");
+const icon = MATCH.find(([re]) => re.test(key))?.[1];
+const svg = icon ? ICONS[icon] : undefined;
+---
+
+{svg && <svg class:list={["icon", extra]} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" set:html={svg} />}
