@@ -5,12 +5,40 @@
 import { env } from "cloudflare:workers";
 import { defineMiddleware } from "astro:middleware";
 import site from "./site.config.json";
+import { PROVIDER_HOSTS } from "./utils/embed";
+
+/**
+ * Content-Security-Policy. Scripts and frames: this site, Cloudflare Turnstile and the embed providers the
+ * starter allows (utils/embed.ts — so an embed an editor adds later is not blocked). Styles allow inline: sections
+ * carry their spacing/colours in style attributes and EmDash's responsive images use them. Signed-in editors also
+ * get inline scripts: EmDash's visual-editing toolbar is an inline script.
+ */
+const embedHosts = [...new Set(Object.values(PROVIDER_HOSTS).flat())].flatMap((h) => [`https://${h}`, `https://*.${h}`]);
+function csp(editor: boolean): string {
+	const turnstile = "https://challenges.cloudflare.com";
+	return [
+		"default-src 'self'",
+		`script-src 'self' ${turnstile} ${embedHosts.join(" ")}${editor ? " 'unsafe-inline'" : ""}`,
+		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+		"font-src 'self' data: https://fonts.gstatic.com",
+		"img-src 'self' data: blob: https:",
+		"media-src 'self' blob:",
+		`connect-src 'self' ${turnstile} ${embedHosts.join(" ")}`,
+		`frame-src 'self' ${turnstile} ${embedHosts.join(" ")}`,
+		"worker-src 'self' blob:",
+		"object-src 'none'",
+		"base-uri 'self'",
+		"form-action 'self'",
+		"frame-ancestors 'self'",
+		"upgrade-insecure-requests",
+	].join("; ");
+}
 
 const HEADERS: Record<string, string> = {
 	"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 	"X-Content-Type-Options": "nosniff",
 	"Referrer-Policy": "strict-origin-when-cross-origin",
-	"Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+	"Permissions-Policy": "camera=(), microphone=(), geolocation=()",
 	"X-Frame-Options": "SAMEORIGIN",
 };
 
@@ -56,6 +84,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	}
 	const headers = new Headers(response.headers);
 	for (const [k, v] of Object.entries(HEADERS)) if (!headers.has(k)) headers.set(k, v);
+	// Not in `astro dev`: Vite injects inline scripts for live reload.
+	if (!import.meta.env.DEV && (headers.get("content-type") ?? "").includes("text/html") && !headers.has("content-security-policy")) {
+		const editor = !!context.cookies.get("astro-session") || context.cookies.get("emdash-edit-mode")?.value === "true" || context.url.searchParams.has("_edit") || context.url.searchParams.has("_preview");
+		headers.set("Content-Security-Policy", csp(editor));
+	}
 	if ((env as { STAGING?: string }).STAGING === "1") headers.set("X-Robots-Tag", "noindex, nofollow");
 	return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 });

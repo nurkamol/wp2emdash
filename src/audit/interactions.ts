@@ -115,7 +115,7 @@ async function findToggle(page: Page): Promise<{ sel: string; index: number } | 
 export async function captureMenu(browser: Browser, url: string, viewport: { name: string; width: number; height: number }, outDir: string): Promise<MenuCapture> {
 	const dir = join(outDir, viewport.name);
 	mkdirSync(dir, { recursive: true });
-	const context = await browser.newContext({
+	const context = await browser.newContext({ bypassCSP: true, 
 		viewport: { width: viewport.width, height: viewport.height },
 		userAgent: USER_AGENT,
 		recordVideo: { dir, size: { width: viewport.width, height: viewport.height } },
@@ -343,7 +343,7 @@ export async function captureMenu(browser: Browser, url: string, viewport: { nam
 export async function captureHeaderScroll(browser: Browser, url: string, viewport: { name: string; width: number; height: number }, outDir: string): Promise<HeaderScrollCapture | undefined> {
 	const dir = join(outDir, viewport.name);
 	mkdirSync(dir, { recursive: true });
-	const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, userAgent: USER_AGENT });
+	const context = await browser.newContext({ bypassCSP: true, viewport: { width: viewport.width, height: viewport.height }, userAgent: USER_AGENT });
 	await context.addInitScript(NAME_SHIM);
 	const page = await context.newPage();
 	try {

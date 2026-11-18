@@ -66,7 +66,7 @@ export interface A11yResult {
 const AXE_SOURCE = () => readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 
 export async function accessibility(browser: Browser, url: string): Promise<A11yResult> {
-	const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+	const page = await browser.newPage({ bypassCSP: true,  viewport: { width: 1440, height: 900 } });
 	await page.addInitScript(NAME_SHIM);
 	try {
 		await page.goto(url, { waitUntil: "load", timeout: 60_000 });
@@ -98,7 +98,7 @@ export interface PerfResult {
 
 /** Lab metrics on a phone-sized viewport (no throttling): an early signal, not a Lighthouse score. */
 export async function measurePerformance(browser: Browser, url: string): Promise<PerfResult> {
-	const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true });
+	const ctx = await browser.newContext({ bypassCSP: true, viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true });
 	const page = await ctx.newPage();
 	await page.addInitScript(NAME_SHIM);
 	await page.addInitScript(() => {

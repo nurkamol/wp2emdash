@@ -175,13 +175,13 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			}
 		}
 
-		// Security headers and WordPress endpoints.
+		// Security headers and WordPress endpoints. Local runs (astro dev) can't send HSTS or a CSP (Vite's inline live-reload scripts).
 		const home = await kitFetch(`${base}/`);
 		await home.body?.cancel();
 		const want3 = ["strict-transport-security", "x-content-type-options", "referrer-policy", "permissions-policy", "content-security-policy"];
 		const headers = Object.fromEntries(want3.map((h) => [h, home.headers.get(h) ?? undefined]));
 		const frameOk = !!home.headers.get("x-frame-options") || /frame-ancestors/.test(home.headers.get("content-security-policy") ?? "");
-		const missingHeaders = [...want3.filter((h) => !headers[h] && !(want === "local" && h === "strict-transport-security")), ...(frameOk ? [] : ["x-frame-options / frame-ancestors"])];
+		const missingHeaders = [...want3.filter((h) => !headers[h] && !(want === "local" && (h === "strict-transport-security" || h === "content-security-policy"))), ...(frameOk ? [] : ["x-frame-options / frame-ancestors"])];
 		const wpPaths: VerifyResult["security"]["wpPaths"] = [];
 		for (const p of ["/wp-admin/", "/wp-login.php", "/xmlrpc.php", "/wp-json/"]) {
 			const res = await kitFetch(`${base}${p}`, { redirect: "manual" });

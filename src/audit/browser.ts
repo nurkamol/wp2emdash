@@ -195,7 +195,7 @@ export async function captureScreenshots(
 	for (const vp of config.audit.viewports) {
 		const dir = join(outDir, vp.name);
 		mkdirSync(dir, { recursive: true });
-		const context = await browser.newContext({
+		const context = await browser.newContext({ bypassCSP: true, 
 			viewport: { width: vp.width, height: vp.height },
 			userAgent: `${USER_AGENT} ${vp.name}`,
 			reducedMotion: "reduce",
@@ -273,7 +273,7 @@ export interface DesignCapture {
 
 /** Computed styles from a rendered page: fonts, colour usage, type scale, buttons, layout widths, breakpoints. */
 export async function captureDesign(browser: Browser, url: string, viewport: { name: string; width: number; height: number }, maskSelectors: string[]): Promise<DesignCapture> {
-	const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, userAgent: USER_AGENT, reducedMotion: "reduce" });
+	const context = await browser.newContext({ bypassCSP: true, viewport: { width: viewport.width, height: viewport.height }, userAgent: USER_AGENT, reducedMotion: "reduce" });
 	await context.addInitScript(NAME_SHIM);
 	const page = await context.newPage();
 	try {

@@ -184,7 +184,8 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 @media (min-width: 691px) { .marquee { --win-w: 60vw; } }
 @media (min-width: 1000px) { .marquee { --win-w: 32vw; } }
 .marquee__window { position: absolute; z-index: 1; inset-block: 0; left: calc((100% - var(--win-w)) / 2); width: var(--win-w); overflow: hidden; border-radius: var(--radius-media); pointer-events: none; }
-.marquee__image { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
+/* three classes: EmDash's <Image> ships a scoped `height: auto` (class + attribute) that would otherwise win in production builds */
+.marquee .marquee__window .marquee__image { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
 .marquee__track { display: flex; align-items: center; gap: 0.4em; white-space: nowrap; font-family: var(--font-display); font-size: var(--marquee-size, 11vw); line-height: 1; text-decoration: none; color: inherit; animation: marquee 28s linear infinite; }
 /* the white copy spans the window's height (same middle as the dark line) and is shifted back by the window's offset */
 .marquee__window .marquee__track--over { position: absolute; top: 0; height: 100%; left: calc((var(--win-w) - 100cqw) / 2); color: #fff; }

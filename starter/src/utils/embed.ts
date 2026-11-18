@@ -2,7 +2,7 @@
  * Embed allowlist: an embed section renders only iframes/scripts whose src is on the selected
  * provider's hosts, plus plain container markup and <style>. Everything else is removed.
  */
-const PROVIDER_HOSTS: Record<string, string[]> = {
+export const PROVIDER_HOSTS: Record<string, string[]> = {
 	momence: ["momence.com"],
 	janeapp: ["janeapp.com"],
 	calendly: ["calendly.com"],
