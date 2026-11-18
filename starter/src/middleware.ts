@@ -14,9 +14,9 @@ const HEADERS: Record<string, string> = {
 	"X-Frame-Options": "SAMEORIGIN",
 };
 
-/** Page paths keep the WordPress URL style (trailing slash or not) with one 301; files and /_emdash are untouched. */
+/** Page paths keep the WordPress URL style (trailing slash or not) with one 301; files, /_emdash and /api are untouched. */
 function canonicalPath(path: string): string | undefined {
-	if (path === "/" || path.startsWith("/_") || /^\/(404|500)\/?$/.test(path) || /\.[a-z0-9]{2,5}$/i.test(path)) return undefined;
+	if (path === "/" || path.startsWith("/_") || path.startsWith("/api/") || /^\/(404|500)\/?$/.test(path) || /\.[a-z0-9]{2,5}$/i.test(path)) return undefined;
 	const style = (site as { trailingSlash?: string }).trailingSlash;
 	if (style === "always" && !path.endsWith("/")) return `${path}/`;
 	if (style === "never" && path.endsWith("/")) return path.replace(/\/+$/, "");
