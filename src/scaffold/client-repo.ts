@@ -145,7 +145,7 @@ One-time setup in the GitHub repository (Settings):
 | Secrets → Actions | \`CLOUDFLARE_API_TOKEN\` | A token with Workers Scripts, D1 and R2 edit rights on this account (not the DNS token used at switch-over) |
 | Variables → Actions | \`CLOUDFLARE_ACCOUNT_ID\` | The Cloudflare account id (not secret). Deploy jobs are skipped until it is set. |
 | Environments | \`staging\` | No protection needed |
-| Environments | \`production\` | Required reviewers: the site owner |
+| Environments | \`production\` | Deployment branches: \`main\` only. Required reviewers (the owner) if the plan allows it — private repos need GitHub Pro/Team; otherwise only collaborators can start a production run. |
 
 ## Secrets
 

@@ -143,6 +143,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (!import.meta.env.DEV && (headers.get("content-type") ?? "").includes("text/html") && !headers.has("content-security-policy")) {
 		headers.set("Content-Security-Policy", csp(isEditor(context.cookies, context.url)).replace(/ {2,}/g, " ").replace(/ ;/g, ";"));
 	}
-	if ((env as { STAGING?: string }).STAGING === "1") headers.set("X-Robots-Tag", "noindex, nofollow");
+	// Never indexed: staging, and production on any address but its own domain (workers.dev before the switch).
+	if ((env as { STAGING?: string }).STAGING === "1" || bare(context.url.hostname) !== bare(PRODUCTION.hostname)) headers.set("X-Robots-Tag", "noindex, nofollow");
 	return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 });
