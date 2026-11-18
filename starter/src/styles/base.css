@@ -363,7 +363,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .field input, .field select { height: var(--input-height, auto); padding-block: var(--input-pad-y, 0.8rem); }
 .field textarea { min-height: calc(2 * var(--input-height, 3rem)); }
 /* Phones: at least 16px so iOS does not zoom into the field on focus. */
-@media (max-width: 690px) { .field input, .field textarea, .field select { font-size: max(16px, var(--input-size, 16px)); } }
+@media (max-width: 690px) { .form .field input, .form .field textarea, .form .field select { font-size: max(16px, var(--input-size, 16px)); } }
 @media (max-width: 690px) { .field--half { grid-column: span 2; } }
 .field { position: relative; }
 .field input, .field textarea, .field select { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; font-size: var(--input-size, inherit); padding: 0.8rem var(--input-pad-x, 1rem); border: var(--input-border, 1px solid var(--color-line-strong, var(--color-line))); border-top: var(--input-border-top, var(--input-border, 1px solid var(--color-line-strong, var(--color-line)))); border-radius: var(--radius-input); background: var(--color-input-bg, #fff); color: var(--color-text); }
