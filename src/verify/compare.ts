@@ -51,9 +51,12 @@ export interface SeoResult {
  * Titles and descriptions equal; canonical points at the production URL of the same path; staging
  * must be noindex while the source page was indexable; JSON-LD types and OpenGraph keys kept.
  */
-export function compareSeo(source: PageSnapshot["seo"], target: PageSnapshot["seo"], expectedCanonical: string, isStaging: boolean): SeoResult {
+/** On plain pages SEO plugins (Rank Math, Yoast) emit Article + author Person by default; the migration regenerates them for posts only. */
+const PAGE_BOILERPLATE_LD = new Set(["Article", "Person"]);
+
+export function compareSeo(source: PageSnapshot["seo"], target: PageSnapshot["seo"], expectedCanonical: string, isStaging: boolean, kind: "page" | "post" | string = "page"): SeoResult {
 	const robotsT = lower([target.robots, target.xRobotsTag].filter(Boolean).join(", "));
-	const missingLd = source.jsonLdTypes.filter((t) => !target.jsonLdTypes.includes(t));
+	const missingLd = source.jsonLdTypes.filter((t) => !target.jsonLdTypes.includes(t) && !(kind === "page" && PAGE_BOILERPLATE_LD.has(t)));
 	const ogKeys = ["og:title", "og:description", "og:type", "og:url"].filter((k) => source.og[k] && !target.og[k]);
 	const canon = (u?: string) => (u ?? "").replace(/\/+$/, "");
 	return {

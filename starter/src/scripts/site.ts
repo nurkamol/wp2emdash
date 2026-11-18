@@ -39,8 +39,9 @@ function setMenu(open: boolean) {
 		requestAnimationFrame(() => {
 			panel.classList.add("is-open");
 			overlay.classList.add("is-open");
+			// Once visible: a closed panel is visibility:hidden and cannot take focus.
+			panel.querySelector<HTMLElement>("a, button")?.focus({ preventScroll: true });
 		});
-		panel.querySelector<HTMLElement>("a, button")?.focus({ preventScroll: true });
 	} else {
 		panel.classList.remove("is-open");
 		overlay.classList.remove("is-open");

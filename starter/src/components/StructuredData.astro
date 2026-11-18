@@ -26,19 +26,25 @@ const logo = (site as { header?: { logo?: string } }).header?.logo;
 const b = sd.business;
 
 const graph: Record<string, unknown>[] = [];
+const logoUrl = logo ? new URL(logo, origin).href : undefined;
+const local = b && b.type !== "Organization";
 if (b) {
+	// Logo and place as their own nodes, linked from the business (as SEO plugins publish them).
+	if (logoUrl) graph.push({ "@type": "ImageObject", "@id": `${origin}/#logo`, url: logoUrl, contentUrl: logoUrl, caption: b.name });
+	if (local && (b.geo || b.address)) graph.push({ "@type": "Place", "@id": `${origin}/#place`, ...(b.geo ? { geo: { "@type": "GeoCoordinates", ...b.geo } } : {}), ...(b.hasMap ? { hasMap: b.hasMap } : {}), ...(b.address ? { address: { "@type": "PostalAddress", ...b.address } } : {}) });
 	graph.push({
 		"@type": b.type === "Organization" ? "Organization" : [b.type, "Organization"],
 		"@id": orgId,
 		name: b.name,
 		url: `${origin}/`,
 		...(b.description ? { description: b.description } : {}),
-		...(logo ? { logo: { "@type": "ImageObject", url: new URL(logo, origin).href }, image: new URL(logo, origin).href } : {}),
+		...(logoUrl ? { logo: { "@id": `${origin}/#logo` }, image: { "@id": `${origin}/#logo` } } : {}),
 		...(b.email ? { email: b.email } : {}),
 		...(b.telephone ? { telephone: b.telephone } : {}),
 		...(b.priceRange && b.type !== "Organization" ? { priceRange: b.priceRange } : {}),
 		...(b.address ? { address: { "@type": "PostalAddress", ...b.address } } : {}),
-		...(b.geo && b.type !== "Organization" ? { geo: { "@type": "GeoCoordinates", ...b.geo } } : {}),
+		...(local && (b.geo || b.address) ? { location: { "@id": `${origin}/#place` } } : {}),
+		...(b.geo && local ? { geo: { "@type": "GeoCoordinates", ...b.geo } } : {}),
 		...(b.hasMap ? { hasMap: b.hasMap } : {}),
 		...(b.openingHours?.length && b.type !== "Organization" ? { openingHours: b.openingHours } : {}),
 		...(b.sameAs?.length ? { sameAs: b.sameAs } : {}),

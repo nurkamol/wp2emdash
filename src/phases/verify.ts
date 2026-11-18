@@ -127,17 +127,22 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 					if (source) {
 						r.text = compareText(sourceText(sourceHtml), sourceText(html));
 						r.headings = compareHeadings(source.headings, snap.headings);
-						r.seo = compareSeo(source.seo, snap.seo, `${prod}${u.path}`, want === "staging");
+						// Local and staging run with EmDash's staging flag (noindex) until cutover; only production must be indexable.
+						r.seo = compareSeo(source.seo, snap.seo, `${prod}${u.path}`, (want as string) !== "production", u.kind);
 						r.missingExternal = missingExternalLinks(source.links, snap.links);
 						r.imagesWithoutAlt = snap.images.filter((im) => im.alt === undefined).map((im) => im.src);
 						// Content forms only: the theme's search box is site chrome, not a migrated form.
 						for (const sf of source.forms.filter((f) => !/search/i.test(f.provider ?? "") && !f.fields.every((x) => x.name === "s" || x.type === "hidden") && f.fields.some((x) => x.type !== "hidden"))) {
 							const visible = (f: { type: string }) => !["hidden", "submit", "button"].includes(f.type);
-							const want2 = sf.fields.filter(visible).map((x) => (x.type === "textarea" ? "textarea" : x.type)).sort();
+							// A sensitive site's contact-only policy (owner decision) withholds everything but contact fields.
+							const contactOnly = config.sensitiveData && config.forms.sensitive === "contact-only";
+							const kept = (x: { type: string }) => !contactOnly || ["email", "tel", "text"].includes(x.type);
+							const withheld = sf.fields.filter(visible).filter((x) => !kept(x)).length;
+							const want2 = sf.fields.filter(visible).filter(kept).map((x) => (x.type === "textarea" ? "textarea" : x.type)).sort();
 							const tf = snap.forms.find((f) => f.fields.filter(visible).length >= want2.length);
 							const have = (tf?.fields.filter(visible) ?? []).map((x) => (x.type === "textarea" ? "textarea" : x.type)).sort();
 							const lacking = want2.filter((t, k) => want2.indexOf(t) === k && have.filter((h) => h === t).length < want2.filter((w) => w === t).length);
-							r.forms.push({ ok: !!tf && lacking.length === 0, detail: tf ? (lacking.length ? `missing field types: ${lacking.join(", ")}` : `${have.length} fields`) : "form missing" });
+							r.forms.push({ ok: !!tf && lacking.length === 0, detail: tf ? (lacking.length ? `missing field types: ${lacking.join(", ")}` : `${have.length} fields${withheld ? `, ${withheld} withheld by forms.sensitive` : ""}`) : "form missing" });
 						}
 					}
 				}
@@ -183,6 +188,30 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			await res.body?.cancel();
 			wpPaths.push({ path: p, status: res.status });
 		}
+
+		// Sitemap: every entry answers 200 at its own address (no redirects), every published page is listed.
+		const sitemapLocs: string[] = [];
+		const sitemapErrors: string[] = [];
+		const readSitemap = async (url: string, depth = 0): Promise<void> => {
+			const res = await kitFetch(url, { redirect: "manual" });
+			if (res.status !== 200) {
+				await res.body?.cancel();
+				sitemapErrors.push(`${new URL(url).pathname} HTTP ${res.status}`);
+				return;
+			}
+			const xml = await res.text();
+			const locs = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => m[1] as string);
+			if (/<sitemapindex/.test(xml) && depth < 2) for (const l of locs) await readSitemap(new URL(new URL(l).pathname, base).href, depth + 1);
+			else sitemapLocs.push(...locs);
+		};
+		await readSitemap(`${base}/sitemap.xml`);
+		for (const loc of sitemapLocs.slice(0, 500)) {
+			const res = await kitFetch(new URL(new URL(loc).pathname, base).href, { redirect: "manual" });
+			await res.body?.cancel();
+			if (res.status !== 200) sitemapErrors.push(`${new URL(loc).pathname} HTTP ${res.status}`);
+		}
+		const listed = new Set(sitemapLocs.map((l) => new URL(l).pathname));
+		const unlisted = [...published].filter((r): r is string => !!r && r !== "/" && !listed.has(r)).concat(published.has("/") && !listed.has("/") ? ["/"] : []);
 
 		// Form endpoints (the starter posts to /api/forms/<id>).
 		const formEndpoints: VerifyResult["forms"] = [];
@@ -254,7 +283,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		check("seo-title", "SEO titles identical", seoFail("title").length === 0, seoFail("title").join(", ") || undefined);
 		check("seo-description", "Meta descriptions identical", seoFail("description").length === 0, seoFail("description").join(", ") || undefined);
 		check("seo-canonical", "Canonical URLs point at the production URL", seoFail("canonical").length === 0, seoFail("canonical").slice(0, 3).map((p) => `${p}: ${results.find((r) => r.path === p)?.seo?.canonical.target ?? "none"}`).join("; ") || undefined);
-		check("seo-robots", want === "staging" ? "Staging is noindex" : "Indexability kept", seoFail("robots").length === 0, seoFail("robots").join(", ") || undefined);
+		check("seo-robots", (want as string) !== "production" ? "Not indexed before go-live (noindex)" : "Indexability kept", seoFail("robots").length === 0, seoFail("robots").join(", ") || undefined);
 		check("seo-jsonld", "Structured data types kept", seoFail("jsonLd").length === 0, [...new Set(results.flatMap((r) => r.seo?.jsonLd.missing ?? []))].join(", ") ? `missing: ${[...new Set(results.flatMap((r) => r.seo?.jsonLd.missing ?? []))].join(", ")}` : undefined);
 		check("seo-og", "OpenGraph tags present", seoFail("og").length === 0, [...new Set(results.flatMap((r) => r.seo?.og.missing ?? []))].join(", ") || undefined);
 		check("links-internal", "No broken internal links", brokenLinks.length === 0, brokenLinks.slice(0, 6).map((b) => `${b.href} (${b.status})`).join("; ") || `${linkMap.size} links checked`);
@@ -267,6 +296,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const endpointFail = formEndpoints.filter((f) => f.status === 404 || f.status >= 500);
 		check("forms-submit", "Form endpoints accept submissions", endpointFail.length === 0, endpointFail.map((f) => `${f.endpoint} HTTP ${f.status}`).join("; ") || formEndpoints.map((f) => `${f.endpoint} ${f.status}`).join(", ") || "no forms");
 		check("security-headers", "Security headers set", missingHeaders.length === 0, missingHeaders.length ? `missing: ${missingHeaders.join(", ")}` : undefined);
+		check("sitemap", "Sitemap lists every published page at its own address (200, no redirects)", sitemapErrors.length === 0 && unlisted.length === 0 && sitemapLocs.length > 0, [...sitemapErrors.slice(0, 6), ...(unlisted.length ? [`not listed: ${unlisted.slice(0, 6).join(", ")}`] : [])].join("; ") || `${sitemapLocs.length} URLs`);
 		const wpOpen = wpPaths.filter((w) => w.status !== 404 && w.status !== 410);
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);
 		// Gate on sections where we can pair them; whole-page difference where we cannot (e.g. Gutenberg pages).
