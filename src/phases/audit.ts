@@ -266,6 +266,8 @@ function pickDesignPages(urls: string[], snapshots: Map<string, PageSnapshot>, o
 	const home = urls.find((u) => new URL(u).pathname === "/") ?? `${origin}/`;
 	const out = [home];
 	const seen = new Set<string>();
+	// Text-rich pages first: they show the site's type and buttons; booking or map embeds bring their own styles.
+	urls = [...urls].sort((a, b) => (snapshots.get(b)?.wordCount ?? 0) - (snapshots.get(a)?.wordCount ?? 0));
 	for (const u of urls) {
 		if (out.length >= 4) break;
 		if (u === home) continue;
@@ -274,6 +276,12 @@ function pickDesignPages(urls: string[], snapshots: Map<string, PageSnapshot>, o
 		if (seen.has(sig)) continue;
 		seen.add(sig);
 		out.push(u);
+	}
+	// Fill up to four pages even when they share a template: type sizes are voted across pages, and the home page
+	// (often a one-off hero) must not decide them alone.
+	for (const u of urls) {
+		if (out.length >= 4) break;
+		if (!out.includes(u)) out.push(u);
 	}
 	return out;
 }

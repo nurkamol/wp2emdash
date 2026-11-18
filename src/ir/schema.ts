@@ -99,6 +99,11 @@ const base = {
 	valign: z.enum(["top", "middle", "bottom"]).optional(),
 	/** Centre text on phones (WPBakery/Salient phone_text_alignment). */
 	phoneAlign: z.enum(["center"]).optional(),
+	/** Quotes in the text: centred display italic under a short rule (Salient italic line set centred). */
+	quoteStyle: z.enum(["centered"]).optional(),
+	/** The heading's own size on desktop (builder override of the type scale), and its line height. */
+	headingSize: z.string().regex(/^\d+(?:\.\d+)?(?:px|vw|rem|em)$/).optional(),
+	headingLeading: z.number().min(0.5).max(3).optional(),
 	/** Padding measured on the source page (px, or fluid clamp between phone and desktop); wins over spacing. */
 	pad: z.object({ top: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), bottom: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional() }).optional(),
 	sourceRef,
@@ -113,6 +118,9 @@ const column = z.object({
 	media: z.array(mediaRef).default([]),
 	buttons: z.array(button).default([]),
 	background: background.optional(),
+	/** The image drawn as a circle of this diameter. */
+	imageCircle: z.string().regex(/^\d+(?:\.\d+)?(?:px|rem|vw)$/).optional(),
+	align: z.enum(["center"]).optional(),
 });
 export type Column = z.infer<typeof column>;
 
@@ -135,7 +143,18 @@ const featureItem = z.object({
 export const section = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("hero"), ...base, fields: z.object({ heading, body: richText.default([]), buttons: z.array(button).default([]), media: mediaRef.optional(), align: z.enum(["left", "center", "right"]).default("center") }) }),
 	z.object({ type: z.literal("rich_text"), ...base, fields: z.object({ body: richText, width: z.enum(["narrow", "normal", "wide"]).default("normal"), align: z.enum(["left", "center"]).default("left"), buttons: z.array(button).default([]) }) }),
-	z.object({ type: z.literal("media_text"), ...base, fields: z.object({ media: z.array(mediaRef).min(1), body: richText.default([]), buttons: z.array(button).default([]), mediaSide: z.enum(["left", "right"]), ratio: z.string().default("1/2") }) }),
+	z.object({ type: z.literal("media_text"), ...base, fields: z.object({
+			media: z.array(mediaRef).min(1),
+			body: richText.default([]),
+			buttons: z.array(button).default([]),
+			mediaSide: z.enum(["left", "right"]),
+			ratio: z.string().default("1/2"),
+			/** Fixed picture heights (builder spacers), per image: desktop and below the stacking breakpoint. */
+			mediaHeight: z.array(z.object({ desktop: cssLength, small: cssLength.optional() }).nullable()).max(2).optional(),
+			/** Space before the text column on desktop (Salient column padding). */
+			textInset: cssLength.optional(),
+		}),
+	}),
 	z.object({ type: z.literal("columns"), ...base, fields: z.object({ heading, columns: z.array(column).min(1).max(6) }) }),
 	z.object({
 		type: z.literal("feature_grid"),

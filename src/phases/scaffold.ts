@@ -168,7 +168,12 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	write(join(project, "seed", "seed.json"), seed);
 
 	// package.json, astro.config.mjs, wrangler.jsonc
-	const today = new Date().toISOString().slice(0, 10);
+	// Compatibility date: keep the project's existing one (a rerun must not silently change runtime behaviour);
+	// a new (or under-a-week-old) one uses a week back, because the local workerd binary can lag today's date by a few days.
+	const prevWrangler = existsSync(join(project, "wrangler.jsonc")) ? readFileSync(join(project, "wrangler.jsonc"), "utf8") : "";
+	const weekBack = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+	const kept = /"compatibility_date":\s*"(\d{4}-\d{2}-\d{2})"/.exec(prevWrangler)?.[1];
+	const today = kept && kept < weekBack ? kept : weekBack;
 	const workerName = `${config.slug}`.replace(/[^a-z0-9-]/g, "-");
 	write(join(project, "package.json"), {
 		name: `${config.slug}-site`,

@@ -8,10 +8,16 @@ import { htmlToPortableText, type Keys, textBlock } from "../../ir/portable-text
 import { colourValue, decodeRawHtml, decodeVcLink } from "./decode.js";
 import { innerSource, type ShortcodeNode } from "./parser.js";
 
+/** A box height per screen: desktop, and below the stacking breakpoint. */
+export interface BoxHeight {
+	desktop: string;
+	small?: string;
+}
+
 export type Fragment =
 	| { kind: "rich"; blocks: RichText }
 	| { kind: "button"; button: Button }
-	| { kind: "media"; media: MediaRef; role: "content" | "background"; link?: string }
+	| { kind: "media"; media: MediaRef; role: "content" | "background"; link?: string; /** Height of a background-image box sized by builder spacers. */ height?: BoxHeight; /** Drawn as a circle of this diameter (Salient circle images). */ circle?: string }
 	| { kind: "icon"; icon: { library: string; name: string } }
 	| { kind: "faq"; question: string; answer: RichText }
 	| { kind: "tab"; label: string; body: RichText }
@@ -55,6 +61,10 @@ export interface Col {
 	overlay?: string;
 	/** Column background image moves with scroll (Salient parallax_bg). */
 	parallax?: boolean;
+	/** Text centred in the column (WPBakery centered_text, on the column or every inner column). */
+	centered?: boolean;
+	/** Padding on the column's leading edge (Salient padding-N-percent), as a CSS length. */
+	insetStart?: string;
 }
 
 export interface HandlerCtx {
@@ -179,7 +189,8 @@ export const HANDLERS: Record<string, Handler> = {
 		const fs = (n.attrs.font_style ?? "h3").toLowerCase();
 		const text = n.attrs.text_content;
 		if (text !== undefined && text.trim()) {
-			const style = /^h[1-6]$/.test(fs) ? (fs as PtBlock["style"]) : "normal";
+			// Salient's "i" style is the theme's italic display line: a pull quote.
+			const style = /^h[1-6]$/.test(fs) ? (fs as PtBlock["style"]) : fs === "i" ? "blockquote" : "normal";
 			const marks = fs === "i" ? ["em"] : [];
 			const block = textBlock(text, ctx.keys, style, marks);
 			// Salient lets the whole line be a link (link_href + link_target): keep it as a link mark.
@@ -236,8 +247,11 @@ export const HANDLERS: Record<string, Handler> = {
 		return [{ kind: "media", media, role: "content", ...(link ? { link } : {}) }];
 	},
 	nectar_circle_images: (n, ctx) => {
-		ctx.diag({ level: "info", code: "lossy", message: "Overlapping circle image layout rendered as plain images", path: ctx.path });
-		return idList(n.attrs.images).map((id) => ({ kind: "media" as const, media: { wpId: id, kind: "image" as const }, role: "content" as const }));
+		const ids = idList(n.attrs.images);
+		if (ids.length > 1) ctx.diag({ level: "info", code: "lossy", message: "Overlapping circle images rendered side by side", path: ctx.path });
+		const size = /^\s*(\d+(?:\.\d+)?)\s*(px|rem|vw)?\s*$/.exec(n.attrs.sizing ?? "");
+		const circle = size ? `${size[1]}${size[2] ?? "px"}` : "160px";
+		return ids.map((id) => ({ kind: "media" as const, media: { wpId: id, kind: "image" as const }, role: "content" as const, circle }));
 	},
 	vc_gallery: (n) => [{ kind: "gallery", images: idList(n.attrs.images).map((id) => ({ wpId: id, kind: "image" as const })), layout: /flickity|slider|carousel/i.test(n.attrs.type ?? "") ? "carousel" : /masonry/i.test(n.attrs.type ?? "") ? "masonry" : "grid" }],
 	nectar_image_gallery: (n) => [{ kind: "gallery", images: idList(n.attrs.images).map((id) => ({ wpId: id, kind: "image" as const })), layout: "grid" }],

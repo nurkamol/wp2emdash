@@ -1,0 +1,123 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "valign": "middle",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "7608665da7"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "What we offer",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Dry needling",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [],
+                "listItem": "bullet",
+                "level": 1
+              },
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Manual therapy",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [],
+                "listItem": "bullet",
+                "level": 1
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Book a visit",
+                "href": "/book/",
+                "style": "primary"
+              }
+            ]
+          },
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Dr. Sample Person",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "PT, DPT",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [
+              {
+                "wpId": 734,
+                "kind": "image"
+              }
+            ],
+            "buttons": [],
+            "imageCircle": "320px",
+            "align": "center"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

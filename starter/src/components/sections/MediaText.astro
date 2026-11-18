@@ -3,15 +3,21 @@ import Section from "../Section.astro";
 import Heading from "../Heading.astro";
 import Rich from "../Rich.astro";
 import Buttons from "../Buttons.astro";
-import Md from "../Md.astro";
 import { Image } from "emdash/ui";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const ratio = String(v.ratio ?? "1/2").replace("/", "-");
+const LENGTH = /^\d+(?:\.\d+)?(?:px|vh|svh|vw|rem|em|%)$/;
+const len = (x: unknown) => (typeof x === "string" && LENGTH.test(x) ? x : undefined);
+// Fixed picture heights (from the source's spacers) and the text column's leading space.
+const vars = (pairs: [string, unknown][]) => pairs.flatMap(([k, x]) => (len(x) ? [`${k}:${x}`] : [])).join(";") || undefined;
+const h1 = vars([["--media-h", v.media_height], ["--media-h-small", v.media_height_small]]);
+const h2 = vars([["--media-h", v.media_2_height], ["--media-h-small", v.media_2_height_small]]);
+const inset = vars([["--text-inset", v.text_inset]]);
 ---
 
 <Section value={v} type="media_text" class={`media-${v.media_side ?? "left"} ratio-${ratio}`}>
-	<div class="media-text">
-		<div class="media-text__media">
+	<div class="media-text" style={inset}>
+		<div class:list={["media-text__media", { "has-height": h1 }]} style={h1}>
 			{v.media && <Image image={v.media} sizes="(max-width: 900px) 100vw, 50vw" />}
 		</div>
 		<div class="media-text__text">
@@ -19,7 +25,11 @@ const ratio = String(v.ratio ?? "1/2").replace("/", "-");
 			<Rich value={v.body} />
 			<Buttons items={v.buttons} />
 			{/* The second image belongs to the text column (it sat under the text in the source layout). */}
-			{v.media_2 && <Image image={v.media_2} class="media-text__media-2" sizes="(max-width: 900px) 100vw, 30vw" />}
+			{v.media_2 && (
+				<div class:list={["media-text__media-2-box", { "has-height": h2 }]} style={h2}>
+					<Image image={v.media_2} class="media-text__media-2" sizes="(max-width: 900px) 100vw, 30vw" />
+				</div>
+			)}
 		</div>
 	</div>
 </Section>

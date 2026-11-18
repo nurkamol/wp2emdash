@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import type { Button, Diagnostic, MediaRef, PtBlock, RichText, Section, SectionType } from "../../ir/schema.js";
 import type { Keys } from "../../ir/portable-text.js";
 import { colourValue, columnFraction, isDarkColour, parseVcCss, spacingFromPadding } from "./decode.js";
-import { type Col, CONTAINERS, DECORATIVE, type Fragment, GROUPS, HANDLERS, type HandlerCtx, linkBlock, mediaFrom, richFromHtml } from "./elements.js";
+import { type BoxHeight, type Col, CONTAINERS, DECORATIVE, type Fragment, GROUPS, HANDLERS, type HandlerCtx, linkBlock, mediaFrom, richFromHtml } from "./elements.js";
 import { type AstNode, parseShortcodes, serialise, type ShortcodeNode } from "./parser.js";
 
 export interface AdaptOptions {
@@ -96,12 +96,19 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 	function columnOf(n: ShortcodeNode, path: string): Col {
 		const fragments: Fragment[] = [];
 		const bgImage = mediaFrom(n.attrs.background_image);
-		if (bgImage) fragments.push({ kind: "media", media: bgImage, role: "background" });
+		if (bgImage) {
+			const height = spacerHeight(n);
+			fragments.push({ kind: "media", media: bgImage, role: "background", ...(height ? { height } : {}) });
+		}
 		fragments.push(...processChildren(n.children, path));
 		const color = colourValue(n.attrs.background_color);
 		const spacer = columnSpacer(n);
 		const overlay = columnOverlay(n.attrs);
-		return { ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
+		const pct = /^padding-(\d+)-percent$/.exec(n.attrs.column_padding ?? "")?.[1];
+		const inset = pct && ["left", "all"].includes(n.attrs.column_padding_position ?? "all") && Number(pct) > 0 ? `${pct}vw` : undefined;
+		const inner = n.children.flatMap((r) => (r.type === "shortcode" && r.tag === "vc_row_inner" ? r.children : [])).filter((c): c is ShortcodeNode => c.type === "shortcode" && c.tag === "vc_column_inner" && c.children.length > 0);
+		const centered = n.attrs.centered_text === "true" || (inner.length > 0 && inner.length === n.children.filter((c) => c.type === "shortcode").length && inner.every((c) => c.attrs.centered_text === "true"));
+		return { ...(inset ? { insetStart: inset } : {}), ...(centered ? { centered: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -325,6 +332,8 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 		...(look.width ? { width: look.width } : {}),
 		...(look.gap ? { gap: look.gap } : {}),
 		...(look.valign ? { valign: look.valign } : {}),
+		...(CENTRED_QUOTE.test(row.raw) ? { quoteStyle: "centered" as const } : {}),
+		...headingLook(row.raw),
 		...(row.columns.some((c) => c.fragments.length) && row.columns.filter((c) => c.fragments.length).every((c) => c.phoneCenter) ? { phoneAlign: "center" as const } : {}),
 		sourceRef: { adapter: row.adapter ?? ("wpbakery" as const), path: row.path, rawHash: hash(row.raw) },
 	});
@@ -445,9 +454,16 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 		const extra = textCol.fragments.flatMap((f) => (f.kind === "media" ? [f.media] : []));
 		if (extra.length) ctx.diag({ level: "info", code: "lossy", message: `${extra.length} image(s) from the text column moved into the section's media list`, path: row.path });
 		const textRich = textCol.fragments.flatMap((f) => (f.kind === "rich" ? f.blocks : []));
+		const mediaFrags = [...mediaCol.fragments, ...textCol.fragments].filter((f): f is Extract<Fragment, { kind: "media" }> => f.kind === "media");
+		const heights = mediaFrags.slice(0, 2).map((f) => f.height);
 		push({
 			...base("media_text", mediaCol.fragments.every((f) => f.kind === "media" && f.role === "background") ? "cover" : "inline"),
-			fields: { media: [...mediaCol.fragments.map((f) => (f as Extract<Fragment, { kind: "media" }>).media), ...extra], body: textRich, buttons: textCol.fragments.flatMap((f) => (f.kind === "button" ? [f.button] : [])), mediaSide: cols[0] === mediaCol ? "left" : "right", ratio: mediaCol.width ?? "1/2" },
+			// Builder columns sit at the top unless the row centres them (content_placement).
+			...(look.valign || (row.adapter && row.adapter !== "wpbakery") ? {} : { valign: "top" as const }),
+			fields: {
+				...(heights.some(Boolean) ? { mediaHeight: heights.map((h) => h ?? null) } : {}),
+				...(textCol.insetStart ? { textInset: textCol.insetStart } : {}),
+				media: [...mediaCol.fragments.map((f) => (f as Extract<Fragment, { kind: "media" }>).media), ...extra], body: textRich, buttons: textCol.fragments.flatMap((f) => (f.kind === "button" ? [f.button] : [])), mediaSide: cols[0] === mediaCol ? "left" : "right", ratio: mediaCol.width ?? "1/2" },
 		});
 		return sections;
 	}
@@ -496,7 +512,8 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 			return sections;
 		}
 		const width = columnFraction(cols[0]?.width) <= 0.5 ? "narrow" : "normal";
-		push({ ...base("rich_text"), theme, fields: { body: rich, width, align: row.attrs.text_align === "center" ? "center" : "left", buttons } });
+		const centred = row.attrs.text_align === "center" || (textCols.length > 0 && textCols.every((c) => c.centered));
+		push({ ...base("rich_text"), theme, fields: { body: rich, width, align: centred ? "center" : "left", buttons } });
 		return sections;
 	}
 
@@ -512,6 +529,11 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					body: c.fragments.flatMap((f) => (f.kind === "rich" ? f.blocks : [])),
 					media: c.fragments.flatMap((f) => (f.kind === "media" && f.role === "content" ? [f.media] : [])),
 					buttons: c.fragments.flatMap((f) => (f.kind === "button" ? [f.button] : [])),
+					...(() => {
+						const circle = c.fragments.find((f): f is Extract<Fragment, { kind: "media" }> => f.kind === "media" && f.role === "content" && !!f.circle)?.circle;
+						return circle ? { imageCircle: circle } : {};
+					})(),
+					...(c.centered ? { align: "center" as const } : {}),
 					...(c.background || bg ? { background: { ...c.background, ...(bg ? { image: bg.media } : {}) } } : {}),
 				};
 			}),
@@ -556,11 +578,35 @@ function splitHeading(blocks: RichText): { heading?: RichText; intro: RichText }
 export type { Button };
 export { CONTAINERS };
 
+/** The row's first heading set with its own size in the builder (Salient split heading font_size): desktop size and leading. */
+export function headingLook(raw: string): { headingSize?: string; headingLeading?: number } {
+	const tag = /\[split_line_heading(?=[^\]]*\bfont_style="h[1-6]")[^\]]*\]/.exec(raw)?.[0];
+	if (!tag) return {};
+	const size = /\bfont_size="\s*(\d+(?:\.\d+)?)\s*(px|vw|rem|em)?\s*"/.exec(tag);
+	if (!size || Number(size[1]) <= 0) return {};
+	const lh = Number(/\bfont_line_height="\s*([\d.]+)\s*"/.exec(tag)?.[1]);
+	return { headingSize: `${size[1]}${size[2] ?? "px"}`, ...(lh > 0.5 && lh < 3 ? { headingLeading: lh } : {}) };
+}
+
+/** A Salient italic line (pull quote) set centred in the builder. */
+const CENTRED_QUOTE = /\[split_line_heading(?=[^\]]*\bfont_style="i")(?=[^\]]*\bcontent_alignment="center")[^\]]*\]/;
+
 const SPACERS = new Set(["divider", "vc_empty_space"]);
 const cssLen = (v: string | undefined): string | undefined => {
 	const m = /^\s*(\d+(?:\.\d+)?)\s*(px|vh|svh|vw|rem|em|%)?\s*$/.exec(v ?? "");
 	return m && Number(m[1]) > 0 ? `${m[1]}${m[2] ?? "px"}` : undefined;
 };
+
+/** A column that is only a background image and spacers: the spacer sets the picture's height. */
+export function spacerHeight(col: ShortcodeNode): BoxHeight | undefined {
+	const kids = col.children.filter((c): c is ShortcodeNode => c.type === "shortcode");
+	if (!kids.length || !kids.every((k) => SPACERS.has(k.tag))) return undefined;
+	const first = kids[0] as ShortcodeNode;
+	const desktop = cssLen(first.attrs.custom_height ?? first.attrs.height);
+	if (!desktop) return undefined;
+	const small = cssLen(first.attrs.custom_height_tablet ?? first.attrs.custom_height_phone);
+	return { desktop, ...(small ? { small } : {}) };
+}
 
 /** Spacers at both ends of a column (Salient image cards: divider 35vh · title · link · divider 35vh). */
 export function columnSpacer(col: ShortcodeNode): { desktop: string; phone?: string } | undefined {

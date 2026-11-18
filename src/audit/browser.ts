@@ -257,6 +257,8 @@ export interface DesignCapture {
 	containerWidths: { width: number; count: number }[];
 	/** Most common left edge of body text and headings in the main content: the page gutter, px. */
 	gutter?: number;
+	/** Most common corner radius of large photos (img or background-image boxes) in the main content, px. */
+	mediaRadius?: number;
 	breakpoints: number[];
 	header: { height: number; position: string; background: string } | null;
 	footer: { height: number; background: string; color: string } | null;
@@ -293,11 +295,27 @@ export async function captureDesign(browser: Browser, url: string, viewport: { n
 				if (parseFloat(cs.borderTopWidth) > 0 && cs.borderTopStyle !== "none") tally(border, cs.borderTopColor);
 				if (cs.maxWidth !== "none" && cs.maxWidth.endsWith("px") && (cs.marginLeft === cs.marginRight || cs.marginLeft === "auto")) tally(widths, Math.round(parseFloat(cs.maxWidth)));
 			}
+			// The usual style of a tag: the most common font size among visible ones, skipping one-off sizes set on a
+			// single element (Salient split headings with a custom size, inline font-size).
 			const pick = (sel: string) => {
-				const el = document.querySelector<HTMLElement>(sel);
+				const all = Array.from(document.querySelectorAll<HTMLElement>(sel)).filter((e) => e.offsetWidth > 0 && e.offsetHeight > 0);
+				const plain = all.filter((e) => !e.closest("[data-custom-font-size='true'], [class*='font_size_'], [style*='font-size']"));
+				const pool = plain.length ? plain : all;
+				// Each distinct text counts once (marquees and sliders repeat the same line many times).
+				const sizes = new Map<string, Map<string, HTMLElement>>();
+				for (const e of pool) {
+					const k = getComputedStyle(e).fontSize;
+					const texts = sizes.get(k) ?? new Map<string, HTMLElement>();
+					const t = (e.textContent ?? "").trim().slice(0, 80);
+					if (!texts.has(t)) texts.set(t, e);
+					sizes.set(k, texts);
+				}
+				const best = [...sizes.values()].sort((a, b) => b.size - a.size)[0];
+				const el = best ? [...best.values()][0] : document.querySelector<HTMLElement>(sel);
 				if (!el) return null;
 				const cs = getComputedStyle(el);
-				return { fontFamily: cs.fontFamily, fontSize: cs.fontSize, fontWeight: cs.fontWeight, lineHeight: cs.lineHeight, letterSpacing: cs.letterSpacing, color: cs.color, textTransform: cs.textTransform };
+				return {
+					count: best?.size ?? 1, fontFamily: cs.fontFamily, fontSize: cs.fontSize, fontWeight: cs.fontWeight, lineHeight: cs.lineHeight, letterSpacing: cs.letterSpacing, color: cs.color, textTransform: cs.textTransform };
 			};
 			const typography: Record<string, ReturnType<typeof pick>> = {};
 			for (const sel of ["body", "h1", "h2", "h3", "h4", "h5", "h6", "p", "a", "li", "blockquote", "small"]) typography[sel] = pick(sel);
@@ -328,6 +346,7 @@ export async function captureDesign(browser: Browser, url: string, viewport: { n
 					letterSpacing: cs.letterSpacing,
 					textTransform: cs.textTransform,
 					boxShadow: cs.boxShadow,
+					inHeader: el.closest("header, nav, #header-outer, [role=dialog]") ? "yes" : "no",
 				};
 				const sig = JSON.stringify(styles);
 				if (seenStyles.has(sig)) continue;
@@ -395,6 +414,26 @@ export async function captureDesign(browser: Browser, url: string, viewport: { n
 					}
 					const best = [...lefts.entries()].sort((a, b) => b[1] - a[1])[0];
 					return best && best[1] >= 3 ? { gutter: best[0] } : {};
+				})(),
+				...(() => {
+					// Photo corners: the radius a large picture is drawn with (its own, or a clipping ancestor's within 3 levels).
+					const radii = new Map<number, number>();
+					for (const el of Array.from(document.querySelectorAll<HTMLElement>("main img, #ajax-content-wrap img, [style*='background-image'], .column-image-bg, .row-bg"))) {
+						if (el.closest("header, footer, nav, #header-outer, #footer-outer, .nectar-global-section, [role=dialog]")) continue;
+						const r = el.getBoundingClientRect();
+						if (r.width < 200 || r.height < 150) continue;
+						if (el.tagName !== "IMG" && getComputedStyle(el).backgroundImage.indexOf("url(") < 0) continue;
+						let radius = Number.parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
+						let up: HTMLElement | null = el.parentElement;
+						for (let i = 0; i < 3 && up && !radius; i++, up = up.parentElement) {
+							const cs = getComputedStyle(up);
+							if (cs.overflow !== "visible") radius = Number.parseFloat(cs.borderTopLeftRadius) || 0;
+						}
+						const k = Math.round(radius);
+						radii.set(k, (radii.get(k) ?? 0) + 1);
+					}
+					const best = [...radii.entries()].sort((a, b) => b[1] - a[1])[0];
+					return best && best[1] >= 2 ? { mediaRadius: best[0] } : {};
 				})(),
 				breakpoints: [...breakpoints].sort((a, b) => a - b),
 				header: header ? { height: header.offsetHeight, position: getComputedStyle(header).position, background: getComputedStyle(header).backgroundColor } : null,

@@ -152,6 +152,9 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		...(s.gap ? { gap: s.gap } : {}),
 		...(s.valign ? { valign: s.valign } : {}),
 		...(s.phoneAlign ? { phone_align: s.phoneAlign } : {}),
+		...(s.quoteStyle ? { quote_style: s.quoteStyle } : {}),
+		...(s.headingSize ? { heading_size: s.headingSize } : {}),
+		...(s.headingLeading ? { heading_leading: s.headingLeading } : {}),
 		...(s.pad?.top ? { pad_top: s.pad.top } : {}),
 		...(s.pad?.bottom ? { pad_bottom: s.pad.bottom } : {}),
 		...(s.fullHeight ? { full_height: true } : {}),
@@ -171,7 +174,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		case "media_text": {
 			const { head: h, rest } = headingFromBody(s.fields.body);
 			const ratio = ["1/3", "1/2", "2/3"].includes(s.fields.ratio) ? s.fields.ratio : "1/2";
-			return base("media_text", { ...h, body: pt(rest), buttons: buttons(s.fields.buttons), media: media(s.fields.media[0]), media_2: s.fields.media[1] ? media(s.fields.media[1]) : undefined, media_side: s.fields.mediaSide, ratio });
+			return base("media_text", { ...h, body: pt(rest), buttons: buttons(s.fields.buttons), media: media(s.fields.media[0]), media_2: s.fields.media[1] ? media(s.fields.media[1]) : undefined, media_side: s.fields.mediaSide, ratio, ...heightFields(s.fields.mediaHeight), ...(s.fields.textInset ? { text_inset: s.fields.textInset } : {}) });
 		}
 		case "columns": {
 			const cols: Record<string, unknown> = {};
@@ -183,6 +186,8 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 				if (c.background?.image) cols[`col_${n}_bg_image`] = media(c.background.image);
 				if (c.background?.color) cols[`col_${n}_bg_color`] = c.background.color;
 				cols[`col_${n}_width`] = fraction(c.width);
+				if (c.imageCircle) cols[`col_${n}_image_circle`] = c.imageCircle;
+				if (c.align) cols[`col_${n}_align`] = c.align;
 			});
 			return base("columns", { ...head, ...cols });
 		}
@@ -238,4 +243,16 @@ function linkParagraph(b: Button, key: string): PtBlock {
 
 function stripUndefined<T extends Record<string, unknown>>(o: T): T {
 	return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T;
+}
+
+/** media_text picture heights → media_height / media_height_small / media_2_height / media_2_height_small. */
+function heightFields(h: ({ desktop: string; small?: string } | null)[] | undefined): Record<string, string> {
+	const out: Record<string, string> = {};
+	(h ?? []).forEach((x, i) => {
+		if (!x) return;
+		const k = i === 0 ? "media" : "media_2";
+		out[`${k}_height`] = x.desktop;
+		if (x.small) out[`${k}_height_small`] = x.small;
+	});
+	return out;
 }

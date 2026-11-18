@@ -31,8 +31,11 @@ interface TypographyEntry {
 	letterSpacing: string;
 	color: string;
 	textTransform?: string;
+	/** Distinct texts on the page drawn at this size. */
+	count?: number;
 }
 export interface DesignCapture {
+	url?: string;
 	viewport: string;
 	fonts: { family: string; count: number }[];
 	colors: { value: string; count: number; usage: "text" | "background" | "border" }[];
@@ -41,6 +44,8 @@ export interface DesignCapture {
 	containerWidths: { width: number; count: number }[];
 	/** Most common left edge of content text, px (page gutter). */
 	gutter?: number;
+	/** Most common corner radius of large photos, px. */
+	mediaRadius?: number;
 	header: { height: number; background: string } | null;
 	footer: { height: number; background: string; color: string } | null;
 	logo?: { src: string; width: number; height: number };
@@ -68,12 +73,31 @@ export interface Tokens {
 	colors: { bg: string; text: string; accent: string; accentContrast: string; surface: string };
 }
 
+/** Type styles voted across every captured page of a viewport: the size most texts use wins; in a tie the inner pages win (a home hero is usually a one-off). */
+function mergedTypography(designs: DesignCapture[], viewport: string, first: Record<string, TypographyEntry | undefined>): Record<string, TypographyEntry | undefined> {
+	const out: Record<string, TypographyEntry | undefined> = { ...first };
+	for (const tag of Object.keys(first)) {
+		const votes = new Map<string, { n: number; e: TypographyEntry }>();
+		for (const d of designs) {
+			const e = d.viewport === viewport ? d.typography[tag] : undefined;
+			if (!e) continue;
+			const v = votes.get(e.fontSize) ?? { n: 0, e };
+			const home = /^https?:\/\/[^/]+\/?$/.test(d.url ?? "");
+			v.n += (e.count ?? 1) * (home ? 0.9 : 1);
+			votes.set(e.fontSize, v);
+		}
+		const best = [...votes.values()].sort((a, b) => b.n - a.n)[0];
+		if (best) out[tag] = best.e;
+	}
+	return out;
+}
+
 export function buildTokens(designs: DesignCapture[]): Tokens {
 	const desktop = designs.find((d) => d.viewport === "desktop") ?? designs.at(-1);
 	const mobile = designs.find((d) => d.viewport === "mobile") ?? designs[0];
 	if (!desktop || !mobile) throw new Error("No design capture: run the audit first");
-	const t = desktop.typography;
-	const tm = mobile.typography;
+	const t = mergedTypography(designs, desktop.viewport, desktop.typography);
+	const tm = mergedTypography(designs, mobile.viewport, mobile.typography);
 	const body = t.body;
 	const bgCandidates = desktop.colors.filter((c) => c.usage === "background").map((c) => toHex(c.value)).filter((c): c is string => !!c && c.startsWith("#"));
 	const bg = toHex(desktop.pageBackground) ?? bgCandidates[0] ?? "#ffffff";
@@ -100,8 +124,31 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 	const gutterOf = (vp: string) => designs.find((d) => d.viewport === vp && d.gutter)?.gutter;
 	const gd = gutterOf("desktop");
 	const gm = gutterOf("mobile");
+	// Photo corners measured on the source; 8px when not captured.
+	const radiusVotes = new Map<number, number>();
+	for (const d of designs) if (d.mediaRadius !== undefined) radiusVotes.set(d.mediaRadius, (radiusVotes.get(d.mediaRadius) ?? 0) + 1);
+	const mediaRadius = [...radiusVotes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 8;
 	const gutter = gd && gm ? fluid(gm, gd) : "clamp(20px, 5vw, 64px)";
 	const radius = btn?.styles.borderRadius ?? "6px";
+	// Buttons in the page content (not the header pill): their type and text colour, voted across pages.
+	const contentBtns = new Map<string, { n: number; s: Record<string, string> }>();
+	for (const d of designs) {
+		if (d.viewport !== desktop.viewport) continue;
+		for (const b of d.buttons) {
+			if (b.styles.inHeader !== "no" || !b.styles.background || /rgba\(0, 0, 0, 0\)|transparent/.test(b.styles.background)) continue;
+			// Same fill as the site's main button: a call to action, not a widget control (date pickers, tabs).
+			if (btn && b.styles.background !== btn.styles.background) continue;
+			const k = [b.styles.fontSize, b.styles.textTransform, b.styles.letterSpacing, b.styles.color].join("|");
+			const v = contentBtns.get(k) ?? { n: 0, s: b.styles };
+			v.n++;
+			contentBtns.set(k, v);
+		}
+	}
+	const cb = [...contentBtns.values()].sort((a, b) => b.n - a.n)[0]?.s;
+	const cbTrack = cb && px(cb.letterSpacing) && px(cb.fontSize) ? `${round(px(cb.letterSpacing) / px(cb.fontSize), 3)}em` : undefined;
+	const contentBtnVars = cb
+		? [`	--btn-size: ${cb.fontSize};`, `	--btn-transform: ${cb.textTransform || "none"};`, cbTrack ? `	--btn-tracking: ${cbTrack};` : "", toHex(cb.color) ? `	--btn-color: ${toHex(cb.color)};` : "", cb.fontWeight ? `	--btn-weight-content: ${cb.fontWeight};` : ""].filter(Boolean).join("\n")
+		: "";
 	const weights = [...new Set([400, 500, 600, 700, Number(t.h1?.fontWeight) || 400])].sort();
 	const isGeneric = (f: string) => /^(system-ui|sans-serif|serif|monospace|-apple-system|arial|helvetica|georgia|times)/i.test(f);
 	const families = [...new Set([bodyFont, displayFont])].filter((f) => !isGeneric(f));
@@ -164,9 +211,10 @@ ${eyebrowVars}
 
 	--radius-button: ${radius};
 	--radius-card: 12px;
-	--radius-media: 8px;
+	--radius-media: ${mediaRadius}px;
 	--radius-input: 8px;
 	--btn-padding: 0.95em 2em;
+${contentBtnVars}
 	--btn-weight: ${btn?.styles.fontWeight ?? 500};
 
 	--ease-out: cubic-bezier(0.2, 0.75, 0.5, 1);
