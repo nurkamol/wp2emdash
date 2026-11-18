@@ -54,6 +54,8 @@ const pageCtx = createPublicPageContext({
 	siteUrl: site.productionUrl,
 });
 const canonicalUrl = canonical ?? `${site.productionUrl}${Astro.url.pathname}`;
+/** Google Fonts stylesheet, only when the fonts were not self-hosted at scaffold time. */
+const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 ---
 
 <!doctype html>
@@ -65,8 +67,8 @@ const canonicalUrl = canonical ?? `${site.productionUrl}${Astro.url.pathname}`;
 		<EmDashHead page={pageCtx} />
 		<StructuredData canonical={canonicalUrl} pageTitle={pageTitle ?? title ?? siteTitle} description={description || settings.data?.tagline} />
 		{((site.fonts as { preload?: string[] }).preload ?? []).map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
-		{site.fonts.googleHref && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}
-		{site.fonts.googleHref && <link rel="stylesheet" href={site.fonts.googleHref} />}
+		{googleHref && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}
+		{googleHref && <link rel="stylesheet" href={googleHref} />}
 		{site.favicon && <link rel="icon" href={site.favicon} />}
 	</head>
 	<body class:list={{ "over-hero": overHero }}>

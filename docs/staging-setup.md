@@ -143,6 +143,25 @@ WP2EMDASH_LOAD_TARGET=staging pnpm wp2emdash run <slug> load
 The gate re-reads the staging site: counts, duplicates, WordPress leftovers, media integrity, and that
 every published page renders. Rerunning is safe — it updates in place.
 
+## 6. Deploys from GitHub (client repository)
+
+The scaffold writes `.github/workflows/ci.yml` into the project: check and build on every push and pull
+request, staging deploy on every push to `main`, production only by hand in a protected `production`
+environment. In CI, `emdash migrate` cannot ask for confirmation, so the staging deploy pins the target:
+
+```bash
+cd sites/<slug>/project
+( set -a && . ../../../.env && set +a && npx emdash migrate --status --wrangler-config wrangler.jsonc --wrangler-env staging ) | grep "Target fingerprint"
+```
+
+Add it to `cloudflare.json` as `staging.d1.fingerprint` (not a secret: it identifies the database) and rerun
+scaffold. That adds `pnpm ci:deploy:staging` (`--expected-target-fingerprint=…`, which fails on any other
+database) and turns the staging job on. Until then the job is skipped.
+
+In the GitHub repository: secret `CLOUDFLARE_API_TOKEN` (the build & staging token, never the go-live DNS
+token), variable `CLOUDFLARE_ACCOUNT_ID` (deploy jobs are skipped until it is set); environments `staging` and `production` (required reviewer: the owner).
+The client project's `docs/deployment.md` repeats this for whoever maintains the site.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |

@@ -12,6 +12,7 @@ import { KIT_ROOT } from "../core/paths.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
 import { selfHostGoogleFonts } from "../scaffold/fonts.js";
+import { clientRepoFiles, deployScripts, writeClientRepo } from "../scaffold/client-repo.js";
 import { applySensitivePolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
 import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras, stackBreakpoint } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
@@ -32,8 +33,15 @@ export const STACK = {
 	wrangler: "4.163.0",
 	"@cloudflare/workers-types": "5.20261116.1",
 	"@astrojs/check": "0.9.12",
+	/** astro check (via @astrojs/check) supports TypeScript 5–6 only; without a pin the newest (7) is picked up. */
+	typescript: "6.0.3",
 	pnpm: "11.18.0",
 } as const;
+
+interface CloudflareResources {
+	staging?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string } };
+	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string } };
+}
 
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
 const write = (file: string, data: string | object) => {
@@ -122,7 +130,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 
 	// Copy the starter (kit-owned files are overwritten; content lives in the database, not in files).
 	mkdirSync(project, { recursive: true });
-	cpSync(join(KIT_ROOT, "starter"), project, { recursive: true, filter: (src) => !/node_modules|\/dist\//.test(src) });
+	// The starter's README documents the starter for kit developers; the client gets its own (client-repo.ts).
+	cpSync(join(KIT_ROOT, "starter"), project, { recursive: true, filter: (src) => !/node_modules|\/dist\//.test(src) && src !== join(KIT_ROOT, "starter", "README.md") });
 	const brand = {
 		logo: brandFile(header?.scrolled.logoSrc ?? desktopDesign?.logo?.src, "logo"),
 		logoOnTop: header?.top.logoSrc && header.top.logoSrc !== header.scrolled.logoSrc ? brandFile(header.top.logoSrc, "logo-on-dark") : undefined,
@@ -201,6 +210,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const kept = /"compatibility_date":\s*"(\d{4}-\d{2}-\d{2})"/.exec(prevWrangler)?.[1];
 	const today = kept && kept < weekBack ? kept : weekBack;
 	const workerName = `${config.slug}`.replace(/[^a-z0-9-]/g, "-");
+	// Cloudflare resource ids (created once, owner-approved) live in sites/<slug>/cloudflare.json.
+	const cf = readJson<CloudflareResources>(join(paths.root, "cloudflare.json")) ?? {};
 	write(join(project, "package.json"), {
 		name: `${config.slug}-site`,
 		version: "0.1.0",
@@ -209,15 +220,10 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		engines: { node: STACK.node },
 		packageManager: `pnpm@${STACK.pnpm}`,
 		emdash: { label: config.name, seed: "seed/seed.json" },
-		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", // The Cloudflare adapter flattens wrangler.jsonc at BUILD time: the environment must be chosen
-			// with CLOUDFLARE_ENV during the build; `wrangler deploy --env` after the build is ignored.
-			"build:staging": "CLOUDFLARE_ENV=staging astro build",
-			// EmDash core migrations run BEFORE the new build serves traffic (docs: deployment/core-migrations).
-			// emdash migrate reads CLOUDFLARE_API_TOKEN/ACCOUNT_ID from the shell: the kit exports them from its .env.
-			"migrate:staging": "emdash migrate --wrangler-config wrangler.jsonc --wrangler-env staging",
-			"deploy:staging": "CLOUDFLARE_ENV=staging astro build && emdash migrate --wrangler-config wrangler.jsonc --wrangler-env staging && wrangler deploy && emdash migrate --check --wrangler-config wrangler.jsonc --wrangler-env staging",
-			deploy: "astro build && wrangler deploy",
-		},
+		// The Cloudflare adapter flattens wrangler.jsonc at BUILD time: the environment is chosen with CLOUDFLARE_ENV during
+		// the build. EmDash core migrations run BEFORE the new build serves traffic; emdash migrate reads
+		// CLOUDFLARE_API_TOKEN/ACCOUNT_ID from the shell. Not named "deploy": that is a pnpm built-in command.
+		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...deployScripts(cf.staging?.d1?.fingerprint) },
 		dependencies: {
 			"@astrojs/cloudflare": STACK["@astrojs/cloudflare"],
 			"@astrojs/react": STACK["@astrojs/react"],
@@ -227,7 +233,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			react: STACK.react,
 			"react-dom": STACK["react-dom"],
 		},
-		devDependencies: { "@astrojs/check": STACK["@astrojs/check"], "@cloudflare/workers-types": STACK["@cloudflare/workers-types"], wrangler: STACK.wrangler },
+		devDependencies: { "@astrojs/check": STACK["@astrojs/check"], "@cloudflare/workers-types": STACK["@cloudflare/workers-types"], typescript: STACK.typescript, wrangler: STACK.wrangler },
 	});
 	write(
 		join(project, "astro.config.mjs"),
@@ -258,8 +264,6 @@ export default defineConfig({
 });
 `,
 	);
-	// Cloudflare resource ids (created once, owner-approved) live in sites/<slug>/cloudflare.json.
-	const cf = readJson<{ staging?: { d1?: { name: string; id: string }; r2?: { bucket: string } }; production?: { d1?: { name: string; id: string }; r2?: { bucket: string } } }>(join(paths.root, "cloudflare.json")) ?? {};
 	const d1 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "DB", database_name: cf[env]?.d1?.name ?? fallback, ...(cf[env]?.d1?.id ? { database_id: cf[env]?.d1?.id } : {}) });
 	const r2 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "MEDIA", bucket_name: cf[env]?.r2?.bucket ?? fallback });
 	// Forms: provider and addresses are config (not secrets); the API key and Turnstile secret are Wrangler secrets.
@@ -300,6 +304,28 @@ export default defineConfig({
 	// Local dev: Turnstile's always-pass test keys so forms work under `astro dev` (kept if the developer edited the file).
 	const devVars = join(project, ".dev.vars");
 	if (!existsSync(devVars)) write(devVars, "# Local only (gitignored). Turnstile always-pass test keys; add EMAIL_API_KEY and FORM_FROM to test real delivery.\nTURNSTILE_SITE_KEY=1x00000000000000000000AA\nTURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA\n");
+	// Client repository: README, docs, CI, .env.example.
+	const used = new Set([...pages, ...partials, ...popups].flatMap((d) => d.sections.map((s) => `section_${s.type}`)));
+	const keptDocs = writeClientRepo(
+		project,
+		clientRepoFiles({
+			name: config.name,
+			slug: config.slug,
+			sourceUrl: config.source.url,
+			productionUrl: siteConfig.productionUrl,
+			workerName,
+			...(cf.staging?.worker?.url ? { stagingUrl: cf.staging.worker.url } : {}),
+			...(cf.staging?.d1?.fingerprint ? { stagingFingerprint: cf.staging.d1.fingerprint } : {}),
+			productionReady: !!cf.production?.d1?.id,
+			sections: BLOCK_TYPES.filter((b) => used.has(b.slug)).map((b) => ({ slug: b.slug, label: b.label, description: b.description ?? "" })),
+			forms: forms.map((f) => ({ id: f.id, title: f.title, fields: f.fields.map((x) => x.label), withheld: f.withheld ?? [] })),
+			email: { provider: config.email.provider, ...(config.email.from ? { from: config.email.from } : {}), to: config.email.to },
+			turnstileProduction: !!config.forms.turnstileSiteKey,
+			sensitiveData: config.sensitiveData,
+			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
+		}),
+	);
+	if (keptDocs.length) reporter.emit({ type: "log", level: "info", message: `Client repo files taken over by hand, left as they are: ${keptDocs.join(", ")}` });
 	reporter.emit({ type: "step:end", step: "Generate project", ok: true, detail: `${pages.length} pages, ${forms.length} forms, panel ${motion.panel}` });
 
 	// ── Static checks ──────────────────────────────────────────────────────────
