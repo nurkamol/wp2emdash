@@ -80,6 +80,14 @@ describe("measured padding", () => {
 		expect(pads[2]).toEqual({ bottom: "0px" });
 	});
 
+	it("adds the height of a source row that produced no section (a spacer row) to the next section's top", () => {
+		const sec = (path: string) => ({ type: "cta_banner", sourceRef: { adapter: "wpbakery", path, rawHash: "x" }, spacing: "normal", fields: {} }) as never;
+		const sections = [sec("vc_row[1]")];
+		const box = (index: number, height: number, padTop: number) => ({ index, y: 0, height, footer: true, kind: "wpbakery", padTop, padBottom: 0 });
+		applyMeasuredPadding(sections, { desktop: [box(0, 144, 144), box(1, 450, 0)], mobile: [box(0, 69, 69), box(1, 422, 0)] }, true);
+		expect((sections as { pad?: { top?: string } }[])[0]?.pad?.top).toBe("clamp(69px, 41.14px + 7.143vw, 144px)");
+	});
+
 	it("adds a tablet value only where the tablet measurement leaves the phone→desktop line", () => {
 		const sec = (path: string) => ({ type: "columns", sourceRef: { adapter: "wpbakery", path, rawHash: "x" }, spacing: "normal", fields: {} }) as never;
 		const sections = [sec("vc_row[0]"), sec("vc_row[1]")];
