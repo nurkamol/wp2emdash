@@ -14,11 +14,19 @@ const words = Array.from({ length: 6 }, () => v.heading ?? "");
 	{
 		marquee ? (
 			<div class="marquee">
-				{v.media && <Image image={v.media} class="marquee__image" sizes="60vw" />}
 				<Heading value={{ ...v, eyebrow: undefined }} class="visually-hidden" />
 				<a class="marquee__track" href={v.buttons?.[0]?.url ?? "#"} aria-label={v.heading}>
 					{words.map((w) => <span class="marquee__item" aria-hidden="true">{w}</span>)}
 				</a>
+				{
+					v.media && (
+						/* The photo is a window: a white copy of the line, centred on the same point and moving in step, shows through it (Salient's two-layer scrolling text). */
+						<div class="marquee__window" aria-hidden="true">
+							<Image image={v.media} class="marquee__image" sizes="60vw" />
+							<span class="marquee__track marquee__track--over">{words.map((w) => <span class="marquee__item">{w}</span>)}</span>
+						</div>
+					)
+				}
 			</div>
 		) : (
 			<>

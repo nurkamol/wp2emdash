@@ -188,3 +188,18 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")
 		}
 	});
 }
+
+// Background videos: start them even where autoplay was deferred (iOS Low Power Mode, data saver
+// or a tab opened in the background); retry on the first touch, scroll or return to the tab.
+const bgVideos = [...document.querySelectorAll<HTMLVideoElement>("video[data-bg-video]")];
+if (bgVideos.length) {
+	const start = () => {
+		for (const v of bgVideos) {
+			v.muted = true;
+			if (v.paused) v.play().catch(() => {});
+		}
+	};
+	start();
+	for (const ev of ["pointerdown", "touchstart", "scroll", "keydown"]) window.addEventListener(ev, start, { once: true, passive: true });
+	document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && start());
+}

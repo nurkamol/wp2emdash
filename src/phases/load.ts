@@ -16,6 +16,7 @@ import { routeToSlug } from "../scaffold/seed.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
 import { blockKey, sectionToBlock } from "../targets/emdash/blocks.js";
+import { faststart, needsFaststart } from "../targets/emdash/faststart.js";
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
@@ -29,7 +30,7 @@ const write = (file: string, data: unknown) => {
 export interface IdMap {
 	target: string;
 	baseUrl: string;
-	media: Record<string, { id: string; sha1: string; url?: string; mime: string }>;
+	media: Record<string, { id: string; sha1: string; url?: string; mime: string; faststart?: boolean }>;
 	content: Record<string, { collection: string; id: string; slug: string }>;
 }
 
@@ -188,10 +189,12 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 		let reused = 0;
 		const mediaErrors: string[] = [];
 		let n = 0;
+		const slowVideos: string[] = [];
 		for (const [key, ref] of refs) {
 			reporter.emit({ type: "step:progress", step: "Media", done: ++n, total: refs.size, item: key });
 			const known = idMap.media[key];
-			if (known && existingIds.has(known.id)) continue;
+			// An mp4 loaded before the index-first rewrite is checked again (its bytes change once).
+			if (known && existingIds.has(known.id) && !(known.mime === "video/mp4" && !known.faststart)) continue;
 			try {
 				let bytes: Buffer;
 				let filename: string;
@@ -214,7 +217,13 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 					bytes = readFileSync(cache);
 					filename = url.split("/").pop()?.split("?")[0] ?? "file";
 				}
+				if (mimeOf(filename) === "video/mp4" && needsFaststart(bytes)) {
+					const fixed = faststart(bytes);
+					if ("bytes" in fixed) bytes = fixed.bytes;
+					else slowVideos.push(`${filename}: ${fixed.error}`);
+				}
 				const sha1 = createHash("sha1").update(bytes).digest("hex");
+				if (known && known.sha1 === sha1 && existingIds.has(known.id)) continue;
 				let item: MediaItem | undefined = bySha.get(sha1);
 				if (item) reused++;
 				else {
@@ -222,12 +231,14 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 					bySha.set(sha1, item);
 					uploaded++;
 				}
-				idMap.media[key] = { id: item.id, sha1, mime: item.mimeType ?? mimeOf(filename), ...(item.url ? { url: item.url } : {}) };
+				const mime = item.mimeType ?? mimeOf(filename);
+				idMap.media[key] = { id: item.id, sha1, mime, ...(item.url ? { url: item.url } : {}), ...(mime === "video/mp4" && !needsFaststart(bytes) ? { faststart: true } : {}) };
 			} catch (e) {
 				mediaErrors.push(`${key}: ${(e as Error).message}`);
 			}
 		}
 		saveMap();
+		if (slowVideos.length) reporter.emit({ type: "log", level: "warn", message: `Videos left with the index last (slower start): ${slowVideos.join("; ")}` });
 		reporter.emit({ type: "step:end", step: "Media", ok: mediaErrors.length === 0, detail: `${uploaded} uploaded, ${reused} reused, ${refs.size} referenced` });
 		check("media", "Every referenced media item is on the target", mediaErrors.length === 0, mediaErrors.slice(0, 6).join("; ") || `${refs.size} items (${uploaded} uploaded, ${reused} already there)`);
 

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EmDashApi, EmDashHttpError } from "../src/targets/emdash/api.js";
+import { needsFaststart, topBoxes } from "../src/targets/emdash/faststart.js";
 
 const calls: { url: string; init: RequestInit }[] = [];
 afterEach(() => {
@@ -46,5 +47,16 @@ describe("EmDash REST client", () => {
 		const err = await api.update("pages", "1", { data: {}, _rev: "old" }).catch((e) => e);
 		expect(err).toBeInstanceOf(EmDashHttpError);
 		expect(err).toMatchObject({ status: 409, code: "VERSION_CONFLICT" });
+	});
+});
+
+describe("mp4 faststart", () => {
+	const box = (type: string, size = 16) => { const b = Buffer.alloc(size); b.writeUInt32BE(size, 0); b.write(type, 4, "latin1"); return b; };
+	it("reads top-level boxes and flags an index after the media data", () => {
+		const late = Buffer.concat([box("ftyp"), box("free", 8), box("mdat", 64), box("moov", 32)]);
+		expect(topBoxes(late)).toEqual(["ftyp", "free", "mdat", "moov"]);
+		expect(needsFaststart(late)).toBe(true);
+		expect(needsFaststart(Buffer.concat([box("ftyp"), box("moov", 32), box("mdat", 64)]))).toBe(false);
+		expect(needsFaststart(Buffer.from("not an mp4 at all"))).toBe(false);
 	});
 });

@@ -1,6 +1,7 @@
 ---
 /** Shell shared by every section: tone, background (colour/image/video + overlay), spacing, full height, anchor. */
-import { Image, Media } from "emdash/ui";
+import { Image } from "emdash/ui";
+import { mediaUrl } from "../utils/media";
 
 interface Props {
 	value: Record<string, any>;
@@ -9,6 +10,9 @@ interface Props {
 }
 const { value: v, type, class: extra } = Astro.props;
 const bg = v.bg_color || undefined;
+const resolve = (Astro.locals as any).emdash?.getPublicMediaUrl as ((k: string) => string) | undefined;
+const videoSrc = v.bg_video ? mediaUrl(v.bg_video, resolve) : undefined;
+const posterSrc = videoSrc && v.bg_image ? mediaUrl(v.bg_image, resolve) : undefined;
 const overlay = typeof v.bg_overlay === "number" ? v.bg_overlay : v.bg_image || v.bg_video ? 0 : undefined;
 const gradient = /^(?:linear|radial)-gradient\([^;{}<>]*\)$/.test(v.bg_gradient ?? "") ? v.bg_gradient : undefined;
 const PAD = /^(?:\d+(?:\.\d+)?px|clamp\([\d.]+px, -?[\d.]+px \+ -?[\d.]+vw, [\d.]+px\))$/;
@@ -32,8 +36,10 @@ const style = [padTopT ? `--pad-top-t:${padTopT}` : "", padBottomT ? `--pad-bott
 	{
 		(v.bg_image || v.bg_video) && (
 			<div class="section__bg" aria-hidden="true" data-motion={v.bg_motion === "parallax" ? "parallax" : undefined}>
-				{v.bg_image && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" />}
-				{v.bg_video && <Media value={v.bg_video} class="section__bg-media" autoplay muted loop playsinline preload="metadata" />}
+				{v.bg_image && !videoSrc && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" priority={type === "hero"} />}
+				{videoSrc && (
+					<video class="section__bg-media" src={videoSrc} poster={posterSrc} autoplay muted loop playsinline preload="auto" disablepictureinpicture data-bg-video />
+				)}
 				{overlay ? <span class="section__overlay" /> : null}
 			</div>
 		)
