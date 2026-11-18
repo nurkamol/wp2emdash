@@ -40,3 +40,7 @@ Verified 2026-11-18 against astro 7.4.12, @astrojs/cloudflare 14.4.8, emdash 1.5
 - **Production only:** loaded when the request host is the production host, never in `astro dev`, never for signed-in editors (cookie `astro-session`, edit/preview links — same test as the CSP). Matches WordPress Site Kit's "exclude logged-in users". Verify gate `analytics`: every source id carried; staging/local must not load them; production must.
 - **Cloudflare Web Analytics** on a proxied zone is injected at the edge (absent from the HTML a non-browser client gets). It is not added in code by default (double counting); `analytics.cloudflareToken` adds it explicitly when the zone does not inject it. Check after cutover.
 - **Ownership tags** (`google-site-verification`, Bing, Pinterest, Facebook, Yandex meta) are carried into `site.config.json` → `verification` and rendered in the head. DNS TXT verification needs the DNS records kept at cutover.
+
+## More email providers (2026-11-18)
+
+Form delivery also supports Resend (`POST api.resend.com/emails`, Bearer, 200), Postmark (`POST api.postmarkapp.com/email`, `X-Postmark-Server-Token`, 200), SendGrid (`POST api.sendgrid.com/v3/mail/send`, Bearer, 202) and Mailgun (`POST api[.eu].mailgun.net/v3/<sender domain>/messages`, basic `api:<key>`, form fields, 200; `MAILGUN_REGION=eu` var for EU accounts). Request shapes follow each provider's API reference; unit-tested with a mocked fetch, not yet sent end-to-end. SES, Google Workspace, Microsoft 365 and Cloudflare Email answer 501 "not implemented" until a site needs them.

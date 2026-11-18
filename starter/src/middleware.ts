@@ -111,6 +111,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (context.request.method === "GET" || context.request.method === "HEAD") {
 		const path = context.url.pathname;
 		if (LEGACY_SITEMAP.test(path)) return context.redirect("/sitemap.xml", 301);
+		// WordPress numeric links: /?p=40, /?page_id=40 (and ?preview leftovers) → the page's address.
+		const wpId = path === "/" ? (u.searchParams.get("page_id") ?? u.searchParams.get("p")) : null;
+		const wpPath = wpId && /^\d+$/.test(wpId) ? (site as { wpIds?: Record<string, string> }).wpIds?.[wpId] : undefined;
+		if (wpPath) return context.redirect(wpPath, 301);
 		// Brand files (logo, favicon) moved into /brand at scaffold time; both WordPress upload aliases map to them.
 		const files = (site as { legacyFiles?: Record<string, string> }).legacyFiles ?? {};
 		const alias = (p: string) => p.replace(/^\/storage\//, "/wp-content/uploads/");

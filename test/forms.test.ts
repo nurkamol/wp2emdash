@@ -59,6 +59,19 @@ describe("email delivery", () => {
 		expect((init.headers as Record<string, string>)["api-key"]).toBe("key-123");
 		expect(JSON.parse(String(init.body))).toEqual({ sender: { email: "noreply@example.com", name: "Site" }, to: [{ email: "owner@example.com" }], replyTo: { email: "visitor@example.com" }, subject: "S", htmlContent: "<p>H</p>", textContent: "T" });
 	});
+	it.each([
+		["resend", "https://api.resend.com/emails", 200, (h: Record<string, string>) => h.authorization === "Bearer k"],
+		["postmark", "https://api.postmarkapp.com/email", 200, (h: Record<string, string>) => h["x-postmark-server-token"] === "k"],
+		["sendgrid", "https://api.sendgrid.com/v3/mail/send", 202, (h: Record<string, string>) => h.authorization === "Bearer k"],
+		["mailgun", "https://api.mailgun.net/v3/example.com/messages", 200, (h: Record<string, string>) => h.authorization === `Basic ${btoa("api:k")}`],
+	])("sends through %s", async (provider, url, status, auth) => {
+		const fetch = vi.fn(async () => new Response("{}", { status }));
+		vi.stubGlobal("fetch", fetch);
+		expect(await deliver(provider, "k", { from: { email: "noreply@example.com", name: "Site" }, to: ["owner@example.com"], subject: "S", text: "T", html: "<p>H</p>" })).toEqual({ ok: true });
+		const [u, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+		expect(u).toBe(url);
+		expect(auth(init.headers as Record<string, string>)).toBe(true);
+	});
 	it("reports a provider error without the message content", async () => {
 		vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 401 })));
 		expect(await deliver("brevo", "bad", { from: { email: "a@b.co" }, to: ["c@d.co"], subject: "secret subject", text: "secret", html: "secret" })).toEqual({ ok: false, status: 401, reason: "brevo HTTP 401" });

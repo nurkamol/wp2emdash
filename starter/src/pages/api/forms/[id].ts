@@ -3,7 +3,7 @@
  *
  * Order: known form → honeypot → rate limit → Turnstile (fails closed) → validation against the form
  * definition (only its fields are read; anything else in the request is ignored) → email through the
- * site's provider: the provider API key from Wrangler secrets (Brevo by default). EmDash's own pipeline (Settings → Email)
+ * site's provider: the provider API key from Wrangler secrets (Brevo, Resend, Postmark, SendGrid or Mailgun). EmDash's own pipeline (Settings → Email)
  * is used if EmDash exposes it to this route — in EmDash 1.5 it does not for anonymous requests (see docs/spikes/M7-findings.md);
  * the planned forms plugin will send through it. Nothing is stored. Field values never reach logs. A form generated for a site with
  * sensitive data only has the fields the owner approved (e.g. contact details), so that is all this can send.
@@ -18,6 +18,7 @@ export const prerender = false;
 interface Env {
 	EMAIL_PROVIDER?: string;
 	EMAIL_API_KEY?: string;
+	MAILGUN_REGION?: string;
 	FORM_FROM?: string;
 	FORM_TO?: string;
 	TURNSTILE_SECRET_KEY?: string;
@@ -120,7 +121,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			return fail(502, "Your message could not be sent. Please call or email us instead.", `emdash email: ${(err as Error).name}`);
 		}
 	} else {
-		const result = await deliver(e.EMAIL_PROVIDER ?? "brevo", e.EMAIL_API_KEY as string, { from: from as { email: string; name?: string }, to, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html });
+		const result = await deliver(e.EMAIL_PROVIDER ?? "brevo", e.EMAIL_API_KEY as string, { from: from as { email: string; name?: string }, to, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html }, { ...(e.MAILGUN_REGION ? { region: e.MAILGUN_REGION } : {}) });
 		if (!result.ok) return fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
 	}
 	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: viaEmDash ? "emdash" : (e.EMAIL_PROVIDER ?? "brevo") }));

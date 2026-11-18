@@ -167,6 +167,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		...(hasAnalytics ? { analytics } : {}),
 		...(ogLocale ? { ogLocale } : {}),
 		...(Object.keys(legacyFiles).length ? { legacyFiles } : {}),
+		// WordPress numeric links (/?p=40, /?page_id=40) keep resolving: post id → path of each published page/post.
+		wpIds: Object.fromEntries(pages.flatMap((p) => (p.source.wpId && p.route?.path && p.source.status === "publish" ? [[String(p.source.wpId), p.route.path]] : []))),
 		...(Object.keys(verification).length ? { verification } : {}),
 		// Structured data: the business (from the live site's JSON-LD) and each page's schema type (AboutPage, ContactPage…).
 		structuredData: {

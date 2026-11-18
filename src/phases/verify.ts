@@ -210,7 +210,9 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 				return undefined;
 			}
 		};
-		const legacy = [...new Set(["/sitemap_index.xml", ...snaps.map((x) => uploadPath(x.seo.og["og:image"])), ...snaps.flatMap((x) => x.images.map((i) => uploadPath(i.src))).slice(0, 5)].filter((x): x is string => !!x))];
+		// One WordPress numeric link (/?page_id=<id>) of a published page.
+		const someWpId = irPages.find((x) => x.source.wpId && x.route?.path && x.route.path !== "/" && x.source.status === "publish");
+		const legacy = [...new Set([...(someWpId ? [`/?page_id=${someWpId.source.wpId}`] : []), "/sitemap_index.xml", ...snaps.map((x) => uploadPath(x.seo.og["og:image"])), ...snaps.flatMap((x) => x.images.map((i) => uploadPath(i.src))).slice(0, 5)].filter((x): x is string => !!x))];
 		const legacyBad: string[] = [];
 		for (const p of legacy) {
 			const first = await kitFetch(`${base}${p}`, { redirect: "manual" });
