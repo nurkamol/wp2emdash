@@ -32,7 +32,7 @@ const isButton = (i: Item) => !!popupOf(i) || /(?:^|\s)button(?:\s|$)/.test(i.cs
 const isPhone = (i: Item) => /^tel:/i.test(i.url);
 const path = Astro.url.pathname;
 // Without a panel capture, the secondary links (minus buttons already in the header) lead the panel.
-const extras = (h as { panelExtras?: { lead: { label: string; href: string }[]; contacts: { icon: string; href: string; label: string }[]; credit: boolean } }).panelExtras ?? {
+const extras = (h as { panelExtras?: { lead: { label: string; href: string; smallOnly?: boolean }[]; contacts: { icon: string; href: string; label: string }[]; credit: boolean } }).panelExtras ?? {
 	lead: secondary.filter((i) => !isButton(i)).map((i) => ({ label: i.label, href: i.url })),
 	contacts: [],
 	credit: false,
@@ -120,7 +120,7 @@ const ICONS: Record<string, string> = {
 		<ul class="menu-panel__items" role="list">
 			{
 				extras.lead.map((i, n) => (
-					<li style={`--i:${n}`} class="menu-panel__lead">
+					<li style={`--i:${n}`} class:list={["menu-panel__lead", { "small-only": i.smallOnly }]}>
 						<a href={safeHref(i.href) ?? "#"}>{i.label}</a>
 					</li>
 				))

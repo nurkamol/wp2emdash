@@ -365,7 +365,8 @@ export function buildSiteConfig(config: KitConfig, tokens: Tokens, motion: { pan
 
 export interface PanelExtras {
 	/** Items shown above the main menu, e.g. a large phone number. */
-	lead: { label: string; href: string }[];
+	/** smallOnly: shown on phones and tablets only (the source's desktop panel leaves it out). */
+	lead: { label: string; href: string; smallOnly?: boolean }[];
 	/** Icon links below the menu (phone, email, social). */
 	contacts: { icon: "phone" | "email" | "instagram" | "facebook" | "linkedin" | "x" | "youtube" | "tiktok" | "link"; href: string; label: string }[];
 	/** A "© year Site" line at the bottom. */
@@ -389,7 +390,12 @@ export function panelExtras(menus: MenuCapture[], primaryLabels: string[]): Pane
 		if (primary.has(norm(i.text))) lastMenu = k;
 	});
 	if (firstMenu < 0) return out;
-	out.lead = top.slice(0, firstMenu).map((i) => ({ label: i.text, href: i.href }));
+	// A leading item the desktop panel does not show (e.g. a phone number for phones only) stays off desktop.
+	const desk = menus.find((x) => x.found && x.viewport === "desktop");
+	const deskTop = desk ? desk.items.filter((i) => i.depth === 0) : undefined;
+	const deskFirst = deskTop?.findIndex((i) => primary.has(norm(i.text))) ?? -1;
+	const deskLead = deskTop && deskFirst >= 0 ? deskTop.slice(0, deskFirst).map((i) => i.href) : undefined;
+	out.lead = top.slice(0, firstMenu).map((i) => ({ label: i.text, href: i.href, ...(deskLead && !deskLead.includes(i.href) ? { smallOnly: true } : {}) }));
 	const iconOf = (i: { text: string; href: string }): PanelExtras["contacts"][number]["icon"] | undefined => {
 		const h = i.href.toLowerCase();
 		if (h.startsWith("tel:")) return "phone";

@@ -464,3 +464,6 @@ body:not(.over-hero) { padding-top: var(--header-height); }
 .section.has-pad-top { padding-top: var(--pad-top); }
 .section.has-pad-bottom { padding-bottom: var(--pad-bottom); }
 @media (min-width: 691px) and (max-width: 999.98px) { .section.has-pad-top { padding-top: var(--pad-top-t, var(--pad-top)); } .section.has-pad-bottom { padding-bottom: var(--pad-bottom-t, var(--pad-bottom)); } }
+
+/* Panel items the source shows on phones and tablets only. */
+@media (min-width: 1000px) { .menu-panel .small-only { display: none; } }
