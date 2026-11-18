@@ -267,6 +267,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		// ── Browser: screenshots + visual diff, accessibility, performance, menu ─
 		const browser = await launchFor(pins);
 		let menu: VerifyResult["menu"];
+		const sideways: string[] = [];
 		try {
 			const shots = await captureScreenshots(browser, results.filter((r) => r.status === 200).map((r) => r.targetUrl), config, join(outDir, "screens"), reporter, "no-preference");
 			reporter.emit({ type: "step:start", step: "Visual diff", total: shots.length });
@@ -274,6 +275,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			const footerDoc = readJson<{ partials?: { role: string; file: string }[] }>(join(paths.ir, "site.json"))?.partials?.find((p) => p.role === "footer");
 			const footerIr = footerDoc ? readJson<IrPage>(join(paths.ir, footerDoc.file)) : undefined;
 			const footerGroups = groupSections((footerIr?.sections ?? []).map((x) => ({ type: x.type, path: x.sourceRef.path })), true);
+			for (const s of shots) if (s.overflowX && s.overflowX > 1) sideways.push(`${new URL(s.url).pathname} ${s.viewport} +${s.overflowX}px`);
 			for (const s of shots) {
 				const r = results.find((x) => x.targetUrl === s.url);
 				if (!r || !s.file) continue;
@@ -354,6 +356,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			visualFails.length === 0,
 			visualFails.length ? `${visualFails.length} over (${allSections.length} sections compared); worst: ${visualFails.slice(0, 5).map((f) => f.text).join("; ")}` : `${allSections.length} sections compared`,
 		);
+		check("no-sideways-scroll", "No page scrolls sideways at any screen size", sideways.length === 0, sideways.slice(0, 8).join("; ") || undefined);
 		const a11y = results.filter((r) => r.a11y && (r.a11y.serious.length || r.a11y.error));
 		const thirdParty = [...new Set(results.flatMap((r) => (r.a11y?.thirdParty ?? []).map((v) => `${r.path} ${v.id}`)))];
 		check("a11y", "Accessibility: no serious or critical axe violations (third-party embeds reported, not gated)", a11y.length === 0, [a11y.map((r) => `${r.path}: ${r.a11y?.error ?? r.a11y?.serious.map((v) => v.id).join(", ")}`).slice(0, 6).join("; "), thirdParty.length ? `third-party embeds: ${thirdParty.slice(0, 4).join(", ")}` : ""].filter(Boolean).join(" · ") || undefined);

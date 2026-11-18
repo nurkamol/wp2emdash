@@ -118,9 +118,17 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .is-full-width.gap-none .media-text { column-gap: 0; }
 .section--media_text .media-text__media-2-box.has-height { margin-top: 2.5rem; }
 @media (max-width: 899.98px) /* stack-below */ { .media-text__text { max-width: none; } }
-.section--media_text .has-height img { width: 100%; max-width: none; margin: 0; aspect-ratio: auto; height: var(--media-h-small, var(--media-h)); object-fit: cover; }
+.media-text__text[style*="--heading-gap"] .prose > :is(h1, h2, h3, h4, h5, h6):first-child { margin-bottom: var(--heading-gap); }
+.section--media_text .has-height { --box-h: var(--media-h-small, var(--media-h)); }
+@media (max-width: 690px) { .section--media_text .has-height { --box-h: var(--media-h-phone, var(--media-h-small, var(--media-h))); } }
+.section--media_text .has-height img { width: 100%; max-width: none; margin: 0; aspect-ratio: auto; height: var(--box-h); object-fit: cover; }
+.section--media_text .media-text__media[style*="--media-radius"] { border-radius: var(--media-radius); overflow: hidden; }
+.section--media_text .media-text__media[style*="--media-radius"] img { border-radius: 0; }
+/* Parallax picture: the box keeps its height, the script sizes and moves the image inside it. */
+.section--media_text .has-height[data-parallax] { position: relative; overflow: hidden; height: var(--box-h); }
+.section--media_text .has-height[data-parallax] img { position: absolute; inset: 0 0 auto; }
 @media (min-width: 900px) /* stack */ {
-	.section--media_text .has-height img { height: var(--media-h); }
+	.section--media_text .has-height { --box-h: var(--media-h); }
 	.media-text[style*="--text-inset"] .media-text__text { padding-inline-start: var(--text-inset); max-width: calc(32rem + var(--text-inset)); }
 	.media-text[style*="--text-top"] .media-text__text { padding-top: var(--text-top); }
 	.media-right .media-text[style*="--text-inset"] .media-text__text { padding-inline: 0 var(--text-inset); }
@@ -348,10 +356,17 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 /* forms */
 .form-layout { display: grid; gap: clamp(1.5rem, 5vw, 4rem); }
 @media (min-width: 900px) /* stack */ { .form-layout { grid-template-columns: 1fr 1fr; align-items: start; } }
-.form { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
-.field { display: grid; gap: 0.4rem; grid-column: span 2; }
+/* minmax(0, …): inputs have an intrinsic width (~20 characters) that would otherwise push the grid past a phone screen. */
+.form { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.field { display: grid; gap: 0.4rem; grid-column: span 2; min-width: 0; }
 .field--half { grid-column: span 1; }
-.field input, .field textarea, .field select { font: inherit; padding: 0.8rem 1rem; border: 1px solid var(--color-line-strong, var(--color-line)); border-radius: var(--radius-input); background: var(--color-input-bg, #fff); color: var(--color-text); }
+.field input, .field select { height: var(--input-height, auto); padding-block: var(--input-pad-y, 0.8rem); }
+.field textarea { min-height: calc(2 * var(--input-height, 3rem)); }
+/* Phones: at least 16px so iOS does not zoom into the field on focus. */
+@media (max-width: 690px) { .field input, .field textarea, .field select { font-size: max(16px, var(--input-size, 16px)); } }
+@media (max-width: 690px) { .field--half { grid-column: span 2; } }
+.field { position: relative; }
+.field input, .field textarea, .field select { width: 100%; min-width: 0; box-sizing: border-box; font: inherit; font-size: var(--input-size, inherit); padding: 0.8rem var(--input-pad-x, 1rem); border: var(--input-border, 1px solid var(--color-line-strong, var(--color-line))); border-top: var(--input-border-top, var(--input-border, 1px solid var(--color-line-strong, var(--color-line)))); border-radius: var(--radius-input); background: var(--color-input-bg, #fff); color: var(--color-text); }
 .form .btn { justify-self: start; grid-column: span 2; }
 .form__status { grid-column: span 2; margin: 0; min-height: 1.5em; }
 .form__notice, .form .cf-turnstile { grid-column: span 2; margin: 0; }

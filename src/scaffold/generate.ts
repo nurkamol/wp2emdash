@@ -73,6 +73,7 @@ export interface DesignCapture {
 	favicon?: string;
 	cssVariables: Record<string, string>;
 	pageBackground?: string;
+	formField?: import("../audit/browser.js").FormFieldLook;
 }
 
 const px = (v: string | undefined) => (v ? Number.parseFloat(v) : Number.NaN);
@@ -170,6 +171,24 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 		return [...v.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 	};
 	const listItemGap = vote("listItemGap");
+	// Form fields as the source draws them (first content form found; desktop capture first).
+	const field = [desktop, mobile, ...designs].find((d) => d.formField)?.formField;
+	const fieldBg = field ? toHex(field.background) : undefined;
+	const fieldVars = field
+		? [
+				fieldBg && !/rgba/.test(fieldBg) ? `\n\t--color-input-bg: ${fieldBg};` : "",
+				`\n\t--input-border: ${field.border === "none" ? "0" : field.border};`,
+				field.borderTop !== field.border ? `\n\t--input-border-top: ${field.borderTop === "none" ? "0" : field.borderTop};` : "",
+				field.height >= 30 && field.height <= 90 ? `\n\t--input-height: ${field.height}px;\n\t--input-pad-y: 0;` : "",
+				field.fontSize >= 10 && field.fontSize <= 24 ? `\n\t--input-size: ${field.fontSize}px;` : "",
+				field.paddingInline > 0 && field.paddingInline <= 40 ? `\n\t--input-pad-x: ${field.paddingInline}px;` : "",
+			].join("")
+		: "";
+	const fieldRules = field?.labelsHidden
+		? `/* The source shows placeholders only: labels stay for screen readers. */
+.field__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+`
+		: "";
 	const gutter = gd && gm ? fluid(gm, gd) : "clamp(20px, 5vw, 64px)";
 	const radius = btn?.styles.borderRadius ?? "6px";
 	// Buttons in the page content (not the header pill): their type and text colour, voted across pages.
@@ -262,7 +281,7 @@ ${eyebrowVars}
 	--radius-button: ${radius};
 	--radius-card: 12px;
 	--radius-media: ${mediaRadius}px;${paragraphGap !== undefined ? `\n\t--para-gap: ${round(paragraphGap / 16, 3)}em;` : ""}${listItemGap !== undefined ? `\n\t--li-gap: ${listItemGap}px;` : ""}
-	--radius-input: 8px;
+	--radius-input: ${field ? `${field.radius}px` : "8px"};${fieldVars}
 	--btn-padding: 0.95em 2em;
 ${contentBtnVars}
 	--btn-weight: ${btn?.styles.fontWeight ?? 500};
@@ -273,7 +292,7 @@ ${contentBtnVars}
 }
 ${gutterTablet ? `/* Tablet gutter measured on the source (a share of the width there, not on the phone→desktop line). */
 @media (min-width: 691px) and (max-width: 999.98px) { :root { --gutter: ${gutterTablet}; } }
-` : ""}`;
+` : ""}${fieldRules}`;
 	return { css, fonts: { body: bodyFont, display: displayFont, displayWeight, ...(googleHref ? { googleHref } : {}) }, colors: { bg, text, accent, accentContrast, surface } };
 }
 

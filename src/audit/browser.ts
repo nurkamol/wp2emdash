@@ -146,6 +146,8 @@ export interface ScreenshotResult {
 	moving?: Rect[];
 	/** Second screenshot with every moving image replaced by flat grey (only when `moving` is set). */
 	stillFile?: string;
+	/** How far the page scrolls sideways (document wider than the screen), px; 0 when it fits. */
+	overflowX?: number;
 	error?: string;
 	consoleErrors: number;
 }
@@ -242,6 +244,8 @@ export async function captureScreenshots(
 					await settle(page, config.audit.maskSelectors);
 					// Clip to the viewport width: marquees/off-canvas menus can make the document wider than the screen.
 					const height = await page.evaluate(() => document.documentElement.scrollHeight);
+					// Visible sideways scroll only: content clipped by an overflow:hidden ancestor (off-canvas menus) does not count.
+					const overflowX = await page.evaluate(() => Math.max(0, Math.round(document.documentElement.scrollWidth - document.documentElement.clientWidth)));
 					const sections = await sectionBoxes(page).catch(() => undefined);
 					const moving = await movingRegions(page).catch(() => undefined);
 					await page.screenshot({ path: file, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height }, timeout: 60_000 });
@@ -255,7 +259,7 @@ export async function captureScreenshots(
 						await page.screenshot({ path: stillFile, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height }, timeout: 60_000 });
 						await tag.evaluate((el) => (el as Element).remove());
 					}
-					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), consoleErrors });
+					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), overflowX, consoleErrors });
 				} catch (e) {
 					results.push({ url, viewport: vp.name, error: (e as Error).message.split("\n")[0], consoleErrors });
 				}
@@ -269,6 +273,18 @@ export async function captureScreenshots(
 	const failed = results.filter((r) => r.error).length;
 	reporter.emit({ type: "step:end", step: "Screenshots", ok: failed === 0, detail: `${results.length - failed}/${total} captured${failed ? `, ${failed} failed` : ""}` });
 	return results;
+}
+
+export interface FormFieldLook {
+	background: string;
+	/** "none" or "<width> <style> <colour>" of the bottom border (themes often draw only an underline). */
+	border: string;
+	borderTop: string;
+	radius: number;
+	height: number;
+	fontSize: number;
+	paddingInline: number;
+	labelsHidden: boolean;
 }
 
 export interface DesignCapture {
@@ -294,6 +310,8 @@ export interface DesignCapture {
 	footer: { height: number; background: string; color: string } | null;
 	/** First opaque background walking up from the main content area: the page colour sections sit on. */
 	pageBackground?: string;
+	/** The first visible text field of a content form: its look, and whether its label is visible. */
+	formField?: FormFieldLook;
 	logo?: { src: string; width: number; height: number };
 	favicon?: string;
 	cssVariables: Record<string, string>;
@@ -509,6 +527,28 @@ export async function captureDesign(browser: Browser, url: string, viewport: { n
 				logo: logo ? { src: logo.currentSrc || logo.src, width: logo.naturalWidth, height: logo.naturalHeight } : undefined,
 				favicon,
 				...(pageBackground ? { pageBackground } : {}),
+				...(() => {
+					const input = Array.from(document.querySelectorAll<HTMLInputElement>("form input[type=text], form input[type=email], form input[type=tel]")).find(
+						(i) => i.offsetHeight > 20 && i.offsetWidth > 100 && !i.closest("header, nav, #header-outer, [role=search], .search, [class*=search], [class*=newsletter]"),
+					);
+					if (!input) return {};
+					const cs = getComputedStyle(input);
+					const line = (w: string, s: string, c: string) => (Number.parseFloat(w) > 0 && s !== "none" ? `${w} ${s} ${c}` : "none");
+					const label = (input.id && document.querySelector<HTMLElement>(`label[for="${CSS.escape(input.id)}"]`)) || input.closest("label") || input.closest("[class*=field], [class*=group]")?.querySelector<HTMLElement>("label");
+					const lr = label?.getBoundingClientRect();
+					const labelsHidden = !label || !lr || lr.width <= 1 || lr.height <= 1 || getComputedStyle(label).visibility === "hidden" || getComputedStyle(label).clipPath === "inset(50%)";
+					const formField: FormFieldLook = {
+						background: cs.backgroundColor,
+						border: line(cs.borderBottomWidth, cs.borderBottomStyle, cs.borderBottomColor),
+						borderTop: line(cs.borderTopWidth, cs.borderTopStyle, cs.borderTopColor),
+						radius: Math.round(Number.parseFloat(cs.borderTopLeftRadius) || 0),
+						height: Math.round(input.getBoundingClientRect().height),
+						fontSize: Number.parseFloat(cs.fontSize),
+						paddingInline: Math.round(Number.parseFloat(cs.paddingLeft) || 0),
+						labelsHidden,
+					};
+					return { formField };
+				})(),
 				cssVariables,
 			};
 		});

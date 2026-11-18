@@ -122,3 +122,26 @@ describe("scaffold generators", () => {
 		expect(def.warnings).toEqual(['field "mystery_widget" not supported; rebuild by hand']);
 	});
 });
+
+describe("form field tokens", () => {
+	const design = (formField?: Record<string, unknown>) =>
+		["desktop", "mobile"].map((viewport) => ({ url: "https://x.test/", viewport, fonts: [], colors: [{ value: "rgb(244, 236, 226)", count: 9, usage: "background" }], typography: {}, buttons: [], containerWidths: [], breakpoints: [], header: null, footer: null, cssVariables: {}, ...(formField ? { formField } : {}) })) as never;
+
+	it("takes the source field's look and hides labels the source hides", async () => {
+		const { buildTokens } = await import("../src/scaffold/generate.js");
+		const { css } = buildTokens(design({ background: "rgb(255, 255, 255)", border: "none", borderTop: "none", radius: 0, height: 48, fontSize: 14, paddingInline: 12, labelsHidden: true }));
+		expect(css).toContain("--color-input-bg: #ffffff;");
+		expect(css).toContain("--input-border: 0;");
+		expect(css).toContain("--input-height: 48px;");
+		expect(css).toContain("--radius-input: 0px;");
+		expect(css).toMatch(/\.field__label \{ position: absolute;/);
+	});
+
+	it("keeps the defaults when the source has no form", async () => {
+		const { buildTokens } = await import("../src/scaffold/generate.js");
+		const { css } = buildTokens(design());
+		expect(css).toContain("--radius-input: 8px;");
+		expect(css).not.toContain("--input-height");
+		expect(css).not.toContain(".field__label");
+	});
+});

@@ -10,18 +10,21 @@ const LENGTH = /^\d+(?:\.\d+)?(?:px|vh|svh|vw|rem|em|%)$/;
 const len = (x: unknown) => (typeof x === "string" && LENGTH.test(x) ? x : undefined);
 // Fixed picture heights (from the source's spacers) and the text column's leading space.
 const vars = (pairs: [string, unknown][]) => pairs.flatMap(([k, x]) => (len(x) ? [`${k}:${x}`] : [])).join(";") || undefined;
-const h1 = vars([["--media-h", v.media_height], ["--media-h-small", v.media_height_small]]);
-const h2 = vars([["--media-h", v.media_2_height], ["--media-h-small", v.media_2_height_small]]);
+const h1 = vars([["--media-h", v.media_height], ["--media-h-small", v.media_height_small], ["--media-h-phone", v.media_height_phone], ["--media-radius", v.media_radius]]);
+const h2 = vars([["--media-h", v.media_2_height], ["--media-h-small", v.media_2_height_small], ["--media-h-phone", v.media_2_height_phone]]);
+// The picture moves inside its fixed-height box on scroll (old site's column parallax); needs a box height.
+const plx = typeof v.media_parallax === "number" && v.media_parallax > 0 && v.media_parallax <= 1 && len(v.media_height) ? v.media_parallax : undefined;
 const inset = vars([["--text-inset", v.text_inset], ["--text-top", v.text_top]]);
+const textVars = vars([["--heading-gap", v.heading_gap]]);
 const drift = typeof v.text_parallax === "number" && v.text_parallax > 0 && v.text_parallax <= 1 ? v.text_parallax : undefined;
 ---
 
 <Section value={v} type="media_text" class={`media-${v.media_side ?? "left"} ratio-${ratio}`}>
 	<div class="media-text" style={inset}>
-		<div class:list={["media-text__media", { "has-height": h1 }]} style={h1}>
+		<div class:list={["media-text__media", { "has-height": h1 && len(v.media_height) }]} style={h1} data-parallax={plx}>
 			{v.media && <Image image={v.media} sizes="(max-width: 900px) 100vw, 50vw" />}
 		</div>
-		<div class="media-text__text" data-drift={drift}>
+		<div class="media-text__text" data-drift={drift} style={textVars}>
 			<Heading value={v} />
 			<Rich value={v.body} />
 			<Buttons items={v.buttons} />

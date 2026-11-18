@@ -98,9 +98,18 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const bgImage = mediaFrom(n.attrs.background_image);
 		if (bgImage) {
 			const height = spacerHeight(n);
-			fragments.push({ kind: "media", media: bgImage, role: "background", ...(height ? { height } : {}) });
+			const parallax = n.attrs.parallax_bg === "true" ? PARALLAX_SPEED[n.attrs.parallax_bg_speed ?? "medium"] : undefined;
+			const radius = /^\d+(?:\.\d+)?px$/.test(n.attrs.column_border_radius ?? "") && Number.parseFloat(n.attrs.column_border_radius ?? "") > 0 ? n.attrs.column_border_radius : undefined;
+			fragments.push({ kind: "media", media: bgImage, role: "background", ...(height ? { height } : {}), ...(parallax ? { parallax } : {}), ...(radius ? { radius } : {}) });
 		}
 		fragments.push(...processChildren(n.children, path));
+		// Salient column_element_spacing is a bottom margin on every element but the last. Block elements' top margins
+		// collapse into it; an inline-block button's (nectar_btn) adds to it.
+		const spacing = /^(\d+)px$/.exec(n.attrs.column_element_spacing ?? "")?.[1];
+		if (spacing && Number(spacing) > 0)
+			fragments.forEach((f, i) => {
+				if (i > 0 && f.kind === "button" && f.inline && f.button.spaceAbove) f.button = { ...f.button, spaceAbove: f.button.spaceAbove + Number(spacing) };
+			});
 		const color = colourValue(n.attrs.background_color);
 		const spacer = columnSpacer(n);
 		const overlay = columnOverlay(n.attrs);
@@ -116,7 +125,8 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const right = rows.length > 0 && rows.every((r) => r.tag === "vc_row_inner" && r.attrs.text_align === "right");
 		const gapPhone = Number.parseFloat(n.attrs.bottom_margin_phone ?? "");
 		const textInset = rows.length === 1 && rows[0]?.tag === "vc_row_inner" ? innerTextInset(rows[0].attrs) : undefined;
-		return { ...(gapPhone > 0 && gapPhone <= 400 ? { gapPhone } : {}), ...(textInset ? { textInset } : {}), ...(inset ? { insetStart: inset } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
+		const headingGap = rows.length > 1 && rows[0]?.tag === "vc_row_inner" ? loneHeadingGap(rows[0]) : undefined;
+		return { ...(headingGap ? { headingGap } : {}), ...(gapPhone > 0 && gapPhone <= 400 ? { gapPhone } : {}), ...(textInset ? { textInset } : {}), ...(inset ? { insetStart: inset } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -512,6 +522,7 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 		const textRich = textCol.fragments.flatMap((f) => (f.kind === "rich" ? f.blocks : []));
 		const mediaFrags = [...mediaCol.fragments, ...textCol.fragments].filter((f): f is Extract<Fragment, { kind: "media" }> => f.kind === "media");
 		const heights = mediaFrags.slice(0, 2).map((f) => f.height);
+		const lead = mediaCol.fragments[0] as Extract<Fragment, { kind: "media" }>;
 		push({
 			...base("media_text", mediaCol.fragments.every((f) => f.kind === "media" && f.role === "background") ? "cover" : "inline"),
 			// Builder columns sit at the top unless the row centres them (content_placement).
@@ -521,6 +532,9 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 				...(textCol.insetStart ? { textInset: textCol.insetStart } : {}),
 				...(textCol.leadTop ? { textTop: textCol.leadTop } : {}),
 				...(textCol.motion ? { textParallax: textCol.motion } : {}),
+				...(lead.parallax && lead.height ? { mediaParallax: lead.parallax } : {}),
+				...(lead.radius ? { mediaRadius: lead.radius } : {}),
+				...(textCol.headingGap ? { headingGap: textCol.headingGap } : {}),
 				media: [...mediaCol.fragments.map((f) => (f as Extract<Fragment, { kind: "media" }>).media), ...extra], body: textRich, buttons: textCol.fragments.flatMap((f) => (f.kind === "button" ? [f.button] : [])), mediaSide: cols[0] === mediaCol ? "left" : "right", ratio: mediaCol.width ?? "1/2" },
 		});
 		return sections;
@@ -734,10 +748,27 @@ export function leadSpacer(raw: string): { spaceBefore?: number } {
 const CENTRED_QUOTE = /\[split_line_heading(?=[^\]]*\bfont_style="i")(?=[^\]]*\bcontent_alignment="center")[^\]]*\]/;
 
 const SPACERS = new Set(["divider", "vc_empty_space"]);
+/** Salient parallax_bg speed → layer offset per scrolled pixel. Measured on a live Salient site (docs/spikes/M7-findings.md); unmeasured speeds stay static. */
+const PARALLAX_SPEED: Record<string, number> = { fast: 0.2 };
 const cssLen = (v: string | undefined): string | undefined => {
 	const m = /^\s*(\d+(?:\.\d+)?)\s*(px|vh|svh|vw|rem|em|%)?\s*$/.exec(v ?? "");
 	return m && Number(m[1]) > 0 ? `${m[1]}${m[2] ?? "px"}` : undefined;
 };
+
+/** Gap between inner rows in a Salient column (measured: every inner row but the last has a 10px bottom margin). */
+const INNER_ROW_GAP = 10;
+
+/** An inner row holding only a heading in a text block with a custom bottom margin → the space under that heading, px. */
+export function loneHeadingGap(row: ShortcodeNode): number | undefined {
+	const cols = row.children.filter((c): c is ShortcodeNode => c.type === "shortcode");
+	const items = cols.length === 1 ? (cols[0] as ShortcodeNode).children.filter((c) => c.type === "shortcode" || (c.type === "text" && c.text.trim())) : [];
+	const text = items.length === 1 && items[0]?.type === "shortcode" && items[0].tag === "vc_column_text" ? items[0] : undefined;
+	if (!text) return undefined;
+	const html = text.children.map((c) => (c.type === "text" ? c.text : "")).join("").replace(/<\/?p>|<br\s*\/?>|&nbsp;/g, "").trim();
+	if (!/^<h[1-6][^>]*>[\s\S]*<\/h[1-6]>$/.test(html) || (html.match(/<h[1-6]/g) ?? []).length !== 1) return undefined;
+	const mb = /^(\d+(?:\.\d+)?)px$/.exec(parseVcCss(text.attrs.css)["margin-bottom"] ?? "")?.[1];
+	return mb ? Number(mb) + INNER_ROW_GAP : undefined;
+}
 
 /** A column that is only a background image and spacers: the spacer sets the picture's height. */
 export function spacerHeight(col: ShortcodeNode): BoxHeight | undefined {
@@ -746,8 +777,10 @@ export function spacerHeight(col: ShortcodeNode): BoxHeight | undefined {
 	const first = kids[0] as ShortcodeNode;
 	const desktop = cssLen(first.attrs.custom_height ?? first.attrs.height);
 	if (!desktop) return undefined;
-	const small = cssLen(first.attrs.custom_height_tablet ?? first.attrs.custom_height_phone);
-	return { desktop, ...(small ? { small } : {}) };
+	const tablet = cssLen(first.attrs.custom_height_tablet);
+	const phone = cssLen(first.attrs.custom_height_phone);
+	const small = tablet ?? phone;
+	return { desktop, ...(small ? { small } : {}), ...(tablet && phone && phone !== tablet ? { phone } : {}) };
 }
 
 /** Spacers at both ends of a column (Salient image cards: divider 35vh · title · link · divider 35vh). */

@@ -294,5 +294,9 @@ function pickDesignPages(urls: string[], snapshots: Map<string, PageSnapshot>, o
 		if (out.length >= 4) break;
 		if (!out.includes(u)) out.push(u);
 	}
+	// One page with a form, so the fields' look is measured (an extra page: it does not displace a type sample).
+	const hasForm = (u: string) => (snapshots.get(u)?.forms ?? []).some((f) => f.provider !== "wp-search" && !f.inPopup);
+	const withForm = urls.find(hasForm);
+	if (withForm && !out.some(hasForm)) out.push(withForm);
 	return out;
 }

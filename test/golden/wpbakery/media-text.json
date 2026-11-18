@@ -172,6 +172,82 @@
         "mediaSide": "left",
         "ratio": "1/2"
       }
+    },
+    {
+      "type": "media_text",
+      "variant": "cover",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4ece2"
+        }
+      },
+      "spacing": "normal",
+      "anchorId": "about-method",
+      "valign": "middle",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[3]",
+        "rawHash": "a8afdfe67f"
+      },
+      "fields": {
+        "mediaHeight": [
+          {
+            "desktop": "55vh",
+            "small": "40vh",
+            "phone": "300px"
+          }
+        ],
+        "mediaParallax": 0.2,
+        "mediaRadius": "5px",
+        "headingGap": 30,
+        "media": [
+          {
+            "wpId": 581,
+            "kind": "image"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tc",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "td",
+                "text": "About the method",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "te",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tf",
+                "text": "Low-impact training on a spring-loaded machine.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Join a class",
+            "href": "/classes/",
+            "style": "primary",
+            "spaceAbove": 45
+          }
+        ],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
     }
   ],
   "diagnostics": [
@@ -201,6 +277,13 @@
       "code": "dropped-decorative",
       "message": "divider dropped (decorative)",
       "path": "vc_row[2]/vc_column[1]/vc_row_inner[1]/vc_column_inner[0]/divider[0]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[3]/vc_column[0]/vc_row_inner[0]/vc_column_inner[0]/divider[0]",
       "tag": "divider"
     },
     {

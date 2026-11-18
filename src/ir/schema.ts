@@ -175,7 +175,13 @@ export const section = z.discriminatedUnion("type", [
 			mediaSide: z.enum(["left", "right"]),
 			ratio: z.string().default("1/2"),
 			/** Fixed picture heights (builder spacers), per image: desktop and below the stacking breakpoint. */
-			mediaHeight: z.array(z.object({ desktop: cssLength, small: cssLength.optional() }).nullable()).max(2).optional(),
+			mediaHeight: z.array(z.object({ desktop: cssLength, small: cssLength.optional(), phone: cssLength.optional() }).nullable()).max(2).optional(),
+			/** The first picture moves with scroll inside its box: offset = this × scroll (Salient column parallax_bg). */
+			mediaParallax: z.number().min(0).max(1).optional(),
+			/** Rounded corners of the first picture's box. */
+			mediaRadius: cssLength.optional(),
+			/** Space under the text's opening heading, px (the source set it on the heading's own block). */
+			headingGap: z.number().min(0).max(200).optional(),
 			/** Space before the text column on desktop (Salient column padding). */
 			textInset: cssLength.optional(),
 			/** Space above the text on desktop (Salient inner-row top padding reset to 0 below desktop). */

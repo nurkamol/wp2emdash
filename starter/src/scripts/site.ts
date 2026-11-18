@@ -270,6 +270,39 @@ if (drifters.length && !reduce) {
 	window.addEventListener("resize", queue);
 }
 
+// Parallax pictures (Salient column parallax_bg, measured on the source): the image is k × viewport height taller
+// than its box, starts k × viewport height above it, and moves down k px per scrolled px from the moment the box
+// enters the viewport. Nothing under reduced motion: the picture then simply fills its box.
+const parallax = [...document.querySelectorAll<HTMLElement>("[data-parallax]")];
+if (parallax.length && !reduce) {
+	let queued = false;
+	const place = () => {
+		queued = false;
+		const vh = window.innerHeight;
+		for (const box of parallax) {
+			const img = box.querySelector<HTMLElement>("img");
+			const k = Number(box.dataset.parallax) || 0;
+			if (!img || !k) continue;
+			const r = box.getBoundingClientRect();
+			if (r.bottom < -vh || r.top > 2 * vh) continue;
+			const lift = k * vh;
+			const y = Math.min(Math.max(k * (vh - r.top), 0), k * (vh + r.height));
+			img.style.top = `${-lift}px`;
+			img.style.height = `${r.height + lift}px`;
+			img.style.transform = `translate3d(0, ${Math.round(y * 10) / 10}px, 0) scale(1.005)`;
+		}
+	};
+	const queue = () => {
+		if (!queued) {
+			queued = true;
+			requestAnimationFrame(place);
+		}
+	};
+	place();
+	window.addEventListener("scroll", queue, { passive: true });
+	window.addEventListener("resize", queue);
+}
+
 // Team members: the card opens a full-screen bio. With a mouse on a wide screen a click anywhere closes it and the
 // close ring follows the cursor; otherwise the close button (and Esc) close it.
 const pointerClose = window.matchMedia("(min-width: 1000px) and (hover: hover) and (pointer: fine)");

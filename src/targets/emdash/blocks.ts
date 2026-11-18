@@ -187,7 +187,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		case "media_text": {
 			const { head: h, rest } = headingFromBody(s.fields.body);
 			const ratio = ["1/3", "1/2", "2/3"].includes(s.fields.ratio) ? s.fields.ratio : "1/2";
-			return base("media_text", { ...h, body: pt(rest), buttons: buttons(s.fields.buttons), media: media(s.fields.media[0]), media_2: s.fields.media[1] ? media(s.fields.media[1]) : undefined, media_side: s.fields.mediaSide, ratio, ...heightFields(s.fields.mediaHeight), ...(s.fields.textInset ? { text_inset: s.fields.textInset } : {}), ...(s.fields.textTop ? { text_top: s.fields.textTop } : {}), ...(s.fields.textParallax ? { text_parallax: s.fields.textParallax } : {}) });
+			return base("media_text", { ...h, body: pt(rest), buttons: buttons(s.fields.buttons), media: media(s.fields.media[0]), media_2: s.fields.media[1] ? media(s.fields.media[1]) : undefined, media_side: s.fields.mediaSide, ratio, ...heightFields(s.fields.mediaHeight), ...(s.fields.textInset ? { text_inset: s.fields.textInset } : {}), ...(s.fields.textTop ? { text_top: s.fields.textTop } : {}), ...(s.fields.textParallax ? { text_parallax: s.fields.textParallax } : {}), ...(s.fields.mediaParallax ? { media_parallax: s.fields.mediaParallax } : {}), ...(s.fields.mediaRadius ? { media_radius: s.fields.mediaRadius } : {}), ...(s.fields.headingGap ? { heading_gap: `${s.fields.headingGap}px` } : {}) });
 		}
 		case "columns": {
 			const cols: Record<string, unknown> = {};
@@ -267,13 +267,14 @@ function stripUndefined<T extends Record<string, unknown>>(o: T): T {
 }
 
 /** media_text picture heights → media_height / media_height_small / media_2_height / media_2_height_small. */
-function heightFields(h: ({ desktop: string; small?: string } | null)[] | undefined): Record<string, string> {
+function heightFields(h: ({ desktop: string; small?: string; phone?: string } | null)[] | undefined): Record<string, string> {
 	const out: Record<string, string> = {};
 	(h ?? []).forEach((x, i) => {
 		if (!x) return;
 		const k = i === 0 ? "media" : "media_2";
 		out[`${k}_height`] = x.desktop;
 		if (x.small) out[`${k}_height_small`] = x.small;
+		if (x.phone) out[`${k}_height_phone`] = x.phone;
 	});
 	return out;
 }

@@ -12,12 +12,14 @@ import { innerSource, type ShortcodeNode } from "./parser.js";
 export interface BoxHeight {
 	desktop: string;
 	small?: string;
+	/** Phones only, when the source sets a phone height different from tablets. */
+	phone?: string;
 }
 
 export type Fragment =
 	| { kind: "rich"; blocks: RichText; /** One line of text (Salient split-line in paragraph style): consecutive lines join into one paragraph. */ line?: boolean }
-	| { kind: "button"; button: Button }
-	| { kind: "media"; media: MediaRef; role: "content" | "background"; link?: string; /** Height of a background-image box sized by builder spacers. */ height?: BoxHeight; /** Drawn as a circle of this diameter (Salient circle images). */ circle?: string }
+	| { kind: "button"; button: Button; /** Inline-block in the source (nectar_btn): its top margin adds to the column's element spacing instead of collapsing into it. */ inline?: boolean }
+	| { kind: "media"; media: MediaRef; role: "content" | "background"; link?: string; /** Height of a background-image box sized by builder spacers. */ height?: BoxHeight; /** Drawn as a circle of this diameter (Salient circle images). */ circle?: string; /** Background picture moves with scroll: layer offset = this × scroll (Salient parallax_bg speed). */ parallax?: number; /** Rounded corners of the picture box (Salient column_border_radius). */ radius?: string }
 	| { kind: "icon"; icon: { library: string; name: string } }
 	| { kind: "faq"; question: string; answer: RichText; look?: FaqLook }
 	| { kind: "tab"; label: string; body: RichText }
@@ -52,6 +54,8 @@ const SALIENT_TEAM: Record<string, TeamLook> = {
 export interface Col {
 	width?: string;
 	fragments: Fragment[];
+	/** Space under a heading that sits alone in the column's first inner row (its text block's custom bottom margin + the inner-row gap), px. */
+	headingGap?: number;
 	background?: { color?: string };
 	/** Source asks for centred text on phones. */
 	phoneCenter?: boolean;
@@ -167,6 +171,8 @@ export function embedOrLegacy(html: string, ctx: HandlerCtx, reason: string): Fr
 	return [{ kind: "legacy", html: trimmed, reason }];
 }
 
+const inlineButtons = (frags: Fragment[]): Fragment[] => frags.map((f) => (f.kind === "button" ? { ...f, inline: true } : f));
+
 function buttonFrom(label: string | undefined, href: string | undefined, ctx: HandlerCtx, o: { style?: Button["style"]; newTab?: boolean; classes?: string; size?: "large"; spaceAbove?: string } = {}): Fragment[] {
 	const text = (label ?? "").trim();
 	const popup = ctx.popupFor({ ...(href ? { href } : {}), ...(o.classes ? { classes: o.classes } : {}) });
@@ -238,7 +244,7 @@ export const HANDLERS: Record<string, Handler> = {
 	heading: (n, ctx) => richFromHtml(innerSource(n), ctx, "h2"),
 
 	// Buttons & links
-	nectar_btn: (n, ctx) => buttonFrom(n.attrs.text, n.attrs.url, ctx, { style: /see-through|transparent|underline/i.test(n.attrs.button_style ?? "") ? "secondary" : "primary", newTab: n.attrs.open_new_tab === "true", ...(n.attrs.margin_top ? { spaceAbove: n.attrs.margin_top } : {}), ...(n.attrs.class || n.attrs.el_class ? { classes: `${n.attrs.class ?? ""} ${n.attrs.el_class ?? ""}` } : {}) }),
+	nectar_btn: (n, ctx) => inlineButtons(buttonFrom(n.attrs.text, n.attrs.url, ctx, { style: /see-through|transparent|underline/i.test(n.attrs.button_style ?? "") ? "secondary" : "primary", newTab: n.attrs.open_new_tab === "true", ...(n.attrs.margin_top ? { spaceAbove: n.attrs.margin_top } : {}), ...(n.attrs.class || n.attrs.el_class ? { classes: `${n.attrs.class ?? ""} ${n.attrs.el_class ?? ""}` } : {}) })),
 	nectar_cta: (n, ctx) => {
 		const out: Fragment[] = [];
 		if (n.attrs.text?.trim()) out.push({ kind: "rich", blocks: [textBlock(n.attrs.text, ctx.keys, headingStyle(n.attrs.heading_tag))] });
