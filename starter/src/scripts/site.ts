@@ -104,7 +104,9 @@ document.addEventListener("click", (e) => {
 	}
 	for (const d of dialogs) {
 		const sel = d.dataset.selectors;
-		if (sel && t.closest(sel)) {
+		// Popup Maker selectors often name the popup's own id (#book-now): a click inside the popup is never a trigger.
+		const hit = sel ? t.closest(sel) : null;
+		if (hit && !d.contains(hit)) {
 			e.preventDefault();
 			openPopup(d.id);
 			return;
@@ -161,7 +163,14 @@ if (!reduce && "IntersectionObserver" in window) {
 		},
 		{ rootMargin: "0px 0px -10% 0px" },
 	);
-	for (const el of document.querySelectorAll("[data-reveal]")) io.observe(el);
+	// The footer and popups are never held back: the last footer row can't rise 10% above the screen's bottom edge.
+	const revealable = [...document.querySelectorAll<HTMLElement>("[data-reveal]")].filter((el) => !el.closest(".site-footer, dialog"));
+	for (const el of revealable) io.observe(el);
+	// At the end of the page, anything still waiting is shown.
+	const atEnd = () => {
+		if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) for (const el of revealable) el.classList.add("is-visible");
+	};
+	window.addEventListener("scroll", atEnd, { passive: true });
 	document.documentElement.classList.add("js-reveal");
 }
 

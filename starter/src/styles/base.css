@@ -72,7 +72,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 	.section__head[style*="--heading-size"] .heading { font-size: var(--heading-size); }
 	.section__head[style*="--heading-leading"] .heading { line-height: var(--heading-leading); }
 }
-.js-reveal [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out); }
+.js-reveal [data-reveal]:not(.site-footer *, dialog *) { opacity: 0; transform: translateY(24px); transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out); }
 .js-reveal [data-reveal].is-visible { opacity: 1; transform: none; }
 
 /* hero */
@@ -174,17 +174,20 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .is-full-width:not(.section--media_text) .section__head, .is-full-width:not(.section--media_text) .lead { padding-inline: var(--gutter); }
 
 /* cta + marquee */
+/* Salient scrolling text over a picture: the row is as tall as the picture (half the screen), the line sits on its middle */
 .section--cta_banner--marquee { overflow: hidden; padding-block: var(--space-normal); }
-.section--cta_banner--marquee .section__inner { width: 100%; max-width: none; }
-.marquee { position: relative; display: grid; place-items: center; min-height: clamp(220px, 45vh, 520px); container-type: inline-size; --win-w: min(50vh, 460px, 68vw); }
-.marquee__window { position: absolute; z-index: 1; display: grid; place-items: center; height: min(50vh, 460px); width: var(--win-w); overflow: hidden; border-radius: var(--radius-media); pointer-events: none; }
+.section--cta_banner--marquee .section__inner { width: 100%; max-width: none; padding-inline: 0; }
+.marquee { position: relative; display: grid; align-items: center; height: var(--marquee-h, 50vh); container-type: inline-size; --win-w: 68vw; }
+@media (min-width: 691px) { .marquee { --win-w: 60vw; } }
+@media (min-width: 1000px) { .marquee { --win-w: 32vw; } }
+.marquee__window { position: absolute; z-index: 1; inset-block: 0; left: calc((100% - var(--win-w)) / 2); width: var(--win-w); overflow: hidden; border-radius: var(--radius-media); pointer-events: none; }
 .marquee__image { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
-/* the window is centred in the marquee; shift the copy back by the window's offset so it lies exactly on the dark line */
-.marquee__window .marquee__track--over { position: absolute; left: calc((var(--win-w) - 100cqw) / 2); align-self: center; color: #fff; }
-.marquee__track { display: flex; gap: 0.4em; white-space: nowrap; font-family: var(--font-display); font-size: var(--marquee-size, clamp(2.5rem, 11vw, 4rem)); line-height: 1; text-decoration: none; color: inherit; animation: marquee 28s linear infinite; }
+.marquee__track { display: flex; align-items: center; gap: 0.4em; white-space: nowrap; font-family: var(--font-display); font-size: var(--marquee-size, 11vw); line-height: 1; text-decoration: none; color: inherit; animation: marquee 28s linear infinite; }
+/* the white copy spans the window's height (same middle as the dark line) and is shifted back by the window's offset */
+.marquee__window .marquee__track--over { position: absolute; top: 0; height: 100%; left: calc((var(--win-w) - 100cqw) / 2); color: #fff; }
 .marquee__item { padding-inline: 0.3em; }
 @keyframes marquee { to { transform: translateX(-50%); } }
-@media (min-width: 900px) /* stack */ { .marquee__track { font-size: var(--marquee-size-desktop, clamp(3rem, 15vh, 11rem)); } }
+@media (min-width: 1000px) { .marquee__track { font-size: var(--marquee-size-desktop, 15vh); } }
 @media (max-width: 599.98px) { .phone-center, .phone-center .actions { text-align: center; justify-content: center; } }
 @media (min-width: 600px) and (max-width: 999.98px) { .tablet-center, .tablet-center .actions { text-align: center; justify-content: center; } }
 /* Salient: centred text links below desktop sit one per line */

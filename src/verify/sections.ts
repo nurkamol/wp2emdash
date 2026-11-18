@@ -73,7 +73,12 @@ export function diffSections(sourcePng: string, targetPng: string, sourceBoxes: 
 	const b = PNG.sync.read(readFileSync(targetPng));
 	const w = Math.min(a.width, b.width);
 	return groups.map((g, k) => {
-		const src = sourceBoxes.find((x) => x.footer === g.footer && x.index === g.sourceIndex);
+		const own = sourceBoxes.find((x) => x.footer === g.footer && x.index === g.sourceIndex);
+		// Source rows that produced no section (padding-only rows, spacers) sit above this one: the migrated
+		// section carries their height as top padding, so the source crop includes them too.
+		const prevIndex = Math.max(-1, ...groups.filter((o) => o.footer === g.footer && o.sourceIndex < g.sourceIndex).map((o) => o.sourceIndex));
+		const lead = sourceBoxes.filter((x) => x.footer === g.footer && x.index > prevIndex && x.index < g.sourceIndex);
+		const src = own && lead.length ? { ...own, y: Math.min(own.y, ...lead.map((x) => x.y)), height: own.y + own.height - Math.min(own.y, ...lead.map((x) => x.y)) } : own;
 		const tgts = g.targetIndexes.map((i) => targetBoxes.find((x) => x.footer === g.footer && x.index === i)).filter((x): x is SectionBox => !!x);
 		if (!src || !tgts.length) return { ...g, ratio: 1, sourceHeight: src?.height ?? 0, targetHeight: tgts.reduce((n, t) => n + t.height, 0), note: !src ? "WordPress row not found on the page" : "migrated section not found on the page" };
 		const ty = Math.min(...tgts.map((t) => t.y));
