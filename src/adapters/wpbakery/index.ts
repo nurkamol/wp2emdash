@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import type { Button, Diagnostic, MediaRef, PtBlock, RichText, Section, SectionType } from "../../ir/schema.js";
 import type { Keys } from "../../ir/portable-text.js";
 import { colourValue, columnFraction, isDarkColour, parseVcCss, spacingFromPadding } from "./decode.js";
-import { type BoxHeight, type Col, CONTAINERS, DECORATIVE, type Fragment, GROUPS, HANDLERS, type HandlerCtx, linkBlock, mediaFrom, richFromHtml } from "./elements.js";
+import { type BoxHeight, type Col, CONTAINERS, DECORATIVE, type Fragment, GROUPS, HANDLERS, type HandlerCtx, LINE_LEADING, linkBlock, mediaFrom, richFromHtml } from "./elements.js";
 import { type AstNode, parseShortcodes, serialise, type ShortcodeNode } from "./parser.js";
 
 export interface AdaptOptions {
@@ -114,7 +114,9 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const first = rows[0]?.tag === "vc_row_inner" ? rows[0].attrs : undefined;
 		const leadTop = first && /^0*(?:px)?$/.test(first.top_padding_tablet ?? "x") ? cssLen(first.top_padding) : undefined;
 		const right = rows.length > 0 && rows.every((r) => r.tag === "vc_row_inner" && r.attrs.text_align === "right");
-		return { ...(inset ? { insetStart: inset } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
+		const gapPhone = Number.parseFloat(n.attrs.bottom_margin_phone ?? "");
+		const textInset = rows.length === 1 && rows[0]?.tag === "vc_row_inner" ? innerTextInset(rows[0].attrs) : undefined;
+		return { ...(gapPhone > 0 && gapPhone <= 400 ? { gapPhone } : {}), ...(textInset ? { textInset } : {}), ...(inset ? { insetStart: inset } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -277,7 +279,9 @@ function expandColumns(cols: Col[]): Col[] {
 			const outer = frac(c.width) ?? 1;
 			for (const ic of sub.columns.filter((x) => x.fragments.length)) {
 				const w = toWidth(outer * (frac(ic.width) ?? 1 / sub.columns.length));
-				out.push({ ...ic, ...(w ? { width: w } : {}), fragments: flattenSubrows(ic.fragments) });
+				// Text alignment set on the outer column carries into its inner columns (CSS inheritance in the source).
+				const inherit = { ...(c.phoneCenter ? { phoneCenter: true } : {}), ...(c.tabletCenter ? { tabletCenter: true } : {}), ...(c.centered ? { centered: true } : {}) };
+				out.push({ ...inherit, ...ic, ...(w ? { width: w } : {}), fragments: flattenSubrows(ic.fragments) });
 			}
 		} else out.push({ ...c, fragments: flattenSubrows(c.fragments) });
 	}
@@ -588,6 +592,17 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 						return circle ? { imageCircle: circle } : {};
 					})(),
 					...(c.centered ? { align: "center" as const } : c.right ? { align: "right" as const } : {}),
+					...(() => {
+						// Every paragraph in the column sets the same line height: the column keeps it.
+						const paras = c.fragments.flatMap((f) => (f.kind === "rich" ? f.blocks : [])).filter((b) => !isHeading(b));
+						const l = new Set(paras.map((b) => LINE_LEADING.get(b)));
+						const leading = paras.length && l.size === 1 ? [...l][0] : undefined;
+						return leading ? { leading } : {};
+					})(),
+					...(c.gapPhone ? { gapPhone: c.gapPhone } : {}),
+					...(c.textInset?.end ? { insetEnd: c.textInset.end } : {}),
+					...(c.textInset?.phone ? { insetPhone: c.textInset.phone } : {}),
+					...(c.textInset?.below ? { gapStacked: c.textInset.below } : {}),
 					...(c.background || bg ? { background: { ...c.background, ...(bg ? { image: bg.media } : {}) } } : {}),
 				};
 			}),
@@ -690,6 +705,22 @@ export function rowPad(a: Record<string, string | undefined>): { inset?: { deskt
 	const tablet = len(a.left_padding_tablet, a.right_padding_tablet);
 	const phone = len(a.left_padding_phone, a.right_padding_phone);
 	return { inset: { desktop, ...(tablet ? { tablet } : {}), ...(phone ? { phone } : {}) } };
+}
+
+/**
+ * A column's only inner row, padded on one side on desktop (Salient right_padding_desktop, e.g. 40% to keep a
+ * paragraph short) and/or evenly on phones: the column's text keeps that measure. Equal desktop sides are rowPad's.
+ */
+export function innerTextInset(a: Record<string, string | undefined>): { end?: string; phone?: string; below?: string } | undefined {
+	const pct = (v?: string) => {
+		const m = /^\s*(\d+(?:\.\d+)?)\s*(%|px)?\s*$/.exec(v ?? "");
+		return m && Number(m[1]) > 0 && Number(m[1]) < 80 ? `${m[1]}${m[2] ?? "px"}` : undefined;
+	};
+	const end = !pct(a.left_padding_desktop) ? pct(a.right_padding_desktop) : undefined;
+	const phone = a.left_padding_phone === a.right_padding_phone ? pct(a.left_padding_phone) : undefined;
+	// Its bottom padding on tablets (Salient carries tablet values down to phones) spaces it from the next column once stacked.
+	const below = pct(a.bottom_padding_tablet);
+	return end || phone || below ? { ...(end ? { end } : {}), ...(phone ? { phone } : {}), ...(below ? { below } : {}) } : undefined;
 }
 
 /** A spacer that is the first thing in the row's first column: its height sits above the content. */

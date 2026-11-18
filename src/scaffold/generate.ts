@@ -39,6 +39,8 @@ export function readableOn(fill: string, wanted: string, siteText: string): { co
 
 // ── Design → tokens ──────────────────────────────────────────────────────────
 interface TypographyEntry {
+	/** Every element of the tag on that page had an element-level size. */
+	custom?: boolean;
 	fontFamily: string;
 	fontSize: string;
 	fontWeight: string;
@@ -90,14 +92,19 @@ export interface Tokens {
 	colors: { bg: string; text: string; accent: string; accentContrast: string; surface: string };
 }
 
-/** Type styles voted across every captured page of a viewport: the size most texts use wins; in a tie the inner pages win (a home hero is usually a one-off). */
+/**
+ * Type styles voted across every captured page of a viewport: the size most texts use wins; in a tie the inner pages win
+ * (a home hero is usually a one-off). Pages where every element of a tag has its own size only vote when no page shows the plain style.
+ */
 function mergedTypography(designs: DesignCapture[], viewport: string, first: Record<string, TypographyEntry | undefined>): Record<string, TypographyEntry | undefined> {
 	const out: Record<string, TypographyEntry | undefined> = { ...first };
 	for (const tag of Object.keys(first)) {
 		const votes = new Map<string, { n: number; e: TypographyEntry }>();
+		// Pages where the tag only appears with element-level sizes do not vote when another page shows the theme's own style.
+		const anyPlain = designs.some((d) => d.viewport === viewport && d.typography[tag] && !d.typography[tag]?.custom);
 		for (const d of designs) {
 			const e = d.viewport === viewport ? d.typography[tag] : undefined;
-			if (!e) continue;
+			if (!e || (anyPlain && e.custom)) continue;
 			const v = votes.get(e.fontSize) ?? { n: 0, e };
 			const home = /^https?:\/\/[^/]+\/?$/.test(d.url ?? "");
 			v.n += (e.count ?? 1) * (home ? 0.9 : 1);

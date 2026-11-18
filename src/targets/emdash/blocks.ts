@@ -75,7 +75,7 @@ export function ptToMd(blocks: RichText | undefined): string {
 const pt = (blocks: RichText | undefined) => (blocks?.length ? blocks : undefined);
 
 const buttons = (list: Button[] | undefined) =>
-	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
+	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, ...(b.size ? { size: b.size } : {}), ...(b.spaceAbove ? { space_above: `${b.spaceAbove}px` } : {}), new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
 
 const fraction = (w?: string) => (w && ["1/4", "1/3", "1/2", "2/3", "3/4"].includes(w) ? w : "auto");
 
@@ -201,6 +201,11 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 				cols[`col_${n}_width`] = fraction(c.width);
 				if (c.imageCircle) cols[`col_${n}_image_circle`] = c.imageCircle;
 				if (c.align) cols[`col_${n}_align`] = c.align;
+				if (c.gapPhone) cols[`col_${n}_gap_phone`] = `${c.gapPhone}px`;
+				if (c.gapStacked) cols[`col_${n}_gap_stacked`] = c.gapStacked;
+				if (c.leading) cols[`col_${n}_leading`] = String(c.leading);
+				if (c.insetEnd) cols[`col_${n}_inset_end`] = c.insetEnd;
+				if (c.insetPhone) cols[`col_${n}_inset_phone`] = c.insetPhone;
 			});
 			return base("columns", { ...head, ...cols });
 		}

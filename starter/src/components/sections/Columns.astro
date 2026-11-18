@@ -5,9 +5,10 @@ import Rich from "../Rich.astro";
 import Buttons from "../Buttons.astro";
 import Md from "../Md.astro";
 import { Image } from "emdash/ui";
+const SPACE = /^\d+(?:\.\d+)?(?:px|%)$/;
 const { value: v } = Astro.props as { value: Record<string, any> };
 const cols = [1, 2, 3, 4]
-	.map((n) => ({ body: v[`col_${n}_body`], image: v[`col_${n}_image`], buttons: v[`col_${n}_buttons`], bgImage: v[`col_${n}_bg_image`], bgColor: v[`col_${n}_bg_color`], width: v[`col_${n}_width`], circle: /^\d+(?:\.\d+)?(?:px|rem|vw)$/.test(v[`col_${n}_image_circle`] ?? "") ? v[`col_${n}_image_circle`] : undefined, center: v[`col_${n}_align`] === "center", right: v[`col_${n}_align`] === "right" }))
+	.map((n) => ({ body: v[`col_${n}_body`], image: v[`col_${n}_image`], buttons: v[`col_${n}_buttons`], bgImage: v[`col_${n}_bg_image`], bgColor: v[`col_${n}_bg_color`], width: v[`col_${n}_width`], circle: /^\d+(?:\.\d+)?(?:px|rem|vw)$/.test(v[`col_${n}_image_circle`] ?? "") ? v[`col_${n}_image_circle`] : undefined, center: v[`col_${n}_align`] === "center", right: v[`col_${n}_align`] === "right", vars: [["--col-inset-end", v[`col_${n}_inset_end`]], ["--col-inset-p", v[`col_${n}_inset_phone`]], ["--col-gap-p", v[`col_${n}_gap_phone`]], ["--col-gap-t", v[`col_${n}_gap_stacked`]]].filter(([, x]) => SPACE.test(x ?? "")).map(([k, x]) => `${k}:${x}`).concat(/^[1-3](?:\.\d{1,3})?$/.test(v[`col_${n}_leading`] ?? "") ? [`--col-leading:${v[`col_${n}_leading`]}`] : []) }))
 	.filter((c) => (c.body && c.body.length) || c.image || c.bgImage || (c.buttons && c.buttons.length));
 ---
 
@@ -16,7 +17,7 @@ const cols = [1, 2, 3, 4]
 	<div class="columns" style={`--cols:${cols.length}`}>
 		{
 			cols.map((c) => (
-				<div class:list={["columns__col", c.width && c.width !== "auto" && `w-${String(c.width).replace("/", "-")}`, { "has-bg": c.bgImage || c.bgColor, "align-center": c.center, "align-right": c.right }]} style={c.bgColor ? `--col-bg:${c.bgColor}` : undefined}>
+				<div class:list={["columns__col", c.width && c.width !== "auto" && `w-${String(c.width).replace("/", "-")}`, { "has-bg": c.bgImage || c.bgColor, "align-center": c.center, "align-right": c.right }]} style={[c.bgColor ? `--col-bg:${c.bgColor}` : "", ...c.vars].filter(Boolean).join(";") || undefined}>
 					{c.bgImage && <Image image={c.bgImage} class="columns__bg" sizes="50vw" />}
 					{c.image && (c.circle ? <Image image={c.image} class="columns__circle" style={`--circle:${c.circle}`} sizes={`min(${c.circle}, 100vw)`} /> : <Image image={c.image} sizes="(max-width: 900px) 100vw, 33vw" />)}
 					<Rich value={c.body} />

@@ -3,22 +3,24 @@
 import { isExternal, safeHref } from "../utils/links";
 
 interface Props {
-	items?: Array<{ label?: string; url?: string; style?: string; new_tab?: boolean; popup?: string }> | null;
+	items?: Array<{ label?: string; url?: string; style?: string; size?: string; space_above?: string; new_tab?: boolean; popup?: string }> | null;
 	class?: string;
 }
 const { items, class: extra } = Astro.props;
 const list = (items ?? []).filter((b) => b?.label);
+// Space above the group: the first button that sets its own (px).
+const above = list.map((b) => b.space_above).find((x) => /^\d{1,3}px$/.test(x ?? ""));
 ---
 
 {
 	list.length > 0 && (
-		<div class:list={["actions", extra]}>
+		<div class:list={["actions", extra]} style={above ? `--actions-above:${above}` : undefined}>
 			{list.map((b) => {
 				const href = safeHref(b.url) ?? (b.popup ? `#${b.popup}` : "#");
 				return (
 					<a
 						href={href}
-						class:list={["btn", `btn--${b.style ?? "primary"}`]}
+						class:list={["btn", `btn--${b.style ?? "primary"}`, b.size === "large" && "btn--lg"]}
 						data-popup={b.popup || undefined}
 						target={b.new_tab ? "_blank" : undefined}
 						rel={b.new_tab || isExternal(href) ? "noopener" : undefined}

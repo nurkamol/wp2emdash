@@ -252,7 +252,8 @@ export interface DesignCapture {
 	viewport: string;
 	fonts: { family: string; count: number }[];
 	colors: { value: string; count: number; usage: "text" | "background" | "border" }[];
-	typography: Record<string, { fontFamily: string; fontSize: string; fontWeight: string; lineHeight: string; letterSpacing: string; color: string; textTransform: string } | null>;
+	/** custom: every visible element of that tag on the page has an element-level size (not the theme's own style). */
+	typography: Record<string, { custom?: true; fontFamily: string; fontSize: string; fontWeight: string; lineHeight: string; letterSpacing: string; color: string; textTransform: string } | null>;
 	buttons: { selector: string; text: string; styles: Record<string, string> }[];
 	containerWidths: { width: number; count: number }[];
 	/** Most common left edge of body text and headings in the main content: the page gutter, px. */
@@ -317,7 +318,7 @@ export async function captureDesign(browser: Browser, url: string, viewport: { n
 				if (!el) return null;
 				const cs = getComputedStyle(el);
 				return {
-					count: best?.size ?? 1, fontFamily: cs.fontFamily, fontSize: cs.fontSize, fontWeight: cs.fontWeight, lineHeight: cs.lineHeight, letterSpacing: cs.letterSpacing, color: cs.color, textTransform: cs.textTransform };
+					count: best?.size ?? 1, ...(plain.length ? {} : { custom: true as const }), fontFamily: cs.fontFamily, fontSize: cs.fontSize, fontWeight: cs.fontWeight, lineHeight: cs.lineHeight, letterSpacing: cs.letterSpacing, color: cs.color, textTransform: cs.textTransform };
 			};
 			const typography: Record<string, ReturnType<typeof pick>> = {};
 			for (const sel of ["body", "h1", "h2", "h3", "h4", "h5", "h6", "p", "a", "li", "blockquote", "small"]) typography[sel] = pick(sel);

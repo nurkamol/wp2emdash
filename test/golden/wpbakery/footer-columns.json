@@ -1,0 +1,262 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "width": "full",
+      "phoneAlign": "center",
+      "stackGap": 0,
+      "inset": {
+        "desktop": "8%"
+      },
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "4137684459"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Visit the studio",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Small classes, friendly teachers and a calm room in the middle of town.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Book a class",
+                "href": "/classes/",
+                "style": "primary",
+                "size": "large",
+                "spaceAbove": 35
+              }
+            ],
+            "leading": 1.6,
+            "insetEnd": "40%",
+            "insetPhone": "10%",
+            "gapStacked": "10%"
+          },
+          {
+            "width": "1/4",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Address",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "1 Example Street",
+                    "marks": [
+                      "t8"
+                    ]
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t9-br",
+                    "text": "\n",
+                    "marks": []
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "ta",
+                    "text": "Sampletown",
+                    "marks": [
+                      "tb"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t8",
+                    "href": "https://maps.example.com/"
+                  },
+                  {
+                    "_type": "link",
+                    "_key": "tb",
+                    "href": "https://maps.example.com/"
+                  }
+                ]
+              }
+            ],
+            "media": [],
+            "buttons": [],
+            "leading": 1.6,
+            "gapPhone": 40
+          },
+          {
+            "width": "1/4",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Contact",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "T: 555-0100",
+                    "marks": [
+                      "tg"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "tg",
+                    "href": "tel:555-0100"
+                  }
+                ]
+              }
+            ],
+            "media": [],
+            "buttons": [],
+            "leading": 1.6
+          }
+        ]
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]",
+        "rawHash": "de27230e35"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "th",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "ti",
+                    "text": "What we offer",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tj",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tk",
+                    "text": "Plain text before a button with its own top margin.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Read more",
+                "href": "/about/",
+                "style": "primary",
+                "spaceAbove": 40
+              }
+            ]
+          },
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tl",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tm",
+                    "text": "Second column.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

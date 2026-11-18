@@ -71,6 +71,10 @@ export interface Col {
 	motion?: number;
 	/** Desktop-only space above the content (first inner row's top_padding when tablet/phone reset it to 0). */
 	leadTop?: string;
+	/** Space below the column once columns stack on phones (Salient bottom_margin_phone, px). */
+	gapPhone?: number;
+	/** Text column narrowed by its single inner row's padding: trailing edge on desktop, both sides on phones. */
+	textInset?: { end?: string; phone?: string; below?: string };
 	/** Padding on the column's leading edge (Salient padding-N-percent), as a CSS length. */
 	insetStart?: string;
 }
@@ -163,21 +167,30 @@ export function embedOrLegacy(html: string, ctx: HandlerCtx, reason: string): Fr
 	return [{ kind: "legacy", html: trimmed, reason }];
 }
 
-function buttonFrom(label: string | undefined, href: string | undefined, ctx: HandlerCtx, o: { style?: Button["style"]; newTab?: boolean; classes?: string } = {}): Fragment[] {
+function buttonFrom(label: string | undefined, href: string | undefined, ctx: HandlerCtx, o: { style?: Button["style"]; newTab?: boolean; classes?: string; size?: "large"; spaceAbove?: string } = {}): Fragment[] {
 	const text = (label ?? "").trim();
 	const popup = ctx.popupFor({ ...(href ? { href } : {}), ...(o.classes ? { classes: o.classes } : {}) });
 	if (!text) return [];
 	if (!href && !popup) {
 		ctx.diag({ level: "warn", code: "link-unknown", message: `Button "${text}" has no link`, path: ctx.path });
 	}
-	return [{ kind: "button", button: { label: text, href: href || (popup ? `#${popup}` : "#"), style: o.style ?? "primary", ...(o.newTab ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}) } }];
+	return [{ kind: "button", button: { label: text, href: href || (popup ? `#${popup}` : "#"), style: o.style ?? "primary", ...(o.size ? { size: o.size } : {}), ...(spaceAbove(o.spaceAbove) ? { spaceAbove: spaceAbove(o.spaceAbove) } : {}), ...(o.newTab ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}) } }];
 }
+
+/** Salient button margin_top (px): the space above the button. */
+const spaceAbove = (v: string | undefined): number | undefined => {
+	const n = Number.parseFloat(v ?? "");
+	return n > 0 && n <= 200 ? Math.round(n) : undefined;
+};
 
 const headingStyle = (tag: string | undefined): PtBlock["style"] => {
 	const t = (tag ?? "").toLowerCase();
 	if (/^h[1-6]$/.test(t)) return t as PtBlock["style"];
 	return "normal";
 };
+
+/** Line height a Salient split-line paragraph sets for itself (font_line_height), by block (survives joining lines). */
+export const LINE_LEADING = new WeakMap<object, number>();
 
 /** Decorative-only elements dropped by a named rule (reported as info). */
 export const DECORATIVE = new Set(["divider", "vc_empty_space", "vc_separator", "nectar_animated_shape", "nectar_gradient_blur", "nectar_particles", "vc_zigzag", "nectar_sticky_media_sections_spacer", "nectar_cascading_images_placeholder"]);
@@ -208,6 +221,8 @@ export const HANDLERS: Record<string, Handler> = {
 				block.markDefs.push({ _type: "link", _key: key, href, ...(n.attrs.link_target === "_blank" ? { blank: true } : {}) });
 				for (const c of block.children) c.marks.push(key);
 			}
+			const leading = Number.parseFloat(n.attrs.font_line_height ?? "");
+			if (style === "normal" && leading >= 1 && leading <= 3) LINE_LEADING.set(block, leading);
 			return [{ kind: "rich", blocks: [block], ...(style === "normal" && fs !== "i" ? { line: true } : {}) }];
 		}
 		// Enclosed form: inner HTML is the heading.
@@ -223,13 +238,15 @@ export const HANDLERS: Record<string, Handler> = {
 	heading: (n, ctx) => richFromHtml(innerSource(n), ctx, "h2"),
 
 	// Buttons & links
-	nectar_btn: (n, ctx) => buttonFrom(n.attrs.text, n.attrs.url, ctx, { style: /see-through|transparent|underline/i.test(n.attrs.button_style ?? "") ? "secondary" : "primary", newTab: n.attrs.open_new_tab === "true", ...(n.attrs.class || n.attrs.el_class ? { classes: `${n.attrs.class ?? ""} ${n.attrs.el_class ?? ""}` } : {}) }),
+	nectar_btn: (n, ctx) => buttonFrom(n.attrs.text, n.attrs.url, ctx, { style: /see-through|transparent|underline/i.test(n.attrs.button_style ?? "") ? "secondary" : "primary", newTab: n.attrs.open_new_tab === "true", ...(n.attrs.margin_top ? { spaceAbove: n.attrs.margin_top } : {}), ...(n.attrs.class || n.attrs.el_class ? { classes: `${n.attrs.class ?? ""} ${n.attrs.el_class ?? ""}` } : {}) }),
 	nectar_cta: (n, ctx) => {
 		const out: Fragment[] = [];
 		if (n.attrs.text?.trim()) out.push({ kind: "rich", blocks: [textBlock(n.attrs.text, ctx.keys, headingStyle(n.attrs.heading_tag))] });
 		// Salient: "underline" / "arrow…" styles are text links; "text-reveal-wave" with a button colour is a pill.
 		const ctaStyle = /underline|arrow/i.test(n.attrs.btn_style ?? "") || (/text-reveal/i.test(n.attrs.btn_style ?? "") && (!n.attrs.button_color || n.attrs.button_color === "default")) ? "link" : "primary";
-		out.push(...buttonFrom(n.attrs.link_text, n.attrs.url, ctx, { style: ctaStyle, newTab: n.attrs.link_type === "new_tab", ...(n.attrs.class ? { classes: n.attrs.class } : {}) }));
+		// Its own padding (15px+ vertical) makes it a large button, set apart from the text above.
+		const large = ctaStyle === "primary" && Number.parseFloat(n.attrs.padding_top ?? "") >= 15;
+		out.push(...buttonFrom(n.attrs.link_text, n.attrs.url, ctx, { style: ctaStyle, newTab: n.attrs.link_type === "new_tab", ...(large ? { size: "large" as const } : {}), ...(n.attrs.margin_top ? { spaceAbove: n.attrs.margin_top } : {}), ...(n.attrs.class ? { classes: n.attrs.class } : {}) }));
 		return out;
 	},
 	vc_btn: (n, ctx) => {

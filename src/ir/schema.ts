@@ -54,6 +54,10 @@ export const button = z.object({
 	newTab: z.boolean().optional(),
 	/** Opens a site popup/dialog instead of navigating (Popup Maker, Salient modal…). */
 	opensPopup: z.string().optional(),
+	/** Larger padding and more space above (Salient call-to-action with its own padding). */
+	size: z.literal("large").optional(),
+	/** Space above the button (px), when the source sets its own. */
+	spaceAbove: z.number().int().min(0).max(200).optional(),
 });
 export type Button = z.infer<typeof button>;
 
@@ -132,6 +136,16 @@ const column = z.object({
 	/** The image drawn as a circle of this diameter. */
 	imageCircle: z.string().regex(/^\d+(?:\.\d+)?(?:px|rem|vw)$/).optional(),
 	align: z.enum(["center", "right"]).optional(),
+	/** Line height of the column's paragraphs, when the source sets one for them. */
+	leading: z.number().min(1).max(3).optional(),
+	/** Space below the column once columns stack (tablets and phones; % of the column or px). */
+	gapStacked: z.string().regex(/^\d+(?:\.\d+)?(?:%|px)$/).optional(),
+	/** Space below the column once stacked on phones (px). */
+	gapPhone: z.number().int().min(0).max(400).optional(),
+	/** Text kept short on desktop by space on its trailing side (% of the column or px). */
+	insetEnd: z.string().regex(/^\d+(?:\.\d+)?(?:%|px)$/).optional(),
+	/** Side space around the text on phones. */
+	insetPhone: z.string().regex(/^\d+(?:\.\d+)?(?:%|px)$/).optional(),
 });
 export type Column = z.infer<typeof column>;
 
