@@ -1,0 +1,226 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f0ebe4"
+        }
+      },
+      "spacing": "compact",
+      "width": "full",
+      "phoneAlign": "center",
+      "tabletAlign": "center",
+      "stackGap": 0,
+      "inset": {
+        "desktop": "8%"
+      },
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "3eb3a0f23e"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "© ",
+                    "marks": [
+                      "strong"
+                    ]
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t2",
+                    "text": "{year} ",
+                    "marks": []
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t4",
+                    "text": "Sample Studio",
+                    "marks": [
+                      "t3"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t3",
+                    "href": "/"
+                  }
+                ]
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/2",
+            "body": [],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Privacy",
+                "href": "/privacy/",
+                "style": "link"
+              },
+              {
+                "label": "Terms",
+                "href": "/terms/",
+                "style": "link"
+              }
+            ],
+            "align": "right"
+          }
+        ]
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "width": "full",
+      "inset": {
+        "desktop": "27vw",
+        "tablet": "20vw",
+        "phone": "7vw"
+      },
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]",
+        "rawHash": "0e6890a9e9"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t5",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t6",
+                "text": "A short centred statement set in a narrow measure across an edge-to-edge row.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 25,
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[4]",
+        "rawHash": "6bf184e920"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t7",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t8",
+                    "text": "Left",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t9",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "ta",
+                    "text": "Column one.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tb",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tc",
+                    "text": "Right",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "td",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "te",
+                    "text": "Column two.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[nectar_current_year] rendered dynamically as {year}",
+      "path": "vc_row[0]/vc_column[0]/vc_column_text[0]/nectar_current_year[1]",
+      "tag": "nectar_current_year"
+    }
+  ]
+}

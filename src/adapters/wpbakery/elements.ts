@@ -55,6 +55,10 @@ export interface Col {
 	background?: { color?: string };
 	/** Source asks for centred text on phones. */
 	phoneCenter?: boolean;
+	/** Source asks for centred text on tablets. */
+	tabletCenter?: boolean;
+	/** Content right-aligned (every inner row text_align="right"). */
+	right?: boolean;
 	/** Spacer (divider / empty space) before and after the column's content, if both ends have one. */
 	spacer?: { desktop: string; phone?: string; inset?: number };
 	/** Tint over the column background (Salient column overlay). */

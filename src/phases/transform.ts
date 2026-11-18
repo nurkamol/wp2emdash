@@ -61,7 +61,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const shots = readJson<ScreenshotResult[]>(join(paths.snapshot, "screens.json")) ?? [];
 	const boxesFor = (path: string) => {
 		const at = (vp: string) => shots.find((x) => x.viewport === vp && (() => { try { return new URL(x.url).pathname === path; } catch { return false; } })())?.sections;
-		return { desktop: at("desktop"), mobile: at("mobile") };
+		return { desktop: at("desktop"), tablet: at("tablet"), mobile: at("mobile") };
 	};
 	let paddedEdges = 0;
 	const pages = content("page");

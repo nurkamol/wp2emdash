@@ -108,7 +108,9 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const inset = pct && ["left", "all"].includes(n.attrs.column_padding_position ?? "all") && Number(pct) > 0 ? `${pct}vw` : undefined;
 		const inner = n.children.flatMap((r) => (r.type === "shortcode" && r.tag === "vc_row_inner" ? r.children : [])).filter((c): c is ShortcodeNode => c.type === "shortcode" && c.tag === "vc_column_inner" && c.children.length > 0);
 		const centered = n.attrs.centered_text === "true" || (inner.length > 0 && inner.length === n.children.filter((c) => c.type === "shortcode").length && inner.every((c) => c.attrs.centered_text === "true"));
-		return { ...(inset ? { insetStart: inset } : {}), ...(centered ? { centered: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
+		const rows = n.children.filter((c): c is ShortcodeNode => c.type === "shortcode");
+		const right = rows.length > 0 && rows.every((r) => r.tag === "vc_row_inner" && r.attrs.text_align === "right");
+		return { ...(inset ? { insetStart: inset } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -358,6 +360,10 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 		...headLook(row.raw),
 		...(!/#[1-9]\d*$/.test(row.path) ? leadSpacer(row.raw) : {}),
 		...(row.columns.some((c) => c.fragments.length) && row.columns.filter((c) => c.fragments.length).every((c) => c.phoneCenter) ? { phoneAlign: "center" as const } : {}),
+		...(row.columns.some((c) => c.fragments.length) && row.columns.filter((c) => c.fragments.length).every((c) => c.tabletCenter) ? { tabletAlign: "center" as const } : {}),
+		// media_text and hero already place their content from the column layout; the row padding would count twice.
+		...(type === "columns" ? { stackGap: /^\d+(?:px|%)$/.test(row.attrs.column_margin ?? "") ? 25 : 0 } : {}),
+		...(row.attrs.type === "full_width_content" && type !== "media_text" && type !== "hero" ? rowPad(row.attrs) : {}),
 		sourceRef: { adapter: row.adapter ?? ("wpbakery" as const), path: row.path, rawHash: hash(row.raw) },
 	});
 	const cols = row.columns.filter((c) => c.fragments.length);
@@ -565,7 +571,7 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 						const circle = c.fragments.find((f): f is Extract<Fragment, { kind: "media" }> => f.kind === "media" && f.role === "content" && !!f.circle)?.circle;
 						return circle ? { imageCircle: circle } : {};
 					})(),
-					...(c.centered ? { align: "center" as const } : {}),
+					...(c.centered ? { align: "center" as const } : c.right ? { align: "right" as const } : {}),
 					...(c.background || bg ? { background: { ...c.background, ...(bg ? { image: bg.media } : {}) } } : {}),
 				};
 			}),
@@ -650,6 +656,24 @@ export function rowInset(a: Record<string, string | undefined>): { inset?: strin
 	const t = a.left_padding_tablet === a.right_padding_tablet ? len(a.left_padding_tablet) : undefined;
 	if (!d || d === "0px") return {};
 	return { inset: d, ...(t ? { insetSmall: t } : {}) };
+}
+
+/**
+ * Side padding of an edge-to-edge row (Salient full_width_content). The desktop value is the base for every
+ * width; tablet and phone values override it (a probe of the live theme: 8% stays 8% at 768px and 390px).
+ */
+export function rowPad(a: Record<string, string | undefined>): { inset?: { desktop: string; tablet?: string; phone?: string } } {
+	const len = (l?: string, r?: string) => {
+		const v = l?.trim();
+		if (v === undefined || v !== r?.trim()) return undefined;
+		const m = /^(\d+(?:\.\d+)?)(%|px|vw)?$/.exec(v);
+		return m ? (Number(m[1]) === 0 ? "0px" : `${m[1]}${m[2] ?? "px"}`) : undefined;
+	};
+	const desktop = len(a.left_padding_desktop, a.right_padding_desktop);
+	if (!desktop || desktop === "0px") return {};
+	const tablet = len(a.left_padding_tablet, a.right_padding_tablet);
+	const phone = len(a.left_padding_phone, a.right_padding_phone);
+	return { inset: { desktop, ...(tablet ? { tablet } : {}), ...(phone ? { phone } : {}) } };
 }
 
 /** A spacer that is the first thing in the row's first column: its height sits above the content. */

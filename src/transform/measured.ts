@@ -11,22 +11,32 @@ import { groupSections } from "../verify/sections.js";
 /** Sections whose padding includes the header or a full-screen layout: leave to the starter. */
 const SKIP = new Set(["hero"]);
 
-export function applyMeasuredPadding(sections: Section[], boxes: { desktop?: SectionBox[]; mobile?: SectionBox[] }, footer: boolean): number {
+/** The tablet measurement when it is more than 4px off the straight phone→desktop line the fluid value draws. */
+function offLine(phone: number, tablet: number | undefined, desktop: number): number | undefined {
+	if (tablet === undefined) return undefined;
+	const line = phone + ((desktop - phone) * (768 - 390)) / (1440 - 390);
+	return Math.abs(tablet - line) > 4 ? Math.round(tablet) : undefined;
+}
+
+export function applyMeasuredPadding(sections: Section[], boxes: { desktop?: SectionBox[]; tablet?: SectionBox[]; mobile?: SectionBox[] }, footer: boolean): number {
 	if (!boxes.desktop?.length) return 0;
 	let applied = 0;
 	for (const g of groupSections(sections.map((s) => ({ type: s.type, path: s.sourceRef.path })), footer)) {
 		const d = boxes.desktop.find((b) => b.footer === footer && b.index === g.sourceIndex);
 		const m = boxes.mobile?.find((b) => b.footer === footer && b.index === g.sourceIndex) ?? d;
+		const t = boxes.tablet?.find((b) => b.footer === footer && b.index === g.sourceIndex);
 		if (d?.padTop === undefined || d.padBottom === undefined || m?.padTop === undefined || m.padBottom === undefined) continue;
 		const first = sections[g.targetIndexes[0] as number];
 		const last = sections[g.targetIndexes.at(-1) as number];
 		if (first && !SKIP.has(first.type) && !first.fullHeight) {
 			const lead = first.spaceBefore ?? 0;
-			first.pad = { ...first.pad, top: fluid(m.padTop + lead, d.padTop + lead) };
+			const tab = offLine(m.padTop, t?.padTop, d.padTop);
+			first.pad = { ...first.pad, top: fluid(m.padTop + lead, d.padTop + lead), ...(tab !== undefined ? { topTablet: tab + lead } : {}) };
 			applied++;
 		}
 		if (last && !SKIP.has(last.type) && !last.fullHeight) {
-			last.pad = { ...last.pad, bottom: fluid(m.padBottom, d.padBottom) };
+			const tab = offLine(m.padBottom, t?.padBottom, d.padBottom);
+			last.pad = { ...last.pad, bottom: fluid(m.padBottom, d.padBottom), ...(tab !== undefined ? { bottomTablet: tab } : {}) };
 			applied++;
 		}
 	}

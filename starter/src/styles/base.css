@@ -41,7 +41,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .btn--primary:hover { background: var(--color-accent-hover, var(--color-accent)); transform: translateY(-1px); }
 .btn--secondary { background: transparent; color: inherit; border-color: currentColor; }
 .btn--secondary:hover { background: var(--color-text); color: var(--color-bg); }
-.btn--link { padding: 0; border-radius: 0; background: none; color: inherit; text-decoration: underline; text-underline-offset: 0.3em; }
+.btn--link { padding: 0; border-radius: 0; background: none; color: inherit; font-weight: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.3em; }
 .tone-dark .btn--secondary:hover { background: #fff; color: #000; }
 
 /* ── Sections ── */
@@ -179,6 +179,18 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 @keyframes marquee { to { transform: translateX(-50%); } }
 @media (min-width: 900px) /* stack */ { .marquee__track { font-size: var(--marquee-size-desktop, clamp(3rem, 15vh, 11rem)); } }
 @media (max-width: 599.98px) { .phone-center, .phone-center .actions { text-align: center; justify-content: center; } }
+@media (min-width: 600px) and (max-width: 999.98px) { .tablet-center, .tablet-center .actions { text-align: center; justify-content: center; } }
+/* Salient: centred text links below desktop sit one per line */
+@media (min-width: 600px) and (max-width: 999.98px) { .tablet-center .actions:not(:has(.btn:not(.btn--link))) { flex-direction: column; align-items: center; gap: 0; } }
+@media (max-width: 599.98px) { .phone-center .actions:not(:has(.btn:not(.btn--link))) { flex-direction: column; align-items: center; gap: 0; } }
+@media (max-width: 899.98px) { .section[style*="--stack-gap"] .columns { row-gap: var(--stack-gap); } }
+/* buttons that open a column line up with the first line of the next column */
+.columns__col > .actions:first-child { margin-top: 0; }
+@media (min-width: 900px) { .columns__col.align-right { text-align: right; } .columns__col.align-right .actions { justify-content: flex-end; } }
+/* edge-to-edge row with the builder's side padding (% of the row width), desktop value unless tablet/phone override it */
+.section.has-inset > .section__inner, .section.is-full-width.has-inset:not(.x) > .section__inner { width: 100%; max-width: none; padding-inline: var(--row-inset); }
+@media (max-width: 999.98px) { .section.has-inset > .section__inner, .section.is-full-width.has-inset:not(.x) > .section__inner { padding-inline: var(--row-inset-t, var(--row-inset)); } }
+@media (max-width: 690px) { .section.has-inset > .section__inner, .section.is-full-width.has-inset:not(.x) > .section__inner { padding-inline: var(--row-inset-p, var(--row-inset-t, var(--row-inset))); } }
 
 /* faq */
 .faq { border-top: 1px solid var(--color-line); }
@@ -366,9 +378,11 @@ body:not(.over-hero) { padding-top: var(--header-height); }
 
 /* footer */
 .site-footer { background: var(--footer-bg, var(--color-surface)); }
-.site-footer .prose a { text-decoration: none; }
+/* a whole line that is a link (address, phone) is plain; a link inside a sentence keeps its underline */
+.site-footer .prose p > a:only-child { text-decoration: none; }
 .site-footer .prose a:hover { text-decoration: underline; }
 
 /* Last on purpose: padding measured on the source page wins over spacing tokens and layout defaults. */
 .section.has-pad-top { padding-top: var(--pad-top); }
 .section.has-pad-bottom { padding-bottom: var(--pad-bottom); }
+@media (min-width: 691px) and (max-width: 999.98px) { .section.has-pad-top { padding-top: var(--pad-top-t, var(--pad-top)); } .section.has-pad-bottom { padding-bottom: var(--pad-bottom-t, var(--pad-bottom)); } }

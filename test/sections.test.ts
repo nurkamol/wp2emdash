@@ -79,4 +79,15 @@ describe("measured padding", () => {
 		expect(pads[1]).toEqual({ top: "50px" });
 		expect(pads[2]).toEqual({ bottom: "0px" });
 	});
+
+	it("adds a tablet value only where the tablet measurement leaves the phone→desktop line", () => {
+		const sec = (path: string) => ({ type: "columns", sourceRef: { adapter: "wpbakery", path, rawHash: "x" }, spacing: "normal", fields: {} }) as never;
+		const sections = [sec("vc_row[0]"), sec("vc_row[1]")];
+		const box = (index: number, pad: number) => ({ index, y: 0, height: 100, footer: false, kind: "wpbakery", padTop: pad, padBottom: pad });
+		// row 0: 21 → 41 → 28 (Salient tablet padding); row 1: 20 → 38 → 70, on the line
+		applyMeasuredPadding(sections, { desktop: [box(0, 28), box(1, 70)], tablet: [box(0, 41), box(1, 38)], mobile: [box(0, 21), box(1, 20)] }, false);
+		const pads = (sections as { pad?: Record<string, unknown> }[]).map((s) => s.pad);
+		expect(pads[0]).toMatchObject({ topTablet: 41, bottomTablet: 41 });
+		expect(pads[1]).not.toHaveProperty("topTablet");
+	});
 });

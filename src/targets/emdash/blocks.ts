@@ -158,6 +158,9 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		...(s.gap ? { gap: s.gap } : {}),
 		...(s.valign ? { valign: s.valign } : {}),
 		...(s.phoneAlign ? { phone_align: s.phoneAlign } : {}),
+		...(s.tabletAlign ? { tablet_align: s.tabletAlign } : {}),
+		...(s.stackGap !== undefined ? { stack_gap: s.stackGap } : {}),
+		...(s.inset ? { row_inset: s.inset.desktop, ...(s.inset.tablet ? { row_inset_tablet: s.inset.tablet } : {}), ...(s.inset.phone ? { row_inset_phone: s.inset.phone } : {}) } : {}),
 		...(s.quoteStyle ? { quote_style: s.quoteStyle } : {}),
 		...(s.headingSize ? { heading_size: s.headingSize } : {}),
 		...(s.headingLeading ? { heading_leading: s.headingLeading } : {}),
@@ -165,6 +168,8 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		...(s.headGap ? { head_gap: s.headGap } : {}),
 		...(s.pad?.top ? { pad_top: s.pad.top } : {}),
 		...(s.pad?.bottom ? { pad_bottom: s.pad.bottom } : {}),
+		...(s.pad?.topTablet !== undefined ? { pad_top_tablet: s.pad.topTablet } : {}),
+		...(s.pad?.bottomTablet !== undefined ? { pad_bottom_tablet: s.pad.bottomTablet } : {}),
 		...(s.fullHeight ? { full_height: true } : {}),
 		...(s.anchorId ? { anchor_id: s.anchorId } : {}),
 	};

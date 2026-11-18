@@ -99,6 +99,12 @@ const base = {
 	valign: z.enum(["top", "middle", "bottom"]).optional(),
 	/** Centre text on phones (WPBakery/Salient phone_text_alignment). */
 	phoneAlign: z.enum(["center"]).optional(),
+	/** Space between columns once they stack (px). Salient: none for default/none column margins, 25px for a set margin. */
+	stackGap: z.number().int().min(0).max(200).optional(),
+	/** Centre text on tablets too (Salient tablet_text_alignment). */
+	tabletAlign: z.enum(["center"]).optional(),
+	/** Side padding of an edge-to-edge row (Salient left/right_padding_*): desktop value, overridden on tablet and phone. */
+	inset: z.object({ desktop: z.string().regex(/^\d+(?:\.\d+)?(?:px|%|vw)$/), tablet: z.string().regex(/^\d+(?:\.\d+)?(?:px|%|vw)$/).optional(), phone: z.string().regex(/^\d+(?:\.\d+)?(?:px|%|vw)$/).optional() }).optional(),
 	/** Quotes in the text: centred display italic under a short rule (Salient italic line set centred). */
 	quoteStyle: z.enum(["centered"]).optional(),
 	/** The heading's own size on desktop (builder override of the type scale), and its line height. */
@@ -110,7 +116,7 @@ const base = {
 	/** A builder spacer (px) above the row's first content; added to the measured top padding. */
 	spaceBefore: z.number().int().min(0).max(400).optional(),
 	/** Padding measured on the source page (px, or fluid clamp between phone and desktop); wins over spacing. */
-	pad: z.object({ top: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), bottom: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional() }).optional(),
+	pad: z.object({ top: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), bottom: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), /** Tablet (691–999px) value where the source's tablet padding is off the phone→desktop line. */ topTablet: z.number().min(0).max(600).optional(), bottomTablet: z.number().min(0).max(600).optional() }).optional(),
 	sourceRef,
 };
 
@@ -125,7 +131,7 @@ const column = z.object({
 	background: background.optional(),
 	/** The image drawn as a circle of this diameter. */
 	imageCircle: z.string().regex(/^\d+(?:\.\d+)?(?:px|rem|vw)$/).optional(),
-	align: z.enum(["center"]).optional(),
+	align: z.enum(["center", "right"]).optional(),
 });
 export type Column = z.infer<typeof column>;
 

@@ -61,6 +61,7 @@
         }
       },
       "spacing": "normal",
+      "stackGap": 0,
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[2]",
@@ -124,6 +125,7 @@
         "tone": "light"
       },
       "spacing": "normal",
+      "stackGap": 0,
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[4]",
@@ -216,6 +218,7 @@
         }
       },
       "spacing": "normal",
+      "stackGap": 0,
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[6]",
