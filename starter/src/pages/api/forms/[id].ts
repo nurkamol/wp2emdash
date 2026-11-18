@@ -3,8 +3,9 @@
  *
  * Order: known form → honeypot → rate limit → Turnstile (fails closed) → validation against the form
  * definition (only its fields are read; anything else in the request is ignored) → email through the
- * site's provider — EmDash's own email pipeline when one is set up in Settings → Email (SMTP, editable in the admin),
- * otherwise the provider API key from Wrangler secrets (Brevo by default). Nothing is stored. Field values never reach logs. A form generated for a site with
+ * site's provider: the provider API key from Wrangler secrets (Brevo by default). EmDash's own pipeline (Settings → Email)
+ * is used if EmDash exposes it to this route — in EmDash 1.5 it does not for anonymous requests (see docs/spikes/M7-findings.md);
+ * the planned forms plugin will send through it. Nothing is stored. Field values never reach logs. A form generated for a site with
  * sensitive data only has the fields the owner approved (e.g. contact details), so that is all this can send.
  */
 import { env } from "cloudflare:workers";
