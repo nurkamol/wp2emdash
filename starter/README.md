@@ -1,8 +1,8 @@
 # wp2emdash starter
 
 The project template `wp2emdash scaffold` copies into `sites/<slug>/project/`. Based on the EmDash
-`cloudflare:marketing` template (MIT, © EmDash contributors): `src/worker.ts`, `src/live.config.ts`,
-`tsconfig.json` and `pnpm-workspace.yaml` come from it unchanged. Everything else is the kit's.
+`cloudflare:marketing` template (MIT, © EmDash contributors): `src/live.config.ts`,
+`tsconfig.json` and `pnpm-workspace.yaml` come from it unchanged; `src/worker.ts` adds the form outbox to its cron handler. Everything else is the kit's.
 
 | Path | What |
 |---|---|

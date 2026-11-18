@@ -44,3 +44,9 @@ Verified 2026-11-18 against astro 7.4.12, @astrojs/cloudflare 14.4.8, emdash 1.5
 ## More email providers (2026-11-18)
 
 Form delivery also supports Resend (`POST api.resend.com/emails`, Bearer, 200), Postmark (`POST api.postmarkapp.com/email`, `X-Postmark-Server-Token`, 200), SendGrid (`POST api.sendgrid.com/v3/mail/send`, Bearer, 202) and Mailgun (`POST api[.eu].mailgun.net/v3/<sender domain>/messages`, basic `api:<key>`, form fields, 200; `MAILGUN_REGION=eu` var for EU accounts). Request shapes follow each provider's API reference; unit-tested with a mocked fetch, not yet sent end-to-end. SES, Google Workspace, Microsoft 365 and Cloudflare Email answer 501 "not implemented" until a site needs them.
+
+## Form outbox in Workers KV (2026-11-18)
+
+- Owner opt-in (`forms.outbox`): when email is not configured or the provider refuses, the endpoint stores the composed message (reply-to, subject, text, html — no sender/recipients) in KV binding `FORM_OUTBOX` with `expirationTtl` = days, and answers the visitor with the normal success message. `src/worker.ts` wraps EmDash's `createScheduledHandler()` and flushes the queue from the existing `*/5` cron (`import { env } from "cloudflare:workers"`), deleting each message once delivered.
+- `forms.outbox.hold` (var `FORM_OUTBOX_HOLD=1`) keeps every message and sends none: for a provider that answers 201 but never delivers (the pilot's Brevo account). Released by `hold: false` + a working key.
+- Adding `kv_namespaces` to `wrangler.jsonc` keeps the adapter's auto-provisioned `SESSION` binding (checked in `dist/server/wrangler.json`). Verified on staging: a test submission was queued with a 30-day expiry, then deleted.

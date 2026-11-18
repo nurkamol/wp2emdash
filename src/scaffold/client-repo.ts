@@ -20,11 +20,15 @@ export interface ClientRepoInput {
 	stagingUrl?: string;
 	/** Fingerprint `emdash migrate --status` prints for the staging D1: lets CI apply migrations without a prompt. */
 	stagingFingerprint?: string;
+	productionFingerprint?: string;
+	/** Traffic has been switched to this site (after cutover). */
 	productionReady: boolean;
 	sections: { slug: string; label: string; description: string }[];
 	forms: { id: string; title: string; fields: string[]; withheld: string[] }[];
 	email: { provider: string; from?: string; to: string[] };
 	turnstileProduction: boolean;
+	/** Messages kept in Workers KV when email cannot be sent (days kept; hold = keep all, send none). */
+	outbox?: { days: number; hold: boolean };
 	/** Tracking carried over from the old site (Google tag ids, Tag Manager container, Cloudflare beacon token). */
 	analytics?: { google: string[]; gtm?: string; cloudflareToken?: string };
 	sensitiveData: boolean;
@@ -35,7 +39,7 @@ const md = (body: string) => `<!-- ${MARKER}. Delete this line to take the file 
 const yml = (body: string) => `# ${MARKER}. Delete this line to take the file over: later scaffold runs then leave it alone.\n${body.trim()}\n`;
 
 /** Package scripts the docs and CI rely on (scaffold writes them into package.json). */
-export function deployScripts(fingerprint?: string): Record<string, string> {
+export function deployScripts(fingerprint?: string, productionFingerprint?: string): Record<string, string> {
 	const stg = "--wrangler-config wrangler.jsonc --wrangler-env staging";
 	return {
 		"build:staging": "CLOUDFLARE_ENV=staging astro build",
@@ -44,6 +48,7 @@ export function deployScripts(fingerprint?: string): Record<string, string> {
 		// Same steps without the confirmation prompt: the expected target is pinned, so a wrong database fails instead of asking.
 		...(fingerprint ? { "ci:deploy:staging": `CLOUDFLARE_ENV=staging astro build && emdash migrate ${stg} --expected-target-fingerprint=${fingerprint} && wrangler deploy && emdash migrate --check ${stg}` } : {}),
 		"deploy:production": "astro build && emdash migrate --wrangler-config wrangler.jsonc && wrangler deploy && emdash migrate --check --wrangler-config wrangler.jsonc",
+		...(productionFingerprint ? { "ci:deploy:production": `astro build && emdash migrate --wrangler-config wrangler.jsonc --expected-target-fingerprint=${productionFingerprint} && wrangler deploy && emdash migrate --check --wrangler-config wrangler.jsonc` } : {}),
 	};
 }
 
@@ -131,7 +136,7 @@ Run them with the Cloudflare token in the environment (\`emdash migrate\` does n
 
 - **Every pull request and push:** install, \`pnpm check\`, \`pnpm build\`.
 - **Push to \`main\`:** ${fp ? "deploys staging with `pnpm ci:deploy:staging` (the expected staging database is pinned, so the migration step runs without a prompt and fails on any other database)." : "staging deploy is skipped until the staging database fingerprint is recorded (rerun the migration kit's scaffold after staging is set up)."}
-- **Production:** only from *Run workflow* with target \`production\`, in the \`production\` GitHub environment.${i.productionReady ? "" : " Production resources are created at switch-over; until then this job stops with a message."}
+- **Production:** only from *Run workflow* with target \`production\`, in the \`production\` GitHub environment.${i.productionReady ? "" : " Until the switch-over, a production deploy only updates the Worker on its workers.dev address; visitors still reach WordPress."}
 
 One-time setup in the GitHub repository (Settings):
 
@@ -209,9 +214,15 @@ How a message is handled (\`src/pages/api/forms/[id].ts\`):
 1. A hidden field catches simple bots; Cloudflare's rate limit allows a few messages per minute per visitor.
 2. Cloudflare Turnstile checks the visitor is not a robot. Without a working check the form refuses messages.
 3. Only the form's own fields are read and checked.
-4. The message is emailed through ${i.email.provider} to ${i.email.to.length ? i.email.to.join(", ") : "(no recipients set)"}${i.email.from ? `, from ${i.email.from}` : ""}. Nothing is stored, and logs record only the form and the outcome.
+4. The message is emailed${i.outbox ? " (or kept in the outbox, below)" : ""} through ${i.email.provider} to ${i.email.to.length ? i.email.to.join(", ") : "(no recipients set)"}${i.email.from ? `, from ${i.email.from}` : ""}. Nothing is stored, and logs record only the form and the outcome.
 
-Recipients and sender are the \`FORM_TO\` / \`FORM_FROM\` settings in \`wrangler.jsonc\`; the ${i.email.provider} API key is the
+${i.outbox ? `**Outbox.** When email cannot be sent, the message is kept in Cloudflare KV (binding \`FORM_OUTBOX\`) instead of being
+lost, and the site retries it every 5 minutes; it is deleted once emailed, or after ${i.outbox.days} days. ${i.outbox.hold ? "**It is on hold right now:** every message is kept and none is sent, until a working email account is connected. To release the queue: set the new key (\`npx wrangler secret put EMAIL_API_KEY\`), set \`forms.outbox.hold: false\` in the migration kit's config, rerun scaffold and deploy." : ""}
+To see what is waiting (needs Cloudflare access to the account):
+\`npx wrangler kv key list --binding FORM_OUTBOX --remote\` (add \`--env staging\` for staging), then
+\`npx wrangler kv key get <key> --binding FORM_OUTBOX --remote\`.
+
+` : ""}Recipients and sender are the \`FORM_TO\` / \`FORM_FROM\` settings in \`wrangler.jsonc\`; the ${i.email.provider} API key is the
 Worker secret \`EMAIL_API_KEY\`. The sender address must be verified in the ${i.email.provider} account.
 ${i.turnstileProduction ? "" : "\n**Before going live:** create a Turnstile widget for the production domain in the Cloudflare dashboard, put its site key in the migration kit's config (`forms.turnstileSiteKey`) and set its secret: `npx wrangler secret put TURNSTILE_SECRET_KEY`."}
 
@@ -341,7 +352,7 @@ ${setup}
       - name: Production resources exist
         run: |
           node -e 'const s=require("fs").readFileSync("wrangler.jsonc","utf8").split("\\"env\\"")[0]; if(!/"database_id"/.test(s)){console.error("No production database in wrangler.jsonc yet: production is set up at switch-over."); process.exit(1)}'
-      - run: pnpm deploy:production
+      - run: pnpm ${i.productionFingerprint ? "ci:deploy:production" : "deploy:production"}
 `);
 
 	files[".github/pull_request_template.md"] = md(`

@@ -39,8 +39,8 @@ export const STACK = {
 } as const;
 
 interface CloudflareResources {
-	staging?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string } };
-	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string } };
+	staging?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; outbox?: { id: string } };
+	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; live?: boolean; outbox?: { id: string } };
 }
 
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
@@ -245,7 +245,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		// The Cloudflare adapter flattens wrangler.jsonc at BUILD time: the environment is chosen with CLOUDFLARE_ENV during
 		// the build. EmDash core migrations run BEFORE the new build serves traffic; emdash migrate reads
 		// CLOUDFLARE_API_TOKEN/ACCOUNT_ID from the shell. Not named "deploy": that is a pnpm built-in command.
-		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...deployScripts(cf.staging?.d1?.fingerprint) },
+		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...deployScripts(cf.staging?.d1?.fingerprint, cf.production?.d1?.fingerprint) },
 		dependencies: {
 			"@astrojs/cloudflare": STACK["@astrojs/cloudflare"],
 			"@astrojs/react": STACK["@astrojs/react"],
@@ -290,7 +290,9 @@ export default defineConfig({
 	const r2 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "MEDIA", bucket_name: cf[env]?.r2?.bucket ?? fallback });
 	// Forms: provider and addresses are config (not secrets); the API key and Turnstile secret are Wrangler secrets.
 	// Staging uses Cloudflare's always-pass Turnstile test keys (public test values, developers.cloudflare.com/turnstile/troubleshooting/testing).
-	const formVars = { EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
+	const outboxDays = config.forms.outbox ? { FORM_OUTBOX_DAYS: String(config.forms.outbox.days), ...(config.forms.outbox.hold ? { FORM_OUTBOX_HOLD: "1" } : {}) } : {};
+	const outboxKv = (e: "staging" | "production") => (config.forms.outbox && cf[e]?.outbox?.id ? `,\n\t"kv_namespaces": [${JSON.stringify({ binding: "FORM_OUTBOX", id: cf[e]?.outbox?.id })}]` : "");
+	const formVars = { ...outboxDays, EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
 	const prodVars = { ...formVars, ...(config.forms.turnstileSiteKey ? { TURNSTILE_SITE_KEY: config.forms.turnstileSiteKey } : {}) };
 	const stagingVars = { STAGING: "1", ...formVars, TURNSTILE_SITE_KEY: "1x00000000000000000000AA", TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA" };
 	// Rate-limit namespaces are account-wide integers: derived from the Worker name so sites don't share one.
@@ -308,14 +310,14 @@ export default defineConfig({
 	"d1_databases": [${d1("production", `${workerName}-db`)}],
 	"r2_buckets": [${r2("production", `${workerName}-media`)}],
 	"vars": ${JSON.stringify(prodVars)},
-	"ratelimits": ${limiter(ns)},
+	"ratelimits": ${limiter(ns)}${outboxKv("production")},
 	"triggers": { "crons": ["*/5 * * * *"] },
 	"observability": { "enabled": true },
 	"env": {
 		"staging": {
 			"name": ${JSON.stringify(`${workerName}-staging`)},
 			"vars": ${JSON.stringify(stagingVars)},
-			"ratelimits": ${limiter(ns + 1)},
+			"ratelimits": ${limiter(ns + 1)}${outboxKv("staging").replace(/\n\t/g, "\n\t\t\t")},
 			"d1_databases": [${d1("staging", `${workerName}-staging-db`)}],
 			"r2_buckets": [${r2("staging", `${workerName}-staging-media`)}]
 		}
@@ -338,11 +340,14 @@ export default defineConfig({
 			workerName,
 			...(cf.staging?.worker?.url ? { stagingUrl: cf.staging.worker.url } : {}),
 			...(cf.staging?.d1?.fingerprint ? { stagingFingerprint: cf.staging.d1.fingerprint } : {}),
-			productionReady: !!cf.production?.d1?.id,
+			...(cf.production?.d1?.fingerprint ? { productionFingerprint: cf.production.d1.fingerprint } : {}),
+			// Live = traffic switched (cutover records production.live); resources alone do not make the site live.
+			productionReady: !!cf.production?.live,
 			sections: BLOCK_TYPES.filter((b) => used.has(b.slug)).map((b) => ({ slug: b.slug, label: b.label, description: b.description ?? "" })),
 			forms: forms.map((f) => ({ id: f.id, title: f.title, fields: f.fields.map((x) => x.label), withheld: f.withheld ?? [] })),
 			email: { provider: config.email.provider, ...(config.email.from ? { from: config.email.from } : {}), to: config.email.to },
 			turnstileProduction: !!config.forms.turnstileSiteKey,
+			...(config.forms.outbox ? { outbox: { days: config.forms.outbox.days, hold: config.forms.outbox.hold } } : {}),
 			...(hasAnalytics && analytics ? { analytics } : {}),
 			sensitiveData: config.sensitiveData,
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },

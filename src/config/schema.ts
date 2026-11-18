@@ -150,6 +150,18 @@ export const kitConfigSchema = z.object({
 			notice: z.string().default("Please don't include health details here — we'll get back to you."),
 			/** Submissions per visitor (IP) and form, per period (Workers rate limiting: 10 or 60 s). */
 			rateLimit: z.object({ limit: z.number().int().positive().default(5), period: z.union([z.literal(10), z.literal(60)]).default(60) }).prefault({}),
+			/**
+			 * Keep messages in Workers KV when email cannot be sent (not configured, or the provider refuses) and retry
+			 * them from the cron; deleted once emailed, or after `days`. An owner decision (decisions.md): it stores the
+			 * form's fields — on a sensitive site only the contact fields the policy allows.
+			 */
+			outbox: z
+				.object({
+					days: z.number().int().min(1).max(90).default(30),
+					/** Hold: keep every message and send none (a provider that accepts but does not deliver). Off = queue drains. */
+					hold: z.boolean().default(false),
+				})
+				.optional(),
 			/** Production Turnstile site key (public). Staging uses Cloudflare's always-pass test key. */
 			turnstileSiteKey: z.string().optional(),
 		})

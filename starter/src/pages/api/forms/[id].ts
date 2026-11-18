@@ -11,11 +11,12 @@
 import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { deliver, parseAddress } from "../../../forms/deliver";
+import { enqueue, type OutboxEnv } from "../../../forms/outbox";
 import { getForm, type FormField } from "../../../forms/index";
 
 export const prerender = false;
 
-interface Env {
+interface Env extends OutboxEnv {
 	EMAIL_PROVIDER?: string;
 	EMAIL_API_KEY?: string;
 	MAILGUN_REGION?: string;
@@ -105,7 +106,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const to = (e.FORM_TO ?? "").split(",").map((x) => x.trim()).filter((x) => EMAIL.test(x));
 	const pipeline = (locals as { emdash?: { email?: EmDashEmail | null } }).emdash?.email;
 	const viaEmDash = !!pipeline?.isAvailable();
-	if (!to.length || (!viaEmDash && (!e.EMAIL_API_KEY || !from))) return fail(503, "The form is not available right now. Please call or email us instead.", "email not configured");
+	const emailReady = to.length > 0 && (viaEmDash || (!!e.EMAIL_API_KEY && !!from));
+	if (!emailReady && !e.FORM_OUTBOX) return fail(503, "The form is not available right now. Please call or email us instead.", "email not configured");
 
 	const replyEmail = values.find((v) => v.field.type === "email")?.value;
 	const name = values.filter((v) => /name/i.test(v.field.name) || /name/.test(v.field.autocomplete ?? "")).map((v) => v.value).join(" ");
@@ -113,6 +115,21 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const subject = `New website message${name ? ` from ${name}` : ""}`;
 	const text = [...values.map((v) => `${v.field.label}: ${v.value}`), "", page ? `Sent from ${page}` : ""].join("\n").trim();
 	const html = `<table cellpadding="6" style="border-collapse:collapse;font:14px/1.5 sans-serif">${values.map((v) => `<tr><th align="left" valign="top">${esc(v.field.label)}</th><td>${esc(v.value).replace(/\n/g, "<br>")}</td></tr>`).join("")}</table>${page ? `<p style="font:12px sans-serif;color:#666">Sent from ${esc(page)}</p>` : ""}`;
+	// Kept for later delivery when email is not set up or the provider refuses (outbox, owner opt-in): the visitor's
+	// message is not lost, and the cron emails it once delivery works.
+	const keep = async (reason: string) => {
+		try {
+			if (await enqueue(e, { form: form.id, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html })) {
+				console.log(JSON.stringify({ form: form.id, outcome: "queued", reason }));
+				return reply(request, 200, { ok: true, message: form.successMessage });
+			}
+		} catch (err) {
+			return fail(502, "Your message could not be sent. Please call or email us instead.", `outbox: ${(err as Error).name}`);
+		}
+		return undefined;
+	};
+	if (e.FORM_OUTBOX_HOLD === "1" && e.FORM_OUTBOX) return (await keep("held")) ?? fail(502, "Your message could not be sent. Please call or email us instead.", "outbox unavailable");
+	if (!emailReady) return (await keep("email not configured")) ?? fail(503, "The form is not available right now. Please call or email us instead.", "email not configured");
 	if (viaEmDash && pipeline) {
 		try {
 			// Sender, host and credentials come from Settings → Email (or EMAIL_SMTP_*); recipients from FORM_TO.
@@ -122,7 +139,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		}
 	} else {
 		const result = await deliver(e.EMAIL_PROVIDER ?? "brevo", e.EMAIL_API_KEY as string, { from: from as { email: string; name?: string }, to, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html }, { ...(e.MAILGUN_REGION ? { region: e.MAILGUN_REGION } : {}) });
-		if (!result.ok) return fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
+		if (!result.ok) return (await keep(result.reason)) ?? fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
 	}
 	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: viaEmDash ? "emdash" : (e.EMAIL_PROVIDER ?? "brevo") }));
 	return reply(request, 200, { ok: true, message: form.successMessage });
