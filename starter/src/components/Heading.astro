@@ -7,7 +7,8 @@ interface Props {
 const { value: v, class: extra } = Astro.props;
 const size = /^\d+(?:\.\d+)?(?:px|vw|rem|em)$/.test(v.heading_size ?? "") ? v.heading_size : undefined;
 const leading = typeof v.heading_leading === "number" && v.heading_leading >= 0.5 && v.heading_leading <= 3 ? v.heading_leading : undefined;
-const look = [size && `--heading-size:${size}`, leading && `--heading-leading:${leading}`].filter(Boolean).join(";") || undefined;
+const gap = /^\d+(?:\.\d+)?(?:px|%|vw|rem)$/.test(v.head_gap ?? "") ? v.head_gap : undefined;
+const look = [size && `--heading-size:${size}`, leading && `--heading-leading:${leading}`, gap && `--head-gap:${gap}`].filter(Boolean).join(";") || undefined;
 const Tag = (/^h[1-6]$/.test(v.heading_level ?? "") ? v.heading_level : "h2") as "h2";
 ---
 

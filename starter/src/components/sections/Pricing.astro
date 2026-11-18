@@ -7,12 +7,14 @@ import Md from "../Md.astro";
 import { safeHref } from "../../utils/links";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const plans = (v.plans ?? []) as Array<Record<string, any>>;
+const LENGTH = /^\d+(?:\.\d+)?(?:px|rem|em|%|vw)$/;
+const look = [LENGTH.test(v.card_radius ?? "") && `--plan-radius:${v.card_radius}`, LENGTH.test(v.list_inset ?? "") && `--list-inset:${v.list_inset}`, LENGTH.test(v.list_inset_small ?? "") && `--list-inset-small:${v.list_inset_small}`].filter(Boolean).join(";") || undefined;
 ---
 
 <Section value={v} type="pricing">
 	<Heading value={v} />
 	<Rich value={v.intro} />
-	<ul class:list={["pricing", `pricing--${v.variant ?? "list"}`]} role="list">
+	<ul class:list={["pricing", `pricing--${v.variant ?? "list"}`]} role="list" style={look}>
 		{
 			plans.map((p) => {
 				const href = safeHref(p.button_url);
@@ -20,7 +22,7 @@ const plans = (v.plans ?? []) as Array<Record<string, any>>;
 				return (
 					<li class:list={["plan", { "plan--highlight": p.highlight }]}>
 						<div class="plan__main">
-							<h3 class="plan__name">{p.name}</h3>
+							<h3 class="plan__name heading--h5">{p.name}</h3>
 							{p.description && <p class="plan__desc">{p.description}</p>}
 							{features.length > 0 && <ul class="plan__features">{features.map((f) => <li>{f}</li>)}</ul>}
 						</div>

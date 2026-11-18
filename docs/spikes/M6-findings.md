@@ -42,6 +42,8 @@ The official `EmDashClient` (`emdash/client`) covers content and media but not m
 - Result: 24 media uploaded to R2 (incl. the hero video copied from the external CDN), 15 documents, menus, settings; gate passed. A partial first run (uploads failing) left 10 documents without media; the next run created the 5 missing and updated the 10 through the id-map — recovery without cleanup. Second full run: 0 uploads, 0 creates.
 - EmDash API token scopes used: `content:read/write`, `media:read/write`, `schema:read`, `menus:manage`, `settings:read/manage` — sufficient for create, update, publish, menus and settings.
 
+- **EmDash refuses to change the `_type` of a block whose `_key` already exists on the entry** (`VALIDATION_ERROR: content[2]._type: cannot change an existing block's type`), checked per key, not per position (verified 2026-11-18 on the local dev server: the same update with new keys loaded fine). Block keys are now `<slug>-<index>-<type>` (`blockKey()`), so a section that becomes another type on a rerun is a new block. The first load after this change re-keys every block once.
+
 ## Not done yet
 
 - `site export` snapshot before each staging load (A9) — add with the staging run.

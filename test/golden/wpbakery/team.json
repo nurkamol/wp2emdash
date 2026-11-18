@@ -1,7 +1,7 @@
 {
   "sections": [
     {
-      "type": "rich_text",
+      "type": "team",
       "theme": {
         "tone": "light"
       },
@@ -12,7 +12,7 @@
         "rawHash": "1f4dff65d4"
       },
       "fields": {
-        "body": [
+        "heading": [
           {
             "_type": "block",
             "_key": "t0",
@@ -28,23 +28,6 @@
             "markDefs": []
           }
         ],
-        "width": "normal",
-        "align": "left",
-        "buttons": []
-      }
-    },
-    {
-      "type": "team",
-      "theme": {
-        "tone": "light"
-      },
-      "spacing": "normal",
-      "sourceRef": {
-        "adapter": "wpbakery",
-        "path": "vc_row[0]#1",
-        "rawHash": "1f4dff65d4"
-      },
-      "fields": {
         "intro": [],
         "columns": 2,
         "look": {
@@ -98,7 +81,132 @@
           }
         ]
       }
+    },
+    {
+      "type": "team",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "headAlign": "center",
+      "headGap": "7%",
+      "spaceBefore": 30,
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]#0",
+        "rawHash": "7aead8432c"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Our coaches",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "columns": 3,
+        "look": {
+          "photoHeight": "500px",
+          "nameSize": "38px",
+          "gap": "80px"
+        },
+        "members": [
+          {
+            "name": "Jo Park",
+            "role": "Coach",
+            "photo": {
+              "wpId": 736,
+              "kind": "image"
+            },
+            "bio": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Jo teaches mat classes.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "links": []
+          },
+          {
+            "name": "Kim Ray",
+            "role": "Coach",
+            "photo": {
+              "wpId": 737,
+              "kind": "image"
+            },
+            "bio": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Kim teaches reformer classes.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "links": []
+          },
+          {
+            "name": "Lee Fox",
+            "role": "Coach",
+            "photo": {
+              "wpId": 738,
+              "kind": "image"
+            },
+            "bio": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Lee teaches stretch classes.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "links": []
+          }
+        ]
+      }
     }
   ],
-  "diagnostics": []
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[2]/vc_column[0]/divider[0]",
+      "tag": "divider"
+    }
+  ]
 }

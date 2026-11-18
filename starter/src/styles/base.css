@@ -65,6 +65,8 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .section__bg-media { width: 100%; height: 100%; object-fit: cover; }
 .section__overlay { position: absolute; inset: 0; background: #000; opacity: var(--section-overlay, 0); }
 .section__head { margin-bottom: 1.5rem; max-width: 52rem; }
+.section__head[style*="--head-gap"] { margin-bottom: var(--head-gap); }
+.head-center .section__head { text-align: center; margin-inline: auto; }
 @media (min-width: 900px) /* stack */ {
 	.section__head[style*="--heading-size"] .heading { font-size: var(--heading-size); }
 	.section__head[style*="--heading-leading"] .heading { line-height: var(--heading-leading); }
@@ -187,6 +189,15 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .faq__q::after { content: "+"; position: absolute; right: 0.25rem; top: 50%; translate: 0 -50%; transition: rotate 0.3s var(--ease-out); }
 .faq__item[open] .faq__q::after { rotate: 45deg; }
 .faq__a { padding: 0 0 1.25rem; max-width: var(--container-text); }
+/* card look (Salient minimal_shadow toggles): padded items, circled icons, the open one raised */
+.faq--card { border-top: 0; margin-inline: var(--faq-inset, 0); }
+.faq--card .faq__item { padding-inline: 2.5rem; border-bottom: 1px solid rgb(0 0 0 / 0.08); border-radius: var(--faq-radius, 20px); transition: box-shadow 0.3s var(--ease-out); }
+.faq--card .faq__item[open] { border-bottom-color: transparent; box-shadow: 0 90px 70px rgb(0 0 0 / 0.04), 0 40px 35px rgb(0 0 0 / 0.03), 0 25px 15px rgb(0 0 0 / 0.03), 0 11px 7px rgb(0 0 0 / 0.03), 0 2px 5px rgb(0 0 0 / 0.03); }
+.faq--card .faq__q { padding: 1.875rem 4.375rem 1.875rem 0; font-size: var(--font-size-h3); line-height: max(1.1em, 2.625rem); }
+.faq--card .faq__q::after { content: "+"; width: 30px; height: 30px; box-sizing: border-box; border: 2px solid currentColor; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-body); font-size: 18px; line-height: 1; right: 0; }
+.faq--card .faq__item[open] .faq__q::after { content: "\2212"; rotate: none; }
+.faq--card .faq__a { max-width: none; line-height: 1.75; padding-bottom: 1.875rem; }
+@media (max-width: 690px) { .faq--card .faq__q { font-size: min(var(--font-size-h3), 1.5rem); } }
 
 /* pricing */
 .pricing { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
@@ -198,6 +209,24 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .plan__side { display: flex; align-items: center; gap: 1rem; justify-content: space-between; }
 .plan__price { font-family: var(--font-display); font-size: var(--font-size-h4); margin: 0; }
 @media (min-width: 700px) { .pricing--list .plan { grid-template-columns: 1fr auto; align-items: center; } }
+.pricing[style*="--plan-radius"] .plan { border-radius: var(--plan-radius); }
+/* rows (Salient horizontal list): plain bordered rows, name · details · price; stacked on small screens */
+.pricing--rows { gap: 1.25rem; margin-inline: var(--list-inset-small, var(--list-inset, 0)); }
+.pricing--rows .plan { background: transparent; gap: 0.75rem; padding: 1.5rem 1.375rem; }
+.pricing--rows .plan__main, .pricing--rows .plan__side { display: contents; }
+.pricing--rows .plan__desc { margin: 0; opacity: 1; }
+.pricing--rows .plan__price { font-family: var(--font-body); }
+.pricing--rows .plan { position: relative; }
+.pricing--rows .plan .btn { position: absolute; top: 1.25rem; right: 1rem; min-height: 0; padding: 0.3em 0.9em; border: 0; border-radius: 999px; background: rgb(0 0 0 / 0.06); color: inherit; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+@media (min-width: 900px) /* stack */ {
+	.pricing--rows { margin-inline: var(--list-inset, 0); }
+	.pricing--rows .plan { grid-template-columns: 35% 1fr 1fr 15%; align-items: center; padding-block: 1.25rem; }
+	.pricing--rows .plan__price { grid-column: 3; text-align: right; }
+	.pricing--rows .plan .btn { position: static; grid-column: 4; justify-self: end; }
+}
+/* under a centred heading: the intro and the closing buttons are centred too */
+.head-center .section__head + .prose { text-align: center; }
+.head-center .section__inner > .actions { justify-content: center; }
 @media (min-width: 900px) { .pricing--cards { grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); } }
 
 /* testimonials, team, gallery, logos, stats, steps */
@@ -208,8 +237,8 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .quote__by { display: flex; gap: 0.75rem; align-items: center; margin: 0; }
 .quote__photo { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
 @media (min-width: 700px) { .gallery--grid { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); } }
-.team--grid { row-gap: 2rem; }
-@media (min-width: 900px) /* stack */ { .team--grid { grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); column-gap: var(--team-gap, clamp(1.5rem, 3vw, 3rem)); } }
+.team--grid { row-gap: var(--team-gap, 2rem); } /* stacked: the builder's column margin separates members */
+@media (min-width: 900px) /* stack */ { .team--grid { grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); column-gap: var(--team-gap, clamp(1.5rem, 3vw, 3rem)); row-gap: 1.5rem; } }
 .person__photo { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--radius-media); margin-bottom: 1.25rem; }
 [style*="--photo-h"] .person__photo { aspect-ratio: auto; height: var(--photo-h); }
 .person__role { margin: 0 0 0.35rem; }

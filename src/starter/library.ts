@@ -100,6 +100,8 @@ const appearance: Field[] = [
 	sel("quote_style", "Quotes", ["default", "centered"], "default"),
 	s("heading_size", "Heading size on desktop (e.g. 4vw; empty = type scale)", { validation: { pattern: "^(?:$|\\d+(?:\\.\\d+)?(?:px|vw|rem|em))$" } }),
 	{ slug: "heading_leading", label: "Heading line height (e.g. 0.9)", type: "number", validation: { min: 0.5, max: 3 } },
+	sel("head_align", "Heading position", ["left", "center"], "left"),
+	s("head_gap", "Space under the heading (e.g. 7% or 60px; empty = default)", { validation: { pattern: "^(?:$|\\d+(?:\\.\\d+)?(?:px|%|vw|rem))$" } }),
 	s("pad_top", "Top padding (overrides spacing)", { validation: PAD, description: "e.g. 50px, or a clamp() from the migration" }),
 	s("pad_bottom", "Bottom padding (overrides spacing)", { validation: PAD }),
 	bool("full_height", "Full screen height"),
@@ -140,8 +142,8 @@ export const BLOCK_TYPES: BlockType[] = [
 	block("section_faq", "FAQ", "Questions and answers (adds FAQPage structured data)", [], [...heading(), pt("intro", "Intro"), rep("items", "Questions", [
 		{ slug: "question", label: "Question", type: "string", required: true },
 		{ slug: "answer", label: "Answer", type: "text", required: true, description: MD },
-	], 1, 60), bool("schema", "Add FAQPage structured data", true)]),
-	block("section_pricing", "Pricing", "Plans or price list", ["list", "cards"], [...heading(), pt("intro", "Intro"), rep("plans", "Plans", [
+	], 1, 60), bool("schema", "Add FAQPage structured data", true), sel("faq_style", "Look", ["lines", "card"], "lines"), { slug: "card_radius", label: "Open card corner radius (e.g. 20px)", type: "string", validation: { pattern: CSS_LENGTH } }, bool("open_first", "Show the first answer open"), { slug: "list_inset", label: "Space at the sides of the list (e.g. 8%)", type: "string", validation: { pattern: CSS_LENGTH } }]),
+	block("section_pricing", "Pricing", "Plans or price list", ["list", "cards", "rows"], [...heading(), pt("intro", "Intro"), { slug: "card_radius", label: "Corner radius (e.g. 5px)", type: "string", validation: { pattern: CSS_LENGTH } }, { slug: "list_inset", label: "Space at the sides of the list on desktop (e.g. 10%)", type: "string", validation: { pattern: CSS_LENGTH } }, { slug: "list_inset_small", label: "Space at the sides on tablets and phones", type: "string", validation: { pattern: CSS_LENGTH } }, rep("plans", "Plans", [
 		{ slug: "name", label: "Name", type: "string", required: true },
 		{ slug: "price", label: "Price", type: "string" },
 		{ slug: "period", label: "Period", type: "string" },

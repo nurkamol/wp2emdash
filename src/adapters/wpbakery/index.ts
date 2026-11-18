@@ -120,7 +120,13 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const stray = n.children.filter((c) => c.type === "shortcode" && c.tag !== "vc_column_inner") as ShortcodeNode[];
 		const strayFrags = stray.flatMap((s) => dispatch(s, `${path}/${s.tag}`));
 		const nonEmpty = cols.filter((c) => c.fragments.length);
-		if (nonEmpty.length <= 1) return [...(nonEmpty[0]?.fragments ?? []), ...strayFrags];
+		if (nonEmpty.length <= 1) {
+			// Equal side padding on a one-column inner row (Salient left/right_padding_desktop) insets a question list.
+			const l = n.attrs.left_padding_desktop;
+			const inset = l && l === n.attrs.right_padding_desktop && /^\d+(?:\.\d+)?(?:%|px)$/.test(l) && Number.parseFloat(l) > 0 ? l : undefined;
+			const frags = (nonEmpty[0]?.fragments ?? []).map((f) => (inset && f.kind === "faq" ? { ...f, look: { ...f.look, inset } } : f));
+			return [...frags, ...strayFrags];
+		}
 		return [{ kind: "subrow", columns: cols }, ...strayFrags];
 	}
 
@@ -226,8 +232,23 @@ export function splitRow(row: Row): Row[] {
 		} else run.push(f);
 	}
 	flushRun();
+	// A run that is only a heading (plus an eyebrow) right before an inner row of collection items
+	// (team members, prices, questions…) is that collection's heading, not a section of its own.
+	const merged: Row[] = [];
+	for (let i = 0; i < out.length; i++) {
+		const r = out[i] as Row;
+		const next = out[i + 1];
+		const frags = r.columns.length === 1 ? (r.columns[0] as Col).fragments : [];
+		const blocks = frags.flatMap((f) => (f.kind === "rich" ? f.blocks : []));
+		const headingOnly = frags.length > 0 && frags.every((f) => f.kind === "rich") && blocks.length <= 3 && blocks.some(isHeading) && words(blocks) <= 16;
+		const nextCol = next?.columns[0];
+		if (headingOnly && next && nextCol && next.columns.some((c) => c.fragments.some((f) => (COLLECTIONS as readonly string[]).includes(f.kind)))) {
+			merged.push({ ...next, columns: [{ ...nextCol, fragments: [...frags, ...nextCol.fragments] }, ...next.columns.slice(1)] });
+			i++;
+		} else merged.push(r);
+	}
 	// Only the first virtual row keeps the anchor id.
-	return out.map((r, i) => (i === 0 ? r : { ...r, attrs: { ...r.attrs, id: "", el_id: "" } }));
+	return merged.map((r, i) => ({ ...r, path: merged.length === out.length ? r.path : `${row.path}#${i}`, ...(i === 0 ? {} : { attrs: { ...r.attrs, id: "", el_id: "" } }) }));
 }
 
 /**
@@ -334,6 +355,8 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 		...(look.valign ? { valign: look.valign } : {}),
 		...(CENTRED_QUOTE.test(row.raw) ? { quoteStyle: "centered" as const } : {}),
 		...headingLook(row.raw),
+		...headLook(row.raw),
+		...(!/#[1-9]\d*$/.test(row.path) ? leadSpacer(row.raw) : {}),
 		...(row.columns.some((c) => c.fragments.length) && row.columns.filter((c) => c.fragments.length).every((c) => c.phoneCenter) ? { phoneAlign: "center" as const } : {}),
 		sourceRef: { adapter: row.adapter ?? ("wpbakery" as const), path: row.path, rawHash: hash(row.raw) },
 	});
@@ -375,7 +398,10 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 			const items = <K extends Fragment["kind"]>(k: K) => all.filter((f): f is Extract<Fragment, { kind: K }> => f.kind === k);
 			switch (kind) {
 				case "faq":
-					push({ ...base("faq"), fields: { ...h, intro, items: items("faq").map((f) => ({ question: f.question, answer: f.answer })), schema: true } });
+					{
+						const look = items("faq")[0]?.look;
+						push({ ...base("faq"), fields: { ...h, intro, ...(look ? { look } : {}), items: items("faq").map((f) => ({ question: f.question, answer: f.answer })), schema: true } });
+					}
 					break;
 				case "tab":
 					push({ ...base("tabs"), fields: { ...h, tabs: items("tab").map((f) => ({ label: f.label, body: f.body })) } });
@@ -397,9 +423,15 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					push({ ...base("gallery", layout), fields: { ...h, images: g.flatMap((f) => f.images), layout, lightbox: true } });
 					break;
 				}
-				case "price":
-					push({ ...base("pricing", "list"), fields: { ...h, intro, plans: items("price").map((f) => f.plan), buttons: main ? buttons : [] } });
+				case "price": {
+					const prices = items("price");
+					const rows = prices.every((f) => f.rows);
+					const radius = prices[0]?.rows?.radius;
+					const inset = rowInset(row.attrs);
+					const look = { ...(rows && radius ? { radius } : {}), ...inset };
+					push({ ...base("pricing", rows ? "rows" : "list"), fields: { ...h, intro, ...(Object.keys(look).length ? { look } : {}), plans: prices.map((f) => f.plan), buttons: main ? buttons : [] } });
 					break;
+				}
 				case "stat":
 					push({ ...base("stats"), fields: { ...h, items: items("stat").map((f) => f.item) } });
 					break;
@@ -586,6 +618,45 @@ export function headingLook(raw: string): { headingSize?: string; headingLeading
 	if (!size || Number(size[1]) <= 0) return {};
 	const lh = Number(/\bfont_line_height="\s*([\d.]+)\s*"/.exec(tag)?.[1]);
 	return { headingSize: `${size[1]}${size[2] ?? "px"}`, ...(lh > 0.5 && lh < 3 ? { headingLeading: lh } : {}) };
+}
+
+/**
+ * A section heading set centred in the builder, and the inner row's bottom padding under it
+ * (Salient: % of the content width, which CSS margin % reproduces exactly).
+ */
+export function headLook(raw: string): { headAlign?: "center"; headGap?: string } {
+	const centred = /\[split_line_heading(?=[^\]]*\bfont_style="h[1-6]")(?=[^\]]*\bcontent_alignment="center")[^\]]*\]/.test(raw);
+	// An inner row holding just the heading: its bottom padding is the gap to what follows.
+	const inner = /\[vc_row_inner\b([^\]]*)\]((?:(?!\[\/?vc_row_inner\b)[\s\S])*?)\[\/vc_row_inner\]/g;
+	let gap: string | undefined;
+	for (const m of raw.matchAll(inner)) {
+		const body = m[2] ?? "";
+		const shortcodes = [...body.matchAll(/\[(\w+)/g)].map((x) => x[1]);
+		if (!shortcodes.includes("split_line_heading") || shortcodes.some((t) => !["vc_column_inner", "split_line_heading", "divider", "vc_empty_space"].includes(t as string))) continue;
+		const pct = /\bbottom_padding="\s*(\d+(?:\.\d+)?)\s*(%|px)?\s*"/.exec(m[1] ?? "");
+		if (pct && Number(pct[1]) > 0) gap = `${pct[1]}${pct[2] ?? "px"}`;
+		break;
+	}
+	return { ...(centred ? { headAlign: "center" as const } : {}), ...(gap ? { headGap: gap } : {}) };
+}
+
+/**
+ * Equal left/right padding on the row (Salient left/right_padding_desktop, _tablet): side space
+ * around the content, desktop and small screens (tablet values apply to phones too).
+ */
+export function rowInset(a: Record<string, string | undefined>): { inset?: string; insetSmall?: string } {
+	const len = (v?: string) => (v !== undefined && /^\d+(?:\.\d+)?(?:%|px)?$/.test(v.trim()) ? (/^0+(?:\.0+)?$/.test(v.trim()) ? "0px" : /\d$/.test(v.trim()) ? `${v.trim()}px` : v.trim()) : undefined);
+	const d = a.left_padding_desktop === a.right_padding_desktop ? len(a.left_padding_desktop) : undefined;
+	const t = a.left_padding_tablet === a.right_padding_tablet ? len(a.left_padding_tablet) : undefined;
+	if (!d || d === "0px") return {};
+	return { inset: d, ...(t ? { insetSmall: t } : {}) };
+}
+
+/** A spacer that is the first thing in the row's first column: its height sits above the content. */
+export function leadSpacer(raw: string): { spaceBefore?: number } {
+	const m = /^\s*\[vc_row\b[^\]]*\]\s*(?:<\/?p>\s*)*\[vc_column\b[^\]]*\]\s*(?:<\/?p>\s*)*\[(?:divider|vc_empty_space)\b([^\]]*)\]/.exec(raw);
+	const h = m ? /\b(?:custom_height|height)="\s*(\d+)\s*(?:px)?\s*"/.exec(m[1] ?? "")?.[1] : undefined;
+	return h && Number(h) > 0 && Number(h) <= 400 ? { spaceBefore: Number(h) } : {};
 }
 
 /** A Salient italic line (pull quote) set centred in the builder. */

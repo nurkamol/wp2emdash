@@ -5,7 +5,7 @@
  */
 import type { IrMenuItem, IrPage, IrSite, MediaRef } from "../ir/schema.js";
 import { BLOCK_TYPES, SECTION_SLUGS } from "../starter/library.js";
-import { type MediaResolver, sectionToBlock } from "../targets/emdash/blocks.js";
+import { blockKey, type MediaResolver, sectionToBlock } from "../targets/emdash/blocks.js";
 import type { FormDefinitionOut } from "./forms.js";
 
 export interface MediaInfo {
@@ -32,7 +32,7 @@ export function seedMediaResolver(library: Map<number, MediaInfo>, rewriteUrl: (
 }
 
 let dropLog: (msg: string) => void = () => {};
-const blocksOf = (doc: IrPage, media: MediaResolver) => doc.sections.map((s, i) => sectionToBlock(s, `${doc.source.slug}-${i}`, media, (d) => dropLog(`${doc.source.slug} ${s.type}#${i}: ${d.join(", ")}`)));
+const blocksOf = (doc: IrPage, media: MediaResolver) => doc.sections.map((s, i) => sectionToBlock(s, blockKey(doc.source.slug, i, s.type), media, (d) => dropLog(`${doc.source.slug} ${s.type}#${i}: ${d.join(", ")}`)));
 
 function menuItems(items: IrMenuItem[]): unknown[] {
 	return items.map((i) => ({

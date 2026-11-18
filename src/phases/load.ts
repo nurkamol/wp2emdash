@@ -15,7 +15,7 @@ import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
 import { routeToSlug } from "../scaffold/seed.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
-import { sectionToBlock } from "../targets/emdash/blocks.js";
+import { blockKey, sectionToBlock } from "../targets/emdash/blocks.js";
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
@@ -275,7 +275,7 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 			reporter.emit({ type: "step:progress", step: "Content", done: i + 1, total: docs.length, item: `${collection}/${slug}` });
 			try {
 				const sections = fixLinks(doc.sections) as Section[];
-				const content = sections.map((s, j) => sectionToBlock(s, `${doc.source.slug}-${j}`, resolver, (d) => drops.push(`${slug} ${s.type}#${j}: ${d.join(", ")}`)));
+				const content = sections.map((s, j) => sectionToBlock(s, blockKey(doc.source.slug, j, s.type), resolver, (d) => drops.push(`${slug} ${s.type}#${j}: ${d.join(", ")}`)));
 				const data: Record<string, unknown> = { title: doc.title, content };
 				if (doc.kind === "popup") {
 					const sel = doc.popup?.selectors.filter((s) => !s.includes("popmake")).join(", ");

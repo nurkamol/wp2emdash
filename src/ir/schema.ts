@@ -104,6 +104,11 @@ const base = {
 	/** The heading's own size on desktop (builder override of the type scale), and its line height. */
 	headingSize: z.string().regex(/^\d+(?:\.\d+)?(?:px|vw|rem|em)$/).optional(),
 	headingLeading: z.number().min(0.5).max(3).optional(),
+	/** The section heading centred over left-aligned content, and the space under it (% = of the content width, as builder padding). */
+	headAlign: z.enum(["center"]).optional(),
+	headGap: z.string().regex(/^\d+(?:\.\d+)?(?:px|%|vw|rem)$/).optional(),
+	/** A builder spacer (px) above the row's first content; added to the measured top padding. */
+	spaceBefore: z.number().int().min(0).max(400).optional(),
 	/** Padding measured on the source page (px, or fluid clamp between phone and desktop); wins over spacing. */
 	pad: z.object({ top: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), bottom: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional() }).optional(),
 	sourceRef,
@@ -169,13 +174,15 @@ export const section = z.discriminatedUnion("type", [
 		}),
 	}),
 	z.object({ type: z.literal("cta_banner"), ...base, fields: z.object({ heading, body: richText.default([]), buttons: z.array(button).default([]), media: mediaRef.optional() }) }),
-	z.object({ type: z.literal("faq"), ...base, fields: z.object({ heading, intro: richText.default([]), items: z.array(z.object({ question: z.string(), answer: richText })).min(1), schema: z.boolean().default(true) }) }),
+	z.object({ type: z.literal("faq"), ...base, fields: z.object({ heading, intro: richText.default([]), /** Source look: card = padded items, circled icons, the open one raised; openFirst = first answer shown; inset = side space around the list. */ look: z.object({ style: z.enum(["card"]).optional(), radius: cssLength.optional(), openFirst: z.boolean().optional(), inset: z.string().regex(/^\d+(?:\.\d+)?(?:px|%)$/).optional() }).optional(), items: z.array(z.object({ question: z.string(), answer: richText })).min(1), schema: z.boolean().default(true) }) }),
 	z.object({
 		type: z.literal("pricing"),
 		...base,
 		fields: z.object({
 			heading,
 			intro: richText.default([]),
+			/** Source look: corner radius of the rows; inset = side space around the list (desktop, and small screens). */
+			look: z.object({ radius: cssLength.optional(), inset: z.string().regex(/^\d+(?:\.\d+)?(?:px|%)$/).optional(), insetSmall: z.string().regex(/^\d+(?:\.\d+)?(?:px|%)$/).optional() }).optional(),
 			plans: z.array(z.object({ name: z.string(), price: z.string().optional(), period: z.string().optional(), description: z.string().optional(), features: z.array(z.string()).default([]), button: button.optional(), highlight: z.boolean().default(false) })).min(1),
 			buttons: z.array(button).default([]),
 		}),

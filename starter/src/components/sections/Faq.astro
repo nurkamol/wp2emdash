@@ -7,16 +7,18 @@ import Md from "../Md.astro";
 import { mdPlain } from "../../utils/md";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const items = (v.items ?? []) as Array<{ question: string; answer: string }>;
+const LENGTH = /^\d+(?:\.\d+)?(?:px|rem|em|%|vw)$/;
+const look = [LENGTH.test(v.card_radius ?? "") && `--faq-radius:${v.card_radius}`, LENGTH.test(v.list_inset ?? "") && `--faq-inset:${v.list_inset}`].filter(Boolean).join(";") || undefined;
 const schema = v.schema !== false && items.length ? JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: items.map((i) => ({ "@type": "Question", name: i.question, acceptedAnswer: { "@type": "Answer", text: mdPlain(i.answer) } })) }) : "";
 ---
 
 <Section value={v} type="faq">
 	<Heading value={v} />
 	<Rich value={v.intro} />
-	<div class="faq">
+	<div class:list={["faq", v.faq_style === "card" && "faq--card"]} style={look}>
 		{
-			items.map((i) => (
-				<details class="faq__item">
+			items.map((i, n) => (
+				<details class="faq__item" open={v.open_first && n === 0}>
 					<summary class="faq__q"><h3 class="faq__q-text">{i.question}</h3></summary>
 					<Md text={i.answer} class="faq__a" />
 				</details>

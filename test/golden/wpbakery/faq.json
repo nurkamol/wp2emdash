@@ -29,6 +29,10 @@
           }
         ],
         "intro": [],
+        "look": {
+          "style": "card",
+          "openFirst": true
+        },
         "items": [
           {
             "question": "What should I bring?",
@@ -142,6 +146,85 @@
         ],
         "schema": true
       }
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "headAlign": "center",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[4]",
+        "rawHash": "167680a31c"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "td",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "te",
+                "text": "Studio questions",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "look": {
+          "style": "card",
+          "radius": "20px",
+          "openFirst": true,
+          "inset": "8%"
+        },
+        "items": [
+          {
+            "question": "Do you have parking?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "tf",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tg",
+                    "text": "Yes, behind the studio.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Is there a shower?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "th",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "ti",
+                    "text": "Not yet.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
     }
   ],
   "diagnostics": [
@@ -150,6 +233,13 @@
       "code": "dropped-decorative",
       "message": "divider dropped (decorative)",
       "path": "vc_row[0]/vc_column[0]/divider[1]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[4]/vc_column[0]/vc_row_inner[0]/vc_column_inner[0]/divider[1]",
       "tag": "divider"
     }
   ]

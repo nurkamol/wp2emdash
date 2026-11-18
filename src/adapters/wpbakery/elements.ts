@@ -19,12 +19,12 @@ export type Fragment =
 	| { kind: "button"; button: Button }
 	| { kind: "media"; media: MediaRef; role: "content" | "background"; link?: string; /** Height of a background-image box sized by builder spacers. */ height?: BoxHeight; /** Drawn as a circle of this diameter (Salient circle images). */ circle?: string }
 	| { kind: "icon"; icon: { library: string; name: string } }
-	| { kind: "faq"; question: string; answer: RichText }
+	| { kind: "faq"; question: string; answer: RichText; look?: FaqLook }
 	| { kind: "tab"; label: string; body: RichText }
 	| { kind: "team"; member: { name: string; role?: string; photo?: MediaRef; summary?: string; bio: RichText; links: Button[] }; look?: TeamLook; gap?: string }
 	| { kind: "testimonial"; item: { quote: string; name?: string; role?: string; photo?: MediaRef; rating?: number } }
 	| { kind: "gallery"; images: MediaRef[]; layout: "grid" | "masonry" | "carousel" | "stack" }
-	| { kind: "price"; plan: { name: string; price?: string; period?: string; description?: string; features: string[]; button?: Button; highlight: boolean } }
+	| { kind: "price"; plan: { name: string; price?: string; period?: string; description?: string; features: string[]; button?: Button; highlight: boolean }; rows?: { radius?: string } }
 	| { kind: "stat"; item: { value: string; label: string; prefix?: string; suffix?: string } }
 	| { kind: "feature"; item: { title?: string; body: RichText; image?: MediaRef; icon?: { library: string; name: string }; link?: Button } }
 	| { kind: "form"; provider: string; id: string }
@@ -327,7 +327,9 @@ export const HANDLERS: Record<string, Handler> = {
 		const rest = cols.filter((_, i) => i !== 0 && i !== priceIdx);
 		const btn = buttonFrom(n.attrs.cta_1_text, n.attrs.cta_1_url, ctx, { newTab: n.attrs.cta_1_open_new_tab === "true" });
 		const button = btn[0]?.kind === "button" ? btn[0].button : undefined;
-		return [{ kind: "price", plan: { name, ...(price ? { price } : {}), ...(rest.length ? { description: rest.join(" · ") } : {}), features: [], ...(button ? { button } : {}), highlight: false } }];
+		// A horizontal list item is a bordered row (name · details · price) that stacks on small screens.
+		const radius = /^\d+(?:\.\d+)?px$/.test(n.attrs.border_radius ?? "") && n.attrs.border_radius !== "0px" ? n.attrs.border_radius : undefined;
+		return [{ kind: "price", plan: { name, ...(price ? { price } : {}), ...(rest.length ? { description: rest.join(" · ") } : {}), features: [], ...(button ? { button } : {}), highlight: false }, rows: radius ? { radius } : {} }];
 	},
 	pricing_column: (n, ctx) => {
 		const features = ctx
@@ -390,11 +392,30 @@ function dynamicListing(n: ShortcodeNode, ctx: HandlerCtx): Fragment[] {
 	return [];
 }
 
+export interface FaqLook {
+	style?: "card";
+	radius?: string;
+	openFirst?: boolean;
+	inset?: string;
+}
+
+/** Salient toggles: minimal_shadow = padded items, circled +/− icons, the open one a raised card; an accordion opens its first item. */
+function togglesLook(a: Record<string, string>): FaqLook | undefined {
+	const card = /shadow/.test(a.style ?? "");
+	const radius = /^\d+(?:\.\d+)?px$/.test(a.border_radius ?? "") && a.border_radius !== "0px" ? a.border_radius : undefined;
+	const openFirst = a.accordion === "true" && !/closed/.test(a.accordion_starting_functionality ?? "");
+	const look: FaqLook = { ...(card ? { style: "card" as const } : {}), ...(card && radius ? { radius } : {}), ...(openFirst ? { openFirst: true } : {}) };
+	return Object.keys(look).length ? look : undefined;
+}
+
 /** Containers whose children are processed as a group by the row builder. */
 export const CONTAINERS = new Set(["vc_row", "vc_row_inner", "vc_column", "vc_column_inner", "vc_section"]);
 /** Grouping elements: children handled individually, the wrapper adds nothing visible. */
 export const GROUPS: Record<string, (n: ShortcodeNode, ctx: HandlerCtx) => Fragment[]> = {
-	toggles: (n, ctx) => ctx.children(n, ctx.path),
+	toggles: (n, ctx) => {
+		const look = togglesLook(n.attrs);
+		return ctx.children(n, ctx.path).map((f) => (f.kind === "faq" && look ? { ...f, look } : f));
+	},
 	vc_tta_accordion: (n, ctx) => ctx.children(n, ctx.path).map((f) => (f.kind === "tab" ? { kind: "faq" as const, question: f.label, answer: f.body } : f)),
 	vc_tta_tabs: (n, ctx) => ctx.children(n, ctx.path),
 	vc_tta_tour: (n, ctx) => ctx.children(n, ctx.path),

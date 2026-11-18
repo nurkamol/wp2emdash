@@ -131,6 +131,12 @@ export function conformToBlockType(v: BlockValue): { value: BlockValue; dropped:
 	return { value: out, dropped };
 }
 
+/**
+ * A section's block key. EmDash refuses to change the type of an existing block (same key), so the
+ * type is part of the key: a section that becomes another type on a rerun is a new block.
+ */
+export const blockKey = (slug: string, index: number, type: string): string => `${slug}-${index}-${type}`;
+
 export function sectionToBlock(s: Section, key: string, media: MediaResolver, onDrop?: (dropped: string[]) => void): BlockValue {
 	const { value, dropped } = conformToBlockType(rawBlock(s, key, media));
 	if (dropped.length) onDrop?.(dropped);
@@ -155,6 +161,8 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		...(s.quoteStyle ? { quote_style: s.quoteStyle } : {}),
 		...(s.headingSize ? { heading_size: s.headingSize } : {}),
 		...(s.headingLeading ? { heading_leading: s.headingLeading } : {}),
+		...(s.headAlign ? { head_align: s.headAlign } : {}),
+		...(s.headGap ? { head_gap: s.headGap } : {}),
 		...(s.pad?.top ? { pad_top: s.pad.top } : {}),
 		...(s.pad?.bottom ? { pad_bottom: s.pad.bottom } : {}),
 		...(s.fullHeight ? { full_height: true } : {}),
@@ -202,11 +210,14 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		case "cta_banner":
 			return base("cta_banner", { ...head, body: pt(s.fields.body), buttons: buttons(s.fields.buttons), media: s.fields.media ? media(s.fields.media) : undefined });
 		case "faq":
-			return base("faq", { ...head, intro: pt(s.fields.intro), items: s.fields.items.map((i) => ({ question: i.question, answer: ptToMd(i.answer) || "—" })), schema: s.fields.schema });
+			return base("faq", { ...head, intro: pt(s.fields.intro), ...(s.fields.look?.style ? { faq_style: s.fields.look.style } : {}), ...(s.fields.look?.radius ? { card_radius: s.fields.look.radius } : {}), ...(s.fields.look?.openFirst ? { open_first: true } : {}), ...(s.fields.look?.inset ? { list_inset: s.fields.look.inset } : {}), items: s.fields.items.map((i) => ({ question: i.question, answer: ptToMd(i.answer) || "—" })), schema: s.fields.schema });
 		case "pricing":
 			return base("pricing", {
 				...head,
 				intro: pt(s.fields.intro),
+				...(s.fields.look?.radius ? { card_radius: s.fields.look.radius } : {}),
+				...(s.fields.look?.inset ? { list_inset: s.fields.look.inset } : {}),
+				...(s.fields.look?.insetSmall ? { list_inset_small: s.fields.look.insetSmall } : {}),
 				plans: s.fields.plans.map((p) => stripUndefined({ name: p.name, price: p.price, period: p.period, description: p.description, features: p.features.length ? p.features.join("\n") : undefined, button_label: p.button?.label, button_url: p.button?.href, button_new_tab: p.button?.newTab || undefined, highlight: p.highlight || undefined })),
 				buttons: buttons(s.fields.buttons),
 			});

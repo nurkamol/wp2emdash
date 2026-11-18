@@ -19,7 +19,7 @@ const style = [padTop ? `--pad-top:${padTop}` : "", padBottom ? `--pad-bottom:${
 
 <section
 	id={v.anchor_id || undefined}
-	class:list={["section", `section--${type}`, v.variant && `section--${type}--${v.variant}`, `tone-${v.tone ?? "light"}`, `space-${v.spacing ?? "normal"}`, v.valign && `valign-${v.valign}`, { "section--full": v.full_height, "section--media-bg": v.bg_image || v.bg_video, "is-full-width": v.layout_width === "full", "gap-none": v.gap === "none", "has-gradient": gradient, "phone-center": v.phone_align === "center", "quote-centered": v.quote_style === "centered", "has-pad-top": !!padTop, "has-pad-bottom": !!padBottom }, extra]}
+	class:list={["section", `section--${type}`, v.variant && `section--${type}--${v.variant}`, `tone-${v.tone ?? "light"}`, `space-${v.spacing ?? "normal"}`, v.valign && `valign-${v.valign}`, { "section--full": v.full_height, "section--media-bg": v.bg_image || v.bg_video, "is-full-width": v.layout_width === "full", "gap-none": v.gap === "none", "has-gradient": gradient, "phone-center": v.phone_align === "center", "quote-centered": v.quote_style === "centered", "head-center": v.head_align === "center", "has-pad-top": !!padTop, "has-pad-bottom": !!padBottom }, extra]}
 	style={style || undefined}
 	data-reveal
 >

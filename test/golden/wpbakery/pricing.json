@@ -2,7 +2,7 @@
   "sections": [
     {
       "type": "pricing",
-      "variant": "list",
+      "variant": "rows",
       "theme": {
         "tone": "light",
         "background": {
@@ -74,6 +74,67 @@
           {
             "label": "Book now",
             "href": "/book/",
+            "style": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "type": "pricing",
+      "variant": "rows",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "headAlign": "center",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]",
+        "rawHash": "b6e8074ea1"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Therapy",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "look": {
+          "radius": "5px",
+          "inset": "10%",
+          "insetSmall": "0px"
+        },
+        "plans": [
+          {
+            "name": "Assessment",
+            "price": "$120",
+            "description": "60 minutes",
+            "features": [],
+            "highlight": false
+          },
+          {
+            "name": "Follow-up",
+            "price": "$80",
+            "description": "45 minutes",
+            "features": [],
+            "highlight": false
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book",
+            "href": "https://example.com/book",
             "style": "primary"
           }
         ]

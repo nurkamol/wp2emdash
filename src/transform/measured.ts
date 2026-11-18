@@ -21,7 +21,8 @@ export function applyMeasuredPadding(sections: Section[], boxes: { desktop?: Sec
 		const first = sections[g.targetIndexes[0] as number];
 		const last = sections[g.targetIndexes.at(-1) as number];
 		if (first && !SKIP.has(first.type) && !first.fullHeight) {
-			first.pad = { ...first.pad, top: fluid(m.padTop, d.padTop) };
+			const lead = first.spaceBefore ?? 0;
+			first.pad = { ...first.pad, top: fluid(m.padTop + lead, d.padTop + lead) };
 			applied++;
 		}
 		if (last && !SKIP.has(last.type) && !last.fullHeight) {
