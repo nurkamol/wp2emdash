@@ -39,7 +39,7 @@ export function faststart(bytes: Buffer): { bytes: Buffer } | { error: string } 
 		const src = join(dir, "in.mp4");
 		const dst = join(dir, "out.mp4");
 		writeFileSync(src, bytes);
-		const r = spawnSync("ffmpeg", ["-v", "error", "-y", "-i", src, "-map", "0", "-c", "copy", "-movflags", "+faststart", dst], { encoding: "utf8" });
+		const r = spawnSync("ffmpeg", ["-v", "error", "-y", "-i", src, "-map", "0:v", "-map", "0:a?", "-c", "copy", "-movflags", "+faststart", dst], { encoding: "utf8" });
 		if (r.error) return { error: (r.error as NodeJS.ErrnoException).code === "ENOENT" ? "ffmpeg not installed" : r.error.message };
 		if (r.status !== 0) return { error: r.stderr.trim().split("\n")[0] || `ffmpeg exited ${r.status}` };
 		const out = readFileSync(dst);
