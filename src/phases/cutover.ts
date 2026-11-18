@@ -67,13 +67,16 @@ export async function runCutover({ config, paths, reporter }: PhaseContext): Pro
 
 	// 3. Production Worker and its secrets (names only — values are never read).
 	const token = env.CLOUDFLARE_API_TOKEN;
-	const needSecrets = ["EMDASH_ENCRYPTION_KEY", ...(existsSync(join(paths.project, "src", "forms")) ? ["EMAIL_API_KEY", "TURNSTILE_SECRET_KEY"] : [])];
+	const hasForms = existsSync(join(paths.project, "src", "forms"));
+	// Outbox on hold (owner decision): messages wait in KV, so no email key is needed until it is released.
+	const held = !!config.forms.outbox?.hold;
+	const needSecrets = ["EMDASH_ENCRYPTION_KEY", ...(hasForms ? [...(held ? [] : ["EMAIL_API_KEY"]), "TURNSTILE_SECRET_KEY"] : [])];
 	if (!token || !accountId) check("production-secrets", "Production Worker deployed with its secrets", false, "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID missing from .env");
 	else {
 		const s = await cf<{ name: string }[]>(token, `/accounts/${accountId}/workers/scripts/${worker}/secrets`);
 		const have = new Set((s.result ?? []).map((x) => x.name));
 		const missing = needSecrets.filter((n) => !have.has(n));
-		check("production-secrets", "Production Worker deployed with its secrets", s.ok && missing.length === 0, !s.ok ? `Worker "${worker}" not deployed yet (${s.error}). Deploy production to workers.dev first: pnpm deploy:production` : missing.length ? `missing: ${missing.join(", ")} (npx wrangler secret put <NAME>)` : needSecrets.join(", "));
+		check("production-secrets", "Production Worker deployed with its secrets", s.ok && missing.length === 0, !s.ok ? `Worker "${worker}" not deployed yet (${s.error}). Deploy production to workers.dev first: pnpm deploy:production` : missing.length ? `missing: ${missing.join(", ")} (npx wrangler secret put <NAME>)` : `${needSecrets.join(", ")}${held && hasForms ? "; form email held in the outbox (no EMAIL_API_KEY yet)" : ""}`);
 	}
 
 	// 4. Forms: a real Turnstile widget for production (staging uses the always-pass test key).
