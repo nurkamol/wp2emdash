@@ -180,6 +180,7 @@ if (!reduce && "IntersectionObserver" in window) {
 	const state = new URLSearchParams(location.search).get("form");
 	const status = document.querySelector<HTMLElement>("form[data-form] .form__status");
 	if (state && status) status.textContent = state === "sent" ? "Thank you — your message was sent." : "Your message could not be sent. Please try again, or call or email us.";
+	if (state === "sent") status?.closest<HTMLFormElement>("form[data-after=hide]")?.classList.add("is-sent");
 }
 for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")) {
 	form.addEventListener("submit", async (e) => {
@@ -204,7 +205,11 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")
 				if (err) err.textContent = msg;
 				field?.querySelector<HTMLElement>("input, textarea, select")?.setAttribute("aria-invalid", "true");
 			}
-			if (res.ok) form.reset();
+			if (res.ok) {
+				form.reset();
+				// Fluent "Hide Form": only the thank-you message stays.
+				if (form.dataset.after === "hide") form.classList.add("is-sent");
+			}
 		} catch {
 			if (status) status.textContent = "Network error. Please try again.";
 		} finally {

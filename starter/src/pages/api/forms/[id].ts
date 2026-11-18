@@ -103,7 +103,7 @@ export const POST: APIRoute = async ({ params, request }) => {
 		from,
 		to,
 		...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}),
-		subject: `New website message${name ? ` from ${name}` : ""} — ${form.title}`,
+		subject: `New website message${name ? ` from ${name}` : ""}`,
 		text: [...values.map((v) => `${v.field.label}: ${v.value}`), "", page ? `Sent from ${page}` : ""].join("\n").trim(),
 		html: `<table cellpadding="6" style="border-collapse:collapse;font:14px/1.5 sans-serif">${values.map((v) => `<tr><th align="left" valign="top">${esc(v.field.label)}</th><td>${esc(v.value).replace(/\n/g, "<br>")}</td></tr>`).join("")}</table>${page ? `<p style="font:12px sans-serif;color:#666">Sent from ${esc(page)}</p>` : ""}`,
 	});

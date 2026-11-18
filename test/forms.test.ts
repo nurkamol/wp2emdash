@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { applySensitivePolicy, type FormDefinitionOut } from "../src/scaffold/forms.js";
+import { applySensitivePolicy, type FormDefinitionOut, fluentFormToDefinition } from "../src/scaffold/forms.js";
 import { deliver, parseAddress } from "../starter/src/forms/deliver.js";
 
 const def = (sensitive: boolean): FormDefinitionOut => ({
@@ -31,6 +31,14 @@ describe("sensitive form policy", () => {
 		expect(out.withheld).toEqual(["Comment", "Injury"]);
 		expect(out.notice).toBe("No health details, please.");
 		expect(out.warnings).toEqual([]);
+	});
+});
+
+describe("fluent forms confirmation", () => {
+	it("keeps the success message and the hide-form behaviour", () => {
+		const raw = { id: "9", title: "Contact", form: { form_fields: { fields: [{ element: "input_email", attributes: { name: "email" }, settings: { label: "Email" } }] } }, settings: { formSettings: [{ value: { confirmation: { messageToShow: "<p>Thanks!</p>", samePageFormBehavior: "hide_form" } } }] } };
+		const def = fluentFormToDefinition(raw, false);
+		expect([def.successMessage, def.afterSubmit]).toEqual(["Thanks!", "hide"]);
 	});
 });
 

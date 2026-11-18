@@ -21,6 +21,8 @@ export interface FormDefinitionOut {
 	fields: FormFieldOut[];
 	sensitive?: boolean;
 	notice?: string;
+	/** After a successful send: hide the form and show the message (Fluent "Hide Form"), or reset it. */
+	afterSubmit?: "hide" | "reset";
 	warnings: string[];
 	/** Fields of the WordPress form left out by the site's sensitive-form policy (reported, never silent). */
 	withheld?: string[];
@@ -104,6 +106,8 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 	for (const f of (Array.isArray(ff.fields) ? ff.fields : []) as Obj[]) visit(f, false);
 	const submitLabel = customSubmit ?? str(o(o(o(ff.submitButton).settings).button_ui).text) ?? "Send";
 	const fs = (Array.isArray(o(raw.settings).formSettings) ? (o(raw.settings).formSettings as Obj[]) : [])[0];
-	const success = str(o(o(o(fs).value).confirmation).messageToShow);
-	return { id: `fluent-forms-${raw.id}`, title: raw.title, submitLabel, successMessage: success ? stripHtml(success) : "Thank you — we will be in touch.", fields, ...(sensitive ? { sensitive: true } : {}), warnings };
+	const confirmation = o(o(o(fs).value).confirmation);
+	const success = str(confirmation.messageToShow);
+	const afterSubmit = str(confirmation.samePageFormBehavior) === "hide_form" ? "hide" : str(confirmation.samePageFormBehavior) === "reset_form" ? "reset" : undefined;
+	return { id: `fluent-forms-${raw.id}`, title: raw.title, submitLabel, successMessage: success ? stripHtml(success) : "Thank you — we will be in touch.", fields, ...(afterSubmit ? { afterSubmit } : {}), ...(sensitive ? { sensitive: true } : {}), warnings };
 }

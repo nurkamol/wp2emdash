@@ -19,6 +19,8 @@ export interface FormDefinition {
 	sensitive?: boolean;
 	/** Shown above the submit button (e.g. "Please don't include health details here"). */
 	notice?: string;
+	/** After a successful send: hide the form and show the message, or reset it (default). */
+	afterSubmit?: "hide" | "reset";
 }
 
 const files = import.meta.glob<{ default: FormDefinition }>("./*.json", { eager: true });

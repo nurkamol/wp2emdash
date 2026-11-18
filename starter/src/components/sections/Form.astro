@@ -21,7 +21,7 @@ const siteKey = (env as { TURNSTILE_SITE_KEY?: string }).TURNSTILE_SITE_KEY;
 		</div>
 		{
 			form ? (
-				<form class="form" method="post" action={`/api/forms/${form.id}`} data-form={form.id} novalidate>
+				<form class="form" method="post" action={`/api/forms/${form.id}`} data-form={form.id} data-after={form.afterSubmit ?? "reset"} novalidate>
 					{form.fields.map((f) => (
 						<label class:list={["field", `field--${f.type}`, { "field--half": f.half }]} data-field={f.name}>
 							<span class="field__label">{f.label}{f.required && <span aria-hidden="true"> *</span>}</span>
