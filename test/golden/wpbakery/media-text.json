@@ -105,10 +105,13 @@
       "gap": "none",
       "headingSize": "4vw",
       "headingLeading": 0.9,
+      "inset": {
+        "desktop": "8%"
+      },
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[2]",
-        "rawHash": "2e01f58c4a"
+        "rawHash": "dac4d15964"
       },
       "valign": "top",
       "fields": {
@@ -123,6 +126,8 @@
           }
         ],
         "textInset": "10vw",
+        "textTop": "10vh",
+        "textParallax": 0.175,
         "media": [
           {
             "wpId": 581,

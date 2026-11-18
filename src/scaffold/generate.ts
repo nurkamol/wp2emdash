@@ -46,6 +46,8 @@ export interface DesignCapture {
 	gutter?: number;
 	/** Most common corner radius of large photos, px. */
 	mediaRadius?: number;
+	/** Space between consecutive paragraphs, px. */
+	paragraphGap?: number;
 	header: { height: number; background: string } | null;
 	footer: { height: number; background: string; color: string } | null;
 	logo?: { src: string; width: number; height: number };
@@ -128,6 +130,10 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 	const radiusVotes = new Map<number, number>();
 	for (const d of designs) if (d.mediaRadius !== undefined) radiusVotes.set(d.mediaRadius, (radiusVotes.get(d.mediaRadius) ?? 0) + 1);
 	const mediaRadius = [...radiusVotes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 8;
+	// Paragraph rhythm, voted across captured pages, in em of 16px body copy so it scales with the text.
+	const gapVotes = new Map<number, number>();
+	for (const d of designs) if (d.paragraphGap !== undefined) gapVotes.set(d.paragraphGap, (gapVotes.get(d.paragraphGap) ?? 0) + 1);
+	const paragraphGap = [...gapVotes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 	const gutter = gd && gm ? fluid(gm, gd) : "clamp(20px, 5vw, 64px)";
 	const radius = btn?.styles.borderRadius ?? "6px";
 	// Buttons in the page content (not the header pill): their type and text colour, voted across pages.
@@ -146,8 +152,11 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 	}
 	const cb = [...contentBtns.values()].sort((a, b) => b.n - a.n)[0]?.s;
 	const cbTrack = cb && px(cb.letterSpacing) && px(cb.fontSize) ? `${round(px(cb.letterSpacing) / px(cb.fontSize), 3)}em` : undefined;
+	// Padding in em of the button's own text, so it scales with --btn-size (Salient: 12px 18px on 12px type).
+	const cbPadPx = cb?.padding?.split(/\s+/).map((x) => px(x));
+	const cbPad = cb && cbPadPx && cbPadPx.length === 4 && cbPadPx.every((x) => Number.isFinite(x)) && (cbPadPx[0] as number) > 0 && px(cb.fontSize) > 0 ? `${round((cbPadPx[0] as number) / (px(cb.fontSize) as number), 3)}em ${round((cbPadPx[1] as number) / (px(cb.fontSize) as number), 3)}em` : undefined;
 	const contentBtnVars = cb
-		? [`	--btn-size: ${cb.fontSize};`, `	--btn-transform: ${cb.textTransform || "none"};`, cbTrack ? `	--btn-tracking: ${cbTrack};` : "", toHex(cb.color) ? `	--btn-color: ${toHex(cb.color)};` : "", cb.fontWeight ? `	--btn-weight-content: ${cb.fontWeight};` : ""].filter(Boolean).join("\n")
+		? [`	--btn-size: ${cb.fontSize};`, `	--btn-transform: ${cb.textTransform || "none"};`, cbTrack ? `	--btn-tracking: ${cbTrack};` : "", toHex(cb.color) ? `	--btn-color: ${toHex(cb.color)};` : "", cb.fontWeight ? `	--btn-weight-content: ${cb.fontWeight};` : "", cbPad ? `	--btn-padding: ${cbPad};` : ""].filter(Boolean).join("\n")
 		: "";
 	const weights = [...new Set([400, 500, 600, 700, Number(t.h1?.fontWeight) || 400])].sort();
 	const isGeneric = (f: string) => /^(system-ui|sans-serif|serif|monospace|-apple-system|arial|helvetica|georgia|times)/i.test(f);
@@ -211,7 +220,7 @@ ${eyebrowVars}
 
 	--radius-button: ${radius};
 	--radius-card: 12px;
-	--radius-media: ${mediaRadius}px;
+	--radius-media: ${mediaRadius}px;${paragraphGap !== undefined ? `\n\t--para-gap: ${round(paragraphGap / 16, 3)}em;` : ""}
 	--radius-input: 8px;
 	--btn-padding: 0.95em 2em;
 ${contentBtnVars}

@@ -12,7 +12,8 @@ const len = (x: unknown) => (typeof x === "string" && LENGTH.test(x) ? x : undef
 const vars = (pairs: [string, unknown][]) => pairs.flatMap(([k, x]) => (len(x) ? [`${k}:${x}`] : [])).join(";") || undefined;
 const h1 = vars([["--media-h", v.media_height], ["--media-h-small", v.media_height_small]]);
 const h2 = vars([["--media-h", v.media_2_height], ["--media-h-small", v.media_2_height_small]]);
-const inset = vars([["--text-inset", v.text_inset]]);
+const inset = vars([["--text-inset", v.text_inset], ["--text-top", v.text_top]]);
+const drift = typeof v.text_parallax === "number" && v.text_parallax > 0 && v.text_parallax <= 1 ? v.text_parallax : undefined;
 ---
 
 <Section value={v} type="media_text" class={`media-${v.media_side ?? "left"} ratio-${ratio}`}>
@@ -20,7 +21,7 @@ const inset = vars([["--text-inset", v.text_inset]]);
 		<div class:list={["media-text__media", { "has-height": h1 }]} style={h1}>
 			{v.media && <Image image={v.media} sizes="(max-width: 900px) 100vw, 50vw" />}
 		</div>
-		<div class="media-text__text">
+		<div class="media-text__text" data-drift={drift}>
 			<Heading value={v} />
 			<Rich value={v.body} />
 			<Buttons items={v.buttons} />

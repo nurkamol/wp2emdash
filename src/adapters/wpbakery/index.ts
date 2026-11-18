@@ -109,8 +109,12 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const inner = n.children.flatMap((r) => (r.type === "shortcode" && r.tag === "vc_row_inner" ? r.children : [])).filter((c): c is ShortcodeNode => c.type === "shortcode" && c.tag === "vc_column_inner" && c.children.length > 0);
 		const centered = n.attrs.centered_text === "true" || (inner.length > 0 && inner.length === n.children.filter((c) => c.type === "shortcode").length && inner.every((c) => c.attrs.centered_text === "true"));
 		const rows = n.children.filter((c): c is ShortcodeNode => c.type === "shortcode");
+		const intensity = Number.parseFloat(n.attrs.column_parallax_intensity ?? "");
+		const motion = Number.isFinite(intensity) && intensity > 0 && intensity <= 10 ? Math.round(intensity * 100) / 1000 : undefined;
+		const first = rows[0]?.tag === "vc_row_inner" ? rows[0].attrs : undefined;
+		const leadTop = first && /^0*(?:px)?$/.test(first.top_padding_tablet ?? "x") ? cssLen(first.top_padding) : undefined;
 		const right = rows.length > 0 && rows.every((r) => r.tag === "vc_row_inner" && r.attrs.text_align === "right");
-		return { ...(inset ? { insetStart: inset } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
+		return { ...(inset ? { insetStart: inset } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -361,9 +365,9 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 		...(!/#[1-9]\d*$/.test(row.path) ? leadSpacer(row.raw) : {}),
 		...(row.columns.some((c) => c.fragments.length) && row.columns.filter((c) => c.fragments.length).every((c) => c.phoneCenter) ? { phoneAlign: "center" as const } : {}),
 		...(row.columns.some((c) => c.fragments.length) && row.columns.filter((c) => c.fragments.length).every((c) => c.tabletCenter) ? { tabletAlign: "center" as const } : {}),
-		// media_text and hero already place their content from the column layout; the row padding would count twice.
 		...(type === "columns" ? { stackGap: /^\d+(?:px|%)$/.test(row.attrs.column_margin ?? "") ? 25 : 0 } : {}),
-		...(row.attrs.type === "full_width_content" && type !== "media_text" && type !== "hero" ? rowPad(row.attrs) : {}),
+		// A hero's content sits over its background; the row padding does not move it.
+		...(row.attrs.type === "full_width_content" && type !== "hero" ? rowPad(row.attrs) : {}),
 		sourceRef: { adapter: row.adapter ?? ("wpbakery" as const), path: row.path, rawHash: hash(row.raw) },
 	});
 	const cols = row.columns.filter((c) => c.fragments.length);
@@ -501,6 +505,8 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 			fields: {
 				...(heights.some(Boolean) ? { mediaHeight: heights.map((h) => h ?? null) } : {}),
 				...(textCol.insetStart ? { textInset: textCol.insetStart } : {}),
+				...(textCol.leadTop ? { textTop: textCol.leadTop } : {}),
+				...(textCol.motion ? { textParallax: textCol.motion } : {}),
 				media: [...mediaCol.fragments.map((f) => (f as Extract<Fragment, { kind: "media" }>).media), ...extra], body: textRich, buttons: textCol.fragments.flatMap((f) => (f.kind === "button" ? [f.button] : [])), mediaSide: cols[0] === mediaCol ? "left" : "right", ratio: mediaCol.width ?? "1/2" },
 		});
 		return sections;

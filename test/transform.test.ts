@@ -81,6 +81,8 @@ describe("portable text", () => {
 		expect(autop("one\n\ntwo\nthree")).toBe("<p>one</p>\n<p>two<br>three</p>");
 		expect(autop("<p>kept</p>")).toBe("<p>kept</p>");
 		expect(autop("text\n<h2>T</h2>\nmore")).toBe("<p>text</p>\n<h2>T</h2>\n<p>more</p>");
+		// a newline right after a typed <br /> is the same line break, not a second one
+		expect(autop("intro\n\n- <b>Level:</b> Beginner<br />\nThe class text.")).toBe("<p>intro</p>\n<p>- <b>Level:</b> Beginner<br>The class text.</p>");
 	});
 });
 

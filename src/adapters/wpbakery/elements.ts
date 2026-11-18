@@ -67,6 +67,10 @@ export interface Col {
 	parallax?: boolean;
 	/** Text centred in the column (WPBakery centered_text, on the column or every inner column). */
 	centered?: boolean;
+	/** Salient column parallax: translateY per pixel the column centre is from the viewport centre (intensity ÷ 10). */
+	motion?: number;
+	/** Desktop-only space above the content (first inner row's top_padding when tablet/phone reset it to 0). */
+	leadTop?: string;
 	/** Padding on the column's leading edge (Salient padding-N-percent), as a CSS length. */
 	insetStart?: string;
 }

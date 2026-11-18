@@ -25,8 +25,9 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .heading--h6, h6 { font-size: var(--font-size-h6); font-family: var(--h6-font, var(--font-display)); font-weight: var(--h6-weight, var(--heading-weight, 400)); letter-spacing: var(--h6-tracking, var(--heading-tracking, 0)); text-transform: var(--h6-transform, none); line-height: var(--h6-leading, var(--leading-heading)); }
 .eyebrow { font-family: var(--eyebrow-font, var(--font-body)); font-size: var(--eyebrow-size, var(--font-size-small)); font-weight: var(--eyebrow-weight, 600); letter-spacing: var(--eyebrow-tracking, 0.12em); text-transform: uppercase; margin: 0 0 0.75rem; }
 .lead { font-size: var(--font-size-lead); }
-.prose > * + * { margin-top: 0.9em; }
-.prose p, .prose ul, .prose ol { margin: 0; }
+.prose :where(p, ul, ol) { margin: 0; }
+/* paragraph rhythm (measured on the source); after the reset so it wins */
+.prose > * + * { margin-top: var(--para-gap, 0.9em); }
 .prose ul, .prose ol { padding-left: 1.25em; }
 .prose li + li { margin-top: 0.35em; }
 .prose blockquote { margin: 0; padding-left: 1em; border-left: 3px solid currentColor; }
@@ -41,7 +42,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .btn--primary:hover { background: var(--color-accent-hover, var(--color-accent)); transform: translateY(-1px); }
 .btn--secondary { background: transparent; color: inherit; border-color: currentColor; }
 .btn--secondary:hover { background: var(--color-text); color: var(--color-bg); }
-.btn--link { padding: 0; border-radius: 0; background: none; color: inherit; font-weight: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.3em; }
+.btn--link { padding: 0; border-radius: 0; background: none; color: inherit; font-size: inherit; font-weight: inherit; text-transform: none; letter-spacing: normal; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.3em; }
 .tone-dark .btn--secondary:hover { background: #fff; color: #000; }
 
 /* ── Sections ── */
@@ -98,6 +99,8 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .media-text__text { max-width: 32rem; }
 .media-text__media-2 { width: 100%; max-width: 460px; margin-top: 3.5rem; border-radius: var(--radius-media); aspect-ratio: 8 / 9; object-fit: cover; }
 .is-full-width .media-text { padding-inline: var(--gutter); }
+/* the row's own side padding replaces the gutter */
+.section.has-inset .media-text { padding-inline: 0; }
 .section--media_text--cover .media-text__media img { aspect-ratio: 4 / 5; }
 @media (min-width: 600px) and (max-width: 899.98px) /* stack-below */ { .section--media_text--cover .media-text__media img { aspect-ratio: 3 / 2; } }
 @media (min-width: 900px) /* stack */ { .section--media_text--cover .media-text__media img { aspect-ratio: 4 / 5; } }
@@ -117,6 +120,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 @media (min-width: 900px) /* stack */ {
 	.section--media_text .has-height img { height: var(--media-h); }
 	.media-text[style*="--text-inset"] .media-text__text { padding-inline-start: var(--text-inset); max-width: calc(32rem + var(--text-inset)); }
+	.media-text[style*="--text-top"] .media-text__text { padding-top: var(--text-top); }
 	.media-right .media-text[style*="--text-inset"] .media-text__text { padding-inline: 0 var(--text-inset); }
 }
 

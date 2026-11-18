@@ -187,7 +187,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		case "media_text": {
 			const { head: h, rest } = headingFromBody(s.fields.body);
 			const ratio = ["1/3", "1/2", "2/3"].includes(s.fields.ratio) ? s.fields.ratio : "1/2";
-			return base("media_text", { ...h, body: pt(rest), buttons: buttons(s.fields.buttons), media: media(s.fields.media[0]), media_2: s.fields.media[1] ? media(s.fields.media[1]) : undefined, media_side: s.fields.mediaSide, ratio, ...heightFields(s.fields.mediaHeight), ...(s.fields.textInset ? { text_inset: s.fields.textInset } : {}) });
+			return base("media_text", { ...h, body: pt(rest), buttons: buttons(s.fields.buttons), media: media(s.fields.media[0]), media_2: s.fields.media[1] ? media(s.fields.media[1]) : undefined, media_side: s.fields.mediaSide, ratio, ...heightFields(s.fields.mediaHeight), ...(s.fields.textInset ? { text_inset: s.fields.textInset } : {}), ...(s.fields.textTop ? { text_top: s.fields.textTop } : {}), ...(s.fields.textParallax ? { text_parallax: s.fields.textParallax } : {}) });
 		}
 		case "columns": {
 			const cols: Record<string, unknown> = {};

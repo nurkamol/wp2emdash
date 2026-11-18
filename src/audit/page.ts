@@ -59,6 +59,8 @@ export interface PageSnapshot {
 	stylesheets: string[];
 	bodyClasses: string[];
 	builders: string[];
+	/** Builder buttons in the page (header and footer ones included); pages above the site minimum have content buttons. */
+	buttonCount?: number;
 	shortcodeLeftovers: string[];
 	/** Analytics/ads ids found anywhere in the raw HTML (incl. <noscript>). */
 	trackingIds: string[];
@@ -72,6 +74,9 @@ const clean = (s: string | undefined) => (s ?? "").replace(/\s+/g, " ").trim();
 export function hashText(text: string): string {
 	return createHash("sha1").update(text).digest("hex").slice(0, 16);
 }
+
+/** Content buttons of the common builders: Salient, WPBakery, Gutenberg, Elementor. */
+const CONTENT_BUTTON = /class="(?:[^"]*\s)?(?:nectar-button|vc_btn3|wp-block-button__link|elementor-button)(?=[\s"])/g;
 
 /** Builder markers in rendered HTML. */
 export function detectBuilders(html: string, bodyClasses: string[]): string[] {
@@ -335,6 +340,7 @@ export function parsePage(html: string, meta: Pick<PageSnapshot, "url" | "finalU
 			.filter(Boolean),
 		bodyClasses,
 		builders: detectBuilders(html, bodyClasses),
+		buttonCount: html.match(CONTENT_BUTTON)?.length ?? 0,
 		shortcodeLeftovers: [...new Set([...text.matchAll(/\[\/?([a-z][a-z0-9_-]{2,})(?:\s[^\]]*)?\]/g)].map((m) => m[1] as string))],
 		trackingIds: [...new Set([...html.matchAll(/\b(G-[A-Z0-9]{8,12}|GTM-[A-Z0-9]{5,9}|AW-\d{8,12}|UA-\d{4,10}-\d{1,4})\b/g)].map((m) => m[1] as string))].sort(),
 		wpId: idClass ? Number(idClass.split("-").pop()) : undefined,

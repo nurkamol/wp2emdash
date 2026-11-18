@@ -39,7 +39,7 @@ const AUTOP_BLOCK = "p|h[1-6]|ul|ol|li|div|blockquote|table|thead|tbody|tr|td|th
 /**
  * wpautop, as WordPress does it: raw post_content stores paragraphs as blank lines and line breaks
  * as single newlines. Block-level tags are separated onto their own chunks; bare text chunks become
- * <p> with <br> for single newlines. Content that is already wrapped is left alone.
+ * <p> with <br> for single newlines (not after an existing <br>, as WordPress does). Content that is already wrapped is left alone.
  */
 export function autop(html: string): string {
 	if (!/\n/.test(html)) return html;
@@ -48,7 +48,7 @@ export function autop(html: string): string {
 		.split(/\n\s*\n/)
 		.map((c) => c.trim())
 		.filter(Boolean)
-		.map((c) => (new RegExp(`^</?(?:${AUTOP_BLOCK})\\b`, "i").test(c) ? c : `<p>${c.replace(/\n/g, "<br>")}</p>`))
+		.map((c) => (new RegExp(`^</?(?:${AUTOP_BLOCK})\\b`, "i").test(c) ? c : `<p>${c.replace(/(?:<br\s*\/?>)?[ \t]*\n/gi, "<br>")}</p>`))
 		.join("\n");
 }
 

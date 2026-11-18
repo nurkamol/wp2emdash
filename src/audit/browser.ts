@@ -259,6 +259,8 @@ export interface DesignCapture {
 	gutter?: number;
 	/** Most common corner radius of large photos (img or background-image boxes) in the main content, px. */
 	mediaRadius?: number;
+	/** Space between consecutive paragraphs (text to text, px): the most common value in the content. */
+	paragraphGap?: number;
 	breakpoints: number[];
 	header: { height: number; position: string; background: string } | null;
 	footer: { height: number; background: string; color: string } | null;
@@ -434,6 +436,25 @@ export async function captureDesign(browser: Browser, url: string, viewport: { n
 					}
 					const best = [...radii.entries()].sort((a, b) => b[1] - a[1])[0];
 					return best && best[1] >= 2 ? { mediaRadius: best[0] } : {};
+				})(),
+				...(() => {
+					// Paragraph rhythm: from the end of one paragraph's text to the start of the next sibling's
+					// (themes put it in margin or, like Salient, in padding-bottom).
+					const gaps = new Map<number, number>();
+					for (const el of Array.from(document.querySelectorAll<HTMLElement>("p + p"))) {
+						if (el.closest("header, footer, nav, #header-outer, #footer-outer, .nectar-global-section, [role=dialog]")) continue;
+						const prev = el.previousElementSibling as HTMLElement | null;
+						if (!prev || !prev.offsetHeight || !el.offsetHeight || !(prev.textContent ?? "").trim() || !(el.textContent ?? "").trim()) continue;
+						const a = prev.getBoundingClientRect();
+						const b = el.getBoundingClientRect();
+						const pa = getComputedStyle(prev);
+						const pb = getComputedStyle(el);
+						const gap = Math.round(b.top + Number.parseFloat(pb.paddingTop) - (a.bottom - Number.parseFloat(pa.paddingBottom)));
+						if (gap < 0 || gap > 120) continue;
+						gaps.set(gap, (gaps.get(gap) ?? 0) + 1);
+					}
+					const best = [...gaps.entries()].sort((a, b) => b[1] - a[1])[0];
+					return best && best[1] >= 2 ? { paragraphGap: best[0] } : {};
 				})(),
 				breakpoints: [...breakpoints].sort((a, b) => a - b),
 				header: header ? { height: header.offsetHeight, position: getComputedStyle(header).position, background: getComputedStyle(header).backgroundColor } : null,

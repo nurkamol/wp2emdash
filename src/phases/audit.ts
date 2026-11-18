@@ -277,6 +277,15 @@ function pickDesignPages(urls: string[], snapshots: Map<string, PageSnapshot>, o
 		seen.add(sig);
 		out.push(u);
 	}
+	// One page with a content button, so their style is measured (the header button is often a different one).
+	const count = (u: string) => snapshots.get(u)?.buttonCount ?? 0;
+	const floor = Math.min(...urls.map(count));
+	const hasContent = (u: string) => count(u) > floor;
+	const withButton = urls.find(hasContent);
+	if (withButton && !out.slice(1).some(hasContent)) {
+		if (out.length >= 4) out.pop();
+		out.push(withButton);
+	}
 	// Fill up to four pages even when they share a template: type sizes are voted across pages, and the home page
 	// (often a one-off hero) must not decide them alone.
 	for (const u of urls) {

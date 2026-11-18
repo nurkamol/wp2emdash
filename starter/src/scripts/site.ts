@@ -203,3 +203,37 @@ if (bgVideos.length) {
 	for (const ev of ["pointerdown", "touchstart", "scroll", "keydown"]) window.addEventListener(ev, start, { once: true, passive: true });
 	document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && start());
 }
+
+// Drifting text columns (Salient column parallax): offset = k × (column centre − viewport centre),
+// side-by-side layouts only, nothing under reduced motion.
+const drifters = [...document.querySelectorAll<HTMLElement>("[data-drift]")];
+if (drifters.length && !reduce) {
+	const wide = window.matchMedia("(min-width: 900px)");
+	let queued = false;
+	const place = () => {
+		queued = false;
+		const mid = window.innerHeight / 2;
+		for (const el of drifters) {
+			if (!wide.matches) {
+				el.style.transform = "";
+				continue;
+			}
+			const k = Number(el.dataset.drift) || 0;
+			const r = el.getBoundingClientRect();
+			const shift = Number.parseFloat(el.dataset.shift ?? "0");
+			const centre = r.top - shift + r.height / 2; // where the column sits without the drift
+			const next = Math.round(k * (centre - mid) * 10) / 10;
+			el.dataset.shift = String(next);
+			el.style.transform = `translate3d(0, ${next}px, 0)`;
+		}
+	};
+	const queue = () => {
+		if (!queued) {
+			queued = true;
+			requestAnimationFrame(place);
+		}
+	};
+	place();
+	window.addEventListener("scroll", queue, { passive: true });
+	window.addEventListener("resize", queue);
+}

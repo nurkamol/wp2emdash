@@ -164,6 +164,10 @@ export const section = z.discriminatedUnion("type", [
 			mediaHeight: z.array(z.object({ desktop: cssLength, small: cssLength.optional() }).nullable()).max(2).optional(),
 			/** Space before the text column on desktop (Salient column padding). */
 			textInset: cssLength.optional(),
+			/** Space above the text on desktop (Salient inner-row top padding reset to 0 below desktop). */
+			textTop: cssLength.optional(),
+			/** The text column drifts with scroll: offset = this × (column centre − viewport centre) (Salient column parallax). */
+			textParallax: z.number().min(0).max(1).optional(),
 		}),
 	}),
 	z.object({ type: z.literal("columns"), ...base, fields: z.object({ heading, columns: z.array(column).min(1).max(6) }) }),
