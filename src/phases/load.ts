@@ -4,6 +4,7 @@
  * an id-map links every WordPress document/media item to its EmDash id, media dedupes by sha1,
  * updates use the entry's revision. The gate re-reads everything from the target.
  */
+import { remoteTarget, targetName } from "../targets/remote.js";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -71,7 +72,7 @@ export async function ensureDevServer(project: string, port: number, log: (m: st
 export async function runLoad({ config, paths, reporter }: PhaseContext): Promise<GateCheck[]> {
 	const checks: GateCheck[] = [];
 	const check = (id: string, label: string, ok: boolean, detail?: string) => checks.push({ id, label, ok, ...(detail ? { detail } : {}) });
-	const target = (process.env.WP2EMDASH_LOAD_TARGET ?? "local") as "local" | "staging";
+	const target = targetName(process.env.WP2EMDASH_LOAD_TARGET, "local");
 	const env = loadSiteEnv(paths.root);
 	const overrides = await loadOverrides(paths.overrides);
 	const site = readJson<IrSite>(join(paths.ir, "site.json"));
@@ -84,19 +85,19 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 	// ── Target ─────────────────────────────────────────────────────────────────
 	let api: EmDashApi;
 	let stop = () => {};
-	if (target === "staging") {
-		if (!config.target.stagingUrl || !env.EMDASH_TOKEN) {
-			check("target", "Staging target configured", false, "Set target.stagingUrl in kit.config.ts and EMDASH_TOKEN (an EmDash API token) in .env");
+	if (target !== "local") {
+		const t = remoteTarget(paths.root, config, env, target);
+		const tokenName = target === "staging" ? "EMDASH_TOKEN" : "EMDASH_TOKEN_PRODUCTION";
+		if ("error" in t || !t.token) {
+			check("target", `${target} target configured`, false, "error" in t ? t.error : `Set ${tokenName} (an EmDash API token from that site's admin) in .env`);
 			return checks;
 		}
 		// Optional pinned addresses for a fresh workers.dev host (see docs/staging-setup.md → DNS).
-		const cf = readJson<{ staging?: { worker?: { addresses?: string[] } } }>(join(paths.root, "cloudflare.json"));
-		const pins = cf?.staging?.worker?.addresses ?? [];
-		if (pins.length) {
-			pinHost(new URL(config.target.stagingUrl).hostname, pins);
-			reporter.emit({ type: "log", level: "info", message: `connecting to ${new URL(config.target.stagingUrl).hostname} via pinned addresses (${pins.join(", ")})` });
+		if (t.addresses.length) {
+			pinHost(new URL(t.url).hostname, t.addresses);
+			reporter.emit({ type: "log", level: "info", message: `connecting to ${new URL(t.url).hostname} via pinned addresses (${t.addresses.join(", ")})` });
 		}
-		api = new EmDashApi(config.target.stagingUrl, { token: env.EMDASH_TOKEN });
+		api = new EmDashApi(t.url, { token: t.token });
 	} else {
 		const port = Number(process.env.WP2EMDASH_DEV_PORT ?? 4399);
 		stop = await ensureDevServer(paths.project, port, (m) => reporter.emit({ type: "log", level: "info", message: m }));

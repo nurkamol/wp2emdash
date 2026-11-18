@@ -173,3 +173,18 @@ The client project's `docs/deployment.md` repeats this for whoever maintains the
 | `curl: Could not resolve host` / load fails with `ENOTFOUND` after the first deploy | New `workers.dev` hostnames can stay unresolvable for a while in local, router or ISP DNS caches, and even public resolvers can flap (SERVFAIL *No Reachable Authority*) | The loader falls back to Cloudflare DNS over HTTPS automatically. If that also fails, pin the Worker's addresses: get them with `curl -H 'accept: application/dns-json' 'https://cloudflare-dns.com/dns-query?name=<host>&type=A'` and add `"worker": { "addresses": ["<ip>", "<ip>"] }` under `staging` in `sites/<slug>/cloudflare.json` (TLS still checks the real hostname). Flushing the Mac's DNS cache needs a real terminal: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`. |
 | `/_emdash/setup` returns 404 | Wrong path | The setup is at `/_emdash/admin/setup` |
 | Load fails with `INSUFFICIENT_SCOPE` | The API token lacks a scope | Create a token with the scopes in step 4 |
+
+## 7. Production before the switch
+
+Production is deployed the same way (GitHub Actions → Run workflow → `production`, or `pnpm deploy:production`)
+and first serves only its workers.dev address — noindex there, analytics off (both key on the production domain).
+Record the address in `cloudflare.json` → `production.worker.url`, sign in once at its `/_emdash/admin` (step 3),
+create an API token (step 4) as `EMDASH_TOKEN_PRODUCTION`, then:
+
+```bash
+WP2EMDASH_LOAD_TARGET=production pnpm wp2emdash run <slug> load --preview
+WP2EMDASH_TARGET=production pnpm wp2emdash run <slug> verify --preview
+```
+
+After the traffic switch, set `production.live: true` in `cloudflare.json`: load and verify then use the real domain
+and expect it indexable with analytics loading.

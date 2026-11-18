@@ -6,6 +6,8 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { loadSiteEnv } from "../extract/credentials.js";
+import { remoteTarget, targetName } from "../targets/remote.js";
 import { captureScreenshots, type ScreenshotResult, screenName } from "../audit/browser.js";
 import { captureMenu, type MenuCapture, motionRecipe } from "../audit/interactions.js";
 import { type PageSnapshot, parsePage } from "../audit/page.js";
@@ -64,22 +66,24 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 	const g = config.gates;
 
 	// ── Target ─────────────────────────────────────────────────────────────────
-	const want = (process.env.WP2EMDASH_TARGET ?? process.env.WP2EMDASH_LOAD_TARGET ?? (config.target.stagingUrl ? "staging" : "local")) as "local" | "staging";
+	const want = targetName(process.env.WP2EMDASH_TARGET ?? process.env.WP2EMDASH_LOAD_TARGET, config.target.stagingUrl ? "staging" : "local");
 	let base: string;
 	let stop = () => {};
+	// Live = the production domain serves this site: indexable, analytics loading. Production on workers.dev is not live.
+	let live = false;
 	const pins: { host: string; addresses: string[] }[] = [];
-	if (want === "staging") {
-		if (!config.target.stagingUrl) {
-			check("target", "Verify target available", false, "Set target.stagingUrl or run with WP2EMDASH_TARGET=local");
+	if (want !== "local") {
+		const t = remoteTarget(paths.root, config, loadSiteEnv(paths.root), want);
+		if ("error" in t) {
+			check("target", "Verify target available", false, t.error);
 			return checks;
 		}
-		base = config.target.stagingUrl.replace(/\/$/, "");
-		const cf = readJson<{ staging?: { worker?: { addresses?: string[] } } }>(join(paths.root, "cloudflare.json"));
-		const addresses = cf?.staging?.worker?.addresses ?? [];
-		if (addresses.length) {
+		base = t.url;
+		live = t.live;
+		if (t.addresses.length) {
 			const host = new URL(base).hostname;
-			pinHost(host, addresses);
-			pins.push({ host, addresses });
+			pinHost(host, t.addresses);
+			pins.push({ host, addresses: t.addresses });
 		}
 	} else {
 		const port = Number(process.env.WP2EMDASH_DEV_PORT ?? 4399);
@@ -128,7 +132,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 						r.text = compareText(sourceText(sourceHtml), sourceText(html));
 						r.headings = compareHeadings(source.headings, snap.headings);
 						// Local and staging run with EmDash's staging flag (noindex) until cutover; only production must be indexable.
-						r.seo = compareSeo(source.seo, snap.seo, `${prod}${u.path}`, (want as string) !== "production", u.kind);
+						r.seo = compareSeo(source.seo, snap.seo, `${prod}${u.path}`, !live, u.kind);
 						r.missingExternal = missingExternalLinks(source.links, snap.links);
 						r.imagesWithoutAlt = snap.images.filter((im) => im.alt === undefined).map((im) => im.src);
 						// Content forms only: the theme's search box is site chrome, not a migrated form.
@@ -198,7 +202,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const notCarried = config.analytics === false ? [] : sourceIds.filter((id) => !carried.has(id));
 		const homeHtml = await (await kitFetch(`${base}/`)).text();
 		const loads = /name="site-analytics"/.test(homeHtml);
-		const analyticsProblem = [notCarried.length ? `not carried over: ${notCarried.join(", ")}` : "", (want as string) === "production" ? (carried.size && !loads ? "production does not load analytics" : "") : loads ? `${want} loads analytics (must not)` : ""].filter(Boolean).join("; ");
+		const analyticsProblem = [notCarried.length ? `not carried over: ${notCarried.join(", ")}` : "", live ? (carried.size && !loads ? "production does not load analytics" : "") : loads ? `${want} loads analytics (must not)` : ""].filter(Boolean).join("; ");
 
 		// Legacy addresses search engines and other sites keep: the WordPress sitemap index and upload URLs
 		// (sharing images first, then a few content images) must redirect to something that answers 200.
@@ -321,7 +325,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		check("seo-title", "SEO titles identical", seoFail("title").length === 0, seoFail("title").join(", ") || undefined);
 		check("seo-description", "Meta descriptions identical", seoFail("description").length === 0, seoFail("description").join(", ") || undefined);
 		check("seo-canonical", "Canonical URLs point at the production URL", seoFail("canonical").length === 0, seoFail("canonical").slice(0, 3).map((p) => `${p}: ${results.find((r) => r.path === p)?.seo?.canonical.target ?? "none"}`).join("; ") || undefined);
-		check("seo-robots", (want as string) !== "production" ? "Not indexed before go-live (noindex)" : "Indexability kept", seoFail("robots").length === 0, seoFail("robots").join(", ") || undefined);
+		check("seo-robots", !live ? "Not indexed before go-live (noindex)" : "Indexability kept", seoFail("robots").length === 0, seoFail("robots").join(", ") || undefined);
 		check("seo-jsonld", "Structured data types kept", seoFail("jsonLd").length === 0, [...new Set(results.flatMap((r) => r.seo?.jsonLd.missing ?? []))].join(", ") ? `missing: ${[...new Set(results.flatMap((r) => r.seo?.jsonLd.missing ?? []))].join(", ")}` : undefined);
 		check("seo-og", "OpenGraph tags present", seoFail("og").length === 0, [...new Set(results.flatMap((r) => r.seo?.og.missing ?? []))].join(", ") || undefined);
 		check("links-internal", "No broken internal links", brokenLinks.length === 0, brokenLinks.slice(0, 6).map((b) => `${b.href} (${b.status})`).join("; ") || `${linkMap.size} links checked`);
@@ -336,7 +340,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		check("security-headers", "Security headers set", missingHeaders.length === 0, missingHeaders.length ? `missing: ${missingHeaders.join(", ")}` : undefined);
 		check("sitemap", "Sitemap lists every published page at its own address (200, no redirects)", sitemapErrors.length === 0 && unlisted.length === 0 && sitemapLocs.length > 0, [...sitemapErrors.slice(0, 6), ...(unlisted.length ? [`not listed: ${unlisted.slice(0, 6).join(", ")}`] : [])].join("; ") || `${sitemapLocs.length} URLs`);
 		const wpOpen = wpPaths.filter((w) => w.status !== 404 && w.status !== 410);
-		check("analytics", (want as string) === "production" ? "Analytics carried over and loading" : "Analytics carried over, not loaded before go-live", !analyticsProblem, analyticsProblem || (carried.size ? `${[...carried].join(", ")}${(want as string) === "production" ? "" : " (production only)"}` : "none on the old site"));
+		check("analytics", live ? "Analytics carried over and loading" : "Analytics carried over, not loaded before go-live", !analyticsProblem, analyticsProblem || (carried.size ? `${[...carried].join(", ")}${(want as string) === "production" ? "" : " (production only)"}` : "none on the old site"));
 		check("legacy-urls", "Old sitemap and upload addresses redirect to working files", legacyBad.length === 0, legacyBad.slice(0, 6).join("; ") || `${legacy.length} checked`);
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);
 		// Gate on sections where we can pair them; whole-page difference where we cannot (e.g. Gutenberg pages).
