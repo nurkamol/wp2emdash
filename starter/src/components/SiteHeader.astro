@@ -120,7 +120,7 @@ const ICONS: Record<string, string> = {
 		<ul class="menu-panel__items" role="list">
 			{
 				extras.lead.map((i, n) => (
-					<li style={`--i:${n}`} class:list={["menu-panel__lead", { "small-only": i.smallOnly }]}>
+					<li style={`--i:${n}`} class:list={["menu-panel__lead", { "small-only": "smallOnly" in i && i.smallOnly }]}>
 						<a href={safeHref(i.href) ?? "#"}>{i.label}</a>
 					</li>
 				))

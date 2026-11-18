@@ -381,6 +381,11 @@ export default defineConfig({
 	check("seed-valid", "seed.json passes EmDash's validator", val.code === 0, seedDetail);
 
 	if (!opts.build) return checks;
+	// Type-check the project as its CI does (pnpm check), so starter type errors fail here, not on the client's repo.
+	reporter.emit({ type: "step:start", step: "Type-check" });
+	const tc = await run("pnpm", ["check"], project, () => {});
+	reporter.emit({ type: "step:end", step: "Type-check", ok: tc.code === 0 });
+	check("typecheck", "Project type-checks (astro check)", tc.code === 0, tc.code === 0 ? undefined : tc.out.replace(/\x1b\[[0-9;]*m/g, "").split("\n").filter((l) => / error ts\(/.test(l)).slice(0, 4).join(" | "));
 	reporter.emit({ type: "step:start", step: "Build" });
 	const build = await run("pnpm", ["build"], project, (l) => reporter.emit({ type: "step:progress", step: "Build", done: 0, item: l }));
 	reporter.emit({ type: "step:end", step: "Build", ok: build.code === 0 });

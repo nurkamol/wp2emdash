@@ -26,7 +26,7 @@ const on = !!a && production && !import.meta.env.DEV && !isEditor(Astro.cookies,
 				s.async = true;
 				s.src = src;
 				for (const [k, v] of Object.entries(attrs)) s.setAttribute(k, v);
-				document.head.append(s);
+				document.head.appendChild(s);
 			};
 			if (a.google?.length) {
 				// gtag() must push the arguments object itself (Google's snippet does the same).
