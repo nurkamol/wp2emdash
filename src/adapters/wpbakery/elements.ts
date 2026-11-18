@@ -15,7 +15,7 @@ export interface BoxHeight {
 }
 
 export type Fragment =
-	| { kind: "rich"; blocks: RichText }
+	| { kind: "rich"; blocks: RichText; /** One line of text (Salient split-line in paragraph style): consecutive lines join into one paragraph. */ line?: boolean }
 	| { kind: "button"; button: Button }
 	| { kind: "media"; media: MediaRef; role: "content" | "background"; link?: string; /** Height of a background-image box sized by builder spacers. */ height?: BoxHeight; /** Drawn as a circle of this diameter (Salient circle images). */ circle?: string }
 	| { kind: "icon"; icon: { library: string; name: string } }
@@ -208,7 +208,7 @@ export const HANDLERS: Record<string, Handler> = {
 				block.markDefs.push({ _type: "link", _key: key, href, ...(n.attrs.link_target === "_blank" ? { blank: true } : {}) });
 				for (const c of block.children) c.marks.push(key);
 			}
-			return [{ kind: "rich", blocks: [block] }];
+			return [{ kind: "rich", blocks: [block], ...(style === "normal" && fs !== "i" ? { line: true } : {}) }];
 		}
 		// Enclosed form: inner HTML is the heading.
 		return richFromHtml(innerSource(n), ctx, /^h[1-6]$/.test(fs) ? (fs as PtBlock["style"]) : undefined);

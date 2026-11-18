@@ -290,10 +290,20 @@ function flattenSubrows(frags: Fragment[]): Fragment[] {
 
 export function mergeRich(frags: Fragment[]): Fragment[] {
 	const out: Fragment[] = [];
+	// Salient stacks one-line elements with no paragraph space between them: consecutive lines become one
+	// paragraph with line breaks (each line keeps its own link).
+	let lineBlock: RichText[number] | undefined;
 	for (const f of frags) {
 		const last = out.at(-1);
+		if (f.kind === "rich" && f.line && lineBlock && last?.kind === "rich" && last.blocks.at(-1) === lineBlock && f.blocks.length === 1) {
+			const next = f.blocks[0] as RichText[number];
+			lineBlock.children.push({ _type: "span", _key: `${next._key}-br`, text: "\n", marks: [] }, ...next.children);
+			lineBlock.markDefs.push(...next.markDefs);
+			continue;
+		}
 		if (f.kind === "rich" && last?.kind === "rich") last.blocks.push(...f.blocks);
 		else out.push(f.kind === "rich" ? { kind: "rich", blocks: [...f.blocks] } : f);
+		lineBlock = f.kind === "rich" && f.line ? (out.at(-1) as { blocks: RichText }).blocks.at(-1) : undefined;
 	}
 	return out;
 }

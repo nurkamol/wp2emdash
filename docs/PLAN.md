@@ -418,7 +418,7 @@ The end result of a run is a **finished, working client project**, not a set of 
 **Kit repo** (`wp2emdash`, GitHub-ready):
 - `README.md` — what it does, badges, 5-minute quick start, pipeline diagram, supported builders matrix, example report screenshot.
 - `docs/`: `getting-started.md`, `configuration.md` (every `kit.config` option), `pipeline.md` (each phase, inputs/outputs/gates), `section-library.md`, `adapters/gutenberg.md`, `adapters/wpbakery.md`, `writing-an-adapter.md`, `element-handlers.md`, `verify-checks.md`, `cutover-and-rollback.md`, `security-and-privacy.md`, `troubleshooting.md`, `faq.md`, `claude-code.md` (skills and workflow).
-- `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md` (Keep a Changelog + semver), `LICENSE` (choice pending, §14), issue/PR templates, CI (lint, typecheck, vitest with fixtures/golden IR, e2e against a sample WP site).
+- `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CHANGELOG.md` (Keep a Changelog + semver), `LICENSE` (MIT, §14), issue/PR templates, CI (lint, typecheck, vitest with fixtures/golden IR, e2e against a sample WP site).
 - `examples/` with an anonymised sample site config and its generated report.
 
 Docs are generated from real data where possible (config schema → `configuration.md`, section `blockTypes` → `section-library.md` and the client `editor-guide.md`, verify results → `migration-report.md`) so they can't drift from the code.
@@ -540,4 +540,4 @@ Any failed assumption changes the plan before code depends on it.
 1. Client projects: one private repo per client. ✅
 2. Email: Brevo default; Resend, SendGrid, Postmark, Mailgun, SES, Google Workspace, Microsoft 365, Cloudflare Email Routing supported. ✅
 3. Visual threshold: 3% default, configurable per site. ✅
-4. Kit stays private (proprietary licence, `"private": true`). ✅
+4. Licence: MIT (owner decision 2026-11-18). The repo stays private until it is made public; `LICENSE` and `package.json` already say MIT. ✅

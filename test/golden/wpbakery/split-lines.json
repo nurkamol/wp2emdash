@@ -1,0 +1,131 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "3497386300"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Visit",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "1 Sample Street",
+                    "marks": [
+                      "t4"
+                    ]
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t5-br",
+                    "text": "\n",
+                    "marks": []
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t6",
+                    "text": "Sample Town",
+                    "marks": [
+                      "t7"
+                    ]
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t8-br",
+                    "text": "\n",
+                    "marks": []
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "State 00000",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t4",
+                    "href": "https://maps.example/x"
+                  },
+                  {
+                    "_type": "link",
+                    "_key": "t7",
+                    "href": "https://maps.example/x"
+                  }
+                ]
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "A normal paragraph.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Another paragraph keeps its own block.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

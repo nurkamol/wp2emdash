@@ -148,22 +148,13 @@
                     "marks": [
                       "t8"
                     ]
-                  }
-                ],
-                "markDefs": [
+                  },
                   {
-                    "_type": "link",
-                    "_key": "t8",
-                    "href": "https://maps.example.com/acme",
-                    "blank": true
-                  }
-                ]
-              },
-              {
-                "_type": "block",
-                "_key": "t9",
-                "style": "normal",
-                "children": [
+                    "_type": "span",
+                    "_key": "t9-br",
+                    "text": "\n",
+                    "marks": []
+                  },
                   {
                     "_type": "span",
                     "_key": "ta",
@@ -174,6 +165,12 @@
                   }
                 ],
                 "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t8",
+                    "href": "https://maps.example.com/acme",
+                    "blank": true
+                  },
                   {
                     "_type": "link",
                     "_key": "tb",
