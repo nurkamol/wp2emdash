@@ -7,6 +7,7 @@ import Sections from "../components/Sections.astro";
 import Popups from "../components/Popups.astro";
 import StructuredData from "../components/StructuredData.astro";
 import site from "../site.config.json";
+import "../styles/fonts.css";
 import "../styles/tokens.css";
 import "../styles/motion.css";
 import "../styles/base.css";
@@ -63,6 +64,7 @@ const canonicalUrl = canonical ?? `${site.productionUrl}${Astro.url.pathname}`;
 		<title>{fullTitle}</title>
 		<EmDashHead page={pageCtx} />
 		<StructuredData canonical={canonicalUrl} pageTitle={pageTitle ?? title ?? siteTitle} description={description || settings.data?.tagline} />
+		{((site.fonts as { preload?: string[] }).preload ?? []).map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
 		{site.fonts.googleHref && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}
 		{site.fonts.googleHref && <link rel="stylesheet" href={site.fonts.googleHref} />}
 		{site.favicon && <link rel="icon" href={site.favicon} />}

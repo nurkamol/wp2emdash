@@ -190,6 +190,8 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 /* the white copy spans the window's height (same middle as the dark line) and is shifted back by the window's offset */
 .marquee__window .marquee__track--over { position: absolute; top: 0; height: 100%; left: calc((var(--win-w) - 100cqw) / 2); color: #fff; }
 .marquee__item { padding-inline: 0.3em; }
+.marquee__link { position: absolute; inset: 0; z-index: 2; }
+.marquee__link:focus-visible { outline: 2px solid currentColor; outline-offset: -6px; }
 @keyframes marquee { to { transform: translateX(-50%); } }
 @media (min-width: 1000px) { .marquee__track { font-size: var(--marquee-size-desktop, 15vh); } }
 @media (max-width: 599.98px) { .phone-center, .phone-center .actions { text-align: center; justify-content: center; } }
@@ -330,6 +332,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .video iframe, .video video { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: var(--radius-media); }
 .map { width: 100%; border: 0; border-radius: var(--radius-media); }
 .embed { min-height: 200px; }
+.embed--scheduler { min-height: 100svh; }
 
 /* forms */
 .form-layout { display: grid; gap: clamp(1.5rem, 5vw, 4rem); }

@@ -60,25 +60,49 @@ export interface A11yResult {
 	url: string;
 	serious: { id: string; impact: string; help: string; nodes: number }[];
 	moderate: number;
+	/** Serious issues inside third-party embeds (booking widgets…): reported, not gated — the site can't change them. */
+	thirdParty?: { id: string; nodes: number }[];
 	error?: string;
 }
 
 const AXE_SOURCE = () => readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 
 export async function accessibility(browser: Browser, url: string): Promise<A11yResult> {
-	const page = await browser.newPage({ bypassCSP: true,  viewport: { width: 1440, height: 900 } });
+	// Reduced motion: content is checked in its final state, not halfway through a fade-in (half-transparent text
+	// would read as low contrast).
+	const page = await browser.newPage({ bypassCSP: true, reducedMotion: "reduce", viewport: { width: 1440, height: 900 } });
 	await page.addInitScript(NAME_SHIM);
 	try {
 		await page.goto(url, { waitUntil: "load", timeout: 60_000 });
 		await page.addScriptTag({ content: AXE_SOURCE() });
-		const r = (await page.evaluate(async () => {
-			const axe = (window as unknown as { axe: { run: (ctx: Document, opts: unknown) => Promise<{ violations: { id: string; impact: string; help: string; nodes: unknown[] }[] }> } }).axe;
-			return axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"] });
-		})) as { violations: { id: string; impact: string; help: string; nodes: unknown[] }[] };
+		type Axe = { run: (ctx: unknown, opts: unknown) => Promise<{ violations: { id: string; impact: string; help: string; nodes: unknown[] }[] }> };
+		const opts = { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"] };
+		// Excluded from the gate: third-party embeds (checked separately below) and a transparent header over a
+		// media hero — axe can't see through the video, so that header is checked by the overlay rule instead.
+		const EMBEDS = ".section--embed";
+		const r = (await page.evaluate(
+			async ([o, embeds]) => (window as unknown as { axe: Axe }).axe.run({ exclude: [[embeds], [".over-hero .site-header.is-transparent"]] }, o),
+			[opts, EMBEDS] as const,
+		)) as { violations: { id: string; impact: string; help: string; nodes: unknown[] }[] };
+		const tp = (await page.evaluate(
+			async ([o, embeds]) => (document.querySelector(embeds) ? (window as unknown as { axe: Axe }).axe.run({ include: [[embeds]] }, o) : { violations: [] }),
+			[opts, EMBEDS] as const,
+		)) as { violations: { id: string; impact: string; nodes: unknown[] }[] };
+		// White text in a transparent header over a media hero: the hero's overlay must be dark enough (≥ 50% black
+		// gives ≥ 4.5:1 for white text over any image).
+		const overlay = await page.evaluate(() => {
+			if (!document.querySelector(".over-hero .site-header.is-transparent")) return undefined;
+			const o = document.querySelector<HTMLElement>(".section--hero .section__overlay");
+			return o ? Number(getComputedStyle(o).opacity) : 0;
+		});
+		const serious = r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length }));
+		if (overlay !== undefined && overlay < 0.5) serious.push({ id: "header-over-media-contrast", impact: "serious", help: `Transparent header over a media hero needs an overlay of at least 50% (is ${Math.round(overlay * 100)}%)`, nodes: 1 });
+		const thirdParty = tp.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => ({ id: v.id, nodes: v.nodes.length }));
 		return {
 			url,
-			serious: r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length })),
+			serious,
 			moderate: r.violations.filter((v) => v.impact === "moderate" || v.impact === "minor").length,
+			...(thirdParty.length ? { thirdParty } : {}),
 		};
 	} catch (e) {
 		return { url, serious: [], moderate: 0, error: (e as Error).message.split("\n")[0] };

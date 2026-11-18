@@ -22,6 +22,21 @@ const luminance = (hex: string) => {
 	return hex.length === 7 ? 0.2126 * lin(n(1)) + 0.7152 * lin(n(3)) + 0.0722 * lin(n(5)) : 0.5;
 };
 
+/** WCAG contrast ratio between two #rrggbb colours. */
+export const contrastRatio = (a: string, b: string) => {
+	const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+	return (hi + 0.05) / (lo + 0.05);
+};
+/**
+ * Text colour for a button fill: the source's own when it meets WCAG AA (4.5:1), otherwise the site's text colour
+ * or white, whichever passes (best of the two). Returns the fix so it can be reported as an improvement.
+ */
+export function readableOn(fill: string, wanted: string, siteText: string): { color: string; fixed: boolean } {
+	if (contrastRatio(fill, wanted) >= 4.5) return { color: wanted, fixed: false };
+	const options = [siteText, "#ffffff", "#000000"].sort((x, y) => contrastRatio(fill, y) - contrastRatio(fill, x));
+	return { color: options[0] as string, fixed: true };
+}
+
 // ── Design → tokens ──────────────────────────────────────────────────────────
 interface TypographyEntry {
 	fontFamily: string;
@@ -71,7 +86,7 @@ const round = (n: number, d = 2) => Math.round(n * 10 ** d) / 10 ** d;
 
 export interface Tokens {
 	css: string;
-	fonts: { body: string; display: string; googleHref?: string };
+	fonts: { body: string; display: string; displayWeight?: number; googleHref?: string; selfHosted?: boolean; preload?: string[] };
 	colors: { bg: string; text: string; accent: string; accentContrast: string; surface: string };
 }
 
@@ -155,10 +170,15 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 	// Padding in em of the button's own text, so it scales with --btn-size (Salient: 12px 18px on 12px type).
 	const cbPadPx = cb?.padding?.split(/\s+/).map((x) => px(x));
 	const cbPad = cb && cbPadPx && cbPadPx.length === 4 && cbPadPx.every((x) => Number.isFinite(x)) && (cbPadPx[0] as number) > 0 && px(cb.fontSize) > 0 ? `${round((cbPadPx[0] as number) / (px(cb.fontSize) as number), 3)}em ${round((cbPadPx[1] as number) / (px(cb.fontSize) as number), 3)}em` : undefined;
+	// Content buttons keep the source's text colour unless it fails WCAG AA on the accent (an improvement, reported).
+	const cbColor = toHex(cb?.color) ? readableOn(accent, toHex(cb?.color) as string, text) : undefined;
 	const contentBtnVars = cb
-		? [`	--btn-size: ${cb.fontSize};`, `	--btn-transform: ${cb.textTransform || "none"};`, cbTrack ? `	--btn-tracking: ${cbTrack};` : "", toHex(cb.color) ? `	--btn-color: ${toHex(cb.color)};` : "", cb.fontWeight ? `	--btn-weight-content: ${cb.fontWeight};` : "", cbPad ? `	--btn-padding: ${cbPad};` : ""].filter(Boolean).join("\n")
+		? [`	--btn-size: ${cb.fontSize};`, `	--btn-transform: ${cb.textTransform || "none"};`, cbTrack ? `	--btn-tracking: ${cbTrack};` : "", cbColor ? `	--btn-color: ${cbColor.color};${cbColor.fixed ? ` /* source ${toHex(cb.color)} is ${contrastRatio(accent, toHex(cb.color) as string).toFixed(2)}:1 on the accent; raised to meet WCAG AA */` : ""}` : "", cb.fontWeight ? `	--btn-weight-content: ${cb.fontWeight};` : "", cbPad ? `	--btn-padding: ${cbPad};` : ""].filter(Boolean).join("\n")
 		: "";
-	const weights = [...new Set([400, 500, 600, 700, Number(t.h1?.fontWeight) || 400])].sort();
+	// Every weight the captured text uses (a light 300 heading must not fall back to 400), plus the common ones.
+	const usedWeights = Object.values(t).map((e) => Number((e as { fontWeight?: string } | undefined)?.fontWeight)).filter((w) => Number.isFinite(w) && w >= 100 && w <= 900);
+	const weights = [...new Set([400, 500, 600, 700, ...usedWeights])].sort((a, b) => a - b);
+	const displayWeight = Number(t.h2?.fontWeight ?? t.h1?.fontWeight) || 400;
 	const isGeneric = (f: string) => /^(system-ui|sans-serif|serif|monospace|-apple-system|arial|helvetica|georgia|times)/i.test(f);
 	const families = [...new Set([bodyFont, displayFont])].filter((f) => !isGeneric(f));
 	const googleHref = families.length ? `https://fonts.googleapis.com/css2?${families.map((f) => `family=${encodeURIComponent(f).replace(/%20/g, "+")}:ital,wght@${[0, 1].flatMap((i) => weights.map((w) => `${i},${w}`)).join(";")}`).join("&")}&display=swap` : undefined;
@@ -231,7 +251,7 @@ ${contentBtnVars}
 	--footer-bg: ${toHex(desktop.footer?.background) ?? surface};
 }
 `;
-	return { css, fonts: { body: bodyFont, display: displayFont, ...(googleHref ? { googleHref } : {}) }, colors: { bg, text, accent, accentContrast, surface } };
+	return { css, fonts: { body: bodyFont, display: displayFont, displayWeight, ...(googleHref ? { googleHref } : {}) }, colors: { bg, text, accent, accentContrast, surface } };
 }
 
 // ── Menu motion → motion.css + header config ─────────────────────────────────
@@ -273,7 +293,7 @@ export interface SiteConfig {
 	lang: string;
 	productionUrl: string;
 	favicon?: string;
-	fonts: { body: string; display: string; googleHref?: string };
+	fonts: { body: string; display: string; displayWeight?: number; googleHref?: string; selfHosted?: boolean; preload?: string[] };
 	header: {
 		panel: string;
 		/** centered: toggle | logo | actions (Salient "centered-logo…", many agency themes); logo-left: logo | nav | actions. */

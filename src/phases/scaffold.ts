@@ -11,6 +11,7 @@ import type { MenuCapture } from "../audit/interactions.js";
 import { KIT_ROOT } from "../core/paths.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
+import { selfHostGoogleFonts } from "../scaffold/fonts.js";
 import { applySensitivePolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
 import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras, stackBreakpoint } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
@@ -147,6 +148,22 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			})),
 		},
 	};
+	// Fonts: self-host Google Fonts (faster, no swap shift, no visitor IPs to Google); the Google link stays as fallback.
+	let fontsCss = "/* No self-hosted fonts (none on Google Fonts, or the download failed). */\n";
+	if (siteConfig.fonts.googleHref) {
+		try {
+			const hosted = await selfHostGoogleFonts(siteConfig.fonts.googleHref, join(project, "public"), { body: siteConfig.fonts.body, display: siteConfig.fonts.display, displayWeight: siteConfig.fonts.displayWeight ?? 400 });
+			if (hosted) {
+				fontsCss = hosted.css;
+				const { googleHref: _g, ...rest } = siteConfig.fonts;
+				siteConfig.fonts = { ...rest, selfHosted: true, preload: hosted.preload };
+				reporter.emit({ type: "log", level: "info", message: `fonts self-hosted: ${hosted.files} files, ${hosted.preload.length} preloaded` });
+			}
+		} catch (e) {
+			reporter.emit({ type: "log", level: "warn", message: `fonts not self-hosted (Google Fonts kept): ${(e as Error).message}` });
+		}
+	}
+	write(join(project, "src", "styles", "fonts.css"), fontsCss);
 	write(join(project, "src", "site.config.json"), siteConfig);
 	write(join(project, "src", "styles", "tokens.css"), tokens.css + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);
