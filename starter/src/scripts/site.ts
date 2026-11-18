@@ -263,3 +263,32 @@ if (drifters.length && !reduce) {
 	window.addEventListener("scroll", queue, { passive: true });
 	window.addEventListener("resize", queue);
 }
+
+// Team members: the card opens a full-screen bio. With a mouse on a wide screen a click anywhere closes it and the
+// close ring follows the cursor; otherwise the close button (and Esc) close it.
+const pointerClose = window.matchMedia("(min-width: 1000px) and (hover: hover) and (pointer: fine)");
+document.addEventListener("click", (e) => {
+	const opener = (e.target as HTMLElement).closest<HTMLElement>("[data-person-open]");
+	const dialog = opener ? (document.getElementById(opener.dataset.personOpen ?? "") as HTMLDialogElement | null) : null;
+	if (dialog && !dialog.open) {
+		dialog.showModal();
+		dialog.querySelector<HTMLElement>("[data-person-close]")?.focus({ preventScroll: true });
+	}
+});
+for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog.person-modal")) {
+	const ring = dialog.querySelector<HTMLElement>(".person-cursor");
+	dialog.addEventListener("click", (e) => {
+		if (pointerClose.matches || (e.target as HTMLElement).closest("[data-person-close]")) dialog.close();
+	});
+	dialog.addEventListener("pointermove", (e) => {
+		if (!ring || e.pointerType !== "mouse") return;
+		ring.style.setProperty("--cx", `${e.clientX}px`);
+		ring.style.setProperty("--cy", `${e.clientY}px`);
+		ring.classList.add("is-on");
+	});
+	dialog.addEventListener("pointerleave", () => ring?.classList.remove("is-on"));
+	dialog.addEventListener("close", () => {
+		ring?.classList.remove("is-on");
+		dialog.closest(".person")?.querySelector<HTMLElement>("[data-person-open]")?.focus({ preventScroll: true });
+	});
+}

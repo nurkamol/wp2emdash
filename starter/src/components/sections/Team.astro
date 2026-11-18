@@ -16,20 +16,44 @@ const look = [`--cols:${v.columns ?? 3}`, LENGTH.test(v.photo_height ?? "") && `
 	<Rich value={v.intro} />
 	<ul class:list={["team", `team--${v.variant ?? "grid"}`]} role="list" style={look}>
 		{
-			members.map((m) => (
-				<li class="person">
-					{m.photo && <Image image={m.photo} class="person__photo" sizes="(max-width: 1000px) 100vw, 33vw" />}
-					{m.role && <p class="person__role eyebrow">{m.role}</p>}
-					<h3 class="person__name">{m.name}</h3>
-					{m.summary && <p class="person__summary">{m.summary}</p>}
-					{m.bio && (
-						<details class="person__bio">
-							<summary><span aria-hidden="true">→</span><span class="visually-hidden">Read {m.name}'s full bio</span></summary>
-							<Md text={m.bio} />
-						</details>
-					)}
-				</li>
-			))
+			members.map((m, i) => {
+				const id = `person-${String(v._key ?? "team").replace(/[^\w-]/g, "")}-${i}`;
+				return (
+					<li class:list={["person", { "has-bio": !!m.bio }]}>
+						{m.photo && (
+							<div class="person__media">
+								<Image image={m.photo} class="person__photo" sizes="(max-width: 1000px) 100vw, 33vw" />
+							</div>
+						)}
+						{m.role && <p class="person__role eyebrow">{m.role}</p>}
+						<h3 class="person__name">{m.name}</h3>
+						{m.summary && <p class="person__summary">{m.summary}</p>}
+						{m.bio && (
+							<>
+								{/* The whole card opens the full bio (Salient team member, full-screen style). */}
+								<button type="button" class="person__open" data-person-open={id} aria-haspopup="dialog">
+									<span class="person__more" aria-hidden="true">→</span>
+									<span class="visually-hidden">Read {m.name}'s full bio</span>
+								</button>
+								<dialog id={id} class="person-modal" aria-label={m.name}>
+									<button type="button" class="person-modal__close" data-person-close aria-label="Close" />
+									<span class="person-cursor" aria-hidden="true" />
+									<div class="person-modal__text">
+										{m.role && <p class="person__role eyebrow">{m.role}</p>}
+										<h2 class="person-modal__name">{m.name}</h2>
+										<Md text={m.bio} class="person-modal__bio" />
+									</div>
+									{m.photo && (
+										<div class="person-modal__photo">
+											<Image image={m.photo} sizes="50vw" />
+										</div>
+									)}
+								</dialog>
+							</>
+						)}
+					</li>
+				);
+			})
 		}
 	</ul>
 </Section>
