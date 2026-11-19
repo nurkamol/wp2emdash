@@ -98,3 +98,12 @@ Editor HTML (`text`, accordion/tab content, icon-box content, alert) goes throug
 - Page-specific headers/footers (conditions other than "entire website"), and `headerDisabled`/`footerDisabled` pages.
 - Legacy global elements (`bricks_global_elements`, element `global` key) are not resolved; components are.
 - Popup templates' own trigger settings (page load, scroll, exit intent) are not read; only button interactions open them.
+
+## Verified on a real Bricks site (2026-11-19)
+
+- EmDash Exporter **1.2.0** returns `_bricks_page_content_2` **unserialized**: an array of elements with
+  `id, name, parent, children, settings` (first element `section`), alongside `_bricks_editor_mode` and
+  `_bricks_template_type` in `meta`. The adapter reads it as is — the "PHP-serialized meta" fallback is not needed
+  with this exporter version.
+- Typical stack seen on a client Bricks site: Bricks + BricksExtras + NextBricks (third-party element packs, mapped
+  per element as they come up) + Automatic.css (design variables; not read by the kit yet) + Fluent Forms + Rank Math.
