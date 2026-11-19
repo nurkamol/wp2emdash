@@ -1,0 +1,6 @@
+{"at":"2026-01-02T10:00:00.000Z","type":"phase:start","phase":"verify"}
+{"at":"2026-01-02T10:00:01.000Z","type":"step:start","step":"Pages","total":2}
+{"at":"2026-01-02T10:00:02.000Z","type":"step:progress","step":"Pages","done":2,"total":2,"item":"/about"}
+{"at":"2026-01-02T10:00:03.000Z","type":"step:end","step":"Pages","ok":true}
+{"at":"2026-01-02T10:00:04.000Z","type":"log","level":"error","message":"✖ Visual difference within 3% — / mobile 12.0%"}
+{"at":"2026-01-02T10:00:04.000Z","type":"phase:end","phase":"verify","ok":false}

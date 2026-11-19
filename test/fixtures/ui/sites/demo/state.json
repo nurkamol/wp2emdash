@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "slug": "demo",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-02T00:00:00.000Z",
+  "phases": {
+    "init": { "status": "passed", "checks": [{ "id": "access", "label": "Access checklist complete", "ok": true }] },
+    "audit": { "status": "passed", "checks": [{ "id": "urls", "label": "URLs discovered", "ok": true }] },
+    "extract": { "status": "passed", "checks": [{ "id": "content", "label": "Content exported", "ok": true }] },
+    "transform": {
+      "status": "accepted",
+      "acceptedReason": "Owner: the old slider is dropped",
+      "checks": [{ "id": "coverage", "label": "No unmapped nodes", "ok": false, "detail": "1 slider" }]
+    },
+    "scaffold": { "status": "passed", "checks": [{ "id": "build", "label": "Project builds", "ok": true }] },
+    "load": { "status": "passed", "checks": [{ "id": "import", "label": "Content imported", "ok": true }] },
+    "verify": {
+      "status": "failed",
+      "runId": "2026-01-02T10-00-00-000Z",
+      "checks": [
+        { "id": "urls", "label": "Every audited page answers 200 at the same path", "ok": true, "detail": "2 pages" },
+        { "id": "visual", "label": "Visual difference within 3%", "ok": false, "detail": "/ mobile 12.0%" }
+      ]
+    },
+    "cutover": { "status": "pending", "checks": [] }
+  }
+}

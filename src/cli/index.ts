@@ -6,6 +6,7 @@ import { provision } from "../commands/provision.js";
 import { initSite, validateSlug, validateUrl } from "../commands/init.js";
 import { acceptPhase, runPhase } from "../commands/run.js";
 import { formatTimeline, listSites, statusJson } from "../commands/status.js";
+import { startUi } from "../commands/ui.js";
 import { sitePaths } from "../core/paths.js";
 import { isPhaseId, PHASE_IDS, PHASES } from "../core/phases.js";
 import { readState } from "../core/state.js";
@@ -107,6 +108,23 @@ program
 		for (const c of r.reused) console.log(`${pc.dim("=")} ${c}`);
 		if (r.workersSubdomain) console.log(`${pc.dim("workers.dev:")} ${r.workersSubdomain}`);
 		for (const n of r.notes) console.log(`${pc.yellow("!")} ${n}`);
+	});
+
+program
+	.command("ui")
+	.description("Local dashboard: portfolio, launch readiness, live runs, visual diff viewer (127.0.0.1 only, token-protected)")
+	.option("--no-open", "print the URL without opening the browser")
+	.option("--port <n>", "port (default: a random free one)")
+	.action(async (o: { open: boolean; port?: string }) => {
+		const port = o.port ? Number(o.port) : undefined;
+		if (port !== undefined && (!Number.isInteger(port) || port < 1024 || port > 65535)) fail("--port must be 1024–65535");
+		const ui = await startUi({ open: o.open, ...(port ? { port } : {}) });
+		console.log(`${pc.bold("wp2emdash dashboard")} ${pc.dim("(local only; the token in this URL is valid until you stop the server)")}`);
+		console.log(`  ${pc.cyan(ui.url)}`);
+		console.log(pc.dim("  Read-only except visual decisions (appended to decisions.md). Ctrl+C to stop."));
+		const stop = () => void ui.close().then(() => process.exit(0));
+		process.on("SIGINT", stop);
+		process.on("SIGTERM", stop);
 	});
 
 program
