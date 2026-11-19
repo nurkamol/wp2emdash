@@ -129,3 +129,23 @@ Read from the installed `emdash@1.5.0` (`node_modules/emdash/dist`) of the pilot
 - Kit result: extract reads plugin exports from `raw/plugin-exports/` (`src/extract/plugin-exports.ts`), load syncs
   `raw/redirects.json` with `groupName: "wordpress"` (created / updated / unchanged; admin-made redirects are kept).
 
+
+## Sandboxed plugins and the Mail API plugin (verified 2026-11-19)
+
+**Sandbox on Cloudflare (emdash 1.5.0, @emdash-cms/cloudflare):** `sandbox()` returns the runner only when the
+environment's wrangler config has a Worker Loader binding named `LOADER` (`worker_loaders`; Workers Paid); otherwise it
+warns "Sandboxed plugins are disabled". A runner turns on the hosted registry (admin installs) unless `registry: false`.
+Plugins can be declared in `astro.config.mjs` → `emdash({ sandboxed: [descriptor], sandboxRunner: sandbox() })` from
+npm, pinned — the kit's `sandboxedPlugins` (kit.config.ts) does this per environment and keeps the registry off.
+
+**`@devbitme/emdash-plugin-apimail` 0.3.1 (reviewed from the npm tarball, MIT, no runtime dependencies):**
+- Capabilities: `network:request` limited to the providers' API hosts (api.brevo.com, Mailgun, Mailjet, Maileroo,
+  Postmark, Mandrill, Resend, SendGrid, MailerSend, Scaleway) and `hooks.email-transport:register`.
+- API keys: EmDash secret settings (encrypted with `EMDASH_ENCRYPTION_KEY`). Requests time out after 10 s.
+- History (plugin storage `messages`): status, recipient, provider message id, attempts; the body only for non-system
+  email and only when "keep email content" is on, AES-GCM-encrypted with a content key. Sign-in/invite email bodies are
+  never stored. Retention 30 days by default (1–3650). Queue: 24 h for ordinary email, 15 min for sign-in email.
+- Logging: no `console.*`; the plugin log records recipient address and provider error, never content.
+- Needs a cron for the retry queue (the kit's Worker runs `*/5 * * * *` with EmDash's scheduled handler).
+- For sensitive sites: use it for EmDash's own email (sign-in, invites); keep website forms on `@wp2emdash/forms`
+  direct delivery, and turn "keep email content" off.
