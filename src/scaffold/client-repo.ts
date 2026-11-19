@@ -220,6 +220,13 @@ issues and where they are, every page with an **Open** link to fix it, the pictu
 write them all in one form and **Save descriptions** — and checks of robots.txt, the sitemap and whether Google may
 index the site. The dashboard home shows a summary.
 
+**Google Search Console** (tab "Google"): connect once with a Google service account — the tab lists the five steps
+(Google Cloud project with the Search Console API, a service account and its JSON key, the account added as a Full
+user of the property, the key pasted in). Then it shows clicks, impressions, positions, top searches and pages, the
+sitemaps (**Submit sitemap** after go-live) and whether each page is indexed. The key is stored encrypted.
+
+**IndexNow** (tab "IndexNow"): after go-live, publishing a page tells Bing and other engines immediately.
+
 For one page: open it and unfold **SEO** at the bottom of the right sidebar: a score out of 100, how the page looks in Google,
 and what to improve — title and description length, duplicates with other pages, one main heading (H1), heading
 order, text length, image descriptions (alt text, set in the media library), links, the address, whether the page is
@@ -309,7 +316,10 @@ monitoring period). Content edited here after the switch has to be copied back b
 
 ## After
 
-- Watch the 404 log (admin → Redirects) and add redirects for old addresses people still use.
+- Watch the 404 log (admin → Redirects) and add redirects for old addresses people still use.${i.seoPanel ? `
+- SEO: in the migration kit set \`production.live: true\`, rerun scaffold and deploy — IndexNow then notifies search
+  engines on every publish. In the admin, **Plugins → SEO → Google**: **Submit sitemap**, and **IndexNow → Notify search
+  engines about every page** once.` : ""}
 - Check form deliveries and Worker errors for the first two weeks.
 - Later, with the owner's approval: replace the routes with a Worker Custom Domain and retire WordPress hosting
   (keep the final backup).

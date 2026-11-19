@@ -13,6 +13,26 @@
   is expected and shown as a note, not an error.
 - **Dashboard widget:** average score, pages under 80, images to describe.
 
+## Google Search Console (dashboard tab "Google")
+
+Connected with a **service account** (no Google sign-in screen, works for any team member): the owner creates a
+service account in Google Cloud with the Search Console API enabled, downloads its JSON key, adds the account's email
+as a **Full** user of the Search Console property, and pastes the key into the dashboard. EmDash stores it encrypted
+(`admin.settingsSchema` secret field, `EMDASH_ENCRYPTION_KEY`); it is never shown again or logged. The Worker signs
+a JWT (RS256, WebCrypto) for an access token and shows, for the last 28 days Google has data for: clicks, impressions,
+click rate, average position, a daily chart, top searches and top pages; the sitemaps Google knows (**Submit
+sitemap**); and **Check index status** for up to 25 pages (URL Inspection API, 2,000/day/property). Data is cached
+6 hours (**Refresh** to update). Works before go-live: Search Console reports on the domain, whatever serves it.
+
+## IndexNow (dashboard tab "IndexNow")
+
+Publishing a page tells Bing, Yandex, Seznam, Naver and the other IndexNow engines right away (Google does not use
+IndexNow; it reads the sitemap). The key is derived from the production host and its file is written to
+`public/<key>.txt`, so it sits at the domain root and covers every URL. Submissions start only when the site is live
+on its domain (`production.live` in the kit's cloudflare.json, then re-scaffold and deploy); before that the domain
+still serves the old site and the key could not be verified. The tab shows whether the key file is reachable, the last
+20 notifications, and **Notify search engines about every page**.
+
 ## SEO panel in the page editor
 
 An **SEO panel in the EmDash page editor** (sidebar, under EmDash's own SEO fields), for editors, authors and

@@ -5,6 +5,7 @@
  * an owner-approved step (load, M6).
  */
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -218,7 +219,13 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	}
 	// Experimental SEO panel in the page editor (@wp2emdash/seo); off unless seo.panel.
 	rmSync(join(project, "packages", "seo"), { recursive: true, force: true });
-	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: ["pages"], ...(og ? { ogCards: true } : {}) } : undefined;
+	// IndexNow key: derived from the production host (stable across reruns, nothing to store); its file sits at the
+	// domain root so it covers every URL. Submissions start once production.live is set (after the switch).
+	const indexNowKey = createHash("sha256").update(`indexnow:${new URL(siteConfig.productionUrl).host}`).digest("hex").slice(0, 32);
+	for (const f of existsSync(join(project, "public")) ? readdirSync(join(project, "public")) : []) if (/^[0-9a-f]{32}\.txt$/.test(f) && f !== `${indexNowKey}.txt`) rmSync(join(project, "public", f));
+	if (config.seo.panel) writeFileSync(join(project, "public", `${indexNowKey}.txt`), indexNowKey);
+	else rmSync(join(project, "public", `${indexNowKey}.txt`), { force: true });
+	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: ["pages"], ...(og ? { ogCards: true } : {}), indexNow: { key: indexNowKey, live: !!readJson<CloudflareResources>(join(paths.root, "cloudflare.json"))?.production?.live } } : undefined;
 	if (seoPanel) cpSync(join(KIT_ROOT, "packages", "seo"), join(project, "packages", "seo"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
 	write(join(project, "src", "site.config.json"), siteConfig);
 	write(join(project, "src", "styles", "tokens.css"), tokens.css + headerTokens(interactions.headers, siteConfig.header.breakpoint));

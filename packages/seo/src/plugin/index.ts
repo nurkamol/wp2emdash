@@ -12,7 +12,9 @@ import type { Analysis, Check } from "../analyze.js";
 import { SEO_PLUGIN, type SeoPanelOptions } from "../index.js";
 import { siteChecks } from "../site-checks.js";
 import { allItems, analyseItem, keywordKey, mediaIds, mediaInfo, type SeoCtx, siteReport } from "./collect.js";
-import { DASHBOARD_PAGE, dashboard, WIDGET, widget } from "./dashboard.js";
+import { DASHBOARD_PAGE, dashboard, type GoogleData, type GoogleState, type IndexNowState, WIDGET, widget } from "./dashboard.js";
+import { dateRange, GoogleError, parseServiceAccount, pickProperty, SearchConsole } from "../google.js";
+import { type IndexNowResult, submitIndexNow } from "../indexnow.js";
 
 type Block = Record<string, unknown>;
 
@@ -52,7 +54,20 @@ export function createPlugin(options: SeoPanelOptions) {
 	return definePlugin({
 		...SEO_PLUGIN,
 		capabilities: ["content:read", "media:read", "media:metadata:write", "admin.editor-draft:read"],
+		hooks: {
+			// IndexNow on publish (only once the domain serves this site; before go-live it serves the old one).
+			"content:afterPublish": async (event, raw) => {
+				const ctx = raw as unknown as SeoCtx;
+				if (!o.indexNow?.live || !collections.includes(event.collection)) return;
+				const slug = typeof event.content.slug === "string" ? event.content.slug : null;
+				await logIndexNow(ctx, await submitIndexNow(o.productionUrl, o.indexNow.key, [pageUrl(o, slug)]), `Published ${slug ?? "a page"}`);
+			},
+		},
 		admin: {
+			settingsSchema: {
+				gscKey: { type: "secret", label: "Google Search Console service account key (JSON)" },
+				gscProperty: { type: "string", label: "Search Console property (optional)" },
+			},
 			pages: [{ path: DASHBOARD_PAGE, label: "SEO", icon: "chart-line" }],
 			widgets: [{ id: WIDGET, title: "SEO", size: "third" }],
 			editorPanels: [{ id: "seo", title: "SEO", route: "panel", collections, order: 10, draft: { read: { fields: ["title", "content"] } } }],
@@ -89,9 +104,29 @@ export function createPlugin(options: SeoPanelOptions) {
 					const self = env.SELF;
 					const fetcher = (self ? (input: RequestInfo | URL, init?: RequestInit) => self.fetch(new Request(String(input), init)) : fetch) as typeof fetch;
 					const site = await siteChecks(origin, o.productionUrl, paths, fetcher).catch((e: Error) => [{ id: "site", label: "Site checks", status: "warn" as const, detail: `Could not run: ${e.message}` }]);
+					// Google Search Console and IndexNow actions.
+					let toast: { message: string; type: "success" | "error" | "info" } | undefined = altSaved ? { message: `${altSaved} image description${altSaved === 1 ? "" : "s"} saved.`, type: "success" } : undefined;
+					let google: GoogleState;
+					const act = i.action_id ?? "";
+					if (act.startsWith("gsc-")) {
+						const r = await googleAction(ctx, o, act, i.values ?? {}, report.pages.map((p) => pageUrl(o, p.item.slug)));
+						google = r.state;
+						toast = r.toast;
+					} else google = await googleState(ctx, o, false);
+					let indexNow: IndexNowState | undefined;
+					if (o.indexNow) {
+						if (act === "indexnow-all" && o.indexNow.live) {
+							const res = await submitIndexNow(o.productionUrl, o.indexNow.key, report.pages.map((p) => pageUrl(o, p.item.slug)));
+							await logIndexNow(ctx, res, "All pages");
+							toast = { message: res.ok ? `${res.urls} pages sent to IndexNow.` : `IndexNow refused: ${res.note ?? res.status}`, type: res.ok ? "success" : "error" };
+						}
+						const keyFile = o.indexNow.live ? ((await fetcher(new URL(`/${o.indexNow.key}.txt`, origin).toString()).then(async (r) => (r.ok && (await r.text()).trim() === o.indexNow?.key ? "ok" : "missing")).catch(() => "missing")) as "ok" | "missing") : "not-checked";
+						indexNow = { live: o.indexNow.live, keyFile, host: new URL(o.productionUrl).host, log: (await ctx.kv.get<IndexNowState["log"]>("indexnow:log")) ?? [] };
+					}
+					const tabFor: Record<string, number> = { "save-alt": 2, refresh: 3, "indexnow-all": 5 };
 					return {
-						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}) }, i.action_id === "save-alt" ? 2 : i.action_id === "refresh" ? 3 : 0),
-						...(altSaved ? { toast: { message: `${altSaved} image description${altSaved === 1 ? "" : "s"} saved.`, type: "success" } } : {}),
+						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}), google, ...(indexNow ? { indexNow } : {}), productionUrl: o.productionUrl }, act.startsWith("gsc-") ? 4 : (tabFor[act] ?? 0)),
+						...(toast ? { toast } : {}),
 					};
 				},
 			},
@@ -122,6 +157,122 @@ export function createPlugin(options: SeoPanelOptions) {
 			},
 		},
 	});
+}
+
+const pageUrl = (o: SeoPanelOptions, slug: string | null) => `${o.productionUrl.replace(/\/$/, "")}${slug && slug !== "home" && slug !== "index" ? `/${slug}/` : "/"}`;
+
+async function logIndexNow(ctx: SeoCtx, r: IndexNowResult, trigger: string): Promise<void> {
+	const log = (await ctx.kv.get<(IndexNowResult & { trigger: string })[]>("indexnow:log")) ?? [];
+	await ctx.kv.set("indexnow:log", [{ ...r, trigger }, ...log].slice(0, 20));
+	ctx.log?.info("indexnow", { urls: r.urls, status: r.status, ok: r.ok });
+}
+
+const CACHE_MS = 6 * 3600_000;
+
+async function client(ctx: SeoCtx): Promise<{ gsc: SearchConsole; account: string } | undefined> {
+	const raw = await ctx.settings?.get<string>("gscKey");
+	if (!raw) return undefined;
+	const sa = parseServiceAccount(raw);
+	return { gsc: new SearchConsole(sa), account: sa.client_email };
+}
+
+async function property(ctx: SeoCtx, o: SeoPanelOptions, gsc: SearchConsole): Promise<string> {
+	const set = (await ctx.settings?.get<string>("gscProperty"))?.trim();
+	if (set) return set;
+	const found = pickProperty(await gsc.sites(), o.productionUrl);
+	if (!found) throw new GoogleError(`The service account cannot see a Search Console property for ${new URL(o.productionUrl).host}. Add it as a user of the property.`, 403);
+	return found;
+}
+
+async function loadGoogle(gsc: SearchConsole, site: string): Promise<GoogleData> {
+	const range = dateRange();
+	const [totals, byDate, queries, pages, sitemaps] = await Promise.all([
+		gsc.analytics(site, { ...range, dimensions: [] }),
+		gsc.analytics(site, { ...range, dimensions: ["date"], rowLimit: 100 }),
+		gsc.analytics(site, { ...range, dimensions: ["query"], rowLimit: 15 }),
+		gsc.analytics(site, { ...range, dimensions: ["page"], rowLimit: 15 }),
+		gsc.sitemaps(site),
+	]);
+	const t = totals[0] ?? { clicks: 0, impressions: 0, ctr: 0, position: 0 };
+	return {
+		at: new Date().toISOString(),
+		property: site,
+		range,
+		totals: { clicks: t.clicks, impressions: t.impressions, ctr: t.ctr, position: t.position },
+		byDate: byDate.map((r) => ({ date: r.keys?.[0] ?? "", clicks: r.clicks, impressions: r.impressions })),
+		queries: queries.map((r) => ({ query: r.keys?.[0] ?? "", clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position })),
+		pages: pages.map((r) => ({ page: r.keys?.[0] ?? "", clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position })),
+		sitemaps: sitemaps.map((s) => ({ path: s.path, ...(s.lastSubmitted ? { lastSubmitted: s.lastSubmitted } : {}), ...(s.lastDownloaded ? { lastDownloaded: s.lastDownloaded } : {}), ...(s.isPending ? { isPending: true } : {}), ...(s.errors ? { errors: s.errors } : {}), ...(s.warnings ? { warnings: s.warnings } : {}), ...(s.contents?.[0]?.submitted ? { submitted: s.contents[0].submitted } : {}), ...(s.contents?.[0]?.indexed ? { indexed: s.contents[0].indexed } : {}) })),
+	};
+}
+
+/** Connection state with cached data (6 hours unless forced). Errors are reported, never thrown at the page. */
+async function googleState(ctx: SeoCtx, o: SeoPanelOptions, force: boolean): Promise<GoogleState> {
+	let c: Awaited<ReturnType<typeof client>>;
+	try {
+		c = await client(ctx);
+	} catch (e) {
+		return { connected: false, error: (e as Error).message };
+	}
+	if (!c) return { connected: false };
+	const cached = await ctx.kv.get<GoogleData>("gsc:cache");
+	if (cached && !force && Date.now() - Date.parse(cached.at) < CACHE_MS) return { connected: true, account: c.account, data: cached };
+	try {
+		const data = await loadGoogle(c.gsc, await property(ctx, o, c.gsc));
+		if (cached?.inspections) data.inspections = cached.inspections;
+		await ctx.kv.set("gsc:cache", data);
+		return { connected: true, account: c.account, data };
+	} catch (e) {
+		return { connected: true, account: c.account, ...(cached ? { data: cached } : {}), error: (e as Error).message };
+	}
+}
+
+async function googleAction(ctx: SeoCtx, o: SeoPanelOptions, act: string, values: Record<string, unknown>, urls: string[]): Promise<{ state: GoogleState; toast?: { message: string; type: "success" | "error" | "info" } }> {
+	if (act === "gsc-connect") {
+		const key = typeof values.key === "string" ? values.key.trim() : "";
+		const prop = typeof values.property === "string" ? values.property.trim().slice(0, 200) : "";
+		try {
+			const sa = parseServiceAccount(key);
+			const gsc = new SearchConsole(sa);
+			const site = prop || pickProperty(await gsc.sites(), o.productionUrl);
+			if (!site) throw new Error(`Connected to Google, but ${sa.client_email} is not a user of a Search Console property for ${new URL(o.productionUrl).host} yet (step 3).`);
+			await ctx.settings?.set("gscKey", key);
+			if (prop) await ctx.settings?.set("gscProperty", prop);
+			await ctx.kv.delete?.("gsc:cache");
+			ctx.log?.info("search console connected", { account: sa.client_email });
+			return { state: await googleState(ctx, o, true), toast: { message: "Search Console connected.", type: "success" } };
+		} catch (e) {
+			return { state: { connected: false, error: (e as Error).message } };
+		}
+	}
+	if (act === "gsc-disconnect") {
+		await ctx.settings?.delete("gscKey");
+		await ctx.settings?.delete("gscProperty");
+		await ctx.kv.delete?.("gsc:cache");
+		return { state: { connected: false }, toast: { message: "Search Console disconnected; the key was deleted.", type: "success" } };
+	}
+	const c = await client(ctx).catch(() => undefined);
+	if (!c) return { state: { connected: false } };
+	try {
+		const site = await property(ctx, o, c.gsc);
+		if (act === "gsc-submit-sitemap") {
+			await c.gsc.submitSitemap(site, `${o.productionUrl.replace(/\/$/, "")}/sitemap.xml`);
+			return { state: await googleState(ctx, o, true), toast: { message: "Sitemap submitted to Google.", type: "success" } };
+		}
+		if (act === "gsc-inspect") {
+			// URL Inspection allows 2,000 a day per property; this checks at most 25 pages.
+			const rows = await Promise.all(urls.slice(0, 25).map(async (url) => ({ url, ...(await c.gsc.inspect(site, url).catch((e: Error) => ({ coverageState: e.message }))) })));
+			const state = await googleState(ctx, o, false);
+			if (state.data) {
+				state.data.inspections = { at: new Date().toISOString(), rows };
+				await ctx.kv.set("gsc:cache", state.data);
+			}
+			return { state, toast: { message: `Index status checked for ${rows.length} pages.`, type: "success" } };
+		}
+		return { state: await googleState(ctx, o, true), toast: { message: "Updated from Google.", type: "info" } };
+	} catch (e) {
+		return { state: { ...(await googleState(ctx, o, false)), error: (e as Error).message } };
+	}
 }
 
 export default createPlugin;

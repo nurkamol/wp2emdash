@@ -12,6 +12,7 @@ export interface Item {
 export interface Kv {
 	get<T>(k: string): Promise<T | null>;
 	set(k: string, v: unknown): Promise<void>;
+	delete?(k: string): Promise<boolean>;
 }
 export interface SeoCtx {
 	input: unknown;
@@ -26,6 +27,8 @@ export interface SeoCtx {
 		updateMetadata?(id: string, patch: { alt?: string | null }): Promise<unknown>;
 	};
 	site: { name: string; url?: string };
+	settings?: { get<T>(k: string): Promise<T | null>; set(k: string, v: unknown): Promise<void>; delete(k: string): Promise<boolean> };
+	log?: { info(m: string, d?: Record<string, unknown>): void; warn?(m: string, d?: Record<string, unknown>): void };
 }
 
 /** Every entry of a collection (up to `max`), trash excluded. */

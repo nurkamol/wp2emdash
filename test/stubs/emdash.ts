@@ -35,10 +35,13 @@ interface Route {
 interface PluginDefinition {
 	id: string;
 	version: string;
-	admin?: { pages?: { path: string; label: string; icon?: string }[]; widgets?: { id: string; title?: string; size?: string }[]; editorPanels?: { id: string; title: string; route: string; collections?: string[]; order?: number; draft?: { read?: { fields?: string[] }; patch?: { fields?: string[] } } }[] };
+	admin?: { pages?: { path: string; label: string; icon?: string }[]; widgets?: { id: string; title?: string; size?: string }[]; editorPanels?: { id: string; title: string; route: string; collections?: string[]; order?: number; draft?: { read?: { fields?: string[] }; patch?: { fields?: string[] } } }[]; settingsSchema?: Record<string, { type: string; label: string }> };
 	capabilities?: string[];
 	routes?: Record<string, Route>;
-	hooks?: { "page:metadata"?: (event: { page: PageContext }, ctx: { kv: KvStub }) => Promise<Contribution[] | null> };
+	hooks?: {
+		"page:metadata"?: (event: { page: PageContext }, ctx: { kv: KvStub }) => Promise<Contribution[] | null>;
+		"content:afterPublish"?: (event: { content: Record<string, unknown>; collection: string }, ctx: { kv: KvStub }) => Promise<void>;
+	};
 }
 export const definePlugin = <T extends PluginDefinition>(def: T): T => def;
 export interface PluginResponse {

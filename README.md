@@ -64,7 +64,8 @@ seo: { panel: true },
 ```
 
 Adds an **SEO dashboard** (Plugins → SEO: site-wide scores, most common issues, every page with a link to fix it,
-image descriptions written in one form, robots.txt / sitemap / indexing checks, a dashboard widget) and an **SEO**
+image descriptions written in one form, robots.txt / sitemap / indexing checks, a dashboard widget, **Google Search
+Console** data through a service account, **IndexNow** on publish after go-live) and an **SEO**
 panel to the page editor's sidebar: a score, the Google result preview, a plain-words checklist
 (title and description length, duplicates across pages, one H1, heading order, text length, image alt text, links,
 address, indexing, sharing image) and an optional focus keyword per page. "Check my unsaved changes" checks the

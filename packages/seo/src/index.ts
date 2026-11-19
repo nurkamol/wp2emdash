@@ -12,6 +12,8 @@ export interface SeoPanelOptions {
 	collections?: string[];
 	/** Sharing cards (@wp2emdash/og) are on: a page without its own image still gets one. */
 	ogCards?: boolean;
+	/** IndexNow: the key whose file is at the domain root; `live` once the domain serves this site (after cutover). */
+	indexNow?: { key: string; live: boolean };
 }
 
 export const SEO_PLUGIN = { id: "site-seo", version: "0.1.0" } as const;
