@@ -17,7 +17,8 @@ import { completeMarianaEmbeds, marianaTenant } from "../transform/embeds.js";
 import { type Diagnostic, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
 import { conservation, irText, missingContext, sourceText } from "../transform/coverage.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
-import { transformReport } from "../transform/report.js";
+import { type AnnouncementReport, transformReport } from "../transform/report.js";
+import { announcementDoc, describeBar, detectAnnouncement } from "../transform/announcement.js";
 import type { ScreenshotResult } from "../audit/browser.js";
 import type { ExporterPost, MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
@@ -85,6 +86,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const bricksPopups = new Map(bricksTemplatePosts.filter((t) => t.status === "publish" && templateType(t.meta) === "popup").map((t) => [t.id, `bricks-${t.slug}`]));
 	const siteUrl = config.source.url.replace(/\/$/, "");
 	const siteHosts = new Set([new URL(siteUrl).host, ...config.source.alternateHosts].map((h) => h.replace(/^www\./, "")));
+	const relHref = (url: string) => {
+		if (url.startsWith("#")) return url;
+		try {
+			const u = new URL(url, siteUrl);
+			if (siteHosts.has(u.host.replace(/^www\./, ""))) return `${u.pathname}${u.search}${u.hash}` || "/";
+		} catch {}
+		return url;
+	};
 
 	// ── Popups: which links/classes open them ──────────────────────────────────
 	const popupEnabled = (p: ExporterPost) => p.status === "publish" && Number(p.meta.enabled ?? 1) === 1;
@@ -247,6 +256,28 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		emit({ version: IR_VERSION, kind: "partial", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder: "bricks", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics }, `partials/${p.slug}.json`, true);
 		partials.push({ role, file: `partials/${p.slug}.json` });
 	}
+	// Announcement bar: rebuilt from the live pages' HTML (plugins such as Announcer keep it outside REST).
+	const snapHtmlDir = join(paths.snapshot, "html");
+	const snapshotHtml = existsSync(snapHtmlDir) ? readdirSync(snapHtmlDir).filter((f) => f.endsWith(".html")).sort().map((f) => ({ name: f.replace(/\.html$/, ""), html: readFileSync(join(snapHtmlDir, f), "utf8") })) : [];
+	const announcement = detectAnnouncement(snapshotHtml);
+	const bar = announcement.best;
+	const announcementReport: AnnouncementReport = { decision: overrides.announcement, all: announcement.all.map(describeBar), scriptOnly: announcement.scriptOnly };
+	if (bar && overrides.announcement !== "drop" && (bar.confident || overrides.announcement === "keep")) {
+		emit(announcementDoc(bar, new Keys("ann_"), relHref), "partials/announcement.json", true);
+		partials.push({ role: "announcement", file: "partials/announcement.json" });
+		announcementReport.rebuilt = describeBar(bar);
+		// Report only (the IR keeps the source schedule): a window that already ended hides the bar on the new site too.
+		const ends = bar.schedule?.to ? Date.parse(bar.schedule.to) : Number.NaN;
+		if (ends < Date.now()) {
+			const note = `The bar's schedule ended on ${bar.schedule?.to?.slice(0, 10)}: the starter hides it after that date, although the saved pages still carry it (check on the live site whether visitors see it). Clear or move "Hide after" in the admin to show it again.`;
+			announcementReport.notes = [note];
+			reporter.emit({ type: "log", level: "warn", message: note });
+		}
+	} else if (bar) {
+		const why = overrides.announcement === "drop" ? "not rebuilt: overrides.announcement is \"drop\"" : `possible announcement bar, not rebuilt (${bar.plugin === "generic" ? "matched by class name only" : "on fewer than half of the saved pages"}); set announcement: "keep" in overrides.ts to rebuild it or "drop" to confirm`;
+		notTransformed.push(`announcement bar ${describeBar(bar)} — ${why}`);
+	}
+	for (const s of announcement.scriptOnly) notTransformed.push(`announcement bar: ${s} is loaded by a script, so its text is not in the saved HTML; check the live site and add it in the admin (Header & footer → announcement) if needed`);
 	for (const o of bricksParts.others) notTransformed.push(`bricks_template ${o.post.slug} (${o.type}, ${o.post.status}): applies to ${o.conditions}; only the site-wide ${o.type} is migrated`);
 	const offChrome = pages.filter((p) => isBricks(p.meta) && ["headerDisabled", "footerDisabled"].some((k) => (p.meta._bricks_page_settings as Record<string, unknown> | undefined)?.[k]));
 	if (offChrome.length) notTransformed.push(`Bricks page settings hide the header or footer on: ${offChrome.map((p) => p.slug).join(", ")} (the starter shows them; decide per page)`);
@@ -281,14 +312,6 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	reporter.emit({ type: "step:end", step: "Adapt content", ok: invalid.length === 0, detail: `${results.length} documents${paddedEdges ? `, ${paddedEdges} section edges with measured padding` : ""}` });
 
 	// ── Site: identity, menus ──────────────────────────────────────────────────
-	const relHref = (url: string) => {
-		if (url.startsWith("#")) return url;
-		try {
-			const u = new URL(url, siteUrl);
-			if (siteHosts.has(u.host.replace(/^www\./, ""))) return `${u.pathname}${u.search}${u.hash}` || "/";
-		} catch {}
-		return url;
-	};
 	const menuRole = (locs: string[]): IrSite["menus"][number]["role"] => {
 		const l = locs.join(" ");
 		if (/off_canvas|primary|main|top_nav(?!_pull)|header/i.test(l)) return "primary";
@@ -426,8 +449,9 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	write(join(reportDir, "coverage.json"), {
 		documents: results.map((r) => ({ file: r.file, published: r.published, builder: r.doc.source.builder, sections: r.doc.sections.map((s) => `${s.type}${s.variant ? `:${s.variant}` : ""}`), diagnostics: r.doc.diagnostics, conservation: r.conservation && { ratio: r.conservation.ratio, missing: r.conservation.missing } })),
 		notTransformed,
+		announcement: announcementReport,
 	});
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

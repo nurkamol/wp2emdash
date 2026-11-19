@@ -7,7 +7,8 @@ import { pathToFileURL } from "node:url";
 import { z } from "zod";
 import { SECTION_TYPES } from "../ir/schema.js";
 
-const sectionOrDrop = z.union([z.enum(SECTION_TYPES as [string, ...string[]]), z.literal("drop")]);
+// The announcement bar is a site part rebuilt from the live HTML, not a row type an adapter can be forced into.
+const sectionOrDrop = z.union([z.enum(SECTION_TYPES.filter((t) => t !== "announcement") as [string, ...string[]]), z.literal("drop")]);
 
 export const overridesSchema = z.object({
 	/** WordPress path → EmDash path, when the default mapping is wrong. */
@@ -28,6 +29,11 @@ export const overridesSchema = z.object({
 			source: z.enum(["unknown", "none", "file"]).default("unknown"),
 		})
 		.prefault({}),
+	/**
+	 * Announcement bar found in the live pages (transform report): auto = rebuild it when a known plugin/theme bar is on
+	 * most pages, report an uncertain match as a warning; keep = also rebuild the uncertain match; drop = do not rebuild.
+	 */
+	announcement: z.enum(["auto", "keep", "drop"]).default("auto"),
 	/** legacy_html sections approved to ship as-is: `<slug>:<row path>`. */
 	approvedLegacy: z.array(z.string()).default([]),
 });

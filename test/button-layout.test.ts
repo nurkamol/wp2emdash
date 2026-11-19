@@ -6,7 +6,8 @@ const slugs = (b: (typeof BLOCK_TYPES)[number]) => (b.versions[0]?.fields ?? [])
 
 describe("button group layout fields", () => {
 	it("every block with buttons gets all five settings, optional with neutral defaults", () => {
-		const withButtons = BLOCK_TYPES.filter((b) => slugs(b).some((s) => s === "buttons" || /^col_\d_buttons$/.test(s)));
+		// Page sections only: the announcement bar (category "Site parts") lays out its two buttons itself.
+		const withButtons = BLOCK_TYPES.filter((b) => b.category === "Sections" && slugs(b).some((s) => s === "buttons" || /^col_\d_buttons$/.test(s)));
 		expect(withButtons.map((b) => b.slug).sort()).toEqual(["section_columns", "section_cta_banner", "section_hero", "section_media_text", "section_pricing", "section_rich_text"]);
 		for (const b of withButtons) {
 			expect(slugs(b)).toEqual(expect.arrayContaining(LAYOUT));

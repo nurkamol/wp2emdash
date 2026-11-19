@@ -74,7 +74,7 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 		blockTypes: BLOCK_TYPES,
 		collections: [
 			{ slug: "pages", label: "Pages", labelSingular: "Page", urlPattern: "/{slug}", supports: ["drafts", "revisions", "preview", "seo", "search"], sortOrder: 1, fields: [{ slug: "title", label: "Title", type: "string", required: true }, content] },
-			{ slug: "site_parts", label: "Header & footer", labelSingular: "Site part", description: "Sections shown on every page (footer)", routable: false, supports: ["drafts", "revisions"], sortOrder: 2, fields: [{ slug: "title", label: "Title", type: "string", required: true }, content] },
+			{ slug: "site_parts", label: "Header & footer", labelSingular: "Site part", description: "Shown on every page: the announcement bar above the header (entry “announcement”) and the footer", routable: false, supports: ["drafts", "revisions"], sortOrder: 2, fields: [{ slug: "title", label: "Title", type: "string", required: true }, content] },
 			{
 				slug: "popups",
 				label: "Popups",

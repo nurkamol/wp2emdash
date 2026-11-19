@@ -117,7 +117,7 @@ Claude never accepts a gate (only `wp2emdash accept` with the owner's reason) an
 | `init` | Workspace, config, access & backup checklist | ✅ |
 | `audit` | Crawl live site, snapshots, screenshots, design, menu motion, forms & integrations scan | ✅ |
 | `extract` | EmDash Exporter API: raw content, meta, SEO, menus, forms, media download | ✅ |
-| `transform` | WPBakery/Salient, Gutenberg, classic, Bricks 2.4–2.5 (elements, global classes, palette, components, header/footer/popup templates, forms; not yet measured on a live Bricks site) → section IR, coverage & text-conservation gate | ✅ |
+| `transform` | WPBakery/Salient, Gutenberg, classic, Bricks 2.4–2.5 (elements, global classes, palette, components, header/footer/popup templates, forms; not yet measured on a live Bricks site) → section IR, coverage & text-conservation gate; announcement/top bars (Announcer, WPFront Notification Bar, Salient secondary header, Astra above-header; other bar-like rows reported for a decision) rebuilt from the live HTML as an editable site part above the header | ✅ |
 | `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, analytics, seed; client README, docs and GitHub CI; builds + local preview | ✅ |
 | `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map | ✅ local, staging, production (`WP2EMDASH_LOAD_TARGET`) |
 | `verify` | Old site vs staging or production, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |
@@ -227,7 +227,7 @@ scaffold adds (a Worker fetching its own address would skip itself). Details: [p
 ## Docs
 
 - [Plan](docs/PLAN.md)
-- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md)
+- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md)
 - [Site workspaces](sites/README.md)
 - [Staging and production setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, production on `workers.dev`, troubleshooting
 - [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token

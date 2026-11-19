@@ -21,6 +21,7 @@ import Form from "./sections/Form.astro";
 import Map from "./sections/Map.astro";
 import Embed from "./sections/Embed.astro";
 import LegacyHtml from "./sections/LegacyHtml.astro";
+import SitePartOnly from "./sections/SitePartOnly.astro";
 
 interface Props {
 	value?: any[] | null;
@@ -47,6 +48,8 @@ const components = defineBlockComponents<any>({
 	section_map: Map,
 	section_embed: Embed,
 	section_legacy_html: LegacyHtml,
+	// Rendered above the header by layouts/Base.astro (site part "announcement"), never inside page content.
+	section_announcement: SitePartOnly,
 });
 ---
 

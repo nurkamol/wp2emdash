@@ -4,6 +4,42 @@
  */
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+// ── Announcement bar: keeps --announce-h / --announce-offset current (the inline script after the bar set them
+// before first paint); the close button hides it and remembers this message version. ──
+const bar = document.querySelector<HTMLElement>("[data-announcement]");
+if (bar && !bar.hidden) {
+	const root = document.documentElement;
+	const sticky = bar.hasAttribute("data-sticky");
+	let h = bar.offsetHeight;
+	const place = () => {
+		const on = bar.hidden ? 0 : h;
+		root.style.setProperty("--announce-h", `${on}px`);
+		root.style.setProperty("--announce-offset", `${sticky ? on : Math.max(0, on - window.scrollY)}px`);
+	};
+	new ResizeObserver(() => {
+		h = bar.offsetHeight || h;
+		place();
+	}).observe(bar);
+	if (!sticky) window.addEventListener("scroll", place, { passive: true });
+	bar.querySelector("[data-announcement-close]")?.addEventListener("click", () => {
+		try {
+			localStorage.setItem(`announcement:${bar.dataset.version}`, "closed");
+		} catch {}
+		const done = () => {
+			bar.hidden = true;
+			root.classList.remove("has-announcement");
+			place();
+			// Focus would be lost with the bar: move it to the page content.
+			document.getElementById("main")?.focus({ preventScroll: true });
+		};
+		if (reduce) done();
+		else {
+			bar.classList.add("is-closing");
+			window.setTimeout(done, 200);
+		}
+	});
+}
+
 // ── Header: transparent over the hero → solid; hide on scroll down, reveal on scroll up ──
 const header = document.querySelector<HTMLElement>("[data-header]");
 if (header) {
@@ -32,7 +68,7 @@ function setMenu(open: boolean) {
 	if (!toggle || !panel || !overlay) return;
 	toggle.setAttribute("aria-expanded", String(open));
 	document.body.classList.toggle("menu-open", open);
-	for (const el of [main, footer]) if (el) el.inert = open;
+	for (const el of [main, footer, bar]) if (el) el.inert = open;
 	if (open) {
 		panel.hidden = false;
 		overlay.hidden = false;

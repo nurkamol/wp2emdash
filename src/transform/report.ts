@@ -4,8 +4,20 @@ import type { DocResult } from "../phases/transform.js";
 
 const esc = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ");
 
+/** What the announcement-bar detection found (src/transform/announcement.ts). */
+export interface AnnouncementReport {
+	decision: "auto" | "keep" | "drop";
+	/** The bar rebuilt as the "announcement" site part. */
+	rebuilt?: string;
+	/** Every distinct bar found in the saved pages. */
+	all: string[];
+	scriptOnly: string[];
+	/** Operator notes (e.g. the schedule already ended: the starter hides the bar, as the plugin's script does). */
+	notes?: string[];
+}
+
 /** reports/transform/coverage.md — per document: sections, conservation, diagnostics. */
-export function transformReport(siteName: string, results: DocResult[], checks: GateCheck[], notTransformed: string[], site: IrSite): string {
+export function transformReport(siteName: string, results: DocResult[], checks: GateCheck[], notTransformed: string[], site: IrSite, announcement?: AnnouncementReport): string {
 	const L: string[] = [];
 	const ok = checks.every((c) => c.ok);
 	L.push(`# Transform — ${siteName}`, "", `**Gate: ${ok ? "PASSED" : "FAILED"}**`, "", "| | Check | Detail |", "|---|---|---|");
@@ -68,6 +80,15 @@ export function transformReport(siteName: string, results: DocResult[], checks: 
 	L.push("## Menus", "");
 	for (const m of site.menus) {
 		L.push(`- **${m.name}** (${m.role}): ${m.items.map((i) => `${i.label}${i.opensPopup ? ` [opens popup ${i.opensPopup}]` : ""}${i.children.length ? ` › ${i.children.map((c) => c.label).join(", ")}` : ""}`).join(" · ")}`);
+	}
+	if (announcement && (announcement.all.length || announcement.scriptOnly.length)) {
+		L.push("", "## Announcement bar", "");
+		L.push(announcement.rebuilt ? `Rebuilt as the \`announcement\` site part from ${announcement.rebuilt}` : `Not rebuilt (overrides.announcement: \`${announcement.decision}\`). Decide in \`overrides.ts\`: \`announcement: "keep"\` rebuilds the first bar below, \`"drop"\` confirms leaving it out.`);
+		for (const a of announcement.all) L.push(`- ${esc(a)}`);
+		for (const s of announcement.scriptOnly) L.push(`- ${s}: loaded by a script (text not in the saved HTML)`);
+		for (const n of announcement.notes ?? []) L.push(`- ⚠️ ${esc(n)}`);
+		const doc = results.find((r) => r.file === "partials/announcement.json");
+		for (const d of doc?.doc.diagnostics.filter((x) => x.message.startsWith("Announcement colours")) ?? []) L.push(`- ♿ ${esc(d.message)}`);
 	}
 	if (notTransformed.length) {
 		L.push("", "## Not transformed (by design)", "");

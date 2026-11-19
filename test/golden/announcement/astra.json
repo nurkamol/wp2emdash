@@ -1,0 +1,97 @@
+{
+  "confident": true,
+  "found": [
+    "astra `.ast-above-header-bar .ast-builder-html-element` on 1/1 pages: “Call us on 555-0100 for same-day appointments”"
+  ],
+  "scriptOnly": [],
+  "sections": [
+    {
+      "type": "announcement",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "none",
+      "sourceRef": {
+        "adapter": "html",
+        "path": ".ast-above-header-bar .ast-builder-html-element",
+        "rawHash": "95cdb21f0c"
+      },
+      "fields": {
+        "message": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Call us on ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "555-0100",
+                "marks": [
+                  "t2"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t4",
+                "text": " for same-day appointments",
+                "marks": []
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t2",
+                "href": "tel:+15550100"
+              }
+            ]
+          }
+        ],
+        "buttons": [],
+        "colors": {
+          "background": "#eeeeee",
+          "text": "#000000"
+        },
+        "dismissible": false,
+        "sticky": false,
+        "enabled": true,
+        "detected": {
+          "plugin": "astra",
+          "selector": ".ast-above-header-bar .ast-builder-html-element",
+          "pages": 1,
+          "of": 1,
+          "position": "top",
+          "sourceColors": {
+            "text": "#aaaaaa"
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Announcement colours: text #aaaaaa on #eeeeee is 2.00:1; changed to #000000 (18.10:1, WCAG AA)",
+      "path": ".ast-above-header-bar .ast-builder-html-element"
+    },
+    {
+      "level": "info",
+      "code": "flagged",
+      "message": "Announcement bar rebuilt from astra (.ast-above-header-bar .ast-builder-html-element) on 1 of 1 saved pages",
+      "path": ".ast-above-header-bar .ast-builder-html-element"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Announcement bar: menus and social icons in the above-header row are not part of the bar",
+      "path": ".ast-above-header-bar .ast-builder-html-element"
+    }
+  ]
+}

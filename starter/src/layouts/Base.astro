@@ -4,6 +4,7 @@ import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { env } from "cloudflare:workers";
 import SiteHeader from "../components/SiteHeader.astro";
+import Announcement from "../components/Announcement.astro";
 import Sections from "../components/Sections.astro";
 import Popups from "../components/Popups.astro";
 import StructuredData from "../components/StructuredData.astro";
@@ -27,16 +28,21 @@ interface Props {
 }
 const { title, pageTitle, description, image, canonical, robots, content, overHero } = Astro.props;
 
-const [settings, primary, secondary, footer, popups] = await Promise.all([
+const [settings, primary, secondary, footer, popups, announcementPart] = await Promise.all([
 	getSiteSettingsWithCacheHint(),
 	getMenuWithCacheHint("primary"),
 	getMenuWithCacheHint("secondary"),
 	getEmDashEntry("site_parts", "footer"),
 	getEmDashCollection("popups", { status: "published" }),
+	getEmDashEntry("site_parts", "announcement"),
 ]);
 if (Astro.cache?.enabled) {
-	for (const r of [settings, primary, secondary, footer, popups]) Astro.cache.set(r.cacheHint);
+	for (const r of [settings, primary, secondary, footer, popups, announcementPart]) Astro.cache.set(r.cacheHint);
 }
+// Announcement bar: the first enabled bar block of the "announcement" site part (schedule checked in the browser too,
+// since cached pages outlive the request that rendered them).
+const announcement = ((announcementPart.entry?.data as { content?: any[] } | undefined)?.content ?? []).find((b) => b?._type === "section_announcement" && b.enabled !== false && Array.isArray(b.message) && b.message.length);
+
 const siteTitle = settings.data?.title?.trim() || site.name;
 // Sharing image on the host serving this page: before go-live the production domain still serves WordPress, which has
 // no /_emdash/ files, so link previews of the workers.dev or staging address would find no image. og:url and the
@@ -86,7 +92,7 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 ---
 
 <!doctype html>
-<html lang={site.lang}>
+<html lang={site.lang} class:list={{ "has-announcement": !!announcement }}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -110,6 +116,7 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 	<body class:list={{ "over-hero": overHero }}>
 		<EmDashBodyStart page={pageCtx} />
 		<a href="#main" class="skip-link">Skip to content</a>
+		{announcement && <Announcement block={announcement} />}
 		<SiteHeader primary={primary.data?.items ?? []} secondary={secondary.data?.items ?? []} siteTitle={siteTitle} />
 		<main id="main" tabindex="-1">
 			<slot />

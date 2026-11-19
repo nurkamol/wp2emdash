@@ -148,6 +148,10 @@ const block = (slug: string, label: string, description: string, variants: strin
 });
 
 export const SECTION_BLOCK_PREFIX = "section_";
+/** Block type of the announcement bar (site part slug "announcement"). */
+export const ANNOUNCEMENT_BLOCK = "section_announcement";
+/** ISO 8601 date or date-time (2026-12-01, 2026-12-01T09:00, …Z or ±hh:mm). */
+const WHEN = { pattern: "^(?:$|\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}(?::\\d{2}(?:\\.\\d{1,3})?)?(?:Z|[+-]\\d{2}:\\d{2})?)?)$" };
 
 const CSS_LENGTH = "^(?:$|\\d+(?:\\.\\d+)?(?:px|vh|svh|vw|rem|em|%))$";
 
@@ -226,6 +230,33 @@ export const BLOCK_TYPES: BlockType[] = [
 	block("section_map", "Map", "Google Maps embed or address", [], [...heading(), s("embed_url", "Map embed link", { validation: { pattern: "^(?:$|https://.+)$" } }), s("address", "Address"), s("height", "Height", { defaultValue: "420px" })]),
 	block("section_embed", "Embed", "Booking or third-party widget from an approved provider", [], [...heading(), sel("provider", "Provider", ["momence", "janeapp", "calendly", "acuity", "simplepractice", "mindbody", "google-maps", "youtube", "vimeo", "instagram", "reviews-widget", "typeform", "jotform", "hubspot", "mailchimp", "spotify", "soundcloud"]), t("html", "Embed code", { required: true, description: "Only scripts/iframes from the selected provider are rendered" }), s("height", "Minimum height")]),
 	block("section_legacy_html", "Legacy HTML", "Raw HTML carried over from WordPress — replace with a proper section", [], [t("html", "HTML", { required: true }), s("reason", "Why it is here")]),
+	announcementBlock(),
 ];
+
+/**
+ * The bar above the header on every page. Lives in the site part "announcement" (Header & footer), not in page
+ * content: no appearance fields, its own colours (the starter raises a text colour that fails WCAG AA).
+ */
+function announcementBlock(): BlockType {
+	const fields: Field[] = [
+		bool("enabled", "Show the bar", true),
+		pt("message", "Message", { required: true }),
+		rep("buttons", "Buttons (up to two)", [
+			{ slug: "label", label: "Label", type: "string", required: true },
+			{ slug: "url", label: "Link", type: "string" },
+			{ slug: "style", label: "Style", type: "select", validation: { options: ["primary", "secondary"] } },
+			{ slug: "new_tab", label: "Open in new tab", type: "boolean" },
+		], 0, 2),
+		s("bg_color", "Background colour (empty = accent colour)", { validation: COLOUR }),
+		s("text_color", "Text colour (changed automatically when too faint on the background)", { validation: COLOUR }),
+		s("button_bg", "Button colour (empty = text colour)", { validation: COLOUR }),
+		s("button_color", "Button text colour (empty = background colour)", { validation: COLOUR }),
+		bool("dismissible", "Visitors can close it (it comes back when the message changes)", true),
+		bool("sticky", "Stays at the top while the page scrolls"),
+		s("starts_at", "Show from (e.g. 2026-12-01T09:00:00Z; empty = now)", { validation: WHEN }),
+		s("ends_at", "Hide after (empty = no end)", { validation: WHEN }),
+	];
+	return { slug: ANNOUNCEMENT_BLOCK, label: "Announcement bar", description: "Thin bar above the header on every page, edited in Header & footer → announcement", category: "Site parts", currentVersion: 1, versions: [{ version: 1, fields: fields.map(({ description: _d, ...f }) => f) }] };
+}
 
 export const SECTION_SLUGS = BLOCK_TYPES.map((b) => b.slug);

@@ -86,7 +86,8 @@ export const sectionTheme = z.object({
 });
 
 export const sourceRef = z.object({
-	adapter: z.enum(["wpbakery", "gutenberg", "classic", "bricks"]),
+	/** html = rebuilt from the live page HTML (audit snapshot), e.g. a plugin's announcement bar. */
+	adapter: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "html"]),
 	/** Path inside the source tree, e.g. `vc_row[2]` or `blocks[4]`. */
 	path: z.string(),
 	/** Short hash of the raw source of this section, to detect changes in the cutover delta. */
@@ -178,6 +179,37 @@ const featureItem = z.object({
 	icon: icon.optional(),
 	link: button.optional(),
 });
+
+/** #rrggbb: the bar's colours are contrast-checked, so they are kept as plain hex. */
+const hexColour = z.string().regex(/^#[0-9a-f]{6}$/i);
+export const announcementFields = z.object({
+	/** Message with inline formatting and links. */
+	message: richText.min(1),
+	buttons: z.array(button).max(2).default([]),
+	colors: z.object({ background: hexColour.optional(), text: hexColour.optional(), buttonBackground: hexColour.optional(), buttonText: hexColour.optional() }).default({}),
+	/** Visitors can close it (remembered per message version). */
+	dismissible: z.boolean().default(true),
+	/** Stays at the top while the page scrolls. */
+	sticky: z.boolean().default(false),
+	enabled: z.boolean().default(true),
+	/** Shown only between these instants (ISO 8601), when the source schedules it. */
+	schedule: z.object({ from: z.string().optional(), to: z.string().optional() }).optional(),
+	/** Where it was found on the live site (report only; not stored in EmDash). */
+	detected: z
+		.object({
+			plugin: z.enum(["announcer", "wpfront", "salient", "astra", "generic"]),
+			selector: z.string(),
+			pages: z.number().int().min(0),
+			of: z.number().int().min(0),
+			position: z.enum(["top", "bottom"]).default("top"),
+			/** The source shows the bar again after a visitor closed it (Announcer keep_closed=no). */
+			reshowsAfterClose: z.boolean().optional(),
+			/** Colours as the source had them, when they were changed to meet WCAG AA. */
+			sourceColors: z.record(z.string(), z.string()).optional(),
+		})
+		.optional(),
+});
+export type AnnouncementFields = z.infer<typeof announcementFields>;
 
 export const section = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("hero"), ...base, fields: z.object({ heading, body: richText.default([]), buttons: z.array(button).default([]), media: mediaRef.optional(), align: z.enum(["left", "center", "right"]).default("center") }) }),
@@ -284,6 +316,8 @@ export const section = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("map"), ...base, fields: z.object({ heading, embedUrl: z.string().optional(), address: z.string().optional(), height: z.string().optional() }) }),
 	z.object({ type: z.literal("embed"), ...base, fields: z.object({ heading, provider: z.string(), html: z.string(), height: z.string().optional() }) }),
 	z.object({ type: z.literal("legacy_html"), ...base, fields: z.object({ html: z.string(), reason: z.string() }) }),
+	/** Site-wide announcement bar above the header (site part "announcement"; not meant for page content). */
+	z.object({ type: z.literal("announcement"), ...base, fields: announcementFields }),
 ]);
 export type Section = z.infer<typeof section>;
 export type SectionType = Section["type"];
@@ -305,7 +339,7 @@ export type Diagnostic = z.infer<typeof diagnostic>;
 export const irPage = z.object({
 	version: z.literal(IR_VERSION),
 	kind: z.enum(["page", "post", "partial", "popup"]),
-	source: z.object({ wpId: z.number().int(), type: z.string(), status: z.string(), slug: z.string(), builder: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "empty"]), modifiedGmt: z.string().optional() }),
+	source: z.object({ wpId: z.number().int(), type: z.string(), status: z.string(), slug: z.string(), builder: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "empty", "html"]), modifiedGmt: z.string().optional() }),
 	route: z.object({ path: z.string(), parentPath: z.string().optional(), template: z.string().optional(), isFrontPage: z.boolean().optional() }).optional(),
 	title: z.string(),
 	seo: z
@@ -360,7 +394,8 @@ export const irSite = z.object({
 		})
 		.optional(),
 	menus: z.array(z.object({ name: z.string(), role: z.enum(["primary", "secondary", "footer", "other"]), wpLocations: z.array(z.string()), items: z.array(irMenuItem) })),
-	partials: z.array(z.object({ role: z.enum(["footer", "header", "other"]), file: z.string() })),
+	/** announcement = the bar above the header (ir/partials/announcement.json, site part slug "announcement"). */
+	partials: z.array(z.object({ role: z.enum(["footer", "header", "announcement", "other"]), file: z.string() })),
 	popups: z.array(z.object({ slug: z.string(), file: z.string() })),
 });
 export type IrSite = z.infer<typeof irSite>;

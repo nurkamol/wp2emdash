@@ -437,8 +437,31 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 
 /* ── Header ── */
 :root { --header-height: var(--header-h, 88px); }
-.site-header { position: fixed; inset: 0 0 auto; z-index: 100; height: var(--header-height); background: var(--header-bg, var(--color-bg)); color: var(--header-color, var(--color-text)); transition: background-color 0.4s, color 0.4s, transform 0.5s var(--ease-out), box-shadow 0.3s; }
-body:not(.over-hero) { padding-top: var(--header-height); }
+.site-header { position: fixed; inset: var(--announce-offset, 0px) 0 auto; z-index: 100; height: var(--header-height); background: var(--header-bg, var(--color-bg)); color: var(--header-color, var(--color-text)); transition: background-color 0.4s, color 0.4s, transform 0.5s var(--ease-out), box-shadow 0.3s; }
+body:not(.over-hero) { padding-top: calc(var(--header-height) + var(--announce-h, 0px)); }
+body.over-hero { padding-top: var(--announce-h, 0px); }
+
+/* ── Announcement bar (components/Announcement.astro) ── above the header; the inline script after it sets
+   --announce-h (its height) and --announce-offset (how much of it is on screen) before first paint. The
+   values below only apply without JavaScript. */
+.has-announcement { --announce-h: 2.75rem; --announce-offset: 2.75rem; }
+.announcement { position: absolute; inset: 0 0 auto; z-index: 101; background: var(--announce-bg, var(--color-accent)); color: var(--announce-color, var(--color-accent-contrast)); font-size: var(--font-size-small, 0.9rem); line-height: 1.4; transition: opacity 0.2s var(--ease-out, ease-out); }
+.announcement[data-sticky] { position: fixed; }
+.announcement[hidden] { display: none; }
+.announcement.is-closing { opacity: 0; }
+.announcement__inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.4rem 1rem; min-height: 2.75rem; padding-block: 0.45rem; text-align: center; }
+.announcement[data-dismissible] .announcement__inner { padding-inline-end: 2.75rem; }
+.announcement__message a { color: inherit; text-decoration: underline; }
+.announcement__message > * + * { margin-top: 0.25em; }
+.announcement__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.announcement__btn { display: inline-flex; align-items: center; min-height: 2rem; padding: 0.3rem 1rem; border-radius: 999px; background: var(--announce-btn-bg, currentColor); color: var(--announce-btn-color, var(--color-accent)); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.announcement__btn--secondary { background: transparent; color: inherit; box-shadow: inset 0 0 0 1.5px currentColor; }
+.announcement__btn:hover { filter: brightness(0.92); }
+.announcement :focus-visible { outline-color: currentColor; }
+.announcement__close { position: absolute; top: 50%; inset-inline-end: max(0.25rem, calc(var(--gutter, 1rem) - 0.75rem)); translate: 0 -50%; display: grid; place-items: center; width: 2.5rem; height: 2.5rem; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.announcement__close:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
+.menu-open .announcement { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .announcement { transition: none; } }
 .over-hero .site-header.is-transparent:not(.is-scrolled) { background: transparent; color: var(--header-color-top, #fff); }
 .site-header.is-hidden { transform: translateY(-100%); }
 .site-header__bar { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; width: min(100% - 2 * var(--gutter-header, clamp(18px, 1rem + 0.9vw, 28px)), 100%); max-width: none; }
