@@ -70,6 +70,36 @@ weeks out. Name it e.g. `wp2emdash go-live <domain>`.
 **Zone Resources:** Include → Specific zone → the client's domain. Revoke the token after the
 monitoring window (`target.cutover.monitorDays`).
 
+### Alias domains (`target.aliasDomains`)
+
+When another domain of the client becomes a permanent 301 to the primary (README → "Two sites, one domain"),
+the same go-live token also covers **each alias zone** — add it under Zone Resources (Include → Specific zone)
+next to the primary, with:
+
+| Group | Permission | Access | Why |
+|---|---|---|---|
+| Zone | Zone | Read | Preflight: the alias zone is visible and active |
+| Zone | DNS | Read | Preflight: snapshot to `cutover/dns-before.<alias>.json`, mail records flagged (MX, SPF, DKIM, DMARC, autodiscover); check apex/www are proxied |
+| Zone | Single Redirect | Read | Preflight: list the zone's existing redirect rules |
+| Zone | Single Redirect | Edit | **Only for the switch**: create the one redirect rule per alias; rollback = delete it by id. Add it on launch day. |
+
+No DNS Edit and no Workers Routes on the alias zones: the alias switch changes no DNS record (mail on the alias
+domain keeps working) and needs no Worker. If an alias has no proxied apex/`www` record, the runbook explains how to
+add a proxied placeholder in the dashboard; the kit never does it.
+
+Verified on 2026-11-20 against Cloudflare's docs:
+- [API token permissions](https://developers.cloudflare.com/fundamentals/api/reference/permissions/) lists the zone
+  permissions **Single Redirect Read / Single Redirect Edit** ("read/write access to zone-level Single Redirects");
+  the API reference calls the same pair **Dynamic URL Redirects Read / Write**. Zone Read and DNS Read as above.
+- [Create a redirect rule via API](https://developers.cloudflare.com/rules/url-forwarding/single-redirects/create-api/):
+  "Zone > Single Redirect > Edit"; phase `http_request_dynamic_redirect`; `action: "redirect"` with
+  `action_parameters.from_value` (`target_url.expression`, `status_code`, `preserve_query_string`).
+- Rulesets API: get the entry point `GET /zones/{zone_id}/rulesets/phases/{phase}/entrypoint` (404 when none
+  exists yet), add a rule `POST /zones/{zone_id}/rulesets/{ruleset_id}/rules`, delete one
+  `DELETE /zones/{zone_id}/rulesets/{ruleset_id}/rules/{rule_id}`.
+- [Redirects overview](https://developers.cloudflare.com/rules/url-forwarding/): "Single Redirects and Bulk Redirects
+  require that you proxy the DNS records of your domain (or subdomain) through Cloudflare."
+
 **Where it goes:** the site's own `.env` (never the kit-level one, so it can only ever touch that client):
 
 ```bash

@@ -4,7 +4,8 @@
  * Checks that everything the switch-over needs is in place and records the zone's DNS so the launch can prove it
  * stayed unchanged: the last verify passed (or was accepted), production resources and Worker secrets exist, the
  * production Turnstile key is set, the zone is on Cloudflare with proxied apex/www records and no Worker route in the
- * way (go-live token), and the canonical-host redirects behave. Writes sites/<slug>/cutover/runbook.md with the exact
+ * way (go-live token), and the canonical-host redirects behave; for each `target.aliasDomains` entry, the alias zone,
+ * its DNS (mail records flagged) and its existing redirect rules (src/cutover/aliases.ts). Writes sites/<slug>/cutover/runbook.md with the exact
  * launch and rollback commands. The traffic switch itself is a separate, owner-approved step (docs/PLAN.md §7a).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -12,6 +13,7 @@ import { join } from "node:path";
 import { type GateCheck, phaseState, readState } from "../core/state.js";
 import { credentialsFor } from "../commands/provision.js";
 import { loadSiteEnv } from "../extract/credentials.js";
+import { type AliasPlan, aliasPreflight, aliasRunbook, primaryHost } from "../cutover/aliases.js";
 import type { PhaseContext } from "./index.js";
 
 const API = "https://api.cloudflare.com/client/v4";
@@ -134,13 +136,25 @@ export async function runCutover({ config, paths, reporter }: PhaseContext): Pro
 	const badHost = probes.filter((p) => !(p.status >= 300 && p.status < 400 && p.to.startsWith(canonical.replace(/\/$/, ""))));
 	check("canonical-host", `Live site sends ${other.replace(/\/$/, "")} and http to ${canonical}`, badHost.length === 0, badHost.map((p) => `${p.u} → ${p.status} ${p.to}`).join("; ") || "301s in place (keep them: Cloudflare redirect rules or the Worker)");
 
-	writeFileSync(join(outDir, "runbook.md"), runbook({ domain, worker, zoneId, apexFirst, accountId }));
+	// 7. Alias domains (target.aliasDomains): each becomes a 301 to the primary. Read-only here; the runbook has the rule.
+	const aliases = config.target.aliasDomains;
+	const plans: AliasPlan[] = [];
+	const primary = primaryHost(config.target.productionUrl, config.target.canonicalHost);
+	if (aliases.length && !golive) check("aliases", `Alias domains readable (${aliases.join(", ")})`, false, "Set CLOUDFLARE_GOLIVE_TOKEN with the alias zones included (docs/cloudflare-api-token.md, token B)");
+	else
+		for (const alias of aliases) {
+			const r = await aliasPreflight(alias, { token: golive as string, primary, outDir });
+			checks.push(...r.checks);
+			plans.push(r.plan);
+		}
+
+	writeFileSync(join(outDir, "runbook.md"), runbook({ domain, worker, zoneId, apexFirst, accountId, aliases: plans, primary }));
 	reporter.emit({ type: "step:end", step: "Preflight", ok: checks.every((c) => c.ok), detail: `runbook: ${join(outDir, "runbook.md")}` });
 	return checks;
 }
 
 /** Exact launch and rollback commands for the route method. Ids are filled in when the go-live token could read the zone. */
-export function runbook(o: { domain: string; worker: string; zoneId?: string; apexFirst: boolean; accountId?: string }): string {
+export function runbook(o: { domain: string; worker: string; zoneId?: string; apexFirst: boolean; accountId?: string; aliases?: AliasPlan[]; primary?: string }): string {
 	const zone = o.zoneId ?? "<zone id>";
 	return `# Launch runbook — ${o.domain}
 
@@ -190,5 +204,5 @@ EmDash after launch so it can be copied back if the rollback lasts.
 - Watch the 404 log in the admin (Redirects) and add redirects; check form deliveries and Worker errors daily.
 - After the monitoring window and the owner's approval: optionally replace the routes with a Worker Custom Domain
   (removes the WordPress record), then retire WordPress after the agreed keep period, keeping the final backup.
-`;
+${o.aliases?.length ? `\n${aliasRunbook(o.aliases, o.primary ?? (o.apexFirst ? o.domain : `www.${o.domain}`))}` : ""}`;
 }
