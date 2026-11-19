@@ -342,3 +342,7 @@ staging; Automatic.css (ACSS) rules read from the live `automatic.css` / `automa
 - The public CSP (`script-src` without `'unsafe-inline'`) blocks the announcement bar's inline script, so an ended bar
   stayed on screen (staging showed a bar that ended 2026-08-16). An ended bar is now not rendered on the server.
   The inline script still does not run for visitors (first-paint dismissal and `--announce-h`): needs a hash in the CSP.
+- **Bold text** is `bolder` than the text around it, as measured on the live site (`<strong>` in a 300 legal paragraph is
+  400; `<b>` in a 400 text element is 700). The first round's `--strong-weight: 700` was compensating for the missing text
+  element weight, which is now carried (`textWeight`); Bricks sites keep the starter's `bolder`.
+- **Links in text**: ACSS `--link-color` (primary) and an empty `--link-decoration` → accent colour, no underline.

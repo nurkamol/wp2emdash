@@ -65,7 +65,7 @@ const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.p
  */
 export function bricksBodyWeight(design: { typography?: Record<string, Record<string, unknown>> } | undefined): string {
 	const w = Number(design?.typography?.typographyBody?.["font-weight"]);
-	return Number.isInteger(w) && w >= 100 && w <= 900 && w !== 400 ? `:root { --body-weight: ${w}; --strong-weight: 700; } /* Bricks theme style body weight; bold stays bold (bolder than ${w} would be ${w < 400 ? 400 : 700}) */\n` : "";
+	return Number.isInteger(w) && w >= 100 && w <= 900 && w !== 400 ? `:root { --body-weight: ${w}; } /* Bricks theme style body weight; bold text is "bolder" than the text around it, as on the live site (${w} → ${w < 400 ? 400 : 700}; a 400 text element → 700) */\n` : "";
 }
 
 /**
@@ -117,6 +117,8 @@ export function bricksLayoutTokens(layout: BricksLayout | undefined): string {
 	if (WRAP.test(layout.textWrap ?? "")) rules.push(`body { text-wrap: ${layout.textWrap}; }`);
 	if (WRAP.test(layout.headingWrap ?? "")) rules.push(`:where(h1, h2, h3, h4, h5, h6) { text-wrap: ${layout.headingWrap}; }`);
 	// Automatic.css rounds every image outside the header; section and column backgrounds are pictures here, not there.
+	// Automatic.css links in text: its link colour, no underline unless --link-decoration sets one.
+	if (layout.link) rules.push(`.section .prose a:not(.btn) { ${layout.link.color && /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(layout.link.color) ? `color: ${layout.link.color}; ` : ""}text-decoration: ${layout.link.underline ? "underline" : "none"}; }`);
 	if (layout.imageRadius !== undefined) rules.push(`:where(.section__inner, .site-footer) img:not(.columns__bg) { border-radius: var(--radius-media); }`);
 	const b = layout.button;
 	const btn = [b?.leading !== undefined ? `line-height: ${b.leading};` : "", b?.border !== undefined ? `border-width: ${r2(b.border)}px;` : ""].filter(Boolean).join(" ");

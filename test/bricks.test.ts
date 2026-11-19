@@ -96,6 +96,7 @@ describe("Bricks layout tokens", () => {
 		expect(css).not.toContain("@media"); // 36.2px at 768 is on the phone→desktop line
 		expect(bricksLayoutTokens(undefined)).toBe("");
 		expect(bricksLayoutTokens({})).toBe("");
+		expect(bricksLayoutTokens({ link: { color: "#1F442C", underline: false } })).toContain(".section .prose a:not(.btn) { color: #1F442C; text-decoration: none; }");
 	});
 	it("uses the measured gaps per screen for a title box over a post-content box", () => {
 		const page: BricksElement[] = [

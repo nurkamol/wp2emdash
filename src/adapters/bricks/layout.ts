@@ -23,6 +23,8 @@ export interface BricksLayout {
 	headingWrap?: string;
 	/** Automatic.css space between paragraphs of a text element (`--paragraph-spacing`, em). */
 	paragraphSpacing?: number;
+	/** Automatic.css link colour, and whether links are underlined (`--link-decoration` empty = not). */
+	link?: { color?: string; underline: boolean };
 	/** Automatic.css automatic radius on images (px). */
 	imageRadius?: number;
 	/** Automatic.css button (`btn--*` classes): text size per viewport (px), line height, border width (px). */
@@ -69,6 +71,11 @@ export function bricksLayout(site: BricksSite, shots: { viewport: string; bricks
 		if (wrap && WRAP.test(wrap)) out.textWrap = wrap;
 		const hwrap = live(site, "heading-text-wrap", 1440);
 		if (hwrap && WRAP.test(hwrap)) out.headingWrap = hwrap;
+		const lc = live(site, "link-color", 1440);
+		if (lc !== undefined) {
+			const deco = live(site, "link-decoration", 1440) ?? "";
+			out.link = { ...(/^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(lc) ? { color: lc } : {}), underline: /underline/.test(deco) };
+		}
 		const ps = live(site, "paragraph-spacing", 1440);
 		if (ps && /^\d*\.?\d+em$/.test(ps) && Number.parseFloat(ps) <= 4) out.paragraphSpacing = Number.parseFloat(ps);
 		const selectors = str(acss?.["auto-radius-selectors"]);
