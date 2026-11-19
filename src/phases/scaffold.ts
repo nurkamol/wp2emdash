@@ -104,6 +104,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const fingerprint = readJson<{ uploadsBase?: string; restUploadsBase?: string; hiddenWpPaths?: boolean }>(join(paths.snapshot, "fingerprint.json")) ?? {};
 	const manifest = readJson<MediaEntry[]>(join(paths.raw, "media-manifest.json")) ?? [];
 	const project = paths.project;
+	const sandboxed = config.sandboxedPlugins;
 	// A projectDir outside the kit must be empty or a project this kit generated: never write into some other folder.
 	if (!project.startsWith(paths.root) && existsSync(project) && readdirSync(project).filter((f) => f !== ".DS_Store").length > 0 && !existsSync(join(project, "wrangler.jsonc")) && !existsSync(join(project, "seed", "seed.json"))) {
 		return [{ id: "project-dir", label: "projectDir is empty or a project made by this kit", ok: false, detail: `${project} has other files: point projectDir at an empty folder or at this site's project` }];
@@ -304,6 +305,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			"@wp2emdash/forms": "link:./packages/forms",
 			...(og ? { "@wp2emdash/og": "link:./packages/og", ...OG_DEPENDENCIES } : {}),
 			...(seoPanel ? { "@wp2emdash/seo": "link:./packages/seo" } : {}),
+			...Object.fromEntries(config.sandboxedPlugins.map((sp) => [sp.package, sp.version])),
 			astro: STACK.astro,
 			emdash: STACK.emdash,
 			react: STACK.react,
@@ -318,7 +320,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}
+import emdash from "emdash/astro";${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
 
 export default defineConfig({
 	site: ${JSON.stringify(siteConfig.productionUrl)},
@@ -336,13 +338,16 @@ export default defineConfig({
 			mcp: false,${config.forms.outbox || og || seoPanel ? `
 			// Admin plugins: Form messages (form outbox, admins only — @wp2emdash/forms), Sharing images (@wp2emdash/og),
 			// SEO panel in the page editor (@wp2emdash/seo).
-			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : ""].filter(Boolean).join(", ")}],` : ""}
+			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
+			// Only the reviewed plugins above: no installs from the public registry through the admin.
+			...(sandboxedHere.length ? { sandboxed: sandboxedHere, sandboxRunner: sandbox(), registry: false } : {}),` : ""}
 		}),
 	],
 	devToolbar: { enabled: false },
 });
 `,
 	);
+	const loader = (e: "staging" | "production") => sandboxed.some((sp) => sp.environments.includes(e));
 	const d1 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "DB", database_name: cf[env]?.d1?.name ?? fallback, ...(cf[env]?.d1?.id ? { database_id: cf[env]?.d1?.id } : {}) });
 	const r2 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "MEDIA", bucket_name: cf[env]?.r2?.bucket ?? fallback });
 	// Forms: provider and addresses are config (not secrets); the API key and Turnstile secret are Wrangler secrets.
@@ -368,7 +373,9 @@ export default defineConfig({
 	"r2_buckets": [${r2("production", `${workerName}-media`)}],
 	"vars": ${JSON.stringify(prodVars)},
 	"ratelimits": ${limiter(ns)}${outboxKv("production")},
-	"triggers": { "crons": ["*/5 * * * *"] },${seoPanel ? `
+	"triggers": { "crons": ["*/5 * * * *"] },${loader("production") ? `
+	// Runs the sandboxed plugins (Cloudflare Worker Loader, Workers Paid).
+	"worker_loaders": [{ "binding": "LOADER" }],` : ""}${seoPanel ? `
 	// The SEO dashboard reads this site's robots.txt, sitemap and home page through itself (a fetch to its own
 	// address would skip the Worker: on workers.dev nothing answers, on the domain the old origin would).
 	"services": [${JSON.stringify({ binding: "SELF", service: workerName })}],` : ""}
@@ -379,7 +386,8 @@ export default defineConfig({
 			"vars": ${JSON.stringify(stagingVars)},
 			"ratelimits": ${limiter(ns + 1)}${outboxKv("staging").replace(/\n\t/g, "\n\t\t\t")},
 			"d1_databases": [${d1("staging", `${workerName}-staging-db`)}],
-			"r2_buckets": [${r2("staging", `${workerName}-staging-media`)}]${seoPanel ? `,
+			"r2_buckets": [${r2("staging", `${workerName}-staging-media`)}]${loader("staging") ? `,
+			"worker_loaders": [{ "binding": "LOADER" }]` : ""}${seoPanel ? `,
 			"services": [${JSON.stringify({ binding: "SELF", service: `${workerName}-staging` })}]` : ""}
 		}
 	}

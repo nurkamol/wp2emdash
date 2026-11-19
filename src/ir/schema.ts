@@ -181,7 +181,29 @@ const featureItem = z.object({
 
 export const section = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("hero"), ...base, fields: z.object({ heading, body: richText.default([]), buttons: z.array(button).default([]), media: mediaRef.optional(), align: z.enum(["left", "center", "right"]).default("center") }) }),
-	z.object({ type: z.literal("rich_text"), ...base, fields: z.object({ body: richText, width: z.enum(["narrow", "normal", "wide"]).default("normal"), align: z.enum(["left", "center"]).default("left"), buttons: z.array(button).default([]) }) }),
+	z.object({
+		type: z.literal("rich_text"),
+		...base,
+		fields: z.object({
+			body: richText,
+			width: z.enum(["narrow", "normal", "wide"]).default("normal"),
+			align: z.enum(["left", "center"]).default("left"),
+			buttons: z.array(button).default([]),
+			/** Type sizes the builder set on this text (Salient highlighted text / paragraph line): per breakpoint. */
+			look: z
+				.object({
+					headingSize: cssLength.optional(),
+					headingSizeTablet: cssLength.optional(),
+					headingSizePhone: cssLength.optional(),
+					headingLeading: z.number().min(1).max(3).optional(),
+					bodySize: cssLength.optional(),
+					bodySizeSmall: cssLength.optional(),
+					bodyLeading: z.number().min(1).max(3).optional(),
+					bodyWidth: z.string().regex(/^\d{2,3}%$/).optional(),
+				})
+				.optional(),
+		}),
+	}),
 	z.object({ type: z.literal("media_text"), ...base, fields: z.object({
 			media: z.array(mediaRef).min(1),
 			body: richText.default([]),

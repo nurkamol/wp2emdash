@@ -216,3 +216,13 @@ describe("projectDir", () => {
 		expect(projectDirFrom(`  slug: "acme",`, "/kit/sites/acme")).toBeUndefined();
 	});
 });
+
+describe("sandboxed plugins config", () => {
+	const base = { slug: "acme", name: "Acme", source: { url: "https://acme.example" }, target: { productionUrl: "https://acme.example" } };
+	it("needs an exact reviewed version and defaults to both environments", () => {
+		const ok = kitConfigSchema.parse({ ...base, sandboxedPlugins: [{ package: "@devbitme/emdash-plugin-apimail", version: "0.3.1" }] });
+		expect(ok.sandboxedPlugins[0]?.environments).toEqual(["staging", "production"]);
+		expect(() => kitConfigSchema.parse({ ...base, sandboxedPlugins: [{ package: "x", version: "^0.3.1" }] })).toThrow(/exact/);
+		expect(() => kitConfigSchema.parse({ ...base, sandboxedPlugins: [{ package: "x", version: "0.3.1", environments: [] }] })).toThrow();
+	});
+});

@@ -101,6 +101,19 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .section--rich_text.align-center { text-align: center; }
 .section--rich_text.align-center .actions { justify-content: center; }
 
+/* text sections: type sizes the builder set (Salient highlighted text and paragraph lines), per breakpoint */
+.section--rich_text[style*="--rt-h-lh"] .prose :is(h1, h2, h3) { line-height: var(--rt-h-lh); }
+.section--rich_text[style*="--rt-h:"] .prose :is(h1, h2, h3) { margin-bottom: 0.35em; }
+.section--rich_text[style*="--rt-p-lh"] .prose p { line-height: var(--rt-p-lh); }
+.section--rich_text[style*="--rt-p-w"] .prose p { max-width: var(--rt-p-w); }
+@media (min-width: 1000px) {
+	.section--rich_text[style*="--rt-h:"] .prose :is(h1, h2, h3) { font-size: var(--rt-h); }
+	.section--rich_text[style*="--rt-p:"] .prose p { font-size: var(--rt-p); }
+}
+@media (min-width: 690px) and (max-width: 999.98px) { .section--rich_text[style*="--rt-h-t"] .prose :is(h1, h2, h3) { font-size: var(--rt-h-t); } }
+@media (max-width: 689.98px) { .section--rich_text[style*="--rt-h-p"] .prose :is(h1, h2, h3) { font-size: var(--rt-h-p); } }
+@media (max-width: 999.98px) { .section--rich_text[style*="--rt-p-s"] .prose p { font-size: var(--rt-p-s); } }
+
 /* media + text */
 .media-text { display: grid; gap: clamp(1.5rem, 5vw, 5rem); align-items: center; }
 .media-text__media { display: grid; gap: 1rem; }

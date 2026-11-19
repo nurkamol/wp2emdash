@@ -7,8 +7,10 @@ interface Props {
 	value: Record<string, any>;
 	type: string;
 	class?: string;
+	/** Extra custom properties from the section's own component (e.g. type sizes). */
+	vars?: string;
 }
-const { value: v, type, class: extra } = Astro.props;
+const { value: v, type, class: extra, vars } = Astro.props;
 const bg = v.bg_color || undefined;
 const resolve = (Astro.locals as any).emdash?.getPublicMediaUrl as ((k: string) => string) | undefined;
 const videoSrc = v.bg_video ? mediaUrl(v.bg_video, resolve) : undefined;
@@ -24,7 +26,7 @@ const px = (x: unknown) => (typeof x === "number" && x >= 0 && x <= 600 ? `${x}p
 const padTopT = padTop ? px(v.pad_top_tablet) : undefined;
 const padBottomT = padBottom ? px(v.pad_bottom_tablet) : undefined;
 const stackGap = typeof v.stack_gap === "number" && v.stack_gap >= 0 && v.stack_gap <= 200 ? v.stack_gap : undefined;
-const style = [padTopT ? `--pad-top-t:${padTopT}` : "", padBottomT ? `--pad-bottom-t:${padBottomT}` : "", stackGap !== undefined ? `--stack-gap:${stackGap}px` : "", ...(INSET.test(v.row_inset ?? "") ? inset : []), padTop ? `--pad-top:${padTop}` : "", padBottom ? `--pad-bottom:${padBottom}` : "", bg ? `--section-bg:${bg}` : "", gradient ? `--section-gradient:${gradient}` : "", overlay !== undefined ? `--section-overlay:${overlay}` : ""].filter(Boolean).join(";");
+const style = [padTopT ? `--pad-top-t:${padTopT}` : "", padBottomT ? `--pad-bottom-t:${padBottomT}` : "", stackGap !== undefined ? `--stack-gap:${stackGap}px` : "", ...(INSET.test(v.row_inset ?? "") ? inset : []), padTop ? `--pad-top:${padTop}` : "", padBottom ? `--pad-bottom:${padBottom}` : "", bg ? `--section-bg:${bg}` : "", gradient ? `--section-gradient:${gradient}` : "", overlay !== undefined ? `--section-overlay:${overlay}` : "", vars ?? ""].filter(Boolean).join(";");
 ---
 
 <section

@@ -34,7 +34,9 @@ function headingFromBody(body: RichText): { head: ReturnType<typeof splitHeading
 	let i = 0;
 	if (isHeading(body[0] as PtBlock)) {
 		// One heading; a smaller heading directly before a bigger one is an eyebrow (h5 "Excellence" + h3 title).
-		// Two headings of the same level are two headings: the second stays in the body.
+		// Two headings of the same level opening the text are a pair (Salient "Move with purpose. / Connect with
+		// community."): both stay in the body, styled alike, inline marks kept.
+		if (level(body[0]) === level(body[1])) return { head: {}, rest: body };
 		i = level(body[0]) > level(body[1]) ? 2 : 1;
 	} else if (body.length > 1 && isHeading(body[1] as PtBlock) && plain(body[0] as PtBlock).split(/\s+/).length <= 4) i = 2; // eyebrow paragraph
 	if (!i) return { head: {}, rest: body };
@@ -184,7 +186,9 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 			return base("hero", { ...head, body: pt(s.fields.body), buttons: buttons(s.fields.buttons), media: s.fields.media ? media(s.fields.media) : undefined, align: s.fields.align });
 		case "rich_text": {
 			const { head: h, rest } = headingFromBody(s.fields.body);
-			return base("rich_text", { ...h, body: pt(rest), width: s.fields.width, align: s.fields.align, buttons: buttons(s.fields.buttons), variant: s.variant === "buttons" ? "buttons" : "default" });
+			const l = s.fields.look ?? {};
+			const look = Object.fromEntries(Object.entries({ text_heading_size: l.headingSize, text_heading_size_tablet: l.headingSizeTablet, text_heading_size_phone: l.headingSizePhone, text_heading_leading: l.headingLeading, body_size: l.bodySize, body_size_small: l.bodySizeSmall, body_leading: l.bodyLeading, body_width: l.bodyWidth }).filter(([, v]) => v !== undefined));
+			return base("rich_text", { ...h, body: pt(rest), width: s.fields.width, align: s.fields.align, buttons: buttons(s.fields.buttons), variant: s.variant === "buttons" ? "buttons" : "default", ...look });
 		}
 		case "media_text": {
 			const { head: h, rest } = headingFromBody(s.fields.body);

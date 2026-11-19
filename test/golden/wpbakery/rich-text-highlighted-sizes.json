@@ -1,0 +1,117 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "spacious",
+      "width": "full",
+      "inset": {
+        "desktop": "27vw",
+        "phone": "7vw"
+      },
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "96dd82d650"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Move with ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t2",
+                "text": "intent.",
+                "marks": [
+                  "em"
+                ]
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t3",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t4",
+                "text": "Train with ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "friends.",
+                "marks": [
+                  "em"
+                ]
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Sample paragraph about group classes, written for this fixture only.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [],
+        "look": {
+          "headingSize": "3vw",
+          "headingSizeTablet": "4vw",
+          "headingSizePhone": "5vw",
+          "headingLeading": 1.4,
+          "bodySize": "1.2vw",
+          "bodySizeSmall": "16px",
+          "bodyLeading": 1.8,
+          "bodyWidth": "90%"
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "nectar_animated_shape dropped (decorative)",
+      "path": "vc_row[0]/vc_column[0]/vc_row_inner[0]/vc_column_inner[0]/nectar_animated_shape[0]",
+      "tag": "nectar_animated_shape"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Highlight/scribble animation not reproduced; text kept",
+      "path": "vc_row[0]/vc_column[0]/vc_row_inner[0]/vc_column_inner[0]/nectar_highlighted_text[1]"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Highlight/scribble animation not reproduced; text kept",
+      "path": "vc_row[0]/vc_column[0]/vc_row_inner[0]/vc_column_inner[0]/nectar_highlighted_text[2]"
+    }
+  ]
+}

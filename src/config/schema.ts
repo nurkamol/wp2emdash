@@ -146,6 +146,19 @@ export const kitConfigSchema = z.object({
 	og: z.object({ cards: z.boolean().default(false) }).default({ cards: false }),
 	/** Experimental: SEO panel in the page editor (@wp2emdash/seo). Off unless set. */
 	seo: z.object({ panel: z.boolean().default(false) }).default({ panel: false }),
+	/**
+	 * Third-party EmDash plugins that run in EmDash's sandbox (Cloudflare Worker Loader, Workers Paid). Each is pinned
+	 * to a reviewed version and enabled per environment; admin installs from the public registry stay off.
+	 */
+	sandboxedPlugins: z
+		.array(
+			z.object({
+				package: z.string().regex(/^(@[a-z0-9-]+\/)?[a-z0-9][a-z0-9._-]*$/),
+				version: z.string().regex(/^\d+\.\d+\.\d+(?:-[\w.]+)?$/, "an exact, reviewed version"),
+				environments: z.array(z.enum(["staging", "production"])).min(1).default(["staging", "production"]),
+			}),
+		)
+		.default([]),
 
 	forms: z
 		.object({

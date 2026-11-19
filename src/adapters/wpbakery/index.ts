@@ -415,7 +415,12 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 	const icons = all.flatMap((f) => (f.kind === "icon" ? [f.icon] : []));
 
 	const sections: Section[] = [];
-	const push = (s: unknown) => sections.push(s as Section);
+	const textLook = richTextLook(row.raw);
+	const push = (s: unknown) => {
+		const sec = s as Section;
+		if (sec.type === "rich_text" && textLook) (sec.fields as { look?: unknown }).look = textLook;
+		sections.push(sec);
+	};
 
 	if (ctx.forced && ctx.forced !== "drop") ctx.diag({ level: "info", code: "lossy", message: `Section type forced to ${ctx.forced} by overrides.ts`, path: row.path });
 
@@ -907,3 +912,38 @@ export function columnOverlay(a: Record<string, string>): string | undefined {
 	const css = a.enable_gradient === "true" ? (a.gradient_direction === "radial" ? `radial-gradient(50% 50%, ${c1} 0%, ${c2} 100%)` : `linear-gradient(${dirs[a.gradient_direction ?? ""] ?? "90deg"}, ${c1} 0%, ${c2} 100%)`) : `linear-gradient(${c1}, ${c1})`;
 	return scaleAlpha(css.replace(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/g, "rgba($1, $2, $3, 1)").replace(/rgba\((\d+),(\d+),(\d+),([\d.]+)\)/g, "rgba($1, $2, $3, $4)"), strength);
 }
+
+/**
+ * Text sizes a Salient row sets on its text: nectar_highlighted_text headings (custom_font_size / _tablet / _phone,
+ * font_line_height) and split_line_heading paragraphs (font_size, font_size_tablet, font_line_height, max_width).
+ */
+export function richTextLook(raw: string): NonNullable<Extract<Section, { type: "rich_text" }>["fields"]["look"]> | undefined {
+	const attr = (tag: string | undefined, name: string) => new RegExp(`\\b${name}="\\s*([^"]*?)\\s*"`).exec(tag ?? "")?.[1];
+	const len = (v: string | undefined, min: number, max: number) => {
+		const m = /^(\d+(?:\.\d+)?)(px|vw)?$/.exec(v ?? "");
+		if (!m) return undefined;
+		const n = Number(m[1]);
+		const unit = m[2] ?? "px";
+		return (unit === "vw" ? n > 0 && n <= 12 : n >= min && n <= max) ? `${m[1]}${unit}` : undefined;
+	};
+	const lh = (v: string | undefined) => {
+		const n = Number(v);
+		return n >= 1 && n <= 3 ? n : undefined;
+	};
+	const hi = /\[nectar_highlighted_text\b[^\]]*\]/.exec(raw)?.[0];
+	const para = /\[split_line_heading(?=[^\]]*\bfont_style="p")[^\]]*\]/.exec(raw)?.[0];
+	const width = /^(\d{2,3})%$/.exec(attr(para, "max_width") ?? "")?.[1];
+	const look = {
+		headingSize: len(attr(hi, "custom_font_size"), 14, 120),
+		headingSizeTablet: len(attr(hi, "font_size_tablet"), 14, 120),
+		headingSizePhone: len(attr(hi, "font_size_phone"), 14, 120),
+		headingLeading: lh(attr(hi, "font_line_height")),
+		bodySize: len(attr(para, "font_size"), 10, 40),
+		bodySizeSmall: len(attr(para, "font_size_tablet"), 10, 40),
+		bodyLeading: lh(attr(para, "font_line_height")),
+		bodyWidth: width && Number(width) >= 40 && Number(width) < 100 ? `${width}%` : undefined,
+	};
+	const out = Object.fromEntries(Object.entries(look).filter(([, v]) => v !== undefined));
+	return Object.keys(out).length ? out : undefined;
+}
+
