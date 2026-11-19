@@ -14,6 +14,7 @@ import type { GateCheck } from "../core/state.js";
 import { extractReport } from "../extract/report.js";
 import { WpClient, WpHttpError, versionAtLeast } from "../extract/client.js";
 import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.js";
+import { bricksMediaRefs, bricksOptionsNote, readBricksOptions, usesBricks } from "../extract/bricks.js";
 import { type RedirectRule, recognise, type Unconverted } from "../extract/plugin-exports.js";
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
 import type { PhaseContext } from "./index.js";
@@ -321,6 +322,8 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	const refsByPost: Record<string, MediaRef[]> = {};
 	for (const p of allPosts) {
 		const r = findMediaRefs(p.content ?? "", p.meta ?? {});
+		// Bricks keeps its elements in post meta (pages, and header/footer/section templates): their images count too.
+		for (const key of ["_bricks_page_content_2", "_bricks_page_header_2", "_bricks_page_footer_2"]) if (p.meta?.[key] !== undefined) r.push(...bricksMediaRefs(p.meta[key]));
 		if (p.featured_image?.id) r.push({ kind: "id", value: String(p.featured_image.id), via: "featured_image" });
 		if (r.length) refsByPost[`${p.post_type}:${p.id}:${p.slug}`] = r;
 	}
@@ -471,6 +474,11 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	if (privateNotInAudit.length) notes.push(`Not public, kept unpublished in EmDash: ${privateNotInAudit.join(", ")}.`);
 
 	// ── Known gaps that need a human ──────────────────────────────────────────
+	// Bricks: palette, global classes, theme styles and components are options the REST API does not serve.
+	if (usesBricks(allPosts)) {
+		const note = bricksOptionsNote(readBricksOptions(raw, options));
+		if (note) notes.push(note);
+	}
 	if (isSalient) {
 		const redux = existsSync(join(raw, "salient-options.json"));
 		notes.push(
