@@ -44,6 +44,7 @@ const siteTitle = settings.data?.title?.trim() || site.name;
 // EmDash's getSeoMeta already makes it absolute on the production address: that origin is swapped for this one too.
 // The request's own URL, not Astro.url (which reports the configured `site` address in production builds).
 const servingOrigin = new URL(Astro.request.url).origin;
+const ogCards = (site as { ogCards?: boolean }).ogCards === true;
 const productionOrigin = URL.canParse(site.productionUrl) ? new URL(site.productionUrl).origin : undefined;
 const ogImage = image ? (() => {
 	const u = new URL(image, servingOrigin);
@@ -53,7 +54,7 @@ const ogImage = image ? (() => {
 let ogImageMeta: { width?: number; height?: number; type?: string } = {};
 const ogKey = image ? /\/_emdash\/api\/media\/file\/([^/?#]+)$/.exec(image)?.[1] : undefined;
 const db = (env as { DB?: { prepare(q: string): { bind(...v: unknown[]): { first<T>(): Promise<T | null> } } } }).DB;
-if (ogKey && db) {
+if (ogKey && db && !ogCards) {
 	try {
 		const row = await db.prepare("SELECT width, height, mime_type FROM media WHERE storage_key = ? LIMIT 1").bind(decodeURIComponent(ogKey)).first<{ width: number | null; height: number | null; mime_type: string | null }>();
 		if (row) ogImageMeta = { ...(row.width ? { width: row.width } : {}), ...(row.height ? { height: row.height } : {}), ...(row.mime_type?.startsWith("image/") ? { type: row.mime_type } : {}) };
@@ -93,10 +94,11 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		<EmDashHead page={pageCtx} />
 		{/* EmDash's head has no og:locale; SEO plugins publish it (en-US → en_US). */}
 		<meta property="og:locale" content={(site as { ogLocale?: string }).ogLocale ?? (site.lang ?? "en").replace("-", "_")} />
-		{ogImage && <meta property="og:image:alt" content={pageTitle ?? title ?? siteTitle} />}
-		{ogImageMeta.width && <meta property="og:image:width" content={String(ogImageMeta.width)} />}
-		{ogImageMeta.height && <meta property="og:image:height" content={String(ogImageMeta.height)} />}
-		{ogImageMeta.type && <meta property="og:image:type" content={ogImageMeta.type} />}
+		{/* With sharing cards (@wp2emdash/og) the plugin sets every og:image tag; otherwise these describe the page's image. */}
+		{!ogCards && ogImage && <meta property="og:image:alt" content={pageTitle ?? title ?? siteTitle} />}
+		{!ogCards && ogImageMeta.width && <meta property="og:image:width" content={String(ogImageMeta.width)} />}
+		{!ogCards && ogImageMeta.height && <meta property="og:image:height" content={String(ogImageMeta.height)} />}
+		{!ogCards && ogImageMeta.type && <meta property="og:image:type" content={ogImageMeta.type} />}
 		<StructuredData canonical={canonicalUrl} pageTitle={pageTitle ?? title ?? siteTitle} description={description || settings.data?.tagline} />
 		{((site.fonts as { preload?: string[] }).preload ?? []).map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
 		{googleHref && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}
