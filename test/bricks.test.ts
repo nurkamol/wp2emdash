@@ -137,6 +137,16 @@ describe("Bricks layout tokens", () => {
 	});
 });
 
+describe("Announcement bars in the text comparison", () => {
+	it("leaves the Announcer plugin's bar and the starter's bar out of the page text (their schedules decide)", async () => {
+		const { sourceText } = await import("../src/transform/coverage.js");
+		const live = '<body><div class="ancr-group ancr-pos-top"><div class="ancr-inner"><p>NOW AVAILABLE</p></div></div><main><p>Welcome in</p></main></body>';
+		const staging = '<body><section class="announcement" data-announcement><p>NOW AVAILABLE</p></section><main><p>Welcome in</p></main></body>';
+		expect(sourceText(live).trim()).toBe("Welcome in");
+		expect(sourceText(staging).trim()).toBe("Welcome in");
+	});
+});
+
 describe("Bricks header look", () => {
 	const site = bricksSite(
 		{
