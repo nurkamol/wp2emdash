@@ -33,7 +33,7 @@ function readJson(file: string): unknown {
 }
 
 /** What a settings file is, from its content. */
-export function classify(name: string, text: string): { kind: "acss" | "bricks-theme-style" | "bricks-settings" | "rankmath-settings" | "rankmath-seo-csv" | "other"; json?: unknown } {
+export function classify(name: string, text: string): { kind: "acss" | "bricks-theme-style" | "bricks-settings" | "rankmath-settings" | "rankmath-seo-csv" | "hfcm" | "other"; json?: unknown } {
 	const json = /^\s*[[{]/.test(text) ? (() => { try { return JSON.parse(text); } catch { return undefined; } })() : undefined;
 	const o = json && typeof json === "object" && !Array.isArray(json) ? (json as Record<string, unknown>) : undefined;
 	// Automatic.css settings: its colour channels (primary-h, accent-comp-h, base-s…) are the giveaway.
@@ -41,6 +41,8 @@ export function classify(name: string, text: string): { kind: "acss" | "bricks-t
 	if (o && "settings" in o && "label" in o && typeof o.settings === "object") return { kind: "bricks-theme-style", json };
 	if (o && ("postTypes" in o || "builderMode" in o) && ("disableOpenGraph" in o || "smoothScroll" in o || "customBreakpoints" in o)) return { kind: "bricks-settings", json };
 	if (o && "general" in o && "titles" in o && ("sitemap" in o || "redirections" in o)) return { kind: "rankmath-settings", json };
+	// Header Footer Code Manager: { title, snippets: [{ name, snippet, location, display_on, status, … }] }
+	if (o && Array.isArray(o.snippets) && (o.snippets as Record<string, unknown>[]).some((x) => x && "snippet" in x && "location" in x)) return { kind: "hfcm", json };
 	if (/^\s*"?id"?,\s*"?object_type"?,\s*"?slug"?,\s*"?seo_title/i.test(text)) return { kind: "rankmath-seo-csv" };
 	return { kind: "other", ...(json !== undefined ? { json } : {}) };
 }
@@ -97,7 +99,14 @@ export async function importDump(slug: string, dir?: string, sitesDir?: string):
 		else if (c.kind === "bricks-theme-style") toRaw(`bricks-theme-style-${String((c.json as { id?: unknown }).id ?? "export").replace(/[^\w.-]/g, "_")}.json`, "Bricks theme style");
 		else if (c.kind === "bricks-settings") toRaw("bricks-settings.json", "Bricks settings");
 		else if (c.kind === "rankmath-settings") toRaw("rankmath-settings.json", "Rank Math settings");
-		else if (c.kind === "rankmath-seo-csv") items.push({ file: rel, used: "Rank Math per-page SEO fields — the exporter already carries these; not needed", ok: true });
+		else if (c.kind === "hfcm") {
+			copyFileSync(file, join(paths.raw, "code-snippets.json"));
+			const snippets = ((c.json as { snippets: Record<string, unknown>[] }).snippets ?? []).filter((x) => x.status === "active");
+			const decode = (h: string) => h.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&amp;/g, "&");
+			const hostsOf = (code: string) => [...new Set([...code.matchAll(/https?:\/\/([a-z0-9.-]+)|'https:\/\/'\s*\+\s*[A-Za-z_]+\s*\+\s*'(\.[a-z0-9.-]+)/gi)].map((m) => m[1] ?? `*${m[2]}`))];
+			const list = snippets.map((x) => `${String(x.name)} (${String(x.location || "manual")}, ${String(x.display_on)}${hostsOf(decode(String(x.snippet ?? ""))).length ? `; loads ${hostsOf(decode(String(x.snippet ?? ""))).join(", ")}` : ""})`);
+			items.push({ file: rel, used: `Header Footer Code Manager → raw/code-snippets.json: ${snippets.length} active — ${list.join("; ") || "none"}. Decide per snippet: carry (site settings / embed) or drop.`, ok: true });
+		} else if (c.kind === "rankmath-seo-csv") items.push({ file: rel, used: "Rank Math per-page SEO fields — the exporter already carries these; not needed", ok: true });
 		else {
 			const r = recognise(name, text, hosts);
 			if (r.kind === "unknown") items.push({ file: rel, used: `not recognised (${r.reason})`, ok: false });

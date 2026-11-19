@@ -19,6 +19,7 @@ describe("import-dump", () => {
 		expect(classify("x.json", JSON.stringify({ id: "s", label: "Style", settings: {} })).kind).toBe("bricks-theme-style");
 		expect(classify("x.json", JSON.stringify({ general: {}, titles: {}, sitemap: {} })).kind).toBe("rankmath-settings");
 		expect(classify("x.csv", "id,object_type,slug,seo_title\n1,post,a,b").kind).toBe("rankmath-seo-csv");
+		expect(classify("hfcm.json", JSON.stringify({ title: "x", snippets: [{ name: "n", snippet: "&lt;script&gt;", location: "footer", status: "active" }] })).kind).toBe("hfcm");
 	});
 
 	it("sorts exports into raw/, reads only the database from a backup, never opens backup files", async () => {
