@@ -1,0 +1,37 @@
+{
+  "id": "fluent-forms-9",
+  "title": "Event request (synthetic)",
+  "submitLabel": "Send request",
+  "successMessage": "Thank you — we will be in touch.",
+  "fields": [
+    {
+      "name": "datetime",
+      "label": "Preferred date & time",
+      "type": "date",
+      "time": true
+    },
+    {
+      "name": "day",
+      "label": "Backup day",
+      "type": "date"
+    },
+    {
+      "name": "addons",
+      "label": "Add-ons",
+      "type": "checkbox",
+      "options": [
+        "Reformer access",
+        "Instructor",
+        "Flower wall"
+      ]
+    },
+    {
+      "name": "email",
+      "label": "Email",
+      "type": "email",
+      "required": true,
+      "autocomplete": "email"
+    }
+  ],
+  "warnings": []
+}

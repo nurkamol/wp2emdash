@@ -13,7 +13,7 @@ import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
-import { routeToSlug } from "../scaffold/seed.js";
+import { menuItemExtras, productionCanonical, routeToSlug } from "../scaffold/seed.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { svgToPng } from "../targets/emdash/svg.js";
 import { EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
@@ -319,8 +319,12 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 					if (sel) data.selectors = sel;
 					if (doc.popup?.autoOpen) data.auto_open_delay = doc.popup.autoOpen.delayMs;
 				}
-				const seoTitle = doc.seo.title?.replace(new RegExp(`\\s*[${sep}]\\s*${site.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`), "").trim();
-				const seo = doc.kind === "page" || doc.kind === "post" ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: doc.seo.canonical } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
+				// The starter adds " – Site" to the page title; any other title is printed as written. So the source title
+				// is stored without the suffix when that leaves the page title, and as the live site printed it otherwise
+				// (a custom SEO title, with or without the site name).
+				const stripped = doc.seo.title?.replace(new RegExp(`\\s*[${sep}]\\s*${site.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`), "").trim();
+				const seoTitle = stripped && stripped !== doc.title.trim() ? doc.seo.title?.trim() : stripped;
+				const seo = doc.kind === "page" || doc.kind === "post" ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: productionCanonical(doc.seo.canonical, siteHosts, config.target.productionUrl) } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
 					const r = ogRef(doc);
 					// The file path, not the media id: EmDash expands a bare id to /media/file/<id>, which 404s (files are served by storage key).
 					const url = r ? idMap.media[mediaKey(r)]?.url : undefined;
@@ -373,7 +377,7 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 				await api.createMenu(role, `${role[0]?.toUpperCase()}${role.slice(1)} navigation`);
 				const add = async (items: typeof m.items, parentId?: string) => {
 					for (const [i, it] of items.entries()) {
-						const created = await api.createMenuItem(role, { type: "custom", label: it.label, customUrl: it.opensPopup ? `#${it.opensPopup}` : fixHref(it.href), sortOrder: i, ...(it.newTab ? { target: "_blank" } : {}), ...(it.opensPopup ? { cssClasses: `popup-${it.opensPopup}` } : {}), ...(parentId ? { parentId } : {}) });
+						const created = await api.createMenuItem(role, { type: "custom", label: it.label, customUrl: it.opensPopup ? `#${it.opensPopup}` : fixHref(it.href), sortOrder: i, ...(it.newTab ? { target: "_blank" } : {}), ...menuItemExtras(it), ...(parentId ? { parentId } : {}) });
 						if (it.children.length) await add(it.children, created.id);
 					}
 				};

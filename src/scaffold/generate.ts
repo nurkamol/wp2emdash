@@ -99,6 +99,15 @@ export interface Tokens {
  * Type styles voted across every captured page of a viewport: the size most texts use wins; in a tie the inner pages win
  * (a home hero is usually a one-off). Pages where every element of a tag has its own size only vote when no page shows the plain style.
  */
+/**
+ * A computed font-family value → the first family's bare name. Browsers quote names with spaces (`"Pinyon Script"`);
+ * kept quoted, they broke the CSS stack (`""Pinyon Script""`) and the Google Fonts request.
+ */
+export function familyName(f: string | undefined): string | undefined {
+	const first = f?.split(",")[0]?.trim().replace(/^["']|["']$/g, "").trim();
+	return first || undefined;
+}
+
 function mergedTypography(designs: DesignCapture[], viewport: string, first: Record<string, TypographyEntry | undefined>): Record<string, TypographyEntry | undefined> {
 	const out: Record<string, TypographyEntry | undefined> = { ...first };
 	for (const tag of Object.keys(first)) {
@@ -133,8 +142,8 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 	const accent = toHex(btn?.styles.background) ?? toHex(desktop.colors.find((c) => c.usage === "text" && !["#000000", "#ffffff", text].includes(toHex(c.value) ?? ""))?.value) ?? text;
 	const accentContrast = toHex(btn?.styles.color) ?? (luminance(accent) > 0.45 ? "#000000" : "#ffffff");
 	const surface = toHex(desktop.footer?.background) && toHex(desktop.footer?.background) !== bg ? (toHex(desktop.footer?.background) as string) : (bgCandidates.find((c) => c !== bg) ?? bg);
-	const bodyFont = body?.fontFamily ?? desktop.fonts[0]?.family ?? "system-ui";
-	const displayFont = t.h1?.fontFamily ?? t.h2?.fontFamily ?? bodyFont;
+	const bodyFont = familyName(body?.fontFamily ?? desktop.fonts[0]?.family) ?? "system-ui";
+	const displayFont = familyName(t.h1?.fontFamily ?? t.h2?.fontFamily) ?? bodyFont;
 	const size = (k: string, fallback: number) => fluid(px(tm[k]?.fontSize) || fallback, px(t[k]?.fontSize) || fallback);
 	const lh = (k: string) => {
 		const e = t[k];
@@ -230,7 +239,7 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 		.map((k) => {
 			const e = t[k];
 			if (!e) return "";
-			const font = e.fontFamily === bodyFont && bodyFont !== displayFont ? "var(--font-body)" : "var(--font-display)";
+			const font = familyName(e.fontFamily) === bodyFont && bodyFont !== displayFont ? "var(--font-body)" : "var(--font-display)";
 			return `\t--${k}-font: ${font};\n\t--${k}-weight: ${e.fontWeight};\n\t--${k}-tracking: ${tracking(k)};\n\t--${k}-transform: ${e.textTransform === "uppercase" ? "uppercase" : "none"};\n\t--${k}-leading: ${lh(k) ?? 1.2};`;
 		})
 		.filter(Boolean)
@@ -390,13 +399,17 @@ export interface PanelExtras {
 	contacts: { icon: "phone" | "email" | "instagram" | "facebook" | "linkedin" | "x" | "youtube" | "tiktok" | "link"; href: string; label: string }[];
 	/** A "© year Site" line at the bottom. */
 	credit: boolean;
+	/** The header's buttons (secondary menu items marked as buttons) repeated below the menu, as in the source panel. */
+	buttons?: boolean;
 }
 
 /**
  * Splits the captured panel items around the main menu: leading extras, contact icon links after it,
  * and a trailing home link (Salient prints "© year Site" there). Items that are the main menu stay out.
+ * `buttonLabels`: the header buttons; when the source panel shows them after the menu (its text starts with the
+ * label: a hover label may follow), the panel repeats them.
  */
-export function panelExtras(menus: MenuCapture[], primaryLabels: string[]): PanelExtras {
+export function panelExtras(menus: MenuCapture[], primaryLabels: string[], buttonLabels: string[] = []): PanelExtras {
 	const m = menus.find((x) => x.found && x.viewport === "mobile") ?? menus.find((x) => x.found);
 	const out: PanelExtras = { lead: [], contacts: [], credit: false };
 	if (!m) return out;
@@ -423,9 +436,11 @@ export function panelExtras(menus: MenuCapture[], primaryLabels: string[]): Pane
 		if (/twitter\.com|x\.com/.test(h)) return "x";
 		return undefined;
 	};
+	const buttons = buttonLabels.map(norm).filter(Boolean);
 	for (const i of top.slice(lastMenu + 1)) {
 		const icon = iconOf(i);
-		if (icon) out.contacts.push({ icon, href: i.href, label: i.text.trim() || `${icon[0]?.toUpperCase()}${icon.slice(1)}` });
+		if (buttons.some((b) => norm(i.text) === b || norm(i.text).startsWith(`${b} `))) out.buttons = true;
+		else if (icon) out.contacts.push({ icon, href: i.href, label: i.text.trim() || `${icon[0]?.toUpperCase()}${icon.slice(1)}` });
 		else if (i.href === "/" || /^https?:\/\/[^/]+\/?$/.test(i.href)) out.credit = true;
 	}
 	return out;

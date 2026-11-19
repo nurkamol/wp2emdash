@@ -183,7 +183,7 @@ until you publish them, and every page keeps its earlier versions.
 | **Pages** | Every page, built from sections (below). Each page has its own SEO fields: title, description, social image. |
 | **Header & footer** | The footer's sections (shown on every page). |
 | **Popups** | Popups such as the booking window, and the buttons or links that open them. |
-| **Menus** | \`primary\` (main menu), \`secondary\` and \`footer\` links. |
+| **Menus** | \`primary\` (main menu), \`secondary\` and \`footer\` links. A \`secondary\` item with the CSS class \`button\` is a header button; its title attribute is the label it swaps to on hover. |
 | **Media** | Images and videos. Upload in the library or straight from an image field. |
 | **Settings** | Site title, tagline and the SEO defaults. |
 
@@ -204,6 +204,7 @@ site defaults. Buttons can link to a page, an outside address, or open a popup (
 - **Images:** use the alt text field to describe each picture; it is read aloud to people who cannot see it and helps search engines.
 - **Links** inside text open in the same tab; buttons have an "Open in new tab" switch.
 - **Preview** a draft before publishing with the preview button in the editor.
+- **Page titles** in search results: a page shows "Page title – Site name" unless its SEO title says something else; an SEO title different from the page title is shown exactly as written (add the site name yourself if you want it).
 - **Addresses** of pages are kept from the old site. Changing a page's slug creates a redirect from the old address.
 ${i.ogCards ? `
 ## Sharing images

@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { adaptBricks, bricksDesign, type BricksElement, bricksElements, bricksSite, isBricks, siteTemplates, templateElements, templateType } from "../adapters/bricks/index.js";
+import { headerButtons, headerMenu, nestedNavItems } from "../adapters/bricks/menus.js";
 import { readBricksOptions } from "../extract/bricks.js";
 import type { FormDefinitionOut } from "../scaffold/forms.js";
 import { adaptGutenberg } from "../adapters/gutenberg/index.js";
@@ -40,6 +41,7 @@ export function detectBuilder(content: string, meta?: Record<string, unknown>): 
 }
 
 interface MenuRaw {
+	id?: number;
 	name: string;
 	locations: string[];
 	items: { id: number; parent_id: number | null; sort_order: number; type: string; object: string; object_id: number; url: string; title: string; target: string; classes: string | string[] | null }[];
@@ -112,6 +114,21 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			}
 		}
 		return undefined;
+	};
+
+	/** A WordPress menu's items as a tree (links made site-relative, popup triggers resolved). */
+	const menuTree = (m: MenuRaw): IrMenuItem[] => {
+		const build = (parent: number | null): IrMenuItem[] =>
+			m.items
+				.filter((i) => (i.parent_id ?? 0) === (parent ?? 0))
+				.sort((a, b) => a.sort_order - b.sort_order)
+				.map((i) => {
+					const classes = Array.isArray(i.classes) ? i.classes.join(" ") : (i.classes ?? "");
+					const href = relHref(i.url);
+					const popup = popupFor({ href, classes });
+					return { label: i.title, href, ...(i.target === "_blank" ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}), children: build(i.id) };
+				});
+		return build(null);
 	};
 
 	// ── Routes ─────────────────────────────────────────────────────────────────
@@ -202,7 +219,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		return { builder, sections, diagnostics };
 	};
 	function adaptBricksPost(p: ExporterPost, common: { kind: IrPage["kind"]; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, elements?: BricksElement[]) {
-		const r = adaptBricks(elements ?? bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id), site: bricks, postId: p.id, content: p.content ?? "", reusable: (id) => reusable.get(id), title: p.title, siteTitle, permalink, popupSlug: (id) => bricksPopups.get(id) });
+		const r = adaptBricks(elements ?? bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id), site: bricks, postId: p.id, content: p.content ?? "", reusable: (id) => reusable.get(id), title: p.title, siteTitle, permalink, popupSlug: (id) => bricksPopups.get(id), menuItems: (id) => { const m = menusRaw.find((x) => String(x.id) === id); return m ? menuTree(m) : undefined; } });
 		for (const f of r.forms) bricksForms.set(f.id, f);
 		return r;
 	}
@@ -247,11 +264,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	}
 	// Bricks header and footer templates: the site-wide ones (condition "entire website", else front page) become site parts.
 	const bricksParts = siteTemplates(bricksTemplatePosts.map((t) => ({ id: t.id, slug: t.slug, title: t.title, status: t.status, meta: t.meta })));
+	let bricksHeaderSections: Section[] | undefined;
 	for (const role of ["header", "footer"] as const) {
 		const t = bricksParts[role];
 		const p = t && bricksTemplatePosts.find((x) => x.id === t.id);
 		if (!p) continue;
 		const { sections, diagnostics } = adapt(p, "partial", bricksTemplates.get(p.id) ?? []);
+		if (role === "header") bricksHeaderSections = sections;
 		if (role === "footer") paddedEdges += applyMeasuredPadding(sections, boxesFor("/"), true);
 		emit({ version: IR_VERSION, kind: "partial", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder: "bricks", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics }, `partials/${p.slug}.json`, true);
 		partials.push({ role, file: `partials/${p.slug}.json` });
@@ -319,19 +338,30 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		if (/footer/i.test(l)) return "footer";
 		return "other";
 	};
-	const menus: IrSite["menus"] = menusRaw.map((m) => {
-		const build = (parent: number | null): IrMenuItem[] =>
-			m.items
-				.filter((i) => (i.parent_id ?? 0) === (parent ?? 0))
-				.sort((a, b) => a.sort_order - b.sort_order)
-				.map((i) => {
-					const classes = Array.isArray(i.classes) ? i.classes.join(" ") : (i.classes ?? "");
-					const href = relHref(i.url);
-					const popup = popupFor({ href, classes });
-					return { label: i.title, href, ...(i.target === "_blank" ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}), children: build(i.id) };
-				});
-		return { name: m.name, role: menuRole(m.locations), wpLocations: m.locations, items: build(null) };
-	});
+	const menus: IrSite["menus"] = menusRaw.map((m) => ({ name: m.name, role: menuRole(m.locations), wpLocations: m.locations, items: menuTree(m) }));
+	// Bricks has no menu locations: the site header template says which menu is the main one (a nav-menu element, or
+	// a nav-nested element with its own links), and its buttons are the header's calls to action (secondary menu).
+	const headerTpl = bricksParts.header && bricksTemplates.get(bricksParts.header.id);
+	if (headerTpl) {
+		const homeHtml = snapshotHtml.find((h) => h.name === "home")?.html ?? snapshotHtml[0]?.html;
+		const at = homeHtml?.indexOf('id="brx-header"') ?? -1;
+		const liveHeader = homeHtml && at >= 0 ? homeHtml.slice(at, homeHtml.indexOf("<main", at) > at ? homeHtml.indexOf("<main", at) : at + 200_000) : undefined;
+		if (!menus.some((m) => m.role === "primary")) {
+			const pick = headerMenu(menusRaw, headerTpl, liveHeader);
+			const nested = pick.menu ? [] : nestedNavItems(headerTpl, (l) => {
+				const o = (l && typeof l === "object" ? l : {}) as { type?: string; postId?: unknown; url?: string; newTab?: unknown };
+				const id = Number(o.postId);
+				const href = o.type === "internal" && id > 0 ? (permalink(id) ?? o.url) : o.url;
+				return { ...(href ? { href: relHref(href) } : {}), ...(o.newTab === true || o.newTab === "true" ? { newTab: true } : {}) };
+			});
+			const chosen = pick.menu && menus.find((m) => m.name === pick.menu?.name);
+			if (chosen) chosen.role = "primary";
+			else if (nested.length) menus.push({ name: "header", role: "primary", wpLocations: [], items: nested });
+			reporter.emit({ type: "log", level: chosen || nested.length ? "info" : "warn", message: `Bricks header menu: ${chosen ? `"${chosen.name}" from the ${pick.via}` : nested.length ? `${nested.length} links of the nav-nested element` : `none (${pick.via})`}` });
+		}
+		const buttons = headerButtons(bricksHeaderSections ?? []);
+		if (buttons.length && !menus.some((m) => m.role === "secondary")) menus.push({ name: "header-buttons", role: "secondary", wpLocations: [], items: buttons });
+	}
 	const siteIconId = typeof options.site_icon === "number" && options.site_icon > 0 ? options.site_icon : undefined;
 	// The business from the live home page's structured data (Rank Math/Yoast LocalBusiness/Organization).
 	const homeSnap = existsSync(pagesDir) ? readdirSync(pagesDir).map((f) => readJson<{ url?: string; seo?: { jsonLd?: unknown[] } }>(join(pagesDir, f))).find((x) => { try { return !!x?.url && new URL(x.url).pathname === "/"; } catch { return false; } }) : undefined;

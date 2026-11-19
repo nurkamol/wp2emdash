@@ -25,8 +25,16 @@ import SitePartOnly from "./sections/SitePartOnly.astro";
 
 interface Props {
 	value?: any[] | null;
+	/**
+	 * Page content (not the footer): the first picture in the first sections is loaded right away with high priority
+	 * (it is usually the largest thing on the first screen — the LCP); every other picture loads lazily.
+	 */
+	leadImage?: boolean;
 }
-const { value } = Astro.props;
+const { value, leadImage } = Astro.props;
+const hasPicture = (b: any) => !!b && (!!b.bg_image || !!b.media || [1, 2, 3, 4].some((n) => b[`col_${n}_image`] || b[`col_${n}_bg_image`]));
+const lead = leadImage ? (value ?? []).slice(0, 3).findIndex(hasPicture) : -1;
+const blocks = lead >= 0 ? (value ?? []).map((b, i) => (i === lead ? { ...b, _lead: true } : b)) : (value ?? []);
 const components = defineBlockComponents<any>({
 	section_hero: Hero,
 	section_rich_text: RichText,
@@ -53,4 +61,4 @@ const components = defineBlockComponents<any>({
 });
 ---
 
-<Blocks value={value ?? []} {components} />
+<Blocks value={blocks} {components} />

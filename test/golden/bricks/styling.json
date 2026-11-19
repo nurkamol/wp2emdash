@@ -21,7 +21,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec700",
-        "rawHash": "afecc4c8f8"
+        "rawHash": "afecc4c8f8",
+        "row": 0
       },
       "fields": {
         "heading": [
@@ -64,7 +65,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec701",
-        "rawHash": "154262e97e"
+        "rawHash": "154262e97e",
+        "row": 1
       },
       "fields": {
         "body": [
@@ -120,7 +122,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec702#0",
-        "rawHash": "52c230bc0b"
+        "rawHash": "52c230bc0b",
+        "row": 2
       },
       "fields": {
         "body": [
@@ -160,7 +163,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec702#1",
-        "rawHash": "52c230bc0b"
+        "rawHash": "52c230bc0b",
+        "row": 2
       },
       "fields": {
         "intro": [],
@@ -327,7 +331,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec703",
-        "rawHash": "d3b533b050"
+        "rawHash": "d3b533b050",
+        "row": 3
       },
       "fields": {
         "columns": [
@@ -415,7 +420,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec704",
-        "rawHash": "38d4320374"
+        "rawHash": "38d4320374",
+        "row": 4
       },
       "fields": {
         "intro": [],
@@ -509,7 +515,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "template#tpl705/template#88/section#tpl705t88~q1",
-        "rawHash": "e880607add"
+        "rawHash": "e880607add",
+        "row": 5
       },
       "fields": {
         "heading": [
@@ -553,7 +560,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec706",
-        "rawHash": "7a6133bd2f"
+        "rawHash": "7a6133bd2f",
+        "row": 6
       },
       "fields": {
         "body": [

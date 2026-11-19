@@ -31,6 +31,9 @@ const CHROME = [
 	"#masthead",
 	"#site-navigation",
 	".wp-block-template-part header",
+	// Bricks: the header template (menus are compared by the menu check) and popup templates
+	"#brx-header",
+	".brx-popup",
 	// wp2emdash starter chrome (verify compares the migrated site's HTML the same way)
 	"#menu-panel",
 	".menu-overlay",

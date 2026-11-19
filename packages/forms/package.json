@@ -1,6 +1,6 @@
 {
   "name": "@wp2emdash/forms",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Website forms for EmDash on Cloudflare Workers: form endpoint, email delivery, KV outbox and a Form messages admin page",
   "license": "MIT",
   "private": true,

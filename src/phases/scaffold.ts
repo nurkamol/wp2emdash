@@ -14,7 +14,7 @@ import type { MenuCapture } from "../audit/interactions.js";
 import { KIT_ROOT } from "../core/paths.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
-import { selfHostGoogleFonts } from "../scaffold/fonts.js";
+import { resolveGoogleHref, selfHostGoogleFonts } from "../scaffold/fonts.js";
 import { clientRepoFiles, deployScripts, writeClientRepo } from "../scaffold/client-repo.js";
 import { loadOverrides } from "../config/overrides.js";
 import { applySensitivePolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
@@ -185,7 +185,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	if (hasAnalytics) reporter.emit({ type: "log", level: "info", message: `analytics on the production domain: ${[...(analytics?.google ?? []), analytics?.gtm, analytics?.cloudflareToken ? "Cloudflare beacon" : ""].filter(Boolean).join(", ")}` });
 	const siteConfig = {
 		...baseConfig,
-		header: { ...baseConfig.header, panelExtras: panelExtras(interactions.menus, primaryLabels), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
+		header: { ...baseConfig.header, panelExtras: panelExtras(interactions.menus, primaryLabels, (site.menus.find((mm) => mm.role === "secondary")?.items ?? []).filter((i) => i.button).map((i) => i.label)), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
 		trailingSlash: trailing,
 		...(hasAnalytics ? { analytics } : {}),
 		...(ogLocale ? { ogLocale } : {}),
@@ -204,6 +204,18 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	};
 	// Fonts: self-host Google Fonts (faster, no swap shift, no visitor IPs to Google); the Google link stays as fallback.
 	let fontsCss = "/* No self-hosted fonts (none on Google Fonts, or the download failed). */\n";
+	if (siteConfig.fonts.googleHref) {
+		try {
+			// Only styles Google has (a refused request would leave the site without its fonts, render-blocking).
+			const resolved = await resolveGoogleHref(siteConfig.fonts.googleHref);
+			if (resolved.reduced.length || resolved.dropped.length) reporter.emit({ type: "log", level: resolved.dropped.length ? "warn" : "info", message: `Google Fonts: ${[...resolved.reduced, ...resolved.dropped.map((d) => `${d} not on Google Fonts (system fallback)`)].join("; ")}` });
+			if (resolved.href) siteConfig.fonts.googleHref = resolved.href;
+			else {
+				const { googleHref: _g, ...rest } = siteConfig.fonts;
+				siteConfig.fonts = rest;
+			}
+		} catch {}
+	}
 	if (siteConfig.fonts.googleHref) {
 		try {
 			const hosted = await selfHostGoogleFonts(siteConfig.fonts.googleHref, join(project, "public"), { body: siteConfig.fonts.body, display: siteConfig.fonts.display, displayWeight: siteConfig.fonts.displayWeight ?? 400 });

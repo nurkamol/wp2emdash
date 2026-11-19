@@ -38,12 +38,13 @@ export function sourceRowIndex(path: string): number | undefined {
 
 /**
  * Group migrated sections by the source row they came from, in order. Sections without a row index
- * (Gutenberg/classic) map to nothing and are compared as part of the whole page instead.
+ * (Gutenberg/classic) map to nothing and are compared as part of the whole page instead. `row` is the index a path
+ * does not carry (Bricks: `section#abc123` + sourceRef.row = its place among the page's top-level elements).
  */
-export function groupSections(sections: { type: string; path: string }[], footer: boolean): SectionGroup[] {
+export function groupSections(sections: { type: string; path: string; row?: number }[], footer: boolean): SectionGroup[] {
 	const groups: SectionGroup[] = [];
 	sections.forEach((s, i) => {
-		const src = sourceRowIndex(s.path);
+		const src = sourceRowIndex(s.path) ?? s.row;
 		if (src === undefined) return;
 		const last = groups.at(-1);
 		if (last && last.sourceIndex === src && last.footer === footer) {

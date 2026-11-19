@@ -13,7 +13,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#f100",
-        "rawHash": "9d71db0341"
+        "rawHash": "9d71db0341",
+        "row": 0
       },
       "fields": {
         "columns": [
@@ -149,7 +150,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#f200",
-        "rawHash": "e9991e76fa"
+        "rawHash": "e9991e76fa",
+        "row": 1
       },
       "fields": {
         "body": [

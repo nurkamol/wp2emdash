@@ -11,13 +11,13 @@
  * recognisers read. Components and section templates are inlined. Unknown elements are reported as unmapped, never
  * dropped silently. Verified facts: docs/spikes/bricks-findings.md.
  */
-import type { Diagnostic, Section, SectionType } from "../../ir/schema.js";
+import type { Diagnostic, IrMenuItem, Section, SectionType } from "../../ir/schema.js";
 import type { Keys } from "../../ir/portable-text.js";
 import type { FormDefinitionOut } from "../../scaffold/forms.js";
 import { fluid } from "../../scaffold/generate.js";
 import { type Col, type Fragment, type HandlerCtx, mediaFrom } from "../wpbakery/elements.js";
 import { mergeRich, recognise, type Row, splitRow } from "../wpbakery/index.js";
-import { DECORATIVE, DYNAMIC, dynamicListing, type Env, HANDLERS, isFilter, mediaOf, plain } from "./elements.js";
+import { DECORATIVE, DYNAMIC, dynamicListing, type Env, HANDLERS, isFilter, linkOf, mediaOf, navMenuLinks, plain } from "./elements.js";
 import { atBreakpoint, type BricksSite, effectiveSettings, emptySite, obj, pxOf, resolveColour, resolveLength, screens, str } from "./site.js";
 
 export { bricksSite, type BricksSite, siteTemplates, templateElements, templateType, bricksDesign, BRICKS_OPTIONS } from "./site.js";
@@ -58,6 +58,8 @@ export interface BricksOptions {
 	permalink?: (postId: number) => string | undefined;
 	/** Bricks popup template id → the IR popup slug (buttons whose interaction shows a popup). */
 	popupSlug?: (templateId: number) => string | undefined;
+	/** A WordPress menu by id (a nav-menu element's `menu` setting) → its top-level items (links). */
+	menuItems?: (menuId: string) => IrMenuItem[] | undefined;
 }
 
 export interface BricksResult {
@@ -277,11 +279,36 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 			if (e.settings?._conditions) diag({ level: "info", code: "flagged", message: `[${e.name}] has display conditions in Bricks; its content is migrated unconditionally`, path, tag: e.name });
 			const kids = childrenOf(e);
 			if (kids.length >= 2 && kids.every((k) => STRUCTURE.has(k.name) || !!k.cid) && isRowBox(e)) return [{ kind: "subrow", columns: columnsOfBox(e, path) }];
-			return labelStats(mergeRich(kids.flatMap((c) => fragments(c, `${path}/${pathOf(c)}`))));
+			const inner = labelStats(mergeRich(kids.flatMap((c) => fragments(c, `${path}/${pathOf(c)}`))));
+			return e.settings?.link ? linkedBox(e, inner, path) : inner;
 		}
 		if (e.settings?._conditions) diag({ level: "info", code: "flagged", message: `[${e.name}] has display conditions in Bricks; migrated unconditionally`, path, tag: e.name });
 		if (str(eff(e)._columns)) diag({ level: "info", code: "lossy", message: `[${e.name}] CSS columns (${str(eff(e)._columns)}, Bricks 2.5) not reproduced; text kept in one column`, path, tag: e.name });
 		return leaf(e, path);
+	}
+
+	/**
+	 * A block/div/container with a link (`tag: a`, a whole contact card linking to tel:/mailto:/a map): its text keeps the
+	 * link (every text without a link of its own becomes a link to the address), so the address is not lost.
+	 */
+	function linkedBox(e: BricksElement, frags: Fragment[], path: string): Fragment[] {
+		const link = linkOf(e.settings?.link, env);
+		if (!link.href) return frags;
+		let linked = 0;
+		const out = frags.map((f): Fragment => {
+			if (f.kind !== "rich") return f;
+			return {
+				...f,
+				blocks: f.blocks.map((b) => {
+					if (b.markDefs?.some((d) => d._type === "link") || !b.children.some((c) => c.text.trim())) return b;
+					const key = opts.keys.next();
+					linked++;
+					return { ...b, markDefs: [...(b.markDefs ?? []), { _type: "link" as const, _key: key, href: link.href as string, ...(link.newTab ? { blank: true } : {}) }], children: b.children.map((c) => ({ ...c, marks: [...(c.marks ?? []), key] })) };
+				}),
+			};
+		});
+		diag({ level: linked ? "info" : "warn", code: linked ? "lossy" : "link-unknown", message: linked ? `[${e.name}] linked box: its text links to ${link.href} (the whole box is no longer one link)` : `[${e.name}] links to ${link.href}, but holds no text without a link of its own to carry it; the box link is not kept`, path, tag: e.name });
+		return out;
 	}
 
 	/** A structural element as a column: its fragments, background, width and text alignment. */
@@ -320,6 +347,10 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		if (DECORATIVE.has(e.name)) {
 			diag({ level: "info", code: "dropped-decorative", message: `[${e.name}] dropped (decorative)`, path, tag: e.name });
 			return [];
+		}
+		if (e.name === "nav-menu") {
+			const links = navMenuLinks(e, path, env);
+			if (links) return links;
 		}
 		if (DYNAMIC.has(e.name) || isFilter(e.name)) {
 			diag({ level: "info", code: "dynamic", message: `[${e.name}] is rendered by the site (menu, logo, post data, filters), not migrated as content`, path, tag: e.name });
@@ -469,21 +500,24 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 	interface BricksRow extends Row {
 		pad?: Section["pad"];
 		tracks?: number;
+		/** Position of its top-level element among the page's rendered top-level elements (verify pairs boxes by it). */
+		index: number;
 	}
 	const rows: BricksRow[] = [];
-	let loose: { e: BricksElement; path: string }[] = [];
+	let loose: { e: BricksElement; path: string; index: number }[] = [];
 	const flushLoose = () => {
 		if (!loose.length) return;
-		rows.push({ attrs: {}, columns: [{ fragments: mergeRich(loose.flatMap((x) => fragments(x.e, x.path))) }], path: loose.map((x) => x.path).join("+"), raw: JSON.stringify(loose.map((x) => x.e)), adapter: "bricks" });
+		rows.push({ attrs: {}, columns: [{ fragments: mergeRich(loose.flatMap((x) => fragments(x.e, x.path))) }], path: loose.map((x) => x.path).join("+"), raw: JSON.stringify(loose.map((x) => x.e)), adapter: "bricks", index: (loose[0] as { index: number }).index });
 		loose = [];
 	};
 	// Bricks renders from the top-level elements down (includes/frontend.php render_data): an element whose parent is
 	// not in the list is never shown on the live page.
 	for (const e of all.filter((x) => !isRoot(x.parent) && !byId.has(String(x.parent)))) diag({ level: "info", code: "flagged", message: `[${e.name}] its parent element ${e.parent} is not on the page, so Bricks does not render it; not migrated`, path: pathOf(e), tag: e.name });
 	const roots = all.filter((e) => isRoot(e.parent));
-	for (const { e: r, path } of expandRoots(roots)) {
+	// Each top-level element is one element in the rendered page (a template or component in its place included).
+	for (const { e: r, path, index } of roots.flatMap((root, index) => expandRoots([root]).map((x) => ({ ...x, index })))) {
 		if (r.name !== "section" && r.name !== "container") {
-			loose.push({ e: r, path });
+			loose.push({ e: r, path, index });
 			continue;
 		}
 		flushLoose();
@@ -496,7 +530,7 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		rowTracks = undefined;
 		const style = styleOf(r, path);
 		const columns = columnsOf(r, path);
-		rows.push({ attrs: style.attrs, columns, path, raw: JSON.stringify(r), adapter: "bricks", ...(style.pad ? { pad: style.pad } : {}), ...(rowTracks ? { tracks: rowTracks } : {}) });
+		rows.push({ attrs: style.attrs, columns, path, raw: JSON.stringify(r), adapter: "bricks", index, ...(style.pad ? { pad: style.pad } : {}), ...(rowTracks ? { tracks: rowTracks } : {}) });
 		currentSource = undefined;
 	}
 	flushLoose();
@@ -511,6 +545,7 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		const out: Section[] = [];
 		for (const v of splitRow(row)) out.push(...recognise(v, { first: sections.length + out.length === 0, kind: opts.kind, ...(forced ? { forced } : {}), keys: opts.keys, diag }));
 		for (const s of out) {
+			s.sourceRef.row = row.index;
 			// A grid with more cards than tracks keeps its tracks per row.
 			if (row.tracks && (s.type === "feature_grid" || s.type === "team") && (s.fields.columns ?? 0) > row.tracks) s.fields.columns = Math.min(6, row.tracks);
 		}

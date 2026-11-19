@@ -16,6 +16,8 @@ export interface FormFieldOut {
 	required?: boolean;
 	placeholder?: string;
 	options?: string[];
+	/** date: a date and a time (Fluent date with time enabled). */
+	time?: boolean;
 	half?: boolean;
 	autocomplete?: string;
 	labelParts?: InlinePart[];
@@ -132,7 +134,9 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 		}
 		const label = str(s.label) || (placeholder ?? name).replace(/\*\s*$/, "").trim();
 		const options = Array.isArray(s.advanced_options) ? (s.advanced_options as Obj[]).map((x) => str(x.label) ?? str(x.value) ?? "").filter(Boolean) : undefined;
-		fields.push({ name, label, type, ...(required ? { required } : {}), ...(placeholder ? { placeholder } : {}), ...(options?.length ? { options } : {}), ...(half && type !== "signature" ? { half } : {}), ...(AUTOCOMPLETE[name] ? { autocomplete: AUTOCOMPLETE[name] } : {}) });
+		// Fluent date: `is_time_enabled`, or a format with hours (`m/d/Y h:i K`) → a date and time picker.
+		const time = type === "date" && (s.is_time_enabled === true || s.is_time_enabled === "yes" || /[hHgGi]/.test(str(s.date_format) ?? ""));
+		fields.push({ name, label, type, ...(required ? { required } : {}), ...(placeholder ? { placeholder } : {}), ...(options?.length ? { options } : {}), ...(time ? { time } : {}), ...(half && type !== "signature" ? { half } : {}), ...(AUTOCOMPLETE[name] ? { autocomplete: AUTOCOMPLETE[name] } : {}) });
 	};
 	let contentCount = 0;
 	const ff = o(raw.form.form_fields);

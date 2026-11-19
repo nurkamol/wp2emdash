@@ -179,7 +179,7 @@ export class EmDashApi {
 	async createMenu(name: string, label: string): Promise<void> {
 		await this.request("POST", "/menus", { name, label });
 	}
-	async createMenuItem(menu: string, item: { type: string; label: string; customUrl?: string; target?: string; cssClasses?: string; parentId?: string; sortOrder?: number }): Promise<{ id: string }> {
+	async createMenuItem(menu: string, item: { type: string; label: string; customUrl?: string; target?: string; titleAttr?: string; cssClasses?: string; parentId?: string; sortOrder?: number }): Promise<{ id: string }> {
 		const r = await this.request<{ item?: { id: string }; id?: string }>("POST", `/menus/${encodeURIComponent(menu)}/items`, item);
 		return { id: r.item?.id ?? (r.id as string) };
 	}

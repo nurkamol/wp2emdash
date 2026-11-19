@@ -9,7 +9,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#s1",
-        "rawHash": "648adc7e3f"
+        "rawHash": "648adc7e3f",
+        "row": 0
       },
       "fields": {
         "heading": [
@@ -81,7 +82,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#s2",
-        "rawHash": "8ec9b03353"
+        "rawHash": "8ec9b03353",
+        "row": 1
       },
       "fields": {
         "tabs": [
@@ -135,7 +137,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#s3",
-        "rawHash": "af87bb614a"
+        "rawHash": "af87bb614a",
+        "row": 2
       },
       "fields": {
         "body": [
@@ -187,7 +190,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#s3",
-        "rawHash": "af87bb614a"
+        "rawHash": "af87bb614a",
+        "row": 2
       },
       "fields": {
         "images": [
@@ -215,7 +219,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#s3",
-        "rawHash": "af87bb614a"
+        "rawHash": "af87bb614a",
+        "row": 2
       },
       "fields": {
         "html": "<div class=\"custom-widget\">Opening soon</div>",

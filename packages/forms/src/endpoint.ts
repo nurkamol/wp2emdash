@@ -122,12 +122,15 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 			} else if (field.required) errors[field.name] = `${field.label} is required. Sign in the box or type your full name.`;
 			continue;
 		}
-		const raw = field.type === "checkbox" || field.type === "consent" ? (data.get(field.name) ? "Yes" : "") : String(data.get(field.name) ?? "").trim();
+		// A checkbox group (options): the ticked options that are in the definition, in its order.
+		const group = field.type === "checkbox" && !!field.options?.length;
+		const ticked = group ? new Set(data.getAll(field.name).map((v) => String(v))) : undefined;
+		const raw = group ? (field.options ?? []).filter((o) => ticked?.has(o)).join(", ") : field.type === "checkbox" || field.type === "consent" ? (data.get(field.name) ? "Yes" : "") : String(data.get(field.name) ?? "").trim();
 		if (!raw) {
 			if (field.required) errors[field.name] = field.type === "consent" ? `Please accept: ${field.label}.` : `${field.label} is required.`;
 			continue;
 		}
-		if (raw.length > (MAX[field.type] ?? 200)) errors[field.name] = `${field.label} is too long.`;
+		if (raw.length > (group ? 2000 : (MAX[field.type] ?? 200))) errors[field.name] = `${field.label} is too long.`;
 		else if (field.type === "email" && !EMAIL.test(raw)) errors[field.name] = `${field.label} is not a valid email address.`;
 		else if (field.type === "tel" && !TEL.test(raw)) errors[field.name] = `${field.label} is not a valid phone number.`;
 		else if ((field.type === "select" || field.type === "radio") && field.options?.length && !field.options.includes(raw)) errors[field.name] = `Choose one of the ${field.label} options.`;

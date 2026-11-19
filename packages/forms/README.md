@@ -29,7 +29,7 @@ The package is not on npm. Copy `packages/forms` into the project (for example t
 "dependencies": { "@wp2emdash/forms": "link:./packages/forms" }
 ```
 
-Or build a tarball from the kit (`pnpm --dir packages/forms pack`) and `pnpm add ./wp2emdash-forms-1.4.0.tgz`.
+Or build a tarball from the kit (`pnpm --dir packages/forms pack`) and `pnpm add ./wp2emdash-forms-1.5.0.tgz`.
 The package ships TypeScript source; the site's Astro/Vite build compiles it.
 
 ## Wire it up

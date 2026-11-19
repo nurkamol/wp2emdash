@@ -121,7 +121,11 @@ function extractForms($: cheerio.CheerioAPI, html: string): FormSnapshot[] {
 			.find("input, select, textarea")
 			.each((__, f) => {
 				const $f = $(f);
-				const type = (f.tagName === "input" ? ($f.attr("type") ?? "text") : f.tagName).toLowerCase();
+				const raw = (f.tagName === "input" ? ($f.attr("type") ?? "text") : f.tagName).toLowerCase();
+				// Date pickers are text inputs a script turns into a calendar (Fluent `data-type-datepicker`, flatpickr);
+				// a native date/time input is the same field.
+				const picker = raw === "text" && ($f.is("[data-type-datepicker]") || /\b(flatpickr-input|datepicker|ff-el-datepicker)\b/.test($f.attr("class") ?? ""));
+				const type = picker || raw === "datetime-local" ? "date" : raw;
 				const name = $f.attr("name") ?? "";
 				if (!name || ["hidden", "submit", "button", "image", "reset"].includes(type)) return;
 				if (/^(_|__)|nonce|honeypot|g-recaptcha|cf-turnstile|ak_|_wp_http_referer/i.test(name)) return;

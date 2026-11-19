@@ -10,7 +10,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec600",
-        "rawHash": "d9d517c3e7"
+        "rawHash": "d9d517c3e7",
+        "row": 0
       },
       "fields": {
         "images": [
@@ -34,7 +35,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec601",
-        "rawHash": "75fbfce217"
+        "rawHash": "75fbfce217",
+        "row": 1
       },
       "fields": {
         "body": [
@@ -67,7 +69,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec603",
-        "rawHash": "448fb43340"
+        "rawHash": "448fb43340",
+        "row": 3
       },
       "fields": {
         "body": [

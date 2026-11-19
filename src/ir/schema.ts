@@ -94,6 +94,11 @@ export const sourceRef = z.object({
 	path: z.string(),
 	/** Short hash of the raw source of this section, to detect changes in the cutover delta. */
 	rawHash: z.string(),
+	/**
+	 * Position of the source's top-level element on the rendered page (0 = first child of the content area), when the
+	 * path does not carry it (Bricks: `section#abc123`). Verify pairs the section with the live page's box by it.
+	 */
+	row: z.number().int().nonnegative().optional(),
 });
 
 const base = {
@@ -374,12 +379,16 @@ export const irPage = z.object({
 });
 export type IrPage = z.infer<typeof irPage>;
 
-export const irMenuItem: z.ZodType<IrMenuItem> = z.lazy(() => z.object({ label: z.string(), href: z.string(), newTab: z.boolean().optional(), opensPopup: z.string().optional(), children: z.array(irMenuItem).default([]) }));
+export const irMenuItem: z.ZodType<IrMenuItem> = z.lazy(() => z.object({ label: z.string(), href: z.string(), newTab: z.boolean().optional(), opensPopup: z.string().optional(), button: z.boolean().optional(), hoverLabel: z.string().optional(), children: z.array(irMenuItem).default([]) }));
 export interface IrMenuItem {
 	label: string;
 	href: string;
 	newTab?: boolean;
 	opensPopup?: string;
+	/** Shown as a button in the header (a header call to action), not as a text link. */
+	button?: boolean;
+	/** A button's second label, shown on hover (the kit's label swap). */
+	hoverLabel?: string;
 	children: IrMenuItem[];
 }
 

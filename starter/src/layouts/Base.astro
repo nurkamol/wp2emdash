@@ -67,7 +67,10 @@ if (ogKey && db && !ogCards) {
 	} catch {}
 }
 const sep = settings.data?.seo?.titleSeparator?.trim() || "-";
-const fullTitle = title ? (title.includes(siteTitle) ? title : `${title} ${sep} ${siteTitle}`) : siteTitle;
+// The page's own title gets " – Site"; an SEO title of its own (different from the page title) is used as written,
+// as WordPress SEO plugins print a custom title ("Member Login" on the Account page).
+const customTitle = !!title && !!pageTitle && title.trim() !== pageTitle.trim();
+const fullTitle = title ? (customTitle || title.includes(siteTitle) ? title : `${title} ${sep} ${siteTitle}`) : siteTitle;
 const pageCtx = createPublicPageContext({
 	Astro,
 	kind: content ? "content" : "custom",

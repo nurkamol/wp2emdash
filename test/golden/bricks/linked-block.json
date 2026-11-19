@@ -1,0 +1,135 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#lb00",
+        "rawHash": "ea6613c644",
+        "row": 0
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Call us",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "+1 000 000 0000",
+                "marks": [
+                  "t4"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t4",
+                "href": "tel:+10000000000"
+              }
+            ]
+          },
+          {
+            "_type": "block",
+            "_key": "t5",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t6",
+                "text": "1 Example Street, Springfield",
+                "marks": [
+                  "t7"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t7",
+                "href": "https://maps.example/studio",
+                "blank": true
+              }
+            ]
+          },
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Write to ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "the team",
+                "marks": [
+                  "ta"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "ta",
+                "href": "mailto:team@example.com"
+              }
+            ]
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[block] linked box: its text links to tel:+10000000000 (the whole box is no longer one link)",
+      "path": "section#lb00/container#lb01/block#lb20",
+      "tag": "block"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[block] linked box: its text links to https://maps.example/studio (the whole box is no longer one link)",
+      "path": "section#lb00/container#lb01/block#lb30",
+      "tag": "block"
+    },
+    {
+      "level": "warn",
+      "code": "link-unknown",
+      "message": "[div] links to mailto:hello@example.com, but holds no text without a link of its own to carry it; the box link is not kept",
+      "path": "section#lb00/container#lb01/div#lb40",
+      "tag": "div"
+    }
+  ],
+  "forms": []
+}

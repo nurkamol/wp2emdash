@@ -1,0 +1,25 @@
+{
+  "kind": "partial",
+  "title": "Footer",
+  "permalinks": { "12": "/privacy/" },
+  "menus": {
+    "7": [
+      { "label": "Privacy", "href": "/privacy/", "children": [] },
+      { "label": "Terms", "href": "/terms/", "children": [] }
+    ]
+  },
+  "elements": [
+    { "id": "lf00", "name": "block", "parent": 0, "children": ["lf01"], "settings": {} },
+    { "id": "lf01", "name": "block", "parent": "lf00", "children": ["lf10", "lf20", "lf30", "lf40"], "settings": {} },
+    { "id": "lf10", "name": "image", "parent": "lf01", "children": [], "settings": { "image": { "id": 901, "url": "https://example.com/wp-content/uploads/2025/01/studio-logo.svg" }, "link": "url", "url": { "type": "external", "url": "/" } } },
+    { "id": "lf20", "name": "block", "parent": "lf01", "children": ["lf21", "lf22", "lf23"], "settings": { "tag": "nav" } },
+    { "id": "lf21", "name": "nav-menu", "parent": "lf20", "children": [], "settings": { "menu": "7" } },
+    { "id": "lf22", "name": "nav-menu", "parent": "lf20", "children": [], "settings": { "menu": "99" } },
+    { "id": "lf23", "name": "underlined-hover", "parent": "lf20", "children": [], "settings": { "inner_title": "Privacy", "tag": "span", "link": { "type": "internal", "postId": "12" } } },
+    { "id": "lf30", "name": "block", "parent": "lf01", "children": ["lf31", "lf32", "lf33"], "settings": {} },
+    { "id": "lf31", "name": "icon", "parent": "lf30", "children": [], "settings": { "icon": { "library": "fontawesomeBrands", "icon": "fab fa-instagram" }, "link": { "type": "external", "url": "https://instagram.com/example-studio", "newTab": true } } },
+    { "id": "lf32", "name": "icon", "parent": "lf30", "children": [], "settings": { "icon": { "library": "fontawesomeBrands", "icon": "fab fa-tiktok" }, "link": { "type": "external", "url": "https://tiktok.com/@example-studio" } } },
+    { "id": "lf33", "name": "icon", "parent": "lf30", "children": [], "settings": { "icon": { "library": "fontawesomeSolid", "icon": "fas fa-leaf" } } },
+    { "id": "lf40", "name": "heading", "parent": "lf01", "children": [], "settings": { "tag": "custom", "customTag": "span", "text": "© 2025 <a href=\"/\">Example Studio</a> / Website by <a href=\"https://agency.example\" target=\"_blank\">Example Agency</a>" } }
+  ]
+}
