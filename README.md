@@ -63,7 +63,9 @@ them. Verify downloads every og:image and fails on any that does not load. Detai
 seo: { panel: true },
 ```
 
-Adds an **SEO** panel to the page editor's sidebar: a score, the Google result preview, a plain-words checklist
+Adds an **SEO dashboard** (Plugins → SEO: site-wide scores, most common issues, every page with a link to fix it,
+image descriptions written in one form, robots.txt / sitemap / indexing checks, a dashboard widget) and an **SEO**
+panel to the page editor's sidebar: a score, the Google result preview, a plain-words checklist
 (title and description length, duplicates across pages, one H1, heading order, text length, image alt text, links,
 address, indexing, sharing image) and an optional focus keyword per page. "Check my unsaved changes" checks the
 draft before saving. No effect on visitors; negligible Worker size. Details: [packages/seo/README.md](packages/seo/README.md).

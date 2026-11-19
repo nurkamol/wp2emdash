@@ -213,9 +213,14 @@ title and the next share shows the new card. Networks keep a preview for a while
 (Facebook Sharing Debugger, LinkedIn Post Inspector) or the Telegram @WebpageBot. The cards are made by the
 \`@wp2emdash/og\` package in \`packages/og\` (its README explains how); updates come from the migration kit.
 ` : ""}${i.seoPanel ? `
-## SEO panel
+## SEO
 
-Open a page and unfold **SEO** at the bottom of the right sidebar: a score out of 100, how the page looks in Google,
+**Plugins → SEO** (editors and admins) shows the whole site: the average score, a score per page, the most common
+issues and where they are, every page with an **Open** link to fix it, the pictures that still need a description —
+write them all in one form and **Save descriptions** — and checks of robots.txt, the sitemap and whether Google may
+index the site. The dashboard home shows a summary.
+
+For one page: open it and unfold **SEO** at the bottom of the right sidebar: a score out of 100, how the page looks in Google,
 and what to improve — title and description length, duplicates with other pages, one main heading (H1), heading
 order, text length, image descriptions (alt text, set in the media library), links, the address, whether the page is
 hidden from search, and the sharing image. Enter a **focus keyword** (what people type into Google to find this page)

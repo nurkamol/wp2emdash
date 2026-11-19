@@ -1,5 +1,20 @@
 # @wp2emdash/seo (experimental)
 
+## SEO dashboard (Plugins → SEO, editors and admins)
+
+- **Overview:** average score, pages checked, pages under 80, images without a description, a score bar per page and
+  the most common issues with the pages they affect. The same checks as the page panel, so the numbers agree.
+- **Pages:** every published page with its score, what to improve, its focus keyword and an **Open** link to the editor.
+- **Images:** every picture used on a page that has no description (alt text), with a field per image — **Save
+  descriptions** writes them to the media library, so every page using the image gets it (capability
+  `media:metadata:write`).
+- **Site checks:** robots.txt (crawlable, names the sitemap), the sitemap (every published page listed), the home page
+  (indexable, canonical on the production domain, structured data). On staging or workers.dev, blocking search engines
+  is expected and shown as a note, not an error.
+- **Dashboard widget:** average score, pages under 80, images to describe.
+
+## SEO panel in the page editor
+
 An **SEO panel in the EmDash page editor** (sidebar, under EmDash's own SEO fields), for editors, authors and
 contributors who may edit the page:
 

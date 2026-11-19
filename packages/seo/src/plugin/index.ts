@@ -8,25 +8,13 @@
  * page is kept in the plugin's KV. Contributors and up can use it (EmDash also checks they may edit the entry).
  */
 import { definePlugin } from "emdash";
-import { type Analysis, analyze, type Check, type PageSeo } from "../analyze.js";
+import type { Analysis, Check } from "../analyze.js";
 import { SEO_PLUGIN, type SeoPanelOptions } from "../index.js";
+import { siteChecks } from "../site-checks.js";
+import { allItems, analyseItem, keywordKey, mediaIds, mediaInfo, type SeoCtx, siteReport } from "./collect.js";
+import { DASHBOARD_PAGE, dashboard, WIDGET, widget } from "./dashboard.js";
 
 type Block = Record<string, unknown>;
-interface Item {
-	id: string;
-	slug: string | null;
-	status?: string;
-	data: Record<string, unknown>;
-	seo?: PageSeo;
-}
-interface Ctx {
-	input: unknown;
-	ui?: { entry?: { collection: string; id: string } };
-	kv: { get<T>(k: string): Promise<T | null>; set(k: string, v: unknown): Promise<void> };
-	content?: { get(c: string, id: string): Promise<Item | null>; list(c: string, o?: { limit?: number; cursor?: string }): Promise<{ items: Item[]; cursor?: string; nextCursor?: string }> };
-	media?: { get(id: string): Promise<{ alt?: string | null } | null> };
-	site: { name: string };
-}
 
 const ICON: Record<Check["status"], string> = { good: "✓", warn: "!", bad: "✗", info: "i" };
 const ORDER: Record<Check["status"], number> = { bad: 0, warn: 1, good: 2, info: 3 };
@@ -63,17 +51,53 @@ export function createPlugin(options: SeoPanelOptions) {
 	const collections = o.collections?.length ? o.collections : ["pages"];
 	return definePlugin({
 		...SEO_PLUGIN,
-		capabilities: ["content:read", "media:read", "admin.editor-draft:read"],
-		admin: { editorPanels: [{ id: "seo", title: "SEO", route: "panel", collections, order: 10, draft: { read: { fields: ["title", "content"] } } }] },
+		capabilities: ["content:read", "media:read", "media:metadata:write", "admin.editor-draft:read"],
+		admin: {
+			pages: [{ path: DASHBOARD_PAGE, label: "SEO", icon: "chart-line" }],
+			widgets: [{ id: WIDGET, title: "SEO", size: "third" }],
+			editorPanels: [{ id: "seo", title: "SEO", route: "panel", collections, order: 10, draft: { read: { fields: ["title", "content"] } } }],
+		},
 		routes: {
+			// SEO dashboard page and dashboard widget (editors and admins).
+			admin: {
+				permission: "content:edit_any",
+				handler: async (raw) => {
+					const ctx = raw as unknown as SeoCtx;
+					const i = (ctx.input ?? {}) as { type?: string; action_id?: string; values?: Record<string, unknown> };
+					let altSaved: number | undefined;
+					if (i.type === "form_submit" && i.action_id === "save-alt" && ctx.media?.updateMetadata) {
+						altSaved = 0;
+						for (const [k, v] of Object.entries(i.values ?? {})) {
+							const id = /^alt:([0-9A-HJKMNP-TV-Z]{26})$/.exec(k)?.[1];
+							const alt = typeof v === "string" ? v.trim().slice(0, 300) : "";
+							if (!id || !alt) continue;
+							await ctx.media.updateMetadata(id, { alt });
+							altSaved++;
+						}
+					}
+					const report = await siteReport(ctx, o, collections);
+					const missingAlt = [...report.usage.entries()]
+						// Pictures only (videos and files have no alt text), and only those the library knows.
+						.filter(([id]) => report.media.get(id)?.mimeType?.startsWith("image/") && !report.media.get(id)?.alt?.trim())
+						.map(([id, used]) => ({ id, filename: report.media.get(id)?.filename ?? id, ...(report.media.get(id)?.url ? { url: report.media.get(id)?.url } : {}), pages: [...new Set(used.map((p) => p.title))] }));
+					if (ctx.ui?.surface === "dashboard-widget") return { blocks: widget(report.pages, missingAlt.length) };
+					const origin = ctx.request && URL.canParse(ctx.request.url) ? new URL(ctx.request.url).origin : o.productionUrl;
+					const paths = report.pages.map((p) => (p.item.slug && p.item.slug !== "home" && p.item.slug !== "index" ? `/${p.item.slug}/` : "/"));
+					const site = await siteChecks(origin, o.productionUrl, paths).catch((e: Error) => [{ id: "site", label: "Site checks", status: "warn" as const, detail: `Could not run: ${e.message}` }]);
+					return {
+						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}) }, i.action_id === "save-alt" ? 2 : i.action_id === "refresh" ? 3 : 0),
+						...(altSaved ? { toast: { message: `${altSaved} image description${altSaved === 1 ? "" : "s"} saved.`, type: "success" } } : {}),
+					};
+				},
+			},
 			panel: {
 				permission: "content:read_drafts",
 				handler: async (raw) => {
-					const ctx = raw as unknown as Ctx;
+					const ctx = raw as unknown as SeoCtx;
 					const entry = ctx.ui?.entry;
 					if (!entry || !ctx.content) return { blocks: [{ type: "context", text: "Save the page once to see its SEO checks." }] };
 					const i = (ctx.input ?? {}) as { type?: string; action_id?: string; values?: Record<string, unknown>; draft?: { fields?: Record<string, unknown> } };
-					const kvKey = `kw:${entry.collection}:${entry.id}`;
+					const kvKey = keywordKey(entry.collection, entry.id);
 					let keyword = (await ctx.kv.get<string>(kvKey)) ?? "";
 					let toast: { message: string; type: "success" } | undefined;
 					if (i.type === "form_submit" && i.action_id === "keyword") {
@@ -85,35 +109,9 @@ export function createPlugin(options: SeoPanelOptions) {
 					if (!saved) return { blocks: [{ type: "context", text: "This page could not be read." }] };
 					const draft = i.draft?.fields;
 					const source = draft ? "draft" : "saved";
-					// Other pages of the same collection, for the duplicate check (first 200).
-					const others: { title: string; description?: string | null }[] = [];
-					let cursor: string | undefined;
-					do {
-						const page = await ctx.content.list(entry.collection, { limit: 100, ...(cursor ? { cursor } : {}) });
-						for (const it of page.items) if (it.id !== entry.id && it.status !== "trash") others.push({ title: (it.seo?.title || String(it.data.title ?? "")).trim(), description: it.seo?.description ?? null });
-						cursor = others.length < 200 ? (page.nextCursor ?? page.cursor) : undefined;
-					} while (cursor);
-					// Alt text from the media library for the images the sections use.
-					const content = draft?.content ?? saved.data.content;
-					const ids = [...new Set(JSON.stringify(content ?? []).match(/"id":"[0-9A-Z]{26}"/g)?.map((m) => m.slice(6, -1)) ?? [])].slice(0, 60);
-					const alts = new Map<string, string>();
-					await Promise.all(ids.map(async (id) => {
-						const m = await ctx.media?.get(id).catch(() => null);
-						if (m?.alt) alts.set(id, m.alt);
-					}));
-					const a = analyze({
-						title: String(draft?.title ?? saved.data.title ?? ""),
-						slug: saved.slug,
-						seo: saved.seo ?? null,
-						content,
-						siteName: ctx.site.name,
-						separator: o.titleSeparator ?? "-",
-						productionUrl: o.productionUrl,
-						others,
-						...(keyword ? { focusKeyword: keyword } : {}),
-						altOf: (id) => alts.get(id),
-						...(o.ogCards ? { ogCards: true } : {}),
-					});
+					const all = await allItems(ctx, entry.collection, 300);
+					const media = await mediaInfo(ctx, mediaIds(draft?.content ?? saved.data.content).slice(0, 60));
+					const a = analyseItem(o, ctx.site.name, saved, all, media, keyword || undefined, draft);
 					return { blocks: view(a, keyword, source), ...(toast ? { toast } : {}) };
 				},
 			},
