@@ -14,6 +14,8 @@ export const EMAIL_PROVIDERS = [
 	"sendgrid",
 	"postmark",
 	"mailgun",
+	/** EmDash's own email pipeline (Settings → Email): no API key, sender set in the admin. */
+	"emdash",
 	"ses",
 	"google-workspace",
 	"microsoft-365",

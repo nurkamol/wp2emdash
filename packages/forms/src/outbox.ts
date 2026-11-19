@@ -6,9 +6,11 @@
  * (Plugins → Form messages, src/plugins/forms/); with Cloudflare access: `wrangler kv key list/get --binding FORM_OUTBOX`.
  *
  * Keys: `msg:<received ISO>:<8 hex>` (message; a short summary rides in the key's metadata so lists need no reads),
- * `stat:<day>:<outcome>:<form>` (a count per day — no visitor data), plus the admin page's own `act:` and `dl:` keys.
+ * `stat:<day>:<outcome>:<form>` (a count per day — no visitor data), `cfg:recipients` (the recipients an admin set on
+ * the Form messages page; the endpoint reads it too), plus the admin page's own `act:` and `dl:` keys.
  */
 import { deliver, type Message, parseAddress } from "./deliver.js";
+import { emdashEmailAvailable, sendViaEmDash } from "./emdash-email.js";
 
 export interface KvLike {
 	put(key: string, value: string, opts?: { expirationTtl?: number; metadata?: unknown }): Promise<void>;
@@ -107,13 +109,73 @@ export async function importQueued(env: OutboxEnv, q: Queued): Promise<"added" |
 	return "added";
 }
 
-/** Why queued messages are not being emailed right now, if they are not. */
-export function outboxStatus(env: OutboxEnv): "held" | "no-email" | "ready" {
-	if (env.FORM_OUTBOX_HOLD === "1") return "held";
-	return env.EMAIL_API_KEY && parseAddress(env.FORM_FROM) && recipients(env).length ? "ready" : "no-email";
+// ── Recipients ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+export const MAX_RECIPIENTS = 10;
+const RECIPIENTS_KEY = "cfg:recipients";
+const ADDRESS = /^[^\s@<>,;"]{1,64}@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
+
+/** Addresses typed by an admin (commas, semicolons, spaces or new lines between them): checked, de-duplicated, at most 10. */
+export function parseRecipients(text: string): { list: string[]; errors: string[] } {
+	const list: string[] = [];
+	const errors: string[] = [];
+	for (const raw of text.split(/[\s,;]+/)) {
+		const a = raw.trim();
+		if (!a) continue;
+		if (a.length > 254 || !ADDRESS.test(a)) errors.push(`"${a.slice(0, 60)}" is not an email address.`);
+		else if (!list.some((x) => x.toLowerCase() === a.toLowerCase())) list.push(a);
+	}
+	if (list.length > MAX_RECIPIENTS) errors.push(`At most ${MAX_RECIPIENTS} recipients (this has ${list.length}).`);
+	return { list, errors };
 }
 
-const recipients = (env: OutboxEnv) => (env.FORM_TO ?? "").split(",").map((x) => x.trim()).filter((x) => EMAIL.test(x));
+/** The recipients an admin set on the Form messages page, if any (kept in the outbox's KV, without expiry). */
+export async function readRecipientSetting(env: OutboxEnv): Promise<string[] | undefined> {
+	const raw = await env.FORM_OUTBOX?.get(RECIPIENTS_KEY).catch(() => null);
+	if (!raw) return undefined;
+	try {
+		const parsed = JSON.parse(raw) as unknown;
+		const list = (Array.isArray(parsed) ? parsed : []).filter((x): x is string => typeof x === "string" && ADDRESS.test(x)).slice(0, MAX_RECIPIENTS);
+		return list.length ? list : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/** Save the admin's recipients; an empty list removes the setting (FORM_TO applies again). */
+export async function writeRecipientSetting(env: OutboxEnv, list: string[]): Promise<void> {
+	if (!env.FORM_OUTBOX) return;
+	if (list.length) await env.FORM_OUTBOX.put(RECIPIENTS_KEY, JSON.stringify(list.slice(0, MAX_RECIPIENTS)));
+	else await env.FORM_OUTBOX.delete(RECIPIENTS_KEY);
+}
+
+/** Who form messages go to: the admin setting, else FORM_TO from wrangler.jsonc. */
+export async function resolveRecipients(env: OutboxEnv): Promise<{ to: string[]; source: "admin" | "config" | "none" }> {
+	const set = await readRecipientSetting(env);
+	if (set) return { to: set, source: "admin" };
+	const to = (env.FORM_TO ?? "").split(",").map((x) => x.trim()).filter((x) => EMAIL.test(x));
+	return { to, source: to.length ? "config" : "none" };
+}
+
+// ── Sending ───────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** EMAIL_PROVIDER=emdash: send through EmDash's own pipeline (Settings → Email) instead of a provider API key. */
+export const usesEmDashEmail = (env: OutboxEnv) => env.EMAIL_PROVIDER === "emdash";
+
+/** Whether a message can be emailed to `to` right now (a provider is configured and there are recipients). */
+export async function emailConfigured(env: OutboxEnv, to: string[]): Promise<boolean> {
+	if (!to.length) return false;
+	if (usesEmDashEmail(env)) return emdashEmailAvailable();
+	return !!env.EMAIL_API_KEY && !!parseAddress(env.FORM_FROM);
+}
+
+export type OutboxStatus = "held" | "no-email" | "ready";
+
+/** Why queued messages are not being emailed right now, if they are not. */
+export async function outboxStatus(env: OutboxEnv): Promise<OutboxStatus> {
+	if (env.FORM_OUTBOX_HOLD === "1") return "held";
+	return (await emailConfigured(env, (await resolveRecipients(env)).to)) ? "ready" : "no-email";
+}
 
 /** A key the outbox wrote (anything else is refused, so the admin page cannot reach other keys). */
 export const isOutboxKey = (key: unknown): key is string => typeof key === "string" && KEY.test(key);
@@ -186,11 +248,11 @@ export async function deleteQueued(env: OutboxEnv, key: string): Promise<boolean
 
 /** Email one queued message now and delete it once the provider accepts it. */
 export async function sendQueued(env: OutboxEnv, key: string): Promise<"sent" | "failed" | "held" | "no-email" | "missing"> {
-	const status = outboxStatus(env);
+	const status = await outboxStatus(env);
 	if (status !== "ready") return status;
 	const q = await readQueued(env, key);
 	if (!q) return "missing";
-	if (!(await sendOne(env, q))) {
+	if (!(await sendOne(env, q, (await resolveRecipients(env)).to))) {
 		await store(env, key, { ...q, attempts: q.attempts + 1 });
 		return "failed";
 	}
@@ -198,10 +260,13 @@ export async function sendQueued(env: OutboxEnv, key: string): Promise<"sent" | 
 	return "sent";
 }
 
-async function sendOne(env: OutboxEnv, q: Queued): Promise<boolean> {
+async function sendOne(env: OutboxEnv, q: Queued, to: string[]): Promise<boolean> {
+	const text = `${q.text}\n\n(Received ${q.at}; delivered late from the website's outbox.)`;
+	const html = `${q.html}<p style="font:12px sans-serif;color:#666">Received ${q.at}; delivered late from the website's outbox.</p>`;
+	if (usesEmDashEmail(env)) return (await sendViaEmDash(to, { ...(q.replyTo ? { replyTo: q.replyTo.email } : {}), subject: q.subject, text, html })).ok;
 	const from = parseAddress(env.FORM_FROM);
 	if (!from || !env.EMAIL_API_KEY) return false;
-	const m: Message = { from, to: recipients(env), ...(q.replyTo ? { replyTo: q.replyTo } : {}), subject: q.subject, text: `${q.text}\n\n(Received ${q.at}; delivered late from the website's outbox.)`, html: `${q.html}<p style="font:12px sans-serif;color:#666">Received ${q.at}; delivered late from the website's outbox.</p>` };
+	const m: Message = { from, to, ...(q.replyTo ? { replyTo: q.replyTo } : {}), subject: q.subject, text, html };
 	const r = await deliver(env.EMAIL_PROVIDER ?? "brevo", env.EMAIL_API_KEY, m, { ...(env.MAILGUN_REGION ? { region: env.MAILGUN_REGION } : {}) });
 	return r.ok;
 }
@@ -210,7 +275,8 @@ async function sendOne(env: OutboxEnv, q: Queued): Promise<boolean> {
 export async function flushOutbox(env: OutboxEnv): Promise<{ sent: number; left: number }> {
 	const kv = env.FORM_OUTBOX;
 	if (!kv) return { sent: 0, left: 0 };
-	const ready = outboxStatus(env) === "ready";
+	const ready = (await outboxStatus(env)) === "ready";
+	const to = ready ? (await resolveRecipients(env)).to : [];
 	let sent = 0;
 	let left = 0;
 	let cursor: string | undefined;
@@ -226,7 +292,7 @@ export async function flushOutbox(env: OutboxEnv): Promise<{ sent: number; left:
 			if (!raw) continue;
 			const q = JSON.parse(raw) as Queued;
 			if (q.noEmail) continue;
-			if (await sendOne(env, q)) {
+			if (await sendOne(env, q, to)) {
 				await kv.delete(name);
 				sent++;
 			} else {

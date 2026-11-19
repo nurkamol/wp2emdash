@@ -2,15 +2,17 @@
  * Form messages: Block Kit views (plain JSON, shapes from @emdash-cms/blocks 1.5). Visitor text is only ever placed in
  * plain-text fields, which the admin renders escaped.
  */
-import type { DayCount, outboxStatus, Queued, Summary } from "../outbox.js";
+import { type DayCount, MAX_RECIPIENTS, type OutboxStatus, type Queued, type Summary } from "../outbox.js";
 import type { Activity } from "./data.js";
 
 export type Block = Record<string, unknown>;
-type Status = ReturnType<typeof outboxStatus>;
+type Status = OutboxStatus;
 
 export const PAGE = "/messages";
 export const WIDGET = "form-messages";
-export const TABS = { inbox: 0, insights: 1, transfer: 2, activity: 3 } as const;
+export const TABS = { inbox: 0, insights: 1, transfer: 2, activity: 3, settings: 4 } as const;
+
+const PROVIDER_NAMES: Record<string, string> = { brevo: "Brevo", resend: "Resend", postmark: "Postmark", sendgrid: "SendGrid", mailgun: "Mailgun", emdash: "EmDash (Settings → Email)" };
 
 export interface Filter {
 	q?: string;
@@ -49,6 +51,11 @@ export interface Overview {
 	matches?: Set<string>;
 	download?: { url: string; name: string };
 	importReport?: string[];
+	/** Who form messages go to, and whether that is the admin's setting or FORM_TO; `configTo` is FORM_TO itself. */
+	recipients?: { to: string[]; source: "admin" | "config" | "none"; configTo: string[] };
+	/** EMAIL_PROVIDER. */
+	provider?: string;
+	recipientErrors?: string[];
 }
 
 /** The inbox rows the filter shows, in display order. */
@@ -240,11 +247,38 @@ function activity(o: Overview): Block[] {
 				{ key: "at", label: "When", format: "relative_time" },
 				{ key: "who", label: "Admin" },
 				{ key: "action", label: "What" },
-				{ key: "count", label: "Messages", format: "number" },
+				{ key: "count", label: "Count", format: "number" },
 			],
 			rows: o.activity.map((a) => ({ at: a.at, who: a.who, action: a.action, count: a.count ?? "" })),
 		},
-		{ type: "context", text: "Kept for 180 days. Records who did what and how many messages it touched — never message content." },
+		{ type: "context", text: "Kept for 180 days. Records who did what and how many messages (or recipients) it touched — never message content or addresses." },
+	];
+}
+
+function settings(o: Overview): Block[] {
+	const r = o.recipients ?? { to: [], source: "none" as const, configTo: [] };
+	const provider = PROVIDER_NAMES[o.provider ?? "brevo"] ?? o.provider ?? "Brevo";
+	const where = r.source === "admin" ? "set on this page" : r.source === "config" ? "the site default (FORM_TO in the site's configuration)" : "none set";
+	return [
+		{ type: "header", text: "Recipients" },
+		{ type: "context", text: `Form messages are emailed to these addresses — new ones right away, waiting ones when they are sent from the outbox. Up to ${MAX_RECIPIENTS} addresses, one per line. Leave empty to use the site default${r.configTo.length ? ` (${r.configTo.join(", ")})` : " (none is set)"}.` },
+		...(r.source === "none" ? [{ type: "banner", title: "No recipients", description: "Form messages cannot be emailed until at least one recipient is set. They are kept in the outbox meanwhile.", variant: "alert" }] : []),
+		...(o.recipientErrors?.length ? [{ type: "banner", title: "Not saved", description: o.recipientErrors.slice(0, 10).join(" "), variant: "error" }] : []),
+		{
+			type: "form",
+			block_id: "recipients",
+			fields: [{ type: "text_input", action_id: "to", label: "Send form messages to", placeholder: "office@example.com", multiline: true, ...(r.source === "admin" ? { initial_value: r.to.join("\n") } : {}) }],
+			submit: { label: "Save recipients", action_id: "recipients" },
+		},
+		{
+			type: "fields",
+			fields: [
+				{ label: "Now sending to", value: r.to.length ? r.to.join(", ") : "Nobody" },
+				{ label: "From", value: where },
+				{ label: "Email service", value: provider },
+			],
+		},
+		{ type: "context", text: o.provider === "emdash" ? "Email goes through EmDash's own email settings (Settings → Email), with the sender address set there." : "The email service, its key and the sender address are set in the site's configuration by your developer." },
 	];
 }
 
@@ -259,6 +293,7 @@ export function overview(o: Overview, tab: number = TABS.inbox): Block[] {
 				{ label: "Insights", blocks: insights(o) },
 				{ label: "Import & export", blocks: transfer(o) },
 				{ label: "Activity", blocks: activity(o) },
+				{ label: "Settings", blocks: settings(o) },
 			],
 		},
 	];

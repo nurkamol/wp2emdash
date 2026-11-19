@@ -73,7 +73,9 @@ export async function runCutover({ config, paths, reporter }: PhaseContext): Pro
 	const hasForms = existsSync(join(paths.project, "src", "forms"));
 	// Outbox on hold (owner decision): messages wait in KV, so no email key is needed until it is released.
 	const held = !!config.forms.outbox?.hold;
-	const needSecrets = ["EMDASH_ENCRYPTION_KEY", ...(hasForms ? [...(held ? [] : ["EMAIL_API_KEY"]), "TURNSTILE_SECRET_KEY"] : [])];
+	// EMAIL_PROVIDER=emdash sends through EmDash's Settings → Email (credentials stored there): no API key secret.
+	const needKey = !held && config.email.provider !== "emdash";
+	const needSecrets = ["EMDASH_ENCRYPTION_KEY", ...(hasForms ? [...(needKey ? ["EMAIL_API_KEY"] : []), "TURNSTILE_SECRET_KEY"] : [])];
 	if (!token || !accountId) check("production-secrets", "Production Worker deployed with its secrets", false, "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID missing from .env");
 	else {
 		const s = await cf<{ name: string }[]>(token, `/accounts/${accountId}/workers/scripts/${worker}/secrets`);

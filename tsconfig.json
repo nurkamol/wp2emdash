@@ -16,6 +16,9 @@
       "emdash": [
         "./test/stubs/emdash.ts"
       ],
+      "emdash/middleware": [
+        "./test/stubs/emdash-middleware.ts"
+      ],
       "cloudflare:workers": [
         "./test/stubs/cloudflare-workers.ts"
       ],
