@@ -93,6 +93,8 @@ const TOGGLE_SELECTORS = [
 	".wp-block-navigation__responsive-container-open",
 	".elementor-menu-toggle",
 	".brxe-nav-menu .bricks-mobile-menu-toggle",
+	// Bricks Toggle element opening an Offcanvas (nestable nav, Bricks 1.8+; aria-label "Open", no aria-controls)
+	"button.brxe-toggle[aria-expanded]",
 	".et_mobile_nav_menu .mobile_menu_bar",
 	".ast-mobile-menu-trigger-minimal, .menu-toggle.main-header-menu-toggle",
 	".hamburger, [class*='hamburger']",
