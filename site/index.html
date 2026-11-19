@@ -121,6 +121,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 			<a href="#how">How it works</a>
 			<a href="#features">Features</a>
 			<a href="#seo">SEO</a>
+			<a href="#workflow">Workflow</a>
 			<a href="#builders">Builders</a>
 			<a href="#start">Get started</a>
 			<a class="gh" data-repo-link href="#">GitHub</a>
@@ -204,6 +205,21 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 		</div>
 	</section>
 
+	<section class="block" id="workflow">
+		<div class="wrap">
+			<h2>Run it your way</h2>
+			<p class="sub">One engine, three front-ends. <code>pnpm wp2emdash</code> asks once whether you want the terminal or the browser, and Claude Code works through the same commands — every decision ends up in versioned files, so a rerun reproduces it.</p>
+			<div class="grid grid-3">
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><h3>Terminal or browser</h3><p>A guided terminal wizard, or a local dashboard: every site with its launch readiness, live runs, a visual review of old against new, and the launch cockpit. Local only, token-protected.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg></div><h3>Claude Code built in</h3><p>An MCP server and four skills run phases, read reports and explain red gates. Claude proposes changes instead of making them: each one waits in an approval queue for a person to approve.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/></svg></div><h3>Secrets stay put</h3><p>Keys go into a write-only form or <code>.env</code>, never into chat or logs. The dashboard shows only whether a key is set and a short fingerprint; every report is scrubbed of them.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7"/></svg></div><h3>Plugin data, not guesswork</h3><p>After the audit, the owner's checklist lists the exact export for each form and redirect plugin found. Gravity Forms, WPForms, Contact Form 7, Fluent Forms, Redirection, Rank Math and Yoast exports are read as they are.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1 0 8z"/></svg></div><h3>The client's own Cloudflare</h3><p>Production can run in the client's account while staging stays in yours: <code>provision</code> creates the database, storage and outbox there, and the preflight checks the site and the domain share an account.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg></div><h3>Projects where you keep them</h3><p>Each client's deployable project can live next to their other files (<code>projectDir</code>), while the kit keeps its working data — exports, reports, screenshots — out of every repository.</p></div>
+			</div>
+		</div>
+	</section>
+
 	<section class="block" id="proof">
 		<div class="wrap">
 			<h2>Tested on a real site first</h2>
@@ -212,7 +228,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 				<div class="stat"><b>0</b><span>unmapped content nodes</span></div>
 				<div class="stat"><b>100%</b><span>of live-page words carried over</span></div>
 				<div class="stat"><b>162</b><span>sections compared with the live site at phone, tablet and desktop widths</span></div>
-				<div class="stat"><b>158</b><span>tests incl. golden fixtures per element</span></div>
+				<div class="stat"><b>267</b><span>tests incl. golden fixtures per element</span></div>
 			</div>
 		</div>
 	</section>
@@ -230,7 +246,8 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 						<tr><td>Gutenberg / block editor</td><td class="yes">Supported</td><td>Core blocks, reusable blocks, cover, media &amp; text, columns, details</td></tr>
 						<tr><td>Classic editor</td><td class="yes">Supported</td><td>wpautop-faithful paragraphs; shortcodes inside go through the shortcode adapter</td></tr>
 						<tr><td>Popup Maker, Fluent Forms, Rank Math</td><td class="yes">Supported</td><td>Popups → dialogs with their triggers; forms rebuilt on a native endpoint; SEO titles, descriptions and structured data</td></tr>
-						<tr><td>Bricks Builder</td><td class="upcoming">Started</td><td>Structure and core elements mapped into the same section format; verified and measured against the first real client site next</td></tr>
+						<tr><td>Form &amp; redirect plugins</td><td class="yes">Supported</td><td>Gravity Forms, WPForms, Contact Form 7 and Fluent Forms rebuilt from their exports; Redirection, Rank Math and Yoast redirects imported into EmDash</td></tr>
+						<tr><td>Bricks Builder</td><td class="upcoming">Built</td><td>Built from the Bricks 2.4.6 and 2.5 source: 35 elements, header and footer templates, popups, global classes, colour palette and forms. Measured against the first real client site next</td></tr>
 					</tbody>
 				</table>
 			</div>
@@ -246,7 +263,7 @@ git clone <span data-repo-clone>https://github.com/OWNER/wp2emdash</span>
 cd wp2emdash &amp;&amp; pnpm install
 pnpm wp2emdash doctor
 
-<span class="c"># create a site workspace (or just run `pnpm wp2emdash` for the wizard)</span>
+<span class="c"># create a site workspace (or just run `pnpm wp2emdash`: terminal wizard or browser dashboard)</span>
 pnpm wp2emdash init --slug acme --name "Acme Clinic" --source https://www.example.com
 
 <span class="c"># run the phases in order; each stops at its gate</span>
@@ -255,7 +272,7 @@ pnpm wp2emdash run acme extract
 pnpm wp2emdash run acme transform
 pnpm wp2emdash run acme scaffold
 
-<span class="c"># preview the migrated site locally</span>
+<span class="c"># preview the migrated site locally (the project folder can live elsewhere: projectDir)</span>
 cd sites/acme/project &amp;&amp; pnpm dev
 
 <span class="c"># load into staging and compare it with the live site</span>
