@@ -142,7 +142,8 @@
       "name": "signature",
       "label": "Signature",
       "type": "signature",
-      "required": true
+      "required": true,
+      "placeholder": "Sign Here"
     }
   ],
   "notice": "When you submit this form, your answers and your signature are emailed to us as your signed copy, with the date and time and the terms shown above.",

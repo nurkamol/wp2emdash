@@ -50,6 +50,16 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .btn--link > span { background: linear-gradient(currentColor, currentColor) 0 100% / 100% 1px no-repeat; }
 .tone-dark .btn--secondary:hover { background: #fff; color: #000; }
 
+/* A second label that slides in on hover / keyboard focus (the source's ripple or swap effect); the first label stays the
+   button's accessible name. */
+.btn.has-hover-label { overflow: hidden; }
+.btn__labels { position: relative; display: inline-grid; }
+.btn__label, .btn__hover { grid-area: 1 / 1; transition: transform 0.3s ease, opacity 0.3s ease; }
+.btn__hover { transform: translateY(110%); opacity: 0; }
+.btn.has-hover-label:is(:hover, :focus-visible) .btn__label { transform: translateY(-110%); opacity: 0; }
+.btn.has-hover-label:is(:hover, :focus-visible) .btn__hover { transform: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .btn__label, .btn__hover { transition: none; } }
+
 /* ── Sections ── */
 .section { position: relative; background: var(--section-bg, transparent); isolation: isolate; }
 .section.has-gradient { background: var(--section-gradient), var(--section-bg, transparent); }

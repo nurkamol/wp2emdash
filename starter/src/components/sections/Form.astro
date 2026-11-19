@@ -62,7 +62,7 @@ const run = (p: InlinePart) => {
 									<legend class="field__label">{f.label}{req}</legend>
 									<div class="signature" data-signature-pad hidden>
 										<canvas class="signature__canvas" role="img" aria-label="Signature box: draw your signature with a mouse, finger or pen. To use the keyboard, type your full name in the field below instead." />
-										<span class="signature__hint" aria-hidden="true">Sign here</span>
+										<span class="signature__hint" aria-hidden="true">{f.placeholder || "Sign here"}</span>
 										<button type="button" class="signature__clear" data-signature-clear>Clear signature</button>
 									</div>
 									<input type="hidden" name={f.name} data-signature-value />

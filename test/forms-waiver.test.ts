@@ -67,7 +67,7 @@ describe("Fluent Forms waiver conversion", () => {
 		expect(JSON.stringify(def)).not.toMatch(/javascript:|data:text|<script|onclick/);
 		const terms = def.fields.find((f) => f.name === "content-1")?.content ?? [];
 		expect(terms.map((b) => b.kind)).toEqual(["p", "hr", "li", "li", "p"]);
-		expect(def.fields.find((f) => f.type === "signature")).toEqual({ name: "signature", label: "Signature", type: "signature", required: true });
+		expect(def.fields.find((f) => f.type === "signature")).toEqual({ name: "signature", label: "Signature", type: "signature", required: true, placeholder: "Sign Here" }); // the pad hint from sign_instruction
 		expect(def.notice).toBe(SIGNATURE_NOTICE);
 		expect(def.warnings).toEqual([]);
 		expect([def.submitLabel, def.afterSubmit]).toEqual(["Sign and Send", "hide"]);

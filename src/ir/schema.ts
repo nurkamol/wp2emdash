@@ -60,6 +60,8 @@ export const button = z.object({
 	textSize: z.number().int().min(10).max(32).optional(),
 	/** Space above the button (px), when the source sets its own. */
 	spaceAbove: z.number().int().min(0).max(200).optional(),
+	/** A second label the button swaps to on hover / keyboard focus (NextBricks ripple buttons, swap effects). */
+	hoverLabel: z.string().max(80).optional(),
 	/** Space on each side of a text link (px), when the source pads it (Salient nectar_cta padding_left/right). */
 	inset: z.number().int().min(0).max(80).optional(),
 });

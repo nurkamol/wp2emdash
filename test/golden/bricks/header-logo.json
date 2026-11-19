@@ -49,7 +49,8 @@
           {
             "label": "Book now",
             "href": "/book/",
-            "style": "primary"
+            "style": "primary",
+            "hoverLabel": "Join today"
           }
         ],
         "mediaSide": "left",
@@ -73,9 +74,9 @@
       "tag": "nav-menu"
     },
     {
-      "level": "warn",
+      "level": "info",
       "code": "lossy",
-      "message": "[ripple_button_v3] ripple hover effect not reproduced; the button shows \"Book now\", not the hover label \"Join today\"",
+      "message": "[ripple_button_v3] ripple animation replaced by the kit's label swap (\"Book now\" → \"Join today\")",
       "path": "section#sec750/container#con750/block#blk751/ripple_button_v3#rb751",
       "tag": "ripple_button_v3"
     },

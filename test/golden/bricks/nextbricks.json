@@ -48,7 +48,8 @@
           {
             "label": "Book a class",
             "href": "/classes/",
-            "style": "primary"
+            "style": "primary",
+            "hoverLabel": "Pick a time"
           }
         ]
       }
@@ -210,9 +211,9 @@
       "tag": "next_blur_reveal"
     },
     {
-      "level": "warn",
+      "level": "info",
       "code": "lossy",
-      "message": "[ripple_button_v3] ripple hover effect not reproduced; the button shows \"Book a class\", not the hover label \"Pick a time\"",
+      "message": "[ripple_button_v3] ripple animation replaced by the kit's label swap (\"Book a class\" → \"Pick a time\")",
       "path": "section#sec720/container#con720/ripple_button_v3#rb720",
       "tag": "ripple_button_v3"
     },
@@ -233,7 +234,7 @@
     {
       "level": "info",
       "code": "lossy",
-      "message": "[ripple_button_v2] ripple hover effect not reproduced",
+      "message": "[ripple_button_v2] ripple animation replaced by the kit's label swap",
       "path": "section#sec721/container#con721/block#blk722/ripple_button_v2#rp722",
       "tag": "ripple_button_v2"
     },

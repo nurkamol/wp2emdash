@@ -77,7 +77,7 @@ export function ptToMd(blocks: RichText | undefined): string {
 const pt = (blocks: RichText | undefined) => (blocks?.length ? blocks : undefined);
 
 const buttons = (list: Button[] | undefined) =>
-	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, ...(b.size ? { size: b.size } : {}), ...(b.textSize ? { text_size: `${b.textSize}px` } : {}), ...(b.spaceAbove ? { space_above: `${b.spaceAbove}px` } : {}), ...(b.inset ? { side_space: `${b.inset}px` } : {}), new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
+	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, ...(b.size ? { size: b.size } : {}), ...(b.textSize ? { text_size: `${b.textSize}px` } : {}), ...(b.spaceAbove ? { space_above: `${b.spaceAbove}px` } : {}), ...(b.inset ? { side_space: `${b.inset}px` } : {}), ...(b.hoverLabel ? { hover_label: b.hoverLabel } : {}), new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
 
 const fraction = (w?: string) => (w && ["1/4", "1/3", "1/2", "2/3", "3/4"].includes(w) ? w : "auto");
 

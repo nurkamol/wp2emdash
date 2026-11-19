@@ -117,7 +117,7 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 			return;
 		}
 		const name = str(a.name) ?? el;
-		const placeholder = str(a.placeholder);
+		const placeholder = type === "signature" ? str(s.sign_instruction) : str(a.placeholder);
 		const required = o(o(s.validation_rules).required).value === true || el === "gdpr_agreement";
 		if (type === "consent") {
 			// Fluent keeps the checkbox text as HTML (tnc_html, with links to the terms): runs + safe links only.
@@ -129,7 +129,7 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 		}
 		const label = str(s.label) || (placeholder ?? name).replace(/\*\s*$/, "").trim();
 		const options = Array.isArray(s.advanced_options) ? (s.advanced_options as Obj[]).map((x) => str(x.label) ?? str(x.value) ?? "").filter(Boolean) : undefined;
-		fields.push({ name, label, type, ...(required ? { required } : {}), ...(placeholder && type !== "signature" ? { placeholder } : {}), ...(options?.length ? { options } : {}), ...(half && type !== "signature" ? { half } : {}), ...(AUTOCOMPLETE[name] ? { autocomplete: AUTOCOMPLETE[name] } : {}) });
+		fields.push({ name, label, type, ...(required ? { required } : {}), ...(placeholder ? { placeholder } : {}), ...(options?.length ? { options } : {}), ...(half && type !== "signature" ? { half } : {}), ...(AUTOCOMPLETE[name] ? { autocomplete: AUTOCOMPLETE[name] } : {}) });
 	};
 	let contentCount = 0;
 	const ff = o(raw.form.form_fields);

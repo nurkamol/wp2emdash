@@ -219,10 +219,10 @@ function effectTitle(effect: string): Handler {
 const rippleButton: Handler = (e, s, path, env) => {
 	const top = dynamicText(str(s.topRippleInnerTitle) ?? "", path, e, env);
 	const bottom = stripTags(str(s.bottomRippleInnerTitle) ?? "");
-	const out = buttonOf(top, linkOf(s.link, env), e, path, env, "primary");
+	const hover = bottom && bottom !== stripTags(top) ? bottom.slice(0, 80) : undefined;
+	const out = buttonOf(top, linkOf(s.link, env), e, path, env, "primary").map((f) => (hover && f.kind === "button" ? { ...f, button: { ...f.button, hoverLabel: hover } } : f));
 	if (!out.length) env.diag({ level: "warn", code: "unmapped", message: `[${e.name}] without a label`, path, tag: e.name });
-	else if (bottom && bottom !== stripTags(top)) env.diag({ level: "warn", code: "lossy", message: `[${e.name}] ripple hover effect not reproduced; the button shows "${stripTags(top)}", not the hover label "${bottom}"`, path, tag: e.name });
-	else env.diag({ level: "info", code: "lossy", message: `[${e.name}] ripple hover effect not reproduced`, path, tag: e.name });
+	else env.diag({ level: "info", code: "lossy", message: `[${e.name}] ripple animation replaced by the kit's label swap${hover ? ` ("${stripTags(top)}" → "${hover}")` : ""}`, path, tag: e.name });
 	return out;
 };
 

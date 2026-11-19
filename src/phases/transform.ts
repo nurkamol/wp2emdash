@@ -481,12 +481,16 @@ function readFormText(dir: string): string[] {
 			return;
 		}
 		if (typeof v === "string" && /^(label|placeholder|admin_field_label|text|button_ui|help_message|value|title)$/.test(key) && v.length < 200) out.push(v);
+		// Text shown inside the form (Fluent custom HTML, consent label): a waiver's terms are page text too.
+		else if (typeof v === "string" && /^(html_codes|tnc_html|description|html|sign_instruction)$/.test(key)) out.push(v.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " "));
 	};
 	for (const provider of readdirSync(dir)) {
 		for (const f of readdirSync(join(dir, provider))) {
 			const j = JSON.parse(readFileSync(join(dir, provider, f), "utf8")) as { status?: string; form?: unknown };
 			if (j.status && !/publish/.test(j.status)) continue;
 			visit(j.form);
+			// Forms from plugin exports carry a ready definition (fields, content blocks).
+			visit((j as { definition?: unknown }).definition);
 		}
 	}
 	return out;

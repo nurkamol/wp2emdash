@@ -86,6 +86,7 @@ const buttons = (max = 3): Field =>
 		{ slug: "text_size", label: "Text size (e.g. 14px; empty = default)", type: "string" },
 		{ slug: "space_above", label: "Space above (e.g. 40px; empty = default)", type: "string" },
 		{ slug: "side_space", label: "Side space for text links (e.g. 25px; empty = none)", type: "string" },
+		{ slug: "hover_label", label: "Label shown on hover (optional)", type: "string" },
 		{ slug: "new_tab", label: "Open in new tab", type: "boolean", defaultValue: false },
 		{ slug: "popup", label: "Opens popup (slug)", type: "string", description: "Leave empty for a normal link" },
 	], 0, max);
