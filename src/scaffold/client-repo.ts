@@ -158,12 +158,15 @@ Secrets are never committed. Locally they go in \`.env\` (Cloudflare token) and 
 
 \`\`\`bash
 npx wrangler secret put EMAIL_API_KEY --env staging      # ${i.email.provider} API key for form emails
-npx wrangler secret put EMDASH_ENCRYPTION_KEY --env staging   # from: npx emdash secrets generate (keep a copy)
+npx emdash secrets generate                                # prints a key: emdash_enc_v1_ + 43 characters (keep a copy)
+printf %s "$KEY" | npx wrangler secret put EMDASH_ENCRYPTION_KEY --env staging   # the key alone: no quotes, no newline
 npx wrangler secret put TURNSTILE_SECRET_KEY              # production only; staging uses test keys
 \`\`\`
 
 Leave out \`--env staging\` for production. Losing \`EMDASH_ENCRYPTION_KEY\` makes settings stored in the admin
-(such as email credentials) unreadable, so keep each environment's key somewhere safe.
+(such as email credentials) unreadable, so keep each environment's key somewhere safe. A key in any other format makes
+Settings → Email fail with "Failed to save email settings" (\`wrangler tail\` shows *EMDASH_ENCRYPTION_KEY entry is
+malformed*): set it again from the generated value.
 `);
 
 	const sectionRows = i.sections.map((s) => `| ${s.label} | ${s.description} |`).join("\n");

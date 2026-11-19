@@ -93,3 +93,28 @@ export function doctor(): DoctorCheck[] {
 		},
 	];
 }
+
+/** EmDash's encryption key format (emdash 1.5 `parseEncryptionKeys`): a wrong one makes saving SMTP or plugin secrets fail. */
+export const ENCRYPTION_KEY_FORMAT = /^emdash_enc_v1_[A-Za-z0-9_-]{43}$/;
+
+/** Every EMDASH_ENCRYPTION_KEY* in the sites' .env files has EmDash's format (values are never printed). */
+export function encryptionKeyCheck(sitesDir = SITES_DIR): DoctorCheck {
+	const bad: string[] = [];
+	let seen = 0;
+	for (const slug of existsSync(sitesDir) ? readdirSync(sitesDir) : []) {
+		const vars = loadEnv(join(sitesDir, slug, ".env"));
+		for (const [k, v] of Object.entries(vars)) {
+			if (!/^EMDASH_ENCRYPTION_KEY(?:_[A-Z]+)?$/.test(k)) continue;
+			seen++;
+			if (!ENCRYPTION_KEY_FORMAT.test(v.trim().replace(/^["']|["']$/g, ""))) bad.push(`${slug}: ${k}`);
+		}
+	}
+	return {
+		id: "encryption-keys",
+		label: "EmDash encryption keys",
+		ok: bad.length === 0,
+		detail: bad.length ? `wrong format (expected emdash_enc_v1_ + 43 base64url chars; make one with npx emdash secrets generate): ${bad.join(", ")}` : `${seen} key(s) in the right format`,
+		required: false,
+	};
+}
+

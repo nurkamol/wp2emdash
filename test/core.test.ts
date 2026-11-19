@@ -187,3 +187,20 @@ describe("motion recipe", () => {
 		expect(r.items).toMatchObject({ durationMs: 850, startDelayMs: 160, staggerMs: 20, count: 3 });
 	});
 });
+
+describe("encryption key check", () => {
+	it("flags keys that are not in EmDash's format, never printing values", async () => {
+		const { encryptionKeyCheck } = await import("../src/commands/doctor.js");
+		const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+		const dir = mkdtempSync(join(tmpdir(), "wp2emdash-keys-"));
+		mkdirSync(join(dir, "good"));
+		mkdirSync(join(dir, "bad"));
+		writeFileSync(join(dir, "good", ".env"), `EMDASH_ENCRYPTION_KEY_PRODUCTION=emdash_enc_v1_${"A".repeat(43)}\n`);
+		writeFileSync(join(dir, "bad", ".env"), "EMDASH_ENCRYPTION_KEY_STAGING=secret-value-123\n");
+		const c = encryptionKeyCheck(dir);
+		expect(c.ok).toBe(false);
+		expect(c.detail).toContain("bad: EMDASH_ENCRYPTION_KEY_STAGING");
+		expect(c.detail).not.toContain("secret-value-123");
+		rmSync(dir, { recursive: true, force: true });
+	});
+});

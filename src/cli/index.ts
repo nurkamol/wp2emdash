@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import pc from "picocolors";
-import { cloudflareTokenCheck, doctor } from "../commands/doctor.js";
+import { cloudflareTokenCheck, doctor, encryptionKeyCheck } from "../commands/doctor.js";
 import { provision } from "../commands/provision.js";
 import { initSite, validateSlug, validateUrl } from "../commands/init.js";
 import { acceptPhase, runPhase } from "../commands/run.js";
@@ -126,7 +126,7 @@ program
 	.description("Check local prerequisites")
 	.option("--json")
 	.action(async (o) => {
-		const checks = [...doctor(), await cloudflareTokenCheck()];
+		const checks = [...doctor(), await cloudflareTokenCheck(), encryptionKeyCheck()];
 		if (o.json) return console.log(JSON.stringify(checks, null, 2));
 		for (const c of checks) {
 			const icon = c.ok ? pc.green("✔") : c.required ? pc.red("✖") : pc.yellow("!");
