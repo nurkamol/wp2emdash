@@ -23,7 +23,7 @@ interface Props {
 	siteTitle: string;
 }
 const { primary, secondary, siteTitle } = Astro.props;
-const h = site.header as typeof site.header & { layout?: string; inlineNav?: boolean; togglePosition?: string; toggleLabel?: string };
+const h = site.header as typeof site.header & { layout?: string; inlineNav?: boolean; togglePosition?: string; toggleLabel?: string; logo?: string; logoOnTop?: string };
 const layout = h.layout ?? "logo-left";
 const inlineNav = h.inlineNav ?? true;
 const toggleLeft = h.togglePosition === "left";
