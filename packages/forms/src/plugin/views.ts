@@ -2,7 +2,7 @@
  * Form messages: Block Kit views (plain JSON, shapes from @emdash-cms/blocks 1.5). Visitor text is only ever placed in
  * plain-text fields, which the admin renders escaped.
  */
-import type { DayCount, outboxStatus, Queued, Summary } from "../../forms/outbox.js";
+import type { DayCount, outboxStatus, Queued, Summary } from "../outbox.js";
 import type { Activity } from "./data.js";
 
 export type Block = Record<string, unknown>;

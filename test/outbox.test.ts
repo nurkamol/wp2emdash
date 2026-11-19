@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { enqueue, flushOutbox, type KvLike } from "../starter/src/forms/outbox.js";
+import { enqueue, flushOutbox, type KvLike } from "../packages/forms/src/outbox.js";
 
 function memoryKv(): KvLike & { store: Map<string, { v: string; ttl?: number }> } {
 	const store = new Map<string, { v: string; ttl?: number }>();

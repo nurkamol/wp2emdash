@@ -95,7 +95,7 @@ The local database and uploads stay on your machine (\`.wrangler/\`, gitignored)
 
 - **Content** (pages, header and footer, popups, menus, SEO fields) lives in the database and is edited in the admin, not in files. See [docs/editor-guide.md](docs/editor-guide.md).
 - **Design and behaviour** live in the code: \`src/components/\` (one component per section type), \`src/styles/\` (\`tokens.css\` holds colours, fonts and sizes), \`src/scripts/site.ts\`.
-- **Forms** are defined in \`src/forms/\` and sent by \`src/pages/api/forms/[id].ts\`. See [docs/forms-and-integrations.md](docs/forms-and-integrations.md).
+- **Forms** are defined in \`src/forms/\` and sent by \`src/pages/api/forms/[id].ts\` through the \`@wp2emdash/forms\` package in \`packages/forms\` (endpoint, email, outbox, Form messages admin page; its README lists every setting). Updates come from the migration kit: do not edit it here. See [docs/forms-and-integrations.md](docs/forms-and-integrations.md).
 - **Deployment, environments and secrets:** [docs/deployment.md](docs/deployment.md). Launch and rollback: [docs/go-live.md](docs/go-live.md).
 
 Generated with [wp2emdash](https://github.com/nurkamol/wp2emdash). Files marked "${MARKER}" are rewritten when the
@@ -209,7 +209,7 @@ site defaults. Buttons can link to a page, an outside address, or open a popup (
 ${i.forms.length ? `| Form | Fields collected | Not collected |\n|---|---|---|\n${formRows}` : "This site has no forms."}
 ${i.sensitiveData ? "\nThis site handles health information. Forms only collect contact details (approved by the owner); visitors are asked not to include health details, and nothing a visitor sends is stored on the website." : ""}
 
-How a message is handled (\`src/pages/api/forms/[id].ts\`):
+How a message is handled (\`src/pages/api/forms/[id].ts\` → \`packages/forms/src/endpoint.ts\`):
 
 1. A hidden field catches simple bots; Cloudflare's rate limit allows a few messages per minute per visitor.
 2. Cloudflare Turnstile checks the visitor is not a robot. Without a working check the form refuses messages.

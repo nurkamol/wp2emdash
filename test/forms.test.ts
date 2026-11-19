@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { applySensitivePolicy, type FormDefinitionOut, fluentFormToDefinition } from "../src/scaffold/forms.js";
-import { deliver, parseAddress } from "../starter/src/forms/deliver.js";
+import { deliver, parseAddress } from "../packages/forms/src/deliver.js";
 
 const def = (sensitive: boolean): FormDefinitionOut => ({
 	id: "fluent-forms-1",

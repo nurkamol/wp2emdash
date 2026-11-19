@@ -18,11 +18,15 @@
       ],
       "cloudflare:workers": [
         "./test/stubs/cloudflare-workers.ts"
+      ],
+      "astro": [
+        "./test/stubs/astro.ts"
       ]
     }
   },
   "include": [
     "src",
+    "packages",
     "test",
     "sites/*/kit.config.ts",
     "sites/*/overrides.ts"

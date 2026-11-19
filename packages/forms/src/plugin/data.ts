@@ -2,7 +2,7 @@
  * Form messages: export and import files, the admin activity log, and one-time download links. Pure functions over the
  * outbox's KV binding, no EmDash imports (unit-tested in the kit).
  */
-import type { KvLike, OutboxEnv, Queued } from "../../forms/outbox.js";
+import type { KvLike, OutboxEnv, Queued } from "../outbox.js";
 
 // ── Export ────────────────────────────────────────────────────────────────────────────────────────────────────────
 

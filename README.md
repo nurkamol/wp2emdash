@@ -46,6 +46,7 @@ Each phase ends in a gate; the next phase won't run until it passes or is accept
 - [Site workspaces](sites/README.md)
 - [Staging and production setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, production on `workers.dev`, troubleshooting
 - [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token
+- [`@wp2emdash/forms`](packages/forms/README.md) — the forms package every migrated site uses (endpoint, email, KV outbox, Form messages admin page); usable in any EmDash project
 - [Agent rules](CLAUDE.md)
 
 Full GitHub docs (configuration reference, adapters, troubleshooting, …) are produced in milestone M8a.

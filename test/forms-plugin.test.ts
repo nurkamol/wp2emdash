@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { countMessage, enqueue, flushOutbox, isOutboxKey, type KvLike, readCounts } from "../starter/src/forms/outbox.js";
-import { parseCsv, parseImport, toCsv, toQueued } from "../starter/src/plugins/forms/data.js";
-import { createPlugin } from "../starter/src/plugins/forms/plugin.js";
+import { countMessage, enqueue, flushOutbox, isOutboxKey, type KvLike, readCounts } from "../packages/forms/src/outbox.js";
+import { parseCsv, parseImport, toCsv, toQueued } from "../packages/forms/src/plugin/data.js";
+import { createPlugin } from "../packages/forms/src/plugin/index.js";
 import type { PluginResponse } from "../test/stubs/emdash.js";
 import { env } from "../test/stubs/cloudflare-workers.js";
 

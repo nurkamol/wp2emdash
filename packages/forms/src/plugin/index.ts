@@ -8,13 +8,16 @@
  * is public by necessity (a browser download cannot send EmDash's header) and serves a file only for a random token
  * an admin's export created — once, within two minutes. Visitor text is shown as plain text. Logs and the activity
  * list hold actions and counts, never message content.
+ *
+ * This is the module EmDash loads in the Worker (descriptor entrypoint `@wp2emdash/forms/plugin`); register it with
+ * `formsPlugin()` from `@wp2emdash/forms` in astro.config.
  */
 import { definePlugin, pluginResponse } from "emdash";
-import { deleteQueued, importQueued, isOutboxKey, listSummaries, type OutboxEnv, outboxStatus, type Queued, readCounts, readQueued, retentionDays, sendQueued, updateQueued } from "../../forms/outbox.js";
+import { deleteQueued, importQueued, isOutboxKey, listSummaries, type OutboxEnv, outboxStatus, type Queued, readCounts, readQueued, retentionDays, sendQueued, updateQueued } from "../outbox.js";
+import { FORMS_PLUGIN } from "../meta.js";
 import { exportFileName, grantDownload, logActivity, parseImport, readActivity, redeemDownload, toCsv, toJson, toQueued } from "./data.js";
 import { adminsOnly, type Filter, filtered, message, overview, type Overview, PAGE, TABS, WIDGET, widget } from "./views.js";
 
-export const FORMS_PLUGIN = { id: "site-forms", version: "1.1.0" } as const;
 const ADMIN_ROLE = 50;
 
 interface Interaction {

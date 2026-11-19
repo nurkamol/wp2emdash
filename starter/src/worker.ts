@@ -1,6 +1,6 @@
 import { env as workerEnv } from "cloudflare:workers";
 import handler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
-import { flushOutbox, type OutboxEnv } from "./forms/outbox";
+import { flushOutbox, type OutboxEnv } from "@wp2emdash/forms/outbox";
 
 export { PluginBridge };
 

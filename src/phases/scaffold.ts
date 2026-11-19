@@ -138,6 +138,11 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	mkdirSync(project, { recursive: true });
 	// The starter's README documents the starter for kit developers; the client gets its own (client-repo.ts).
 	cpSync(join(KIT_ROOT, "starter"), project, { recursive: true, filter: (src) => !/node_modules|\/dist\//.test(src) && src !== join(KIT_ROOT, "starter", "README.md") });
+	// Forms live in the kit's @wp2emdash/forms package; the project gets its own copy (linked from package.json) so the
+	// client repository builds on its own. Files from before the package existed are removed.
+	rmSync(join(project, "packages", "forms"), { recursive: true, force: true });
+	cpSync(join(KIT_ROOT, "packages", "forms"), join(project, "packages", "forms"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
+	for (const old of ["src/forms/deliver.ts", "src/forms/outbox.ts", "src/plugins"]) rmSync(join(project, old), { recursive: true, force: true });
 	const brand = {
 		logo: brandFile(header?.scrolled.logoSrc ?? desktopDesign?.logo?.src, "logo"),
 		logoOnTop: header?.top.logoSrc && header.top.logoSrc !== header.scrolled.logoSrc ? brandFile(header.top.logoSrc, "logo-on-dark") : undefined,
@@ -250,6 +255,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			"@astrojs/cloudflare": STACK["@astrojs/cloudflare"],
 			"@astrojs/react": STACK["@astrojs/react"],
 			"@emdash-cms/cloudflare": STACK["@emdash-cms/cloudflare"],
+			"@wp2emdash/forms": "link:./packages/forms",
 			astro: STACK.astro,
 			emdash: STACK.emdash,
 			react: STACK.react,
@@ -264,7 +270,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";${config.forms.outbox ? '\nimport { fileURLToPath } from "node:url";' : ""}
+import emdash from "emdash/astro";${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}
 
 export default defineConfig({
 	site: ${JSON.stringify(siteConfig.productionUrl)},
@@ -280,8 +286,8 @@ export default defineConfig({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
 			mcp: false,${config.forms.outbox ? `
-			// Admin → Form messages: the form outbox, admins only (src/plugins/forms/plugin.ts).
-			plugins: [{ id: "site-forms", version: "1.0.0", format: "native", displayName: "Form messages", description: "Messages waiting in the form outbox", entrypoint: fileURLToPath(new URL("./src/plugins/forms/plugin.ts", import.meta.url)) }],` : ""}
+			// Admin → Form messages: the form outbox, admins only (@wp2emdash/forms, packages/forms).
+			plugins: [formsPlugin()],` : ""}
 		}),
 	],
 	devToolbar: { enabled: false },
@@ -374,7 +380,7 @@ export default defineConfig({
 
 	// ── Install, validate seed, build, measure ─────────────────────────────────
 	reporter.emit({ type: "step:start", step: "Install dependencies" });
-	const inst = await run("pnpm", ["install", "--prefer-offline"], project, (l) => reporter.emit({ type: "step:progress", step: "Install dependencies", done: 0, item: l }));
+	const inst = await run("pnpm", ["install", "--prefer-offline", "--no-frozen-lockfile"], project, (l) => reporter.emit({ type: "step:progress", step: "Install dependencies", done: 0, item: l }));
 	reporter.emit({ type: "step:end", step: "Install dependencies", ok: inst.code === 0 });
 	check("install", "Dependencies install", inst.code === 0, inst.code === 0 ? `astro ${STACK.astro}, emdash ${STACK.emdash}` : inst.out.split("\n").slice(-6).join(" "));
 	if (inst.code !== 0) return checks;
