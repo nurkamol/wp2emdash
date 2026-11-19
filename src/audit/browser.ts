@@ -196,6 +196,8 @@ export interface ScreenshotResult {
 	sections?: SectionBox[];
 	/** Images that move with scroll (parallax), page coordinates. */
 	moving?: Rect[];
+	/** Bricks pages: computed box of every rendered element by its Bricks id (`#brxe-<id>`), for the adapter's spacing. */
+	bricks?: Record<string, BricksBox>;
 	/** Second screenshot with every moving image replaced by flat grey (only when `moving` is set). */
 	stillFile?: string;
 	/** How far the page scrolls sideways (document wider than the screen), px; 0 when it fits. */
@@ -204,6 +206,62 @@ export interface ScreenshotResult {
 	missingImages?: number;
 	error?: string;
 	consoleErrors: number;
+}
+
+/** A rendered Bricks element's measured box (px): size, gaps, padding, bottom margin, text size and line height. */
+export interface BricksBox {
+	/** The element type from its `brxe-<name>` class (checked against the element the adapter pairs it with). */
+	name: string;
+	w: number;
+	h: number;
+	rowGap?: number;
+	colGap?: number;
+	pad?: [number, number, number, number];
+	mb?: number;
+	font?: number;
+	lh?: number;
+}
+
+/**
+ * Every rendered Bricks element with its computed spacing, so the adapter can use the live values. Bricks prints an
+ * element id only when it needs one, so elements are keyed by their position: `c:<top-level index>/<child>/<child>…` in
+ * the content area, `f:…` in the footer, counting only element nodes (class `brxe-<name>`), as the element tree does.
+ */
+export async function bricksMeasure(page: Page): Promise<Record<string, BricksBox>> {
+	return page.evaluate(() => {
+		const out: Record<string, BricksBox> = {};
+		const n = (v: string) => {
+			const x = Number.parseFloat(v);
+			return Number.isFinite(x) ? Math.round(x * 10) / 10 : undefined;
+		};
+		const nameOf = (el: Element) => Array.from(el.classList).find((c) => c.startsWith("brxe-"))?.slice(5);
+		const kids = (el: Element) => Array.from(el.children).filter((c) => !!nameOf(c));
+		let count = 0;
+		const visit = (el: HTMLElement, key: string) => {
+			if (++count > 4000) return;
+			const r = el.getBoundingClientRect();
+			const cs = getComputedStyle(el);
+			const box: BricksBox = { name: nameOf(el) ?? "", w: Math.round(r.width), h: Math.round(r.height) };
+			const rg = n(cs.rowGap);
+			const cg = n(cs.columnGap);
+			if (rg) box.rowGap = rg;
+			if (cg) box.colGap = cg;
+			const pad = [cs.paddingTop, cs.paddingRight, cs.paddingBottom, cs.paddingLeft].map((v) => n(v) ?? 0) as [number, number, number, number];
+			if (pad.some(Boolean)) box.pad = pad;
+			const mb = n(cs.marginBottom);
+			if (mb) box.mb = mb;
+			box.font = n(cs.fontSize);
+			const lh = n(cs.lineHeight);
+			if (lh) box.lh = lh;
+			out[key] = box;
+			kids(el).forEach((c, i) => visit(c as HTMLElement, `${key}/${i}`));
+		};
+		for (const [area, sel] of [["c", "#brx-content"], ["f", "#brx-footer"]] as const) {
+			const root = document.querySelector(sel);
+			if (root) kids(root).forEach((c, i) => visit(c as HTMLElement, `${area}:${i}`));
+		}
+		return out;
+	});
 }
 
 /**
@@ -307,6 +365,7 @@ export async function captureScreenshots(
 					// Visible sideways scroll only: content clipped by an overflow:hidden ancestor (off-canvas menus) does not count.
 					const overflowX = await page.evaluate(() => Math.max(0, Math.round(document.documentElement.scrollWidth - document.documentElement.clientWidth)));
 					const sections = await sectionBoxes(page).catch(() => undefined);
+					const bricks = await bricksMeasure(page).catch(() => undefined);
 					const moving = await movingRegions(page).catch(() => undefined);
 					await page.screenshot({ path: file, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height }, timeout: 60_000 });
 					let stillFile: string | undefined;
@@ -319,7 +378,7 @@ export async function captureScreenshots(
 						await page.screenshot({ path: stillFile, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height }, timeout: 60_000 });
 						await tag.evaluate((el) => (el as Element).remove());
 					}
-					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), overflowX, ...(missingImages ? { missingImages } : {}), consoleErrors });
+					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), ...(bricks && Object.keys(bricks).length ? { bricks } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), overflowX, ...(missingImages ? { missingImages } : {}), consoleErrors });
 				} catch (e) {
 					results.push({ url, viewport: vp.name, error: (e as Error).message.split("\n")[0], consoleErrors });
 				}
@@ -378,6 +437,41 @@ export interface DesignCapture {
 }
 
 /** Computed styles from a rendered page: fonts, colour usage, type scale, buttons, layout widths, breakpoints. */
+/** Every custom property the page defines on :root, as the browser holds it at this width, and the root font size. */
+export interface RootVariables {
+	url: string;
+	viewport: string;
+	width: number;
+	/** px (frameworks such as Automatic.css set 62.5% → 10px, so their rem values are not 16px). */
+	rootFontSize: number;
+	variables: Record<string, string>;
+}
+
+/**
+ * The live site's design variables (builder and CSS framework tokens: `--space-l`, `--black-trans-50`, `--width-l`…), so
+ * a builder setting that names one can be turned into a value. Read-only; the design capture keeps only a sample.
+ */
+export async function captureRootVariables(browser: Browser, url: string, viewport: { name: string; width: number; height: number }): Promise<RootVariables> {
+	const context = await browser.newContext({ bypassCSP: true, viewport: { width: viewport.width, height: viewport.height }, userAgent: USER_AGENT, reducedMotion: "reduce" });
+	await context.addInitScript(NAME_SHIM);
+	const page = await context.newPage();
+	try {
+		await page.goto(url, { waitUntil: "load", timeout: 45_000 });
+		const data = await page.evaluate(() => {
+			const cs = getComputedStyle(document.documentElement);
+			const variables: Record<string, string> = {};
+			for (let i = 0; i < cs.length && i < 20_000; i++) {
+				const name = cs[i] as string;
+				if (name.startsWith("--")) variables[name] = cs.getPropertyValue(name).trim().slice(0, 500);
+			}
+			return { rootFontSize: Number.parseFloat(cs.fontSize) || 16, variables };
+		});
+		return { url, viewport: viewport.name, width: viewport.width, ...data };
+	} finally {
+		await context.close();
+	}
+}
+
 export async function captureDesign(browser: Browser, url: string, viewport: { name: string; width: number; height: number }, maskSelectors: string[]): Promise<DesignCapture> {
 	const context = await browser.newContext({ bypassCSP: true, viewport: { width: viewport.width, height: viewport.height }, userAgent: USER_AGENT, reducedMotion: "reduce" });
 	await context.addInitScript(NAME_SHIM);

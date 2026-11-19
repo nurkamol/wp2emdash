@@ -57,6 +57,15 @@ interface CloudflareResources {
 }
 
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
+
+/**
+ * Bricks sites: the theme style's body font weight (typographyBody, e.g. 300 for a light body font). Other builders do
+ * not write bricks-design.json, so their pages keep the browser default (400).
+ */
+export function bricksBodyWeight(design: { typography?: Record<string, Record<string, unknown>> } | undefined): string {
+	const w = Number(design?.typography?.typographyBody?.["font-weight"]);
+	return Number.isInteger(w) && w >= 100 && w <= 900 && w !== 400 ? `:root { --body-weight: ${w}; --strong-weight: 700; } /* Bricks theme style body weight; bold stays bold (bolder than ${w} would be ${w < 400 ? 400 : 700}) */\n` : "";
+}
 const write = (file: string, data: string | object) => {
 	mkdirSync(dirname(file), { recursive: true });
 	writeFileSync(file, typeof data === "string" ? data : `${JSON.stringify(data, null, 2)}\n`);
@@ -255,7 +264,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: ["pages"], ...(og ? { ogCards: true } : {}), indexNow: { key: indexNowKey, live: !!readJson<CloudflareResources>(join(paths.root, "cloudflare.json"))?.production?.live } } : undefined;
 	if (seoPanel) cpSync(join(KIT_ROOT, "packages", "seo"), join(project, "packages", "seo"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
 	write(join(project, "src", "site.config.json"), siteConfig);
-	write(join(project, "src", "styles", "tokens.css"), tokens.css + headerTokens(interactions.headers, siteConfig.header.breakpoint));
+	write(join(project, "src", "styles", "tokens.css"), tokens.css + bricksBodyWeight(readJson<{ typography?: Record<string, Record<string, unknown>> }>(join(paths.reports, "transform", "bricks-design.json"))) + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);
 	const basePath = join(project, "src", "styles", "base.css");
 	write(basePath, applyStackBreakpoint(readFileSync(basePath, "utf8"), stackBreakpoint(designs)));

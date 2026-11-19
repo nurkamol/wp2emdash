@@ -251,7 +251,8 @@
           {
             "label": "See prices",
             "href": "#prices",
-            "style": "secondary"
+            "style": "secondary",
+            "light": true
           },
           {
             "label": "Call us",

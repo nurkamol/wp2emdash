@@ -81,7 +81,7 @@ export function ptToMd(blocks: RichText | undefined): string {
 const pt = (blocks: RichText | undefined) => (blocks?.length ? blocks : undefined);
 
 const buttons = (list: Button[] | undefined) =>
-	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, ...(b.size ? { size: b.size } : {}), ...(b.textSize ? { text_size: `${b.textSize}px` } : {}), ...(b.spaceAbove ? { space_above: `${b.spaceAbove}px` } : {}), ...(b.inset ? { side_space: `${b.inset}px` } : {}), ...(b.hoverLabel ? { hover_label: b.hoverLabel } : {}), new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
+	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, ...(b.size ? { size: b.size } : {}), ...(b.textSize ? { text_size: `${b.textSize}px` } : {}), ...(b.spaceAbove ? { space_above: `${b.spaceAbove}px` } : {}), ...(b.inset ? { side_space: `${b.inset}px` } : {}), ...(b.hoverLabel ? { hover_label: b.hoverLabel } : {}), ...(b.light ? { light: true } : {}), ...(b.minWidth ? { min_width: `${b.minWidth}px` } : {}), new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
 
 /**
  * Sections hold up to 3 buttons. Extra ones (a footer column of legal links, say) become links in a paragraph after
@@ -198,6 +198,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		...(s.pad?.topTablet !== undefined ? { pad_top_tablet: s.pad.topTablet } : {}),
 		...(s.pad?.bottomTablet !== undefined ? { pad_bottom_tablet: s.pad.bottomTablet } : {}),
 		...(s.fullHeight ? { full_height: true } : {}),
+		...(s.minHeight ? { min_height: s.minHeight } : {}),
 		...(s.anchorId ? { anchor_id: s.anchorId } : {}),
 	};
 	const base = (type: string, fields: Record<string, unknown>): BlockValue => ({ _type: `section_${type}`, _version: 1, _key: key, ...stripUndefined({ ...fields, ...appearance }) });
@@ -206,7 +207,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 
 	switch (s.type) {
 		case "hero":
-			return base("hero", { ...head, body: pt(s.fields.body), buttons: buttons(s.fields.buttons), media: s.fields.media ? media(s.fields.media) : undefined, align: s.fields.align });
+			return base("hero", { ...head, body: pt(s.fields.body), buttons: buttons(s.fields.buttons), media: s.fields.media ? media(s.fields.media) : undefined, align: s.fields.align, ...stripUndefined({ content_width: s.fields.look?.width, body_size: s.fields.look?.bodySize, heading_size_phone: s.fields.look?.headingSizePhone, content_gap: s.fields.look?.gap, buttons_gap: s.fields.look?.buttonsGap !== undefined ? `${s.fields.look.buttonsGap}px` : undefined }) });
 		case "rich_text": {
 			const { head: h, rest } = headingFromBody(s.fields.body);
 			const l = s.fields.look ?? {};
@@ -240,6 +241,22 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 				if (c.list) cols[`col_${n}_list`] = c.list;
 				if (c.insetEnd) cols[`col_${n}_inset_end`] = c.insetEnd;
 				if (c.insetPhone) cols[`col_${n}_inset_phone`] = c.insetPhone;
+				if (c.imageWidth) cols[`col_${n}_image_width`] = c.imageWidth;
+				if (c.imageSpace) cols[`col_${n}_image_space`] = c.imageSpace;
+				if (c.imageHeight) cols[`col_${n}_image_height`] = c.imageHeight;
+				if (c.imageHeightPhone) cols[`col_${n}_image_height_phone`] = c.imageHeightPhone;
+				if (c.imageAfter) cols[`col_${n}_image_after`] = true;
+				if (c.itemsCenter) cols[`col_${n}_items_center`] = true;
+				if (c.textWidth) cols[`col_${n}_text_width`] = c.textWidth;
+				if (c.textGap !== undefined) cols[`col_${n}_text_gap`] = c.textGap;
+				if (c.itemGap !== undefined) cols[`col_${n}_item_gap`] = c.itemGap;
+				if (c.linkGap !== undefined) cols[`col_${n}_link_gap`] = c.linkGap;
+				if (c.linkSize) cols[`col_${n}_link_size`] = c.linkSize;
+				if (c.textSize) cols[`col_${n}_text_size`] = c.textSize;
+				if (c.socialIcons !== undefined) {
+					cols[`col_${n}_social_icons`] = true;
+					cols[`col_${n}_icon_gap`] = c.socialIcons;
+				}
 			});
 			return base("columns", { ...head, ...cols });
 		}

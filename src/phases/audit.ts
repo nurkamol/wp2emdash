@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { accessSection, exportsFor, previousSection, withAccessSection } from "../extract/plugin-exports.js";
 import { join } from "node:path";
-import { captureDesign, captureScreenshots, type DesignCapture, screenName, withBrowser } from "../audit/browser.js";
+import { captureDesign, captureRootVariables, captureScreenshots, type DesignCapture, type RootVariables, screenName, withBrowser } from "../audit/browser.js";
 import { type Discovery, discoverRest, discoverSitemaps, type UrlSource } from "../audit/discover.js";
 import { fingerprint } from "../audit/fingerprint.js";
 import { fetchUrl, mapLimit } from "../audit/http.js";
@@ -166,7 +166,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	// 4. Screenshots + design capture
 	const screenTargets = urlRecords.filter((r) => r.kind === "page").map((r) => r.url);
 	const pagesForDesign = pickDesignPages(screenTargets, snapshots, site.origin);
-	const { screens, design, menus, headers } = await withBrowser(async (browser) => {
+	const { screens, design, menus, headers, rootVariables } = await withBrowser(async (browser) => {
 		const screens = await captureScreenshots(browser, screenTargets, config, join(snap, "screens"), reporter);
 		reporter.emit({ type: "step:start", step: "Design capture", total: pagesForDesign.length });
 		const design: DesignCapture[] = [];
@@ -184,7 +184,16 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 			}
 			reporter.emit({ type: "step:progress", step: "Design capture", done: i + 1, total: pagesForDesign.length, item: new URL(url).pathname });
 		}
-		reporter.emit({ type: "step:end", step: "Design capture", ok: design.length > 0, detail: `${design.length} capture(s)` });
+		// Design variables the live site defines (builder / CSS framework tokens), per viewport, on the first design page.
+		const rootVariables: RootVariables[] = [];
+		for (const vp of config.audit.viewports) {
+			try {
+				rootVariables.push(await captureRootVariables(browser, pagesForDesign[0] as string, vp));
+			} catch (e) {
+				reporter.emit({ type: "log", level: "warn", message: `design variables not captured (${vp.name}): ${(e as Error).message.split("\n")[0]}` });
+			}
+		}
+		reporter.emit({ type: "step:end", step: "Design capture", ok: design.length > 0, detail: `${design.length} capture(s), ${rootVariables[0] ? Object.keys(rootVariables[0].variables).length : 0} design variables` });
 
 		// Interactions: navigation menu (open/close motion, behaviour) and header-on-scroll, per viewport, on the home page.
 		reporter.emit({ type: "step:start", step: "Interactions", total: config.audit.viewports.length });
@@ -198,7 +207,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 		}
 		const menuSummary = menus.map((m) => `${m.viewport}: ${m.found ? `${m.panel?.type ?? "panel?"} ${m.items.length} items, ${m.animations.length} anim` : "no toggle"}${m.error ? " (error)" : ""}`).join("; ");
 		reporter.emit({ type: "step:end", step: "Interactions", ok: menus.every((m) => !m.error), detail: menuSummary });
-		return { screens, design, menus, headers };
+		return { screens, design, menus, headers, rootVariables };
 	});
 	const screenOk = new Set(screens.filter((s) => s.file).map((s) => `${s.url}|${s.viewport}`));
 	for (const r of urlRecords) r.screenshot = config.audit.viewports.every((vp) => screenOk.has(`${r.url}|${vp.name}`));
@@ -222,6 +231,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	write(join(snap, "links.json"), linkChecks);
 	write(join(snap, "screens.json"), screens);
 	write(join(snap, "design.json"), design);
+	write(join(snap, "css-variables.json"), rootVariables);
 	write(join(snap, "interactions.json"), { menus: menus.map((m) => ({ ...m, recipe: motionRecipe(m) })), headers });
 	write(join(snap, "fingerprint.json"), fp);
 	write(join(snap, "integrations.json"), integrations);

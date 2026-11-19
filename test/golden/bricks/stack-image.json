@@ -1,0 +1,99 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#si10",
+        "rawHash": "b92ef834e1",
+        "row": 0
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "h1",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Studio Rentals",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Book the room for a workshop, a shoot or a private class.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [
+              {
+                "wpId": 940,
+                "kind": "image",
+                "url": "https://example.com/wp-content/uploads/2025/01/studio-room.webp"
+              }
+            ],
+            "buttons": [
+              {
+                "label": "Options",
+                "href": "#options",
+                "style": "secondary"
+              },
+              {
+                "label": "Ask us",
+                "href": "/contact/",
+                "style": "primary"
+              }
+            ],
+            "align": "center",
+            "imageWidth": "800px",
+            "imageHeight": "480px",
+            "imageHeightPhone": "360px",
+            "imageAfter": true,
+            "itemsCenter": true,
+            "textWidth": 512,
+            "textGap": 8,
+            "itemGap": 32
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[imagereveal] reveal animation not reproduced; image kept",
+      "path": "section#si10/container#si20/imagereveal#si50",
+      "tag": "imagereveal"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[text] is hidden on the live site (Bricks \"Hide element on frontend\"); not migrated",
+      "path": "section#si10/container#si20/text#si60",
+      "tag": "text"
+    }
+  ],
+  "forms": []
+}

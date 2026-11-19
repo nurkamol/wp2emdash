@@ -1,0 +1,32 @@
+{
+  "kind": "partial",
+  "title": "Footer",
+  "permalinks": { "12": "/privacy/", "13": "/terms/" },
+  "options": {
+    "bricks_global_classes": [
+      { "id": "fs01", "name": "site-footer", "settings": { "_padding": { "top": "80", "bottom": "80", "left": "40", "right": "40" }, "_padding:mobile_landscape": { "top": "48", "bottom": "48" } } },
+      { "id": "fs02", "name": "site-footer__wrap", "settings": { "_alignItems": "center", "_widthMax": "1400", "_rowGap": "var(--stack-gap)" } },
+      { "id": "fs03", "name": "site-footer__logo", "settings": { "_width": "fit-content", "_direction": "row", "_margin": { "bottom": "12" } } },
+      { "id": "fs04", "name": "site-footer__logo-img", "settings": { "_widthMax": "150" } },
+      { "id": "fs05", "name": "site-footer__nav", "settings": { "_direction": "row", "_columnGap": "18", "_rowGap": "6" } },
+      { "id": "fs06", "name": "site-footer__link", "settings": { "titleTypography": { "font-size": "15", "font-weight": "400" } } },
+      { "id": "fs07", "name": "site-footer__socials", "settings": { "_direction": "row", "_columnGap": "8" } },
+      { "id": "fs08", "name": "site-footer__credit", "settings": { "_typography": { "font-size": "13", "text-align": "center" } } }
+    ]
+  },
+  "live": [{ "width": 1440, "rootFontSize": 16, "variables": { "--stack-gap": "1.5rem" } }],
+  "elements": [
+    { "id": "fs10", "name": "block", "parent": 0, "children": ["fs11"], "settings": { "_cssGlobalClasses": ["fs01"] } },
+    { "id": "fs11", "name": "block", "parent": "fs10", "children": ["fs20", "fs30", "fs40", "fs50"], "settings": { "_cssGlobalClasses": ["fs02"] } },
+    { "id": "fs20", "name": "block", "parent": "fs11", "children": ["fs21"], "settings": { "_cssGlobalClasses": ["fs03"] } },
+    { "id": "fs21", "name": "image", "parent": "fs20", "children": [], "settings": { "_cssGlobalClasses": ["fs04"], "image": { "id": 905, "url": "https://example.com/wp-content/uploads/2025/01/studio-mark.svg" }, "link": "url", "url": { "type": "external", "url": "/" } } },
+    { "id": "fs30", "name": "block", "parent": "fs11", "children": ["fs31", "fs32", "fs33"], "settings": { "tag": "nav", "_cssGlobalClasses": ["fs05"] } },
+    { "id": "fs31", "name": "underlined-hover", "parent": "fs30", "children": [], "settings": { "_cssGlobalClasses": ["fs06"], "inner_title": "Home", "tag": "span", "link": { "type": "external", "url": "/" } } },
+    { "id": "fs32", "name": "underlined-hover", "parent": "fs30", "children": [], "settings": { "_cssGlobalClasses": ["fs06"], "inner_title": "Privacy", "tag": "span", "link": { "type": "internal", "postId": "12" } } },
+    { "id": "fs33", "name": "text-link", "parent": "fs30", "children": [], "settings": { "_cssGlobalClasses": ["fs06"], "text": "Terms", "link": { "type": "internal", "postId": "13" } } },
+    { "id": "fs40", "name": "block", "parent": "fs11", "children": ["fs41", "fs42"], "settings": { "_cssGlobalClasses": ["fs07"] } },
+    { "id": "fs41", "name": "icon", "parent": "fs40", "children": [], "settings": { "icon": { "library": "fontawesomeBrands", "icon": "fab fa-instagram" }, "link": { "type": "external", "url": "https://instagram.com/example-studio", "newTab": true } } },
+    { "id": "fs42", "name": "icon", "parent": "fs40", "children": [], "settings": { "icon": { "library": "fontawesomeBrands", "icon": "fab fa-facebook" }, "link": { "type": "external", "url": "https://facebook.com/example-studio", "newTab": true } } },
+    { "id": "fs50", "name": "heading", "parent": "fs11", "children": [], "settings": { "_cssGlobalClasses": ["fs08"], "tag": "custom", "customTag": "p", "text": "© 2025 <a href=\"/\">Example Studio</a>" } }
+  ]
+}

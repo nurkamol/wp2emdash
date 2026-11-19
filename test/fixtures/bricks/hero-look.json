@@ -1,0 +1,30 @@
+{
+  "kind": "page",
+  "permalinks": { "21": "/book/", "22": "/about/" },
+  "options": {
+    "bricks_global_classes": [
+      { "id": "hl01", "name": "hero", "settings": { "_justifyContent": "center", "_alignItems": "center", "_heightMin": "85svh", "_background": { "videoUrl": "https://cdn.example.com/hero-loop.mp4", "image": { "id": 930, "url": "https://example.com/wp-content/uploads/2025/01/hero-still.webp" } } } },
+      { "id": "hl02", "name": "hero__shade", "settings": { "_width": "100%", "_height": "100%", "_position": "absolute", "_top": "0", "_zIndex": "-1", "_background": { "color": { "raw": "var(--shade-40)" } } } },
+      { "id": "hl03", "name": "hero__box", "settings": { "_width": "var(--width-m)", "_direction": "column", "_alignItems": "center", "_rowGap": "var(--space-l)" } },
+      { "id": "hl04", "name": "hero__text", "settings": { "_rowGap": "var(--space-xs)", "_alignItems": "center" } },
+      { "id": "hl05", "name": "hero__buttons", "settings": { "_direction": "row", "_columnGap": "var(--gap-m)" } }
+    ],
+    "bricks_theme_styles": { "s1": { "label": "Site", "settings": { "conditions": { "conditions": [{ "id": "c", "main": "any" }] }, "typography": { "typographyBody": { "font-size": "17" } } } } }
+  },
+  "live": [
+    { "width": 390, "rootFontSize": 16, "variables": { "--shade-40": "rgba(0, 0, 0, 0.4)", "--width-m": "calc(60rem * 0.8)", "--space-l": "clamp(2rem, calc(2vw + 1.5rem), 3rem)", "--space-xs": "0.75rem", "--gap-m": "clamp(1rem, calc(1vw + 0.75rem), 1.5rem)" } },
+    { "width": 1440, "rootFontSize": 16, "variables": { "--shade-40": "rgba(0, 0, 0, 0.4)", "--width-m": "calc(60rem * 0.8)", "--space-l": "clamp(2rem, calc(2vw + 1.5rem), 3rem)", "--space-xs": "0.75rem", "--gap-m": "clamp(1rem, calc(1vw + 0.75rem), 1.5rem)" } }
+  ],
+  "elements": [
+    { "id": "hl10", "name": "section", "parent": 0, "children": ["hl11", "hl20"], "settings": { "_cssGlobalClasses": ["hl01"] } },
+    { "id": "hl11", "name": "div", "parent": "hl10", "children": [], "settings": { "_cssGlobalClasses": ["hl02"] } },
+    { "id": "hl20", "name": "container", "parent": "hl10", "children": ["hl30", "hl40"], "settings": { "_cssGlobalClasses": ["hl03"] } },
+    { "id": "hl30", "name": "block", "parent": "hl20", "children": ["hl31", "hl32", "hl33"], "settings": { "_cssGlobalClasses": ["hl04"] } },
+    { "id": "hl31", "name": "blade-title", "parent": "hl30", "children": [], "settings": { "inner_title": "Move Better", "tag": "h1", "titleTypography": { "font-size": "72" }, "_typography": { "line-height": "1.4em" }, "titleTypography:mobile_portrait": { "font-size": "44" } } },
+    { "id": "hl32", "name": "text-basic", "parent": "hl30", "children": [], "settings": { "text": "Small classes, patient teachers and a calm room.", "tag": "p" } },
+    { "id": "hl33", "name": "heading", "parent": "hl30", "children": [], "settings": { "text": "Feel the difference", "tag": "h2" } },
+    { "id": "hl40", "name": "div", "parent": "hl20", "children": ["hl41", "hl42"], "settings": { "_cssGlobalClasses": ["hl05"] } },
+    { "id": "hl41", "name": "button", "parent": "hl40", "children": [], "settings": { "text": "Book a class", "style": "light", "_widthMin": "150", "link": { "type": "internal", "postId": "21" } } },
+    { "id": "hl42", "name": "button", "parent": "hl40", "children": [], "settings": { "text": "About", "style": "light", "_widthMin": "150", "link": { "type": "internal", "postId": "22" } } }
+  ]
+}

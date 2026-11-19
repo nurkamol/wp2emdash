@@ -60,6 +60,10 @@ export const button = z.object({
 	textSize: z.number().int().min(10).max(32).optional(),
 	/** Space above the button (px), when the source sets its own. */
 	spaceAbove: z.number().int().min(0).max(200).optional(),
+	/** Light button: white background, accent text (Bricks button style "light"). */
+	light: z.boolean().optional(),
+	/** The button's minimum width (px), when the source sets one. */
+	minWidth: z.number().int().min(40).max(600).optional(),
 	/** A second label the button swaps to on hover / keyboard focus (NextBricks ripple buttons, swap effects). */
 	hoverLabel: z.string().max(80).optional(),
 	/** Space on each side of a text link (px), when the source pads it (Salient nectar_cta padding_left/right). */
@@ -107,6 +111,8 @@ const base = {
 	spacing: z.enum(["none", "compact", "normal", "spacious"]).default("normal"),
 	fullHeight: z.boolean().optional(),
 	anchorId: z.string().optional(),
+	/** The section's own minimum height (Bricks `_heightMin: 90svh`), when it is not a full screen. */
+	minHeight: z.string().regex(/^\d+(?:\.\d+)?(?:vh|svh|dvh|px)$/).optional(),
 	/** full = edge to edge (WPBakery "full width content", Gutenberg align full); default contained. */
 	width: z.enum(["contained", "full"]).optional(),
 	/** Space between columns; none = columns touch (WPBakery column_margin="none"). */
@@ -168,6 +174,28 @@ const column = z.object({
 	insetEnd: z.string().regex(/^\d+(?:\.\d+)?(?:%|px)$/).optional(),
 	/** Side space around the text on phones. */
 	insetPhone: z.string().regex(/^\d+(?:\.\d+)?(?:%|px)$/).optional(),
+	/** The column's picture at most this wide (a logo in a stacked footer), centred when the column is. */
+	imageWidth: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(),
+	/** That picture's fixed height (px; cropped to fill), desktop and phones; and whether it comes after the text. */
+	imageHeight: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(),
+	imageHeightPhone: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(),
+	imageAfter: z.boolean().optional(),
+	/** The paragraphs' measure (px) and the space between grouped texts (px; a heading and its description). */
+	textWidth: z.number().int().min(120).max(2000).optional(),
+	textGap: z.number().int().min(0).max(200).optional(),
+	/** Items centred as boxes in the column (builder align-items: center); long text keeps its own alignment. */
+	itemsCenter: z.boolean().optional(),
+	/** Extra space under that picture (px): its own bottom margin in the builder. */
+	imageSpace: z.number().int().min(0).max(200).optional(),
+	/** Space between the column's items (picture, each paragraph, buttons), px: a builder flex stack's row gap. */
+	itemGap: z.number().int().min(0).max(200).optional(),
+	/** A list made only of links is a row of links this far apart (px), without bullets or underlines (builder link rows). */
+	linkGap: z.number().int().min(0).max(100).optional(),
+	/** Text size of those link rows, and of the column's other text (px), when the builder sets one. */
+	linkSize: z.number().int().min(10).max(40).optional(),
+	textSize: z.number().int().min(10).max(40).optional(),
+	/** Links to social networks in a link row are drawn as round icons this far apart (px; the source placed icon links). */
+	socialIcons: z.number().int().min(0).max(100).optional(),
 });
 export type Column = z.infer<typeof column>;
 
@@ -219,7 +247,19 @@ export const announcementFields = z.object({
 export type AnnouncementFields = z.infer<typeof announcementFields>;
 
 export const section = z.discriminatedUnion("type", [
-	z.object({ type: z.literal("hero"), ...base, fields: z.object({ heading, body: richText.default([]), buttons: z.array(button).default([]), media: mediaRef.optional(), align: z.enum(["left", "center", "right"]).default("center") }) }),
+	z.object({
+		type: z.literal("hero"),
+		...base,
+		fields: z.object({
+			heading,
+			body: richText.default([]),
+			buttons: z.array(button).default([]),
+			media: mediaRef.optional(),
+			align: z.enum(["left", "center", "right"]).default("center"),
+			/** Builder look (Bricks): the content's width, the text size, the heading size on phones, the space between items. */
+			look: z.object({ width: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(), bodySize: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(), headingSizePhone: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(), gap: z.number().int().min(0).max(200).optional(), buttonsGap: z.number().int().min(0).max(100).optional() }).optional(),
+		}),
+	}),
 	z.object({
 		type: z.literal("rich_text"),
 		...base,

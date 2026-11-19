@@ -4,7 +4,7 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { adaptBricks, bricksDesign, type BricksElement, bricksElements, bricksSite, isBricks, siteTemplates, templateElements, templateType } from "../adapters/bricks/index.js";
+import { adaptBricks, bricksDesign, type BricksElement, bricksElements, bricksSite, isBricks, liveVariables, siteTemplates, templateElements, templateType } from "../adapters/bricks/index.js";
 import { headerButtons, headerMenu, nestedNavItems } from "../adapters/bricks/menus.js";
 import { readBricksOptions } from "../extract/bricks.js";
 import type { FormDefinitionOut } from "../scaffold/forms.js";
@@ -21,7 +21,7 @@ import { conservation, irText, missingContext, sourceText } from "../transform/c
 import { applyMeasuredPadding } from "../transform/measured.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
 import { announcementDoc, describeBar, detectAnnouncement } from "../transform/announcement.js";
-import type { ScreenshotResult } from "../audit/browser.js";
+import type { BricksBox, RootVariables, ScreenshotResult } from "../audit/browser.js";
 import type { ExporterPost, MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
 
@@ -74,6 +74,23 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const at = (vp: string) => shots.find((x) => x.viewport === vp && (() => { try { return new URL(x.url).pathname === path; } catch { return false; } })())?.sections;
 		return { desktop: at("desktop"), tablet: at("tablet"), mobile: at("mobile") };
 	};
+	// Bricks: every live element's measured box by page and position (gaps, widths, text sizes), from the same screenshots.
+	const bricksBoxes = new Map<string, Partial<Record<"desktop" | "tablet" | "mobile", BricksBox>>>();
+	for (const s of shots) {
+		let path: string;
+		try {
+			path = new URL(s.url).pathname;
+		} catch {
+			continue;
+		}
+		for (const [key, b] of Object.entries(s.bricks ?? {})) {
+			const vp = s.viewport as "desktop" | "tablet" | "mobile";
+			const k = `${path} ${key}`;
+			const e = bricksBoxes.get(k) ?? {};
+			if (!e[vp]) e[vp] = b;
+			bricksBoxes.set(k, e);
+		}
+	}
 	let paddedEdges = 0;
 	const pages = content("page");
 	const posts = content("post");
@@ -84,7 +101,8 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	// the element settings refer to (palette, global classes, theme style, components, breakpoints).
 	const bricksTemplatePosts = content("bricks_template");
 	const bricksTemplates = new Map(bricksTemplatePosts.map((t) => [t.id, templateElements(t.meta, bricksElements)]));
-	const bricks = bricksSite(readBricksOptions(paths.raw, options));
+	// The live site's design variables (audit): a CSS framework's tokens that Bricks settings name (Automatic.css).
+	const bricks = bricksSite(readBricksOptions(paths.raw, options), liveVariables(readJson<RootVariables[]>(join(paths.snapshot, "css-variables.json"))));
 	const bricksForms = new Map<string, FormDefinitionOut>();
 	const bricksPopups = new Map(bricksTemplatePosts.filter((t) => t.status === "publish" && templateType(t.meta) === "popup").map((t) => [t.id, `bricks-${t.slug}`]));
 	const siteUrl = config.source.url.replace(/\/$/, "");
@@ -220,7 +238,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		return { builder, sections, diagnostics };
 	};
 	function adaptBricksPost(p: ExporterPost, common: { kind: IrPage["kind"]; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, elements?: BricksElement[]) {
-		const r = adaptBricks(elements ?? bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id), site: bricks, postId: p.id, content: p.content ?? "", reusable: (id) => reusable.get(id), title: p.title, siteTitle, permalink, popupSlug: (id) => bricksPopups.get(id), menuItems: (id) => { const m = menusRaw.find((x) => String(x.id) === id); return m ? menuTree(m) : undefined; } });
+		const r = adaptBricks(elements ?? bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id), site: bricks, postId: p.id, content: p.content ?? "", reusable: (id) => reusable.get(id), title: p.title, siteTitle, permalink, popupSlug: (id) => bricksPopups.get(id), measured: (key) => bricksBoxes.get(`${common.kind === "page" ? routeOf(p) : "/"} ${key}`), menuItems: (id) => { const m = menusRaw.find((x) => String(x.id) === id); return m ? menuTree(m) : undefined; } });
 		for (const f of r.forms) bricksForms.set(f.id, f);
 		return r;
 	}

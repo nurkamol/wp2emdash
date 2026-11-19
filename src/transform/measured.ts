@@ -25,7 +25,8 @@ export function applyMeasuredPadding(sections: Section[], boxes: { desktop?: Sec
 	if (!boxes.desktop?.length) return 0;
 	let applied = 0;
 	let prev = -1;
-	for (const g of groupSections(sections.map((s) => ({ type: s.type, path: s.sourceRef.path })), footer)) {
+	// Bricks sections carry the row index in sourceRef.row (their path names the element, not its position).
+	for (const g of groupSections(sections.map((s) => ({ type: s.type, path: s.sourceRef.path, ...(s.sourceRef.row !== undefined ? { row: s.sourceRef.row } : {}) })), footer)) {
 		const d = boxes.desktop.find((b) => b.footer === footer && b.index === g.sourceIndex);
 		const m = boxes.mobile?.find((b) => b.footer === footer && b.index === g.sourceIndex) ?? d;
 		const t = boxes.tablet?.find((b) => b.footer === footer && b.index === g.sourceIndex);

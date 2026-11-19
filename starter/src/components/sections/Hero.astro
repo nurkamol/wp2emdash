@@ -6,12 +6,17 @@ import Buttons from "../Buttons.astro";
 import Md from "../Md.astro";
 import { Image } from "emdash/ui";
 const { value: v } = Astro.props as { value: Record<string, any> };
+// Builder look (Bricks): content width, text size, phone heading size, space between items.
+const PX = /^\d+(?:\.\d+)?px$/;
+const bodySize = PX.test(v.body_size ?? "") ? v.body_size : undefined;
+const gap = typeof v.content_gap === "number" && Number.isInteger(v.content_gap) && v.content_gap >= 0 && v.content_gap <= 200 ? `${v.content_gap}px` : undefined;
+const look = [PX.test(v.content_width ?? "") && `--hero-width:${v.content_width}`, bodySize && `--hero-body:${bodySize}`, PX.test(v.heading_size_phone ?? "") && `--hero-heading-p:${v.heading_size_phone}`, gap && `--hero-gap:${gap}`].filter(Boolean).join(";") || undefined;
 ---
 
-<Section value={v} type="hero" class={`align-${v.align ?? "center"}`}>
-	<div class="hero__content">
+<Section value={v} type="hero" class={`align-${v.align ?? "center"}${look ? " has-hero-look" : ""}`}>
+	<div class="hero__content" style={look}>
 		<Heading value={{ ...v, heading_level: v.heading_level ?? "h1" }} />
-		<Rich value={v.body} class="lead" />
+		<Rich value={v.body} class={look ? "hero__body" : "lead"} />
 		<Buttons items={v.buttons} layout={v} />
 	</div>
 	{v.media && <figure class="hero__media"><Image image={v.media} priority sizes="(max-width: 900px) 100vw, 50vw" /></figure>}

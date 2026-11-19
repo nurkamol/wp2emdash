@@ -1,0 +1,116 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "video",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "image": {
+            "wpId": 930,
+            "kind": "image"
+          },
+          "video": {
+            "url": "https://cdn.example.com/hero-loop.mp4",
+            "kind": "video"
+          },
+          "overlay": 0.4
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#hl10",
+        "rawHash": "3848ebbaa6",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Move Better",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Small classes, patient teachers and a calm room.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Feel the difference",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book a class",
+            "href": "/book/",
+            "style": "secondary",
+            "light": true,
+            "minWidth": 150,
+            "spaceAbove": 48
+          },
+          {
+            "label": "About",
+            "href": "/about/",
+            "style": "secondary",
+            "light": true,
+            "minWidth": 150
+          }
+        ],
+        "align": "center",
+        "look": {
+          "width": "768px",
+          "headingSizePhone": "44px",
+          "gap": 12,
+          "bodySize": "17px",
+          "buttonsGap": 24
+        }
+      },
+      "minHeight": "85svh",
+      "valign": "middle",
+      "headingSize": "72px",
+      "headingLeading": 1.4
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[blade-title] blade (sliced) reveal animation not reproduced; text kept",
+      "path": "section#hl10/container#hl20/block#hl30/blade-title#hl31",
+      "tag": "blade-title"
+    }
+  ],
+  "forms": []
+}

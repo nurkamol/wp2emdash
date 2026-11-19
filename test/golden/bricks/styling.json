@@ -50,7 +50,10 @@
             "size": "large"
           }
         ],
-        "align": "center"
+        "align": "center",
+        "look": {
+          "bodySize": "17px"
+        }
       }
     },
     {

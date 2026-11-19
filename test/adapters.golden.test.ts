@@ -7,7 +7,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { adaptBricks, type BricksElement, bricksSite } from "../src/adapters/bricks/index.js";
+import { adaptBricks, type BricksElement, bricksSite, liveVariables } from "../src/adapters/bricks/index.js";
 import { adaptGutenberg } from "../src/adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../src/adapters/wpbakery/index.js";
 import { Keys } from "../src/ir/portable-text.js";
@@ -29,14 +29,14 @@ const adapters = {
 	// bricks_template posts, the Bricks options (palette, global classes, theme styles, components, breakpoints), the
 	// post's own content (post-content element, {post_content}) and what transform knows.
 	bricks: (src: string) => {
-		const f = JSON.parse(src) as { elements: BricksElement[]; templates?: Record<string, BricksElement[]>; options?: Record<string, unknown>; kind?: "page" | "partial"; title?: string; postCount?: number; permalinks?: Record<string, string>; popups?: Record<string, string>; content?: string; menus?: Record<string, IrMenuItem[]> };
+		const f = JSON.parse(src) as { elements: BricksElement[]; templates?: Record<string, BricksElement[]>; options?: Record<string, unknown>; kind?: "page" | "partial"; title?: string; postCount?: number; permalinks?: Record<string, string>; popups?: Record<string, string>; content?: string; menus?: Record<string, IrMenuItem[]>; live?: { width: number; rootFontSize: number; variables: Record<string, string> }[] };
 		return adaptBricks(f.elements, {
 			kind: f.kind ?? "page",
 			keys: new Keys("t"),
 			popupFor,
 			postCount: f.postCount ?? 0,
 			template: (id) => f.templates?.[String(id)],
-			site: bricksSite(f.options ?? {}),
+			site: bricksSite(f.options ?? {}, liveVariables(f.live)),
 			postId: 10,
 			...(f.content !== undefined ? { content: f.content } : {}),
 			reusable,

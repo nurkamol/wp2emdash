@@ -11,16 +11,17 @@
  * recognisers read. Components and section templates are inlined. Unknown elements are reported as unmapped, never
  * dropped silently. Verified facts: docs/spikes/bricks-findings.md.
  */
-import type { Diagnostic, IrMenuItem, Section, SectionType } from "../../ir/schema.js";
+import type { Diagnostic, IrMenuItem, PtBlock, Section, SectionType } from "../../ir/schema.js";
 import type { Keys } from "../../ir/portable-text.js";
+import type { BricksBox } from "../../audit/browser.js";
 import type { FormDefinitionOut } from "../../scaffold/forms.js";
 import { fluid } from "../../scaffold/generate.js";
 import { type Col, type Fragment, type HandlerCtx, mediaFrom } from "../wpbakery/elements.js";
 import { mergeRich, recognise, type Row, splitRow } from "../wpbakery/index.js";
 import { DECORATIVE, DYNAMIC, dynamicListing, type Env, HANDLERS, isFilter, linkOf, mediaOf, navMenuLinks, plain } from "./elements.js";
-import { atBreakpoint, type BricksSite, effectiveSettings, emptySite, obj, pxOf, resolveColour, resolveLength, screens, str } from "./site.js";
+import { atBreakpoint, type BricksSite, cssPx, effectiveSettings, emptySite, obj, pxOf, resolveColour, screens, str } from "./site.js";
 
-export { bricksSite, type BricksSite, siteTemplates, templateElements, templateType, bricksDesign, BRICKS_OPTIONS } from "./site.js";
+export { bricksSite, type BricksSite, siteTemplates, templateElements, templateType, bricksDesign, BRICKS_OPTIONS, liveVariables } from "./site.js";
 export { bricksFormToDefinition } from "./forms.js";
 
 export interface BricksElement {
@@ -58,6 +59,11 @@ export interface BricksOptions {
 	permalink?: (postId: number) => string | undefined;
 	/** Bricks popup template id → the IR popup slug (buttons whose interaction shows a popup). */
 	popupSlug?: (templateId: number) => string | undefined;
+	/**
+	 * The live element's measured box per viewport (audit screenshots), by its position on the page: `c:<top-level
+	 * index>/<child index>/…` (content) or `f:…` (footer template). Real gaps, widths and text sizes.
+	 */
+	measured?: (key: string) => Partial<Record<"desktop" | "tablet" | "mobile", BricksBox>> | undefined;
 	/** A WordPress menu by id (a nav-menu element's `menu` setting) → its top-level items (links). */
 	menuItems?: (menuId: string) => IrMenuItem[] | undefined;
 }
@@ -119,6 +125,8 @@ const fraction = (f: number) => FRACTIONS.find(([v]) => Math.abs(v - f) < 0.02)?
 export function adaptBricks(elements: BricksElement[], opts: BricksOptions): BricksResult {
 	const site = opts.site ?? emptySite();
 	const { desktop, tablet, phone } = screens(site);
+	/** The screen width the kit measures a breakpoint at (verify viewports: 1440 / 768 / 390). */
+	const widthOf = (bp: string) => (bp === phone ? 390 : bp === tablet ? 768 : 1440);
 	const diagnostics: Diagnostic[] = [];
 	const diag = (d: Diagnostic) => diagnostics.push(d);
 	const forms = new Map<string, FormDefinitionOut>();
@@ -205,6 +213,11 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 	/** Hidden at the widest breakpoint: not migrated (a phone-only duplicate is common), reported. */
 	function hidden(e: BricksElement, path: string, report = true): boolean {
 		const s = eff(e);
+		// "Hide element on frontend" (Bricks 1.9+ `_hideElementFrontend`): Bricks does not render it on the live site.
+		if (s._hideElementFrontend === true || s._hideElementFrontend === "true") {
+			if (report) diag({ level: "warn", code: "lossy", message: `[${e.name}] is hidden on the live site (Bricks "Hide element on frontend"); not migrated`, path, tag: e.name });
+			return true;
+		}
 		if (atBreakpoint(s, "_display", desktop, site) !== "none") return false;
 		if (!report) return true;
 		const shownSmall = site.breakpoints.some((b) => b.key !== desktop && atBreakpoint(s, "_display", b.key, site) !== "none");
@@ -280,11 +293,200 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 			const kids = childrenOf(e);
 			if (kids.length >= 2 && kids.every((k) => STRUCTURE.has(k.name) || !!k.cid) && isRowBox(e)) return [{ kind: "subrow", columns: columnsOfBox(e, path) }];
 			const inner = labelStats(mergeRich(kids.flatMap((c) => fragments(c, `${path}/${pathOf(c)}`))));
+			const row = linkRow(e, inner);
+			if (row) return row;
 			return e.settings?.link ? linkedBox(e, inner, path) : inner;
 		}
 		if (e.settings?._conditions) diag({ level: "info", code: "flagged", message: `[${e.name}] has display conditions in Bricks; migrated unconditionally`, path, tag: e.name });
 		if (str(eff(e)._columns)) diag({ level: "info", code: "lossy", message: `[${e.name}] CSS columns (${str(eff(e)._columns)}, Bricks 2.5) not reproduced; text kept in one column`, path, tag: e.name });
 		return leaf(e, path);
+	}
+
+	/**
+	 * A row box (flex row) whose children are only text links (NextBricks underlined-hover, text-link, linked icons): one
+	 * line of links, in place, instead of separate link buttons (a footer's legal links, social links).
+	 */
+	function linkRow(e: BricksElement, frags: Fragment[]): Fragment[] | undefined {
+		if (frags.length < 2 || !isRowBox(e) || !frags.every((f) => f.kind === "button" && f.button.style === "link" && !f.button.opensPopup && f.button.href !== "#")) return undefined;
+		const links = frags.map((f) => (f as Extract<Fragment, { kind: "button" }>).button);
+		// Social links: one paragraph (the starter draws them as round icons, column field social_icons). Two lists in a row
+		// would merge into one, so only the other links become a list.
+		if (links.every((b) => SOCIAL.test(b.href))) {
+			const children: PtBlock["children"] = [];
+			const markDefs: PtBlock["markDefs"] = [];
+			links.forEach((b, i) => {
+				const key = opts.keys.next();
+				if (i) children.push({ _type: "span", _key: opts.keys.next(), text: " ", marks: [] });
+				children.push({ _type: "span", _key: opts.keys.next(), text: b.label, marks: [key] });
+				markDefs.push({ _type: "link", _key: key, href: b.href, ...(b.newTab ? { blank: true } : {}) });
+			});
+			return [{ kind: "rich", blocks: [{ _type: "block", _key: opts.keys.next(), style: "normal", children, markDefs }] }];
+		}
+		// Other links: a list of links (one item per link), drawn as a row by the starter (column field link_gap).
+		const blocks: PtBlock[] = frags.map((f) => {
+			const b = (f as Extract<Fragment, { kind: "button" }>).button;
+			const key = opts.keys.next();
+			return { _type: "block", _key: opts.keys.next(), style: "normal", listItem: "bullet", level: 1, children: [{ _type: "span", _key: opts.keys.next(), text: b.label, marks: [key] }], markDefs: [{ _type: "link", _key: key, href: b.href, ...(b.newTab ? { blank: true } : {}) }] };
+		});
+		return [{ kind: "rich", blocks }];
+	}
+
+	const SOCIAL = /^https?:\/\/(?:www\.)?(?:instagram\.com|tiktok\.com|facebook\.com|youtube\.com|linkedin\.com|x\.com|twitter\.com|pinterest\.[a-z.]+)\//i;
+	/** Pixels of a length setting (px, rem/em, a global variable), when it is a plain length. */
+	const lenPx = (v: unknown, bp = desktop) => cssPx(v, site, widthOf(bp));
+	/** A typography setting's font size (px). */
+	const fontPx = (s: Record<string, unknown>) => lenPx(obj(s.titleTypography)?.["font-size"] ?? obj(s._typography)?.["font-size"]);
+	const LINKISH = new Set(["text-link", "underlined-hover", "icon", "button"]);
+	/** The live element's measured box (audit), paired by position; only when the rendered element is of the same type. */
+	const measuredBox = (x: BricksElement, vp: "desktop" | "tablet" | "mobile" = "desktop") => {
+		const key = domKey.get(x);
+		const b = key ? opts.measured?.(key)?.[vp] : undefined;
+		return b && b.name === x.name ? b : undefined;
+	};
+	/** A gap: as measured on the live page, else from the settings (global / live design variables). */
+	const gapOf = (x: BricksElement, axis: "row" | "column") => {
+		const m = measuredBox(x);
+		if (m) return Math.round((axis === "row" ? m.rowGap : m.colGap) ?? 0);
+		const s = eff(x);
+		const v = lenPx(atBreakpoint(s, axis === "row" ? "_rowGap" : "_columnGap", desktop, site) ?? atBreakpoint(s, "_gap", desktop, site));
+		return v === undefined ? undefined : Math.round(v);
+	};
+	/** A text element's size: its typography setting, else as measured on the live page. */
+	// Settings first: third-party elements (NextBricks titles) set the size on an inner node, so the measured outer box
+	// shows the inherited body size.
+	const textPx = (x: BricksElement) => fontPx(eff(x)) ?? measuredBox(x)?.font;
+	const PICTURE = new Set(["image", "logo", "imagereveal"]);
+	/**
+	 * Bricks blocks are flex columns: the look of a stacked column (a centred footer: logo, a row of links, social icons,
+	 * the credit line) — the picture's width cap, the gap between items, link rows and their gap, text sizes.
+	 */
+	function stackLook(box: BricksElement): { stack?: NonNullable<Col["stack"]>; centered?: boolean } {
+		let e = box;
+		for (let i = 0; i < 3; i++) {
+			const kids = childrenOf(e);
+			if (kids.length !== 1 || !STRUCTURE.has(kids[0]?.name ?? "")) break;
+			e = kids[0] as BricksElement;
+		}
+		if (isRowBox(e) || childrenOf(e).length < 2) return {};
+		const s = eff(e);
+		const out: NonNullable<Col["stack"]> = {};
+		const gap = gapOf(e, "row");
+		if (gap !== undefined && gap >= 0 && gap <= 200) out.itemGap = gap;
+		const all: BricksElement[] = [];
+		const walk = (x: BricksElement) => {
+			for (const k of childrenOf(x)) {
+				if (hidden(k, "", false)) continue;
+				all.push(k);
+				walk(k);
+			}
+		};
+		walk(e);
+		const img = all.find((x) => PICTURE.has(x.name));
+		// The picture's own width (px, or a design variable such as var(--width-l)): the live box when measured.
+		const wSet = img ? [eff(img)._widthMax, eff(img)._width].find((v) => str(v) && !/%$|^auto$|^fit-content$/.test((str(v) as string).trim())) : undefined;
+		const w = img && wSet !== undefined ? (measuredBox(img)?.w ?? lenPx(wSet)) : undefined;
+		if (w && w <= 2000) out.imageWidth = `${Math.round(w)}px`;
+		if (img && out.imageWidth) {
+			// A fixed picture height (NextBricks image reveal `height`, an image `_height`), desktop and phones.
+			const hSet = img.name === "imagereveal" ? eff(img).height : eff(img)._height;
+			const h = str(hSet) ? (measuredBox(img)?.h ?? lenPx(hSet)) : undefined;
+			if (h && h >= 40 && h <= 2000) out.imageHeight = `${Math.round(h)}px`;
+			const hp = str(hSet) ? (measuredBox(img, "mobile")?.h ?? lenPx(img.name === "imagereveal" ? atBreakpoint(eff(img), "height", phone, site) : atBreakpoint(eff(img), "_height", phone, site), phone)) : undefined;
+			if (out.imageHeight && hp && hp >= 40 && hp <= 2000 && Math.round(hp) !== Math.round(h ?? 0)) out.imageHeightPhone = `${Math.round(hp)}px`;
+			// Text before the picture in the builder: the picture comes after it.
+			const firstText = all.findIndex((x) => !STRUCTURE.has(x.name) && !PICTURE.has(x.name));
+			if (firstText >= 0 && firstText < all.indexOf(img)) out.imageAfter = true;
+		}
+		// Space under the picture beyond the stack gap: the bottom margin of the picture or of its own wrapper box.
+		if (img && out.imageWidth) {
+			const holders = [img, ...all.filter((x) => STRUCTURE.has(x.name) && childrenOf(x).length === 1 && childrenOf(x)[0] === img)];
+			const mb = holders.map((x) => lenPx(obj(atBreakpoint(eff(x), "_margin", desktop, site))?.bottom)).find((v) => v !== undefined);
+			if (mb && mb > 0 && mb <= 200) out.imageSpace = Math.round(mb);
+		}
+		const rows = all.filter((x) => STRUCTURE.has(x.name) && isRowBox(x) && childrenOf(x).length >= 2 && childrenOf(x).every((k) => LINKISH.has(k.name) && !!k.settings?.link) && !childrenOf(x).every((k) => k.name === "button"));
+		const row = rows[0];
+		if (row) {
+			out.linkGap = gapOf(row, "column") ?? 0;
+			const sizes = new Set(childrenOf(row).map((k) => textPx(k)));
+			const size = sizes.size === 1 ? [...sizes][0] : undefined;
+			if (size && size >= 10 && size <= 40) out.linkSize = Math.round(size);
+			const icons = rows.find((r) => childrenOf(r).some((k) => k.name === "icon"));
+			if (icons) out.socialIcons = gapOf(icons, "column") ?? 0;
+		}
+		const inRow = new Set(rows.flatMap((r) => childrenOf(r)));
+		const texts = all.filter((x) => !STRUCTURE.has(x.name) && !inRow.has(x) && ["heading", "text-basic", "text"].includes(x.name));
+		const tsizes = new Set(texts.map((x) => textPx(x)));
+		const tsize = texts.length && tsizes.size === 1 ? [...tsizes][0] : undefined;
+		if (tsize && tsize >= 10 && tsize <= 40) out.textSize = Math.round(tsize);
+		// A paragraph with its own width (`_width: var(--width-m)`): the column's paragraphs keep that measure.
+		const narrow = texts.find((x) => x.name !== "heading" && str(eff(x)._width) && !/%$|^auto$/.test((str(eff(x)._width) as string).trim()));
+		const tw = narrow ? (measuredBox(narrow)?.w ?? lenPx(eff(narrow)._width)) : undefined;
+		if (out.itemGap !== undefined && tw && tw >= 120 && tw <= 2000) out.textWidth = Math.round(tw);
+		// Texts grouped in their own box inside the stack (heading + description): that box's row gap between them.
+		const group = texts[0] ? all.find((x) => STRUCTURE.has(x.name) && childrenOf(e).includes(x) && childrenOf(x).filter((k) => texts.includes(k)).length >= 2) : undefined;
+		const tg = group ? gapOf(group, "row") : undefined;
+		if (out.itemGap !== undefined && tg !== undefined && tg !== out.itemGap && tg <= 200) out.textGap = tg;
+		if (!Object.keys(out).length) return {};
+		// align-items: center centres each item as a box; the text itself is centred only when its own setting says so.
+		if (str(atBreakpoint(s, "_alignItems", desktop, site)) === "center") out.itemsCenter = true;
+		const align = (x: BricksElement) => str(obj(atBreakpoint(eff(x), "_typography", desktop, site))?.["text-align"] ?? obj(atBreakpoint(eff(x), "titleTypography", desktop, site))?.["text-align"]);
+		const centered = texts.length > 0 && texts.every((x) => align(x) === "center");
+		return { stack: out, ...(centered ? { centered: true } : {}) };
+	}
+
+	/**
+	 * A Bricks hero's own look: the content box's width, the heading's size (desktop, phones) and line height, the body
+	 * text size, the gap between heading and text (the text block's row gap), the space above the buttons (its parent's
+	 * row gap) and between them (the button row's column gap). Values resolve through global and live design variables.
+	 */
+	function heroLook(root: BricksElement, sec: Section): void {
+		if (sec.type !== "hero") return;
+		const all: BricksElement[] = [];
+		const walk = (x: BricksElement) => {
+			for (const k of childrenOf(x)) {
+				if (hidden(k, "", false)) continue;
+				all.push(k);
+				walk(k);
+			}
+		};
+		walk(root);
+		const parentOf = (x: BricksElement) => all.find((p) => childrenOf(p).includes(x)) ?? root;
+		const TITLE = new Set(["heading", "blade-title", "next_blur_reveal", "swap-hover", "underlined-hover", "text-basic", "text"]);
+		const titleTag = (x: BricksElement) => {
+			const t = str(x.settings?.tag);
+			return t === "custom" ? str(x.settings?.customTag) : (t ?? (x.name === "heading" || x.name === "blade-title" ? "h3" : "p"));
+		};
+		const heading = all.find((x) => TITLE.has(x.name) && /^h[1-6]$/.test(titleTag(x) ?? ""));
+		const look: NonNullable<Extract<Section, { type: "hero" }>["fields"]["look"]> = {};
+		const box = all.find((x) => STRUCTURE.has(x.name) && lenPx(eff(x)._width ?? eff(x)._widthMax) !== undefined);
+		const w = box ? lenPx(eff(box)._width ?? eff(box)._widthMax) : undefined;
+		if (w && w >= 200 && w <= 2000) look.width = `${Math.round(w)}px`;
+		if (heading) {
+			const hs = eff(heading);
+			const size = fontPx(hs);
+			if (size && size >= 12 && size <= 200) sec.headingSize = `${Math.round(size)}px`;
+			const small = cssPx(obj(atBreakpoint(hs, "titleTypography", phone, site))?.["font-size"] ?? obj(atBreakpoint(hs, "_typography", phone, site))?.["font-size"], site, 390);
+			if (small && small >= 12 && small <= 200 && small !== size) look.headingSizePhone = `${Math.round(small)}px`;
+			const lh = str(obj(hs._typography)?.["line-height"] ?? obj(hs.titleTypography)?.["line-height"])?.trim();
+			const lead = lh && /^\d+(?:\.\d+)?(?:em)?$/.test(lh) ? Number.parseFloat(lh) : undefined;
+			if (lead && lead >= 0.5 && lead <= 3) sec.headingLeading = lead;
+			const info = parentOf(heading);
+			const g = lenPx(atBreakpoint(eff(info), "_rowGap", desktop, site) ?? atBreakpoint(eff(info), "_gap", desktop, site));
+			if (g !== undefined && g >= 0 && g <= 200) look.gap = Math.round(g);
+			const body = all.find((x) => TITLE.has(x.name) && x !== heading && !/^h[1-6]$/.test(titleTag(x) ?? ""));
+			const bs = body ? fontPx(eff(body)) : undefined;
+			const base = cssPx(obj(obj(site.themeStyle?.typography)?.typographyBody)?.["font-size"], site);
+			const bodySize = bs ?? base;
+			if (bodySize && bodySize >= 10 && bodySize <= 60) look.bodySize = `${Math.round(bodySize)}px`;
+			const outer = parentOf(info);
+			const above = lenPx(atBreakpoint(eff(outer), "_rowGap", desktop, site) ?? atBreakpoint(eff(outer), "_gap", desktop, site));
+			const first = sec.fields.buttons[0];
+			if (first && above !== undefined && above >= 0 && above <= 200) first.spaceAbove = Math.round(above);
+		}
+		const btnRow = all.find((x) => STRUCTURE.has(x.name) && childrenOf(x).length >= 2 && childrenOf(x).every((k) => k.name === "button" || k.name.startsWith("ripple_button")));
+		const bg = btnRow ? lenPx(atBreakpoint(eff(btnRow), "_columnGap", desktop, site) ?? atBreakpoint(eff(btnRow), "_gap", desktop, site)) : undefined;
+		if (bg !== undefined && bg >= 0 && bg <= 100) look.buttonsGap = Math.round(bg);
+		if (Object.keys(look).length) sec.fields.look = look;
 	}
 
 	/**
@@ -382,7 +584,8 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 			if (kids.length >= 2 && kids.every((k) => STRUCTURE.has(k.name)) && isRowBox(box) && !box.settings?.hasLoop) return columnsOfBox(box, depth ? `${path}/${pathOf(box)}` : path);
 			box = kids.length === 1 && STRUCTURE.has(kids[0]?.name ?? "") && !kids[0]?.cid ? kids[0] : undefined;
 		}
-		return [{ fragments: fragments(section, path) }];
+		const look = stackLook(section);
+		return [{ fragments: fragments(section, path), ...(look.stack ? { stack: look.stack } : {}), ...(look.centered ? { centered: true } : {}) }];
 	}
 
 	/** The section and the single containers inside it, outermost first (styling may sit on either). */
@@ -401,15 +604,19 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 	/** Padding of the row element at a breakpoint, px. */
 	function padAt(s: Record<string, unknown>, side: "top" | "bottom", bp: string): number | undefined {
 		const p = obj(atBreakpoint(s, "_padding", bp, site));
-		return pxOf(resolveLength(p?.[side], site));
+		return cssPx(p?.[side], site, widthOf(bp));
 	}
 
 	/** A row's styling as the WPBakery-style row attributes the recognisers read, and its padding per screen. */
-	function styleOf(e: BricksElement, path: string): { attrs: Record<string, string>; pad?: Section["pad"] } {
+	function styleOf(e: BricksElement, path: string): { attrs: Record<string, string>; pad?: Section["pad"]; minHeight?: string; valign?: "middle" | "bottom" } {
 		const [s, ...inner] = chain(e) as [Record<string, unknown>, ...Record<string, unknown>[]];
 		const first = <T>(read: (x: Record<string, unknown>) => T | undefined) => [s, ...inner].map(read).find((v) => v !== undefined && v !== "");
 		const a: Record<string, string> = {};
-		const bg = first((x) => obj(x._background));
+		// An inner box with rounded corners is a card inside the section, not the section's background (a grey call-to-action
+		// panel): its background stays off the section (reported; the section library has no inner card).
+		const card = inner.find((x) => obj(x._background)?.color && Object.values(obj(obj(x._border)?.radius) ?? {}).some((v) => (pxOf(str(v)) ?? 0) > 0));
+		if (card) diag({ level: "info", code: "lossy", message: `[${e.name}] rounded inner panel background ${JSON.stringify(obj(card._background)?.color)} not reproduced (no inner card in the section library); the section keeps a plain background`, path, tag: e.name });
+		const bg = [s, ...inner].filter((x) => x !== card).map((x) => obj(x._background)).find((v) => v !== undefined);
 		const color = resolveColour(bg?.color, site);
 		if (color) a.bg_color = color;
 		else if (bg?.color) diag({ level: "info", code: "lossy", message: `[${e.name}] background colour ${JSON.stringify(bg.color)} not resolved (palette/variables missing from the extract?)`, path, tag: e.name });
@@ -444,6 +651,20 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 			const pos = justify === "center" ? "middle" : justify === "flex-end" ? "bottom" : undefined;
 			if (pos) a.full_screen_row_position = pos;
 		}
+		// A minimum height that is not a full screen (90svh): the section keeps it, content placed as `_justifyContent` says.
+		const minHeight = tall ? undefined : first((x) => [x._heightMin, x._height].map((v) => str(v)?.trim()).find((v) => v && /^\d+(?:\.\d+)?(?:vh|svh|dvh|lvh)$/.test(v)))?.replace(/lvh$/, "vh");
+		const justify = first((x) => str(x._justifyContent));
+		const valign = minHeight ? (justify === "center" ? ("middle" as const) : justify === "flex-end" ? ("bottom" as const) : undefined) : undefined;
+		// Overlay: a childless box laid absolutely over the section with a background colour (an ".overlay" div); its colour's
+		// alpha is the overlay strength (the section overlay is black).
+		const overlay = childrenOf(e).find((k) => STRUCTURE.has(k.name) && !childrenOf(k).length && str(eff(k)._position) === "absolute" && !!obj(eff(k)._background)?.color);
+		if (overlay) {
+			const c = resolveColour(obj(eff(overlay)._background)?.color, site);
+			const rgba = c ? /^rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+%?))?\s*\)$/i.exec(c) : null;
+			const alpha = rgba?.[4] ? (rgba[4].endsWith("%") ? Number.parseFloat(rgba[4]) / 100 : Number.parseFloat(rgba[4])) : undefined;
+			if (rgba && Math.max(Number(rgba[1]), Number(rgba[2]), Number(rgba[3])) <= 40) a.color_overlay = `rgba(0, 0, 0, ${alpha ?? 1})`;
+			else diag({ level: "info", code: "lossy", message: `[${e.name}] overlay box ${JSON.stringify(obj(eff(overlay)._background)?.color)} ${c ? "is not black" : "not resolved"}; the section overlay is black only`, path, tag: e.name });
+		}
 		const inW = inner.map((x) => str(x._width)?.trim() ?? str(x._widthMax)?.trim()).find(Boolean);
 		if (inW && /^(100%|100vw|none)$/.test(inW)) a.type = "full_width_content";
 		const gap = first((x) => str(x._columnGap)?.trim() ?? str(x._gap)?.trim());
@@ -458,7 +679,7 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		const st = side(top);
 		const sb = side(bottom);
 		const padOut = { ...(st ? { top: st.value } : {}), ...(sb ? { bottom: sb.value } : {}), ...(st?.tablet !== undefined ? { topTablet: st.tablet } : {}), ...(sb?.tablet !== undefined ? { bottomTablet: sb.tablet } : {}) };
-		return { attrs: a, ...(Object.keys(padOut).length ? { pad: padOut } : {}) };
+		return { attrs: a, ...(Object.keys(padOut).length ? { pad: padOut } : {}), ...(minHeight ? { minHeight } : {}), ...(valign ? { valign } : {}) };
 	}
 
 	function gradientCss(g: Record<string, unknown> | undefined): string | undefined {
@@ -499,6 +720,10 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 
 	interface BricksRow extends Row {
 		pad?: Section["pad"];
+		minHeight?: string;
+		valign?: "middle" | "bottom";
+		/** The top-level element (hero look). */
+		el?: BricksElement;
 		tracks?: number;
 		/** Position of its top-level element among the page's rendered top-level elements (verify pairs boxes by it). */
 		index: number;
@@ -514,9 +739,23 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 	// not in the list is never shown on the live page.
 	for (const e of all.filter((x) => !isRoot(x.parent) && !byId.has(String(x.parent)))) diag({ level: "info", code: "flagged", message: `[${e.name}] its parent element ${e.parent} is not on the page, so Bricks does not render it; not migrated`, path: pathOf(e), tag: e.name });
 	const roots = all.filter((e) => isRoot(e.parent));
+	// Each element's position in the rendered page (the key of its measured box): top-level index, then child indexes,
+	// counting the elements Bricks renders (not those hidden on the front end).
+	const domKey = new Map<BricksElement, string>();
+	{
+		const shown = (x: BricksElement) => eff(x)._hideElementFrontend !== true && eff(x)._hideElementFrontend !== "true";
+		const mark = (x: BricksElement, key: string) => {
+			domKey.set(x, key);
+			childrenOf(x).filter(shown).forEach((k, i) => mark(k, `${key}/${i}`));
+		};
+		const area = opts.kind === "partial" ? "f" : "c";
+		all.filter((e) => isRoot(e.parent)).filter(shown).forEach((r, i) => mark(r, `${area}:${i}`));
+	}
 	// Each top-level element is one element in the rendered page (a template or component in its place included).
 	for (const { e: r, path, index } of roots.flatMap((root, index) => expandRoots([root]).map((x) => ({ ...x, index })))) {
-		if (r.name !== "section" && r.name !== "container") {
+		// Structural boxes are rows with their own styling (a footer template's top-level block with its padding); other
+		// top-level elements (a heading on its own) are gathered into a text row.
+		if (!STRUCTURE.has(r.name)) {
 			loose.push({ e: r, path, index });
 			continue;
 		}
@@ -530,7 +769,7 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		rowTracks = undefined;
 		const style = styleOf(r, path);
 		const columns = columnsOf(r, path);
-		rows.push({ attrs: style.attrs, columns, path, raw: JSON.stringify(r), adapter: "bricks", index, ...(style.pad ? { pad: style.pad } : {}), ...(rowTracks ? { tracks: rowTracks } : {}) });
+		rows.push({ attrs: style.attrs, columns, path, raw: JSON.stringify(r), adapter: "bricks", index, el: r, ...(style.pad ? { pad: style.pad } : {}), ...(style.minHeight ? { minHeight: style.minHeight } : {}), ...(style.valign ? { valign: style.valign } : {}), ...(rowTracks ? { tracks: rowTracks } : {}) });
 		currentSource = undefined;
 	}
 	flushLoose();
@@ -546,6 +785,11 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		for (const v of splitRow(row)) out.push(...recognise(v, { first: sections.length + out.length === 0, kind: opts.kind, ...(forced ? { forced } : {}), keys: opts.keys, diag }));
 		for (const s of out) {
 			s.sourceRef.row = row.index;
+			if (row.minHeight && out.length === 1) {
+				s.minHeight = row.minHeight;
+				if (row.valign && !s.valign) s.valign = row.valign;
+			}
+			if (s.type === "hero" && row.el) heroLook(row.el, s);
 			// A grid with more cards than tracks keeps its tracks per row.
 			if (row.tracks && (s.type === "feature_grid" || s.type === "team") && (s.fields.columns ?? 0) > row.tracks) s.fields.columns = Math.min(6, row.tracks);
 		}

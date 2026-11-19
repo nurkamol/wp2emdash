@@ -619,7 +619,8 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 	}
 
 	// 5. Single text column (or text spread over columns of one kind).
-	if ((!ctx.forced || ["rich_text", "cta_banner", "media_text", "gallery"].includes(ctx.forced)) && cols.length === 1) {
+	// A builder stack whose picture keeps its own small width (a logo above footer links) stays a column (Bricks only).
+	if ((!ctx.forced || ["rich_text", "cta_banner", "media_text", "gallery"].includes(ctx.forced)) && cols.length === 1 && !(cols[0]?.stack?.imageWidth && !ctx.forced)) {
 		const contentMedia = media.filter((m) => m.role === "content");
 		if (!rich.length && contentMedia.length) {
 			push({ ...base("gallery", "stack"), fields: { images: contentMedia.map((m) => m.media), layout: "stack", lightbox: false } });
@@ -681,6 +682,19 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					...(c.textInset?.below ? { gapStacked: c.textInset.below } : {}),
 					...(c.textInset?.above ? { gapAboveStacked: c.textInset.above } : {}),
 					...(c.background || bg ? { background: { ...c.background, ...(bg ? { image: bg.media } : {}) } } : {}),
+					...(c.stack?.imageWidth ? { imageWidth: c.stack.imageWidth } : {}),
+					...(c.stack?.imageSpace ? { imageSpace: c.stack.imageSpace } : {}),
+					...(c.stack?.imageHeight ? { imageHeight: c.stack.imageHeight } : {}),
+					...(c.stack?.imageHeightPhone ? { imageHeightPhone: c.stack.imageHeightPhone } : {}),
+					...(c.stack?.imageAfter ? { imageAfter: true } : {}),
+					...(c.stack?.itemsCenter ? { itemsCenter: true } : {}),
+					...(c.stack?.textWidth ? { textWidth: c.stack.textWidth } : {}),
+					...(c.stack?.textGap !== undefined ? { textGap: c.stack.textGap } : {}),
+					...(c.stack?.itemGap !== undefined ? { itemGap: c.stack.itemGap } : {}),
+					...(c.stack?.linkGap !== undefined ? { linkGap: c.stack.linkGap } : {}),
+					...(c.stack?.linkSize ? { linkSize: c.stack.linkSize } : {}),
+					...(c.stack?.textSize ? { textSize: c.stack.textSize } : {}),
+					...(c.stack?.socialIcons !== undefined ? { socialIcons: c.stack.socialIcons } : {}),
 				};
 			}),
 		},
