@@ -15,6 +15,7 @@ import { loadSiteEnv } from "../extract/credentials.js";
 import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
 import { routeToSlug } from "../scaffold/seed.js";
 import { BLOCK_TYPES } from "../starter/library.js";
+import { svgToPng } from "../targets/emdash/svg.js";
 import { EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
 import { blockKey, sectionToBlock } from "../targets/emdash/blocks.js";
 import { faststart, needsFaststart } from "../targets/emdash/faststart.js";
@@ -204,6 +205,8 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 		const mediaErrors: string[] = [];
 		let n = 0;
 		const slowVideos: string[] = [];
+		const svgConverted: string[] = [];
+		let svgBrowser: import("playwright").Browser | undefined;
 		for (const [key, ref] of refs) {
 			reporter.emit({ type: "step:progress", step: "Media", done: ++n, total: refs.size, item: key });
 			const known = idMap.media[key];
@@ -231,6 +234,13 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 					bytes = readFileSync(cache);
 					filename = url.split("/").pop()?.split("?")[0] ?? "file";
 				}
+				// EmDash refuses SVG uploads: draw it to a sharp PNG (see targets/emdash/svg.ts).
+				if (mimeOf(filename) === "image/svg+xml" || /\.svg$/i.test(filename)) {
+					svgBrowser ??= await (await import("playwright")).chromium.launch();
+					bytes = await svgToPng(bytes, svgBrowser);
+					filename = filename.replace(/\.svg$/i, "") + ".png";
+					svgConverted.push(filename);
+				}
 				if (mimeOf(filename) === "video/mp4" && needsFaststart(bytes)) {
 					const fixed = faststart(bytes);
 					if ("bytes" in fixed) bytes = fixed.bytes;
@@ -253,6 +263,8 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 		}
 		saveMap();
 		if (slowVideos.length) reporter.emit({ type: "log", level: "warn", message: `Videos left with the index last (slower start): ${slowVideos.join("; ")}` });
+		if (svgBrowser) await svgBrowser.close().catch(() => {});
+		if (svgConverted.length) reporter.emit({ type: "log", level: "info", message: `SVG drawn to PNG (EmDash's media library takes no SVG): ${svgConverted.join(", ")}` });
 		reporter.emit({ type: "step:end", step: "Media", ok: mediaErrors.length === 0, detail: `${uploaded} uploaded, ${reused} reused, ${refs.size} referenced` });
 		check("media", "Every referenced media item is on the target", mediaErrors.length === 0, mediaErrors.slice(0, 6).join("; ") || `${refs.size} items (${uploaded} uploaded, ${reused} already there)`);
 
