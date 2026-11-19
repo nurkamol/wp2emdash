@@ -234,7 +234,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	// 7. Gate
 	const home = records.get(normalizeUrl(`${site.origin}/`, site));
 	const failedScreens = screens.filter((s) => s.error);
-	const unsupportedBuilders = Object.keys(fp.builders).filter((b) => ["elementor", "bricks", "divi"].includes(b));
+	const unsupportedBuilders = Object.keys(fp.builders).filter((b) => ["elementor", "divi"].includes(b));
 	const outOfScope = fp.plugins.filter((p) => p.action === "out-of-scope");
 	const sensitiveForms = integrations.filter((i) => i.form && i.form.sensitiveFields.length > 0);
 	const parsedAll = urlRecords.filter((r) => r.kind === "page").every((r) => snapshots.has(r.url));

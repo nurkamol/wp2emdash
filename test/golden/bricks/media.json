@@ -1,0 +1,332 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec200",
+        "rawHash": "a6f031351a"
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Room one, south light",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [
+              {
+                "wpId": 610,
+                "kind": "image",
+                "url": "https://example.com/wp-content/uploads/room.jpg",
+                "alt": "The big room"
+              }
+            ],
+            "buttons": []
+          },
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "h2",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Two rooms",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Both rooms have sprung floors.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "masonry",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec201",
+        "rawHash": "625c99a9e9"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Gallery",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "images": [
+          {
+            "wpId": 620,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/g1.jpg"
+          },
+          {
+            "wpId": 621,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/g2.jpg"
+          },
+          {
+            "wpId": 622,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/g3.jpg"
+          }
+        ],
+        "layout": "masonry",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "carousel",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec202",
+        "rawHash": "aa6e735f9f"
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 630,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/c1.jpg"
+          },
+          {
+            "wpId": 631,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/c2.jpg"
+          }
+        ],
+        "layout": "carousel",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec203",
+        "rawHash": "ff92d8fc0b"
+      },
+      "fields": {
+        "embedUrl": "https://www.youtube.com/watch?v=aBcDeFgHiJk",
+        "poster": {
+          "wpId": 640,
+          "kind": "image",
+          "url": "https://example.com/wp-content/uploads/poster.jpg"
+        }
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec203",
+        "rawHash": "ff92d8fc0b"
+      },
+      "fields": {
+        "embedUrl": "https://vimeo.com/76979871"
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec203",
+        "rawHash": "ff92d8fc0b"
+      },
+      "fields": {
+        "video": {
+          "wpId": 650,
+          "kind": "video",
+          "url": "https://example.com/wp-content/uploads/intro.mp4"
+        },
+        "poster": {
+          "wpId": 651,
+          "kind": "image",
+          "url": "https://example.com/wp-content/uploads/intro.jpg"
+        }
+      }
+    },
+    {
+      "type": "map",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec204",
+        "rawHash": "546ca08684"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Find us",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "embedUrl": "https://maps.google.com/maps?q=1%20Example%20Street%2C%20Springfield&output=embed",
+        "address": "1 Example Street, Springfield"
+      }
+    },
+    {
+      "type": "map",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec205",
+        "rawHash": "8196d5d5e9"
+      },
+      "fields": {
+        "embedUrl": "https://www.openstreetmap.org/export/embed.html?bbox=4.8852,52.3602,4.9052,52.380199999999995&layer=mapnik&marker=52.3702,4.8952",
+        "address": "Studio entrance"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec206",
+        "rawHash": "c47532142e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "Downloads",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Timetable (PDF)",
+            "href": "https://example.com/wp-content/uploads/timetable.pdf",
+            "style": "link"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[map] 2 markers; the map shows the first (1 Example Street, Springfield)",
+      "path": "section#sec204/container#con204/map#map204",
+      "tag": "map"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "[svg] inline/dynamic SVG dropped (decorative)",
+      "path": "section#sec206/container#con206/svg#svg206",
+      "tag": "svg"
+    },
+    {
+      "level": "error",
+      "code": "dynamic",
+      "message": "[carousel] post carousel over post entries is rendered from the site's data; needs a posts-listing section (not in the v1 library) or a decision in overrides.ts",
+      "path": "section#sec206/container#con206/carousel#car206",
+      "carriesContent": true,
+      "tag": "carousel"
+    }
+  ],
+  "forms": []
+}

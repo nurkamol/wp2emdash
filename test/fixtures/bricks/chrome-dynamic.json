@@ -1,0 +1,36 @@
+{
+  "postCount": 4,
+  "elements": [
+    { "id": "sec600", "name": "section", "parent": 0, "children": ["con600"], "settings": {} },
+    { "id": "con600", "name": "container", "parent": "sec600", "children": ["lg600", "nn600", "oc600"], "settings": { "_direction": "row" } },
+    { "id": "lg600", "name": "logo", "parent": "con600", "children": [], "settings": { "logo": { "id": 901, "url": "https://example.com/wp-content/uploads/logo.svg" } } },
+    { "id": "nn600", "name": "nav-nested", "parent": "con600", "children": ["nl600", "dd600"], "settings": {} },
+    { "id": "nl600", "name": "text-link", "parent": "nn600", "children": [], "settings": { "text": "Home", "link": { "type": "external", "url": "/" } } },
+    { "id": "dd600", "name": "dropdown", "parent": "nn600", "children": [], "settings": { "text": "Classes" } },
+    { "id": "oc600", "name": "offcanvas", "parent": "con600", "children": [], "settings": {} },
+
+    { "id": "sec601", "name": "section", "parent": 0, "children": ["con601"], "settings": {} },
+    { "id": "con601", "name": "container", "parent": "sec601", "children": ["hd601", "lp601", "fc601"], "settings": {} },
+    { "id": "hd601", "name": "heading", "parent": "con601", "children": [], "settings": { "text": "From the journal", "tag": "h2" } },
+    { "id": "lp601", "name": "block", "parent": "con601", "children": ["lt601"], "settings": { "hasLoop": true, "query": { "objectType": "post", "post_type": ["post"], "posts_per_page": 3 } } },
+    { "id": "lt601", "name": "heading", "parent": "lp601", "children": [], "settings": { "text": "{post_title}", "tag": "h3" } },
+    { "id": "fc601", "name": "filter-checkbox", "parent": "con601", "children": [], "settings": { "filterQueryId": "lp601" } },
+
+    { "id": "sec602", "name": "section", "parent": 0, "children": ["con602"], "settings": {} },
+    { "id": "con602", "name": "container", "parent": "sec602", "children": ["ps602"], "settings": {} },
+    { "id": "ps602", "name": "posts", "parent": "con602", "children": [], "settings": { "query": { "post_type": ["event"] } } },
+
+    { "id": "sec603", "name": "section", "parent": 0, "children": ["con603"], "settings": {} },
+    { "id": "con603", "name": "container", "parent": "sec603", "children": ["hd603", "hd604", "bl603"], "settings": {} },
+    { "id": "hd603", "name": "heading", "parent": "con603", "children": [], "settings": { "text": "Shown on desktop", "tag": "h2", "_display:mobile_portrait": "none" } },
+    { "id": "hd604", "name": "heading", "parent": "con603", "children": [], "settings": { "text": "Phone-only copy", "tag": "h2", "_display": "none", "_display:mobile_portrait": "block" } },
+    { "id": "bl603", "name": "block", "parent": "con603", "children": ["tx603"], "settings": { "_conditions": [[{ "key": "user_logged_in", "compare": "==", "value": "1" }]] } },
+    { "id": "tx603", "name": "text-basic", "parent": "bl603", "children": [], "settings": { "text": "Members: check your inbox for the new timetable." } },
+
+    { "id": "sec604", "name": "section", "parent": 0, "children": ["con604"], "settings": {} },
+    { "id": "con604", "name": "container", "parent": "sec604", "children": ["cd604", "lt604", "wp604"], "settings": {} },
+    { "id": "cd604", "name": "countdown", "parent": "con604", "children": [], "settings": { "date": "2027-01-01 00:00" } },
+    { "id": "lt604", "name": "lottie", "parent": "con604", "children": [], "settings": {} },
+    { "id": "wp604", "name": "wordpress", "parent": "con604", "children": [], "settings": { "type": "text", "title": "Opening hours" } }
+  ]
+}

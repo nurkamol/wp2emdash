@@ -144,7 +144,7 @@
               {
                 "_type": "span",
                 "_key": "tb",
-                "text": "Welcome to {post_title}.",
+                "text": "Welcome to Fixture page.",
                 "marks": []
               }
             ],
@@ -366,24 +366,27 @@
     {
       "type": "rich_text",
       "theme": {
-        "tone": "light"
+        "tone": "dark",
+        "background": {
+          "color": "#1b1b1b"
+        }
       },
       "spacing": "normal",
       "sourceRef": {
         "adapter": "bricks",
-        "path": "template#tpl001",
-        "rawHash": "6a1973344b"
+        "path": "template#tpl001/template#77/section#tpl001t77~tsc001",
+        "rawHash": "5a122b25a4"
       },
       "fields": {
         "body": [
           {
             "_type": "block",
-            "_key": "tu",
+            "_key": "ty",
             "style": "h2",
             "children": [
               {
                 "_type": "span",
-                "_key": "tv",
+                "_key": "tz",
                 "text": "Ready to start?",
                 "marks": []
               }
@@ -392,12 +395,12 @@
           },
           {
             "_type": "block",
-            "_key": "tw",
+            "_key": "t10",
             "style": "normal",
             "children": [
               {
                 "_type": "span",
-                "_key": "tx",
+                "_key": "t11",
                 "text": "Your first class is on us.",
                 "marks": []
               }
@@ -415,16 +418,9 @@
     {
       "level": "info",
       "code": "dynamic",
-      "message": "[nav-menu] is rendered by the site (menu, logo, post data), not migrated as content",
+      "message": "[nav-menu] is rendered by the site (menu, logo, post data, filters), not migrated as content",
       "path": "nav-menu#nav001",
       "tag": "nav-menu"
-    },
-    {
-      "level": "warn",
-      "code": "dynamic",
-      "message": "[text] uses Bricks dynamic data ({post_title}); the text is kept as written",
-      "path": "section#sec002/block#blk002/text#txt002",
-      "tag": "text"
     },
     {
       "level": "info",
@@ -436,10 +432,11 @@
     {
       "level": "error",
       "code": "unmapped",
-      "message": "No handler for Bricks [slider-nested] (carries content)",
-      "path": "section#sec007/slider-nested#sld001",
+      "message": "No handler for Bricks [rating] (carries content)",
+      "path": "section#sec007/rating#sld001",
       "carriesContent": true,
-      "tag": "slider-nested"
+      "tag": "rating"
     }
-  ]
+  ],
+  "forms": []
 }

@@ -41,7 +41,7 @@ const KNOWN: Record<string, { name: string; action: PluginAction; replacement: s
 	"salient-demo-importer": { name: "Salient Demo Importer", action: "drop", replacement: "—" },
 	elementor: { name: "Elementor", action: "out-of-scope", replacement: "Elementor adapter (v2)" },
 	"elementor-pro": { name: "Elementor Pro", action: "out-of-scope", replacement: "Elementor adapter (v2)" },
-	bricks: { name: "Bricks", action: "out-of-scope", replacement: "Bricks adapter (v2)" },
+	bricks: { name: "Bricks", action: "adapter", replacement: "Bricks adapter (src/adapters/bricks)" },
 	divi: { name: "Divi", action: "out-of-scope", replacement: "Divi adapter (v2)" },
 	"seo-by-rank-math": { name: "Rank Math SEO", action: "migrate-data", replacement: "EmDash SEO fields (via exporter) + generated sitemap/JSON-LD" },
 	rankmath: { name: "Rank Math SEO", action: "migrate-data", replacement: "EmDash SEO fields (via exporter) + generated sitemap/JSON-LD" },

@@ -480,7 +480,11 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					push({ ...base("stats"), fields: { ...h, items: items("stat").map((f) => f.item) } });
 					break;
 				case "form":
-					for (const [i, f] of items("form").entries()) push({ ...base("form"), fields: { ...(i === 0 ? h : {}), intro: i === 0 ? intro : [], formRef: { provider: f.provider, id: f.id }, aside: main && i === 0 ? [...richAfter(all, "form"), ...buttons.map((b) => linkBlock(b, { keys: ctx.keys } as HandlerCtx))] : [] } });
+					for (const [i, f] of items("form").entries()) {
+						// Text between two forms introduces the second one (never dropped).
+						const between = i === 0 ? [] : all.slice(all.indexOf(items("form")[i - 1] as Fragment) + 1, all.indexOf(f)).flatMap((x) => (x.kind === "rich" ? x.blocks : []));
+						push({ ...base("form"), fields: { ...(i === 0 ? h : {}), intro: i === 0 ? intro : between, formRef: { provider: f.provider, id: f.id }, aside: main && i === 0 ? [...richAfter(all, "form"), ...buttons.map((b) => linkBlock(b, { keys: ctx.keys } as HandlerCtx))] : [] } });
+					}
 					break;
 				case "embed":
 					for (const [i, e] of items("embed").entries()) push({ ...base("embed", e.provider), fields: { ...(i === 0 ? h : {}), provider: e.provider, html: e.html } });

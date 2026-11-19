@@ -1,0 +1,88 @@
+{
+  "options": {
+    "bricks_color_palette": [ { "id": "pal1", "name": "Studio", "colors": [ { "id": "c1prim", "name": "Primary", "hex": "#2f5d50" }, { "id": "c2sand", "name": "Sand", "hex": "#f4ece2" }, { "id": "c3ink", "name": "Ink", "raw": "var(--ink)" } ] } ],
+    "bricks_global_variables": [ { "id": "v1", "name": "ink", "value": "#14181c" }, { "id": "v2", "name": "space-xl", "value": "120px" }, { "id": "v3", "name": "space-m", "value": "3rem" } ],
+    "bricks_global_classes": [
+      { "id": "gc1", "name": "section--dark", "settings": { "_background": { "color": { "id": "c3ink", "name": "Ink", "raw": "var(--bricks-color-c3ink)" } }, "_typography": { "color": { "hex": "#ffffff" } }, "_padding": { "top": "var(--space-xl)", "bottom": "var(--space-xl)" }, "_padding:mobile_portrait": { "top": "var(--space-m)", "bottom": "var(--space-m)" } } },
+      { "id": "gc2", "name": "card", "settings": { "_background": { "color": { "raw": "var(--bricks-color-c2sand)" } }, "_typography": { "text-align": "center" } } }
+    ],
+    "bricks_theme_styles": { "default": { "label": "Default", "settings": { "conditions": { "conditions": [ { "id": "x1", "main": "any" } ] }, "colors": { "colorPrimary": { "hex": "#2f5d50" } }, "typography": { "typographyBody": { "font-family": "Inter", "font-size": "17px" }, "typographyHeadings": { "font-family": "Fraunces", "font-weight": "600" } }, "section": { "padding": { "top": "80", "bottom": "80" } } } } },
+    "bricks_components": [
+      { "id": "cmp001", "category": "cards", "properties": [ { "id": "p1", "label": "Title", "type": "text", "default": "Card title", "connections": { "cmh001": ["text"] } }, { "id": "p2", "label": "Text", "type": "text", "connections": { "cmt001": ["text"] } } ], "elements": [
+        { "id": "cmp001", "name": "block", "parent": 0, "children": ["cmi001", "cmh001", "cmt001"], "settings": { "_cssGlobalClasses": ["gc2"] } },
+        { "id": "cmi001", "name": "icon", "parent": "cmp001", "children": [], "settings": { "icon": { "library": "fontawesomeSolid", "icon": "fas fa-sun" } } },
+        { "id": "cmh001", "name": "heading", "parent": "cmp001", "children": [], "settings": { "text": "Card title", "tag": "h3" } },
+        { "id": "cmt001", "name": "text-basic", "parent": "cmp001", "children": [], "settings": { "text": "" } }
+      ] }
+    ]
+  },
+  "templates": {
+    "88": [
+      { "id": "q1", "name": "section", "parent": 0, "children": ["q2"], "settings": { "_cssGlobalClasses": ["gc1"] } },
+      { "id": "q2", "name": "container", "parent": "q1", "children": ["q3", "q4"], "settings": {} },
+      { "id": "q3", "name": "heading", "parent": "q2", "children": [], "settings": { "text": "Try a week for free", "tag": "h2" } },
+      { "id": "q4", "name": "button", "parent": "q2", "children": [], "settings": { "text": "Start", "link": { "type": "external", "url": "/trial/" } } }
+    ]
+  },
+  "elements": [
+    { "id": "sec700", "name": "section", "parent": 0, "children": ["con700"], "settings": { "_background": { "image": { "id": 1001, "url": "https://example.com/wp-content/uploads/hero.jpg" }, "attachment": "fixed" }, "_gradient": { "applyTo": "overlay", "angle": "180", "colors": [ { "color": { "rgb": "rgba(0, 0, 0, 0.1)" }, "stop": "0" }, { "color": { "rgb": "rgba(0, 0, 0, 0.6)" }, "stop": "100" } ] }, "_heightMin": "100vh", "_typography": { "color": { "hex": "#fff" }, "text-align": "center" }, "_cssId": "top" } },
+    { "id": "con700", "name": "container", "parent": "sec700", "children": ["hd700", "bt700"], "settings": { "_justifyContent": "center" } },
+    { "id": "hd700", "name": "heading", "parent": "con700", "children": [], "settings": { "text": "Move well", "tag": "h1" } },
+    { "id": "bt700", "name": "button", "parent": "con700", "children": [], "settings": { "text": "Book now", "style": "primary", "size": "lg", "link": { "type": "external", "url": "/book/" } } },
+
+    { "id": "sec701", "name": "section", "parent": 0, "children": ["con701"], "settings": { "_cssGlobalClasses": ["gc1"] } },
+    { "id": "con701", "name": "container", "parent": "sec701", "children": ["hd701", "tx701"], "settings": {} },
+    { "id": "hd701", "name": "heading", "parent": "con701", "children": [], "settings": { "text": "A calm space", "tag": "h2" } },
+    { "id": "tx701", "name": "text", "parent": "con701", "children": [], "settings": { "text": "<p>Small groups, big attention.</p>" } },
+
+    { "id": "sec702", "name": "section", "parent": 0, "children": ["con702"], "settings": { "_background": { "color": { "id": "c2sand", "name": "Sand" } } } },
+    { "id": "con702", "name": "container", "parent": "sec702", "children": ["hd702", "grd702"], "settings": {} },
+    { "id": "hd702", "name": "heading", "parent": "con702", "children": [], "settings": { "text": "Classes", "tag": "h2" } },
+    { "id": "grd702", "name": "div", "parent": "con702", "children": ["k1", "k2", "k3", "k4", "k5", "k6"], "settings": { "_display": "grid", "_gridTemplateColumns": "repeat(3, 1fr)", "_gridGap": "24px" } },
+    { "id": "k1", "name": "block", "parent": "grd702", "children": ["k1i", "k1h", "k1t"], "settings": {} },
+    { "id": "k1i", "name": "image", "parent": "k1", "children": [], "settings": { "image": { "id": 1011, "url": "https://example.com/wp-content/uploads/k1.jpg" } } },
+    { "id": "k1h", "name": "heading", "parent": "k1", "children": [], "settings": { "text": "Yoga", "tag": "h3" } },
+    { "id": "k1t", "name": "text-basic", "parent": "k1", "children": [], "settings": { "text": "Breath and balance." } },
+    { "id": "k2", "name": "block", "parent": "grd702", "children": ["k2i", "k2h", "k2t"], "settings": {} },
+    { "id": "k2i", "name": "image", "parent": "k2", "children": [], "settings": { "image": { "id": 1012, "url": "https://example.com/wp-content/uploads/k2.jpg" } } },
+    { "id": "k2h", "name": "heading", "parent": "k2", "children": [], "settings": { "text": "Pilates", "tag": "h3" } },
+    { "id": "k2t", "name": "text-basic", "parent": "k2", "children": [], "settings": { "text": "Core and control." } },
+    { "id": "k3", "name": "block", "parent": "grd702", "children": ["k3i", "k3h", "k3t"], "settings": {} },
+    { "id": "k3i", "name": "image", "parent": "k3", "children": [], "settings": { "image": { "id": 1013, "url": "https://example.com/wp-content/uploads/k3.jpg" } } },
+    { "id": "k3h", "name": "heading", "parent": "k3", "children": [], "settings": { "text": "Barre", "tag": "h3" } },
+    { "id": "k3t", "name": "text-basic", "parent": "k3", "children": [], "settings": { "text": "Strength at the bar." } },
+    { "id": "k4", "name": "block", "parent": "grd702", "children": ["k4i", "k4h", "k4t"], "settings": {} },
+    { "id": "k4i", "name": "image", "parent": "k4", "children": [], "settings": { "image": { "id": 1014, "url": "https://example.com/wp-content/uploads/k4.jpg" } } },
+    { "id": "k4h", "name": "heading", "parent": "k4", "children": [], "settings": { "text": "Stretch", "tag": "h3" } },
+    { "id": "k4t", "name": "text-basic", "parent": "k4", "children": [], "settings": { "text": "Long and slow." } },
+    { "id": "k5", "name": "block", "parent": "grd702", "children": ["k5i", "k5h", "k5t"], "settings": {} },
+    { "id": "k5i", "name": "image", "parent": "k5", "children": [], "settings": { "image": { "id": 1015, "url": "https://example.com/wp-content/uploads/k5.jpg" } } },
+    { "id": "k5h", "name": "heading", "parent": "k5", "children": [], "settings": { "text": "Prenatal", "tag": "h3" } },
+    { "id": "k5t", "name": "text-basic", "parent": "k5", "children": [], "settings": { "text": "Gentle and safe." } },
+    { "id": "k6", "name": "block", "parent": "grd702", "children": ["k6i", "k6h", "k6t"], "settings": {} },
+    { "id": "k6i", "name": "image", "parent": "k6", "children": [], "settings": { "image": { "id": 1016, "url": "https://example.com/wp-content/uploads/k6.jpg" } } },
+    { "id": "k6h", "name": "heading", "parent": "k6", "children": [], "settings": { "text": "Private", "tag": "h3" } },
+    { "id": "k6t", "name": "text-basic", "parent": "k6", "children": [], "settings": { "text": "One to one." } },
+
+    { "id": "sec703", "name": "section", "parent": 0, "children": ["con703"], "settings": { "_padding": { "top": "100", "bottom": "60" }, "_padding:tablet_portrait": { "top": "40" }, "_padding:mobile_portrait": { "top": "40", "bottom": "30" } } },
+    { "id": "con703", "name": "container", "parent": "sec703", "children": ["b1", "b2"], "settings": { "_display": "grid", "_gridTemplateColumns": "1fr 2fr", "_columnGap": "0" } },
+    { "id": "b1", "name": "block", "parent": "con703", "children": ["b1h"], "settings": { "_background": { "color": { "hex": "#2f5d50" } } } },
+    { "id": "b1h", "name": "heading", "parent": "b1", "children": [], "settings": { "text": "Opening hours", "tag": "h3" } },
+    { "id": "b2", "name": "block", "parent": "con703", "children": ["b2t"], "settings": { "_typography:mobile_portrait": { "text-align": "center" } } },
+    { "id": "b2t", "name": "text", "parent": "b2", "children": [], "settings": { "text": "<p>Monday to Friday 7:00–21:00.</p><p>Weekends 9:00–14:00.</p>" } },
+
+    { "id": "sec704", "name": "section", "parent": 0, "children": ["con704"], "settings": { "_background": { "videoUrl": "https://example.com/wp-content/uploads/loop.mp4" } } },
+    { "id": "con704", "name": "container", "parent": "sec704", "children": ["i1", "i2", "i3"], "settings": { "_direction": "row", "_width": "100%" } },
+    { "id": "i1", "name": "block", "parent": "con704", "children": [], "cid": "cmp001", "properties": { "p1": "Light", "p2": "Bright rooms" }, "settings": {} },
+    { "id": "i2", "name": "block", "parent": "con704", "children": [], "cid": "cmp001", "properties": { "p1": "Space", "p2": "Room to move" }, "settings": {} },
+    { "id": "i3", "name": "block", "parent": "con704", "children": [], "cid": "cmp001", "properties": { "p2": "Default title kept" }, "settings": {} },
+
+    { "id": "tpl705", "name": "template", "parent": 0, "children": [], "settings": { "template": 88 } },
+
+    { "id": "sec706", "name": "section", "parent": 0, "children": ["con706"], "settings": { "_background": { "color": { "raw": "var(--unknown-colour)" } } } },
+    { "id": "con706", "name": "container", "parent": "sec706", "children": ["tx706"], "settings": {} },
+    { "id": "tx706", "name": "text-basic", "parent": "con706", "children": [], "settings": { "text": "Default section padding comes from the theme style." } },
+
+    { "id": "cmx707", "name": "block", "parent": 0, "children": [], "cid": "missing-component", "settings": {} }
+  ]
+}

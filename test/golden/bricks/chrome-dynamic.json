@@ -1,0 +1,168 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec601",
+        "rawHash": "75fbfce217"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "From the journal",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec603",
+        "rawHash": "448fb43340"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Shown on desktop",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Members: check your inbox for the new timetable.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[logo] is rendered by the site (menu, logo, post data, filters), not migrated as content",
+      "path": "section#sec600/container#con600/logo#lg600",
+      "tag": "logo"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[nav-nested] is rendered by the site (menu, logo, post data, filters), not migrated as content",
+      "path": "section#sec600/container#con600/nav-nested#nn600",
+      "tag": "nav-nested"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[offcanvas] is rendered by the site (menu, logo, post data, filters), not migrated as content",
+      "path": "section#sec600/container#con600/offcanvas#oc600",
+      "tag": "offcanvas"
+    },
+    {
+      "level": "error",
+      "code": "dynamic",
+      "message": "[block] query loop over post entries is rendered from the site's data; needs a posts-listing section (not in the v1 library) or a decision in overrides.ts",
+      "path": "section#sec601/container#con601/block#lp601",
+      "carriesContent": true,
+      "tag": "block"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[filter-checkbox] is rendered by the site (menu, logo, post data, filters), not migrated as content",
+      "path": "section#sec601/container#con601/filter-checkbox#fc601",
+      "tag": "filter-checkbox"
+    },
+    {
+      "level": "error",
+      "code": "dynamic",
+      "message": "[posts] posts element over event entries is rendered from the site's data; needs a posts-listing section (not in the v1 library) or a decision in overrides.ts",
+      "path": "section#sec602/container#con602/posts#ps602",
+      "carriesContent": true,
+      "tag": "posts"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[heading] hidden on desktop (shown on smaller screens: usually a phone-only copy); not migrated",
+      "path": "section#sec603/container#con603/heading#hd604",
+      "tag": "heading"
+    },
+    {
+      "level": "info",
+      "code": "flagged",
+      "message": "[block] has display conditions in Bricks; its content is migrated unconditionally",
+      "path": "section#sec603/container#con603/block#bl603",
+      "tag": "block"
+    },
+    {
+      "level": "warn",
+      "code": "unmapped",
+      "message": "No handler for Bricks [countdown]",
+      "path": "section#sec604/container#con604/countdown#cd604",
+      "carriesContent": false,
+      "tag": "countdown"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "[lottie] dropped (decorative)",
+      "path": "section#sec604/container#con604/lottie#lt604",
+      "tag": "lottie"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "No handler for Bricks [wordpress] (carries content)",
+      "path": "section#sec604/container#con604/wordpress#wp604",
+      "carriesContent": true,
+      "tag": "wordpress"
+    }
+  ],
+  "forms": []
+}

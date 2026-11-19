@@ -1,0 +1,21 @@
+{
+  "kind": "partial",
+  "title": "Footer",
+  "elements": [
+    { "id": "f100", "name": "section", "parent": 0, "children": ["f101"], "settings": { "_background": { "color": { "hex": "#14181c" } }, "_typography": { "color": { "hex": "#f4ece2" } }, "_padding": { "top": "64", "bottom": "32" } } },
+    { "id": "f101", "name": "container", "parent": "f100", "children": ["f110", "f120", "f130"], "settings": { "_direction": "row", "_columnGap": "48px" } },
+    { "id": "f110", "name": "block", "parent": "f101", "children": ["f111", "f112"], "settings": { "_width": "50%" } },
+    { "id": "f111", "name": "logo", "parent": "f110", "children": [], "settings": { "logo": { "id": 901, "url": "https://example.com/wp-content/uploads/logo.svg" } } },
+    { "id": "f112", "name": "text-basic", "parent": "f110", "children": [], "settings": { "text": "A small studio for yoga and pilates." } },
+    { "id": "f120", "name": "block", "parent": "f101", "children": ["f121", "f122"], "settings": { "_width": "25%" } },
+    { "id": "f121", "name": "heading", "parent": "f120", "children": [], "settings": { "text": "Visit", "tag": "h4" } },
+    { "id": "f122", "name": "text", "parent": "f120", "children": [], "settings": { "text": "<p>1 Example Street<br>Springfield</p><p><a href=\"tel:+10000000000\">+1 000 000 0000</a></p>" } },
+    { "id": "f130", "name": "block", "parent": "f101", "children": ["f131", "f132", "f133"], "settings": { "_width": "25%" } },
+    { "id": "f131", "name": "heading", "parent": "f130", "children": [], "settings": { "text": "Explore", "tag": "h4" } },
+    { "id": "f132", "name": "nav-menu", "parent": "f130", "children": [], "settings": { "menu": "3" } },
+    { "id": "f133", "name": "social-icons", "parent": "f130", "children": [], "settings": { "icons": [ { "icon": { "library": "fontawesomeBrands", "icon": "fab fa-instagram" }, "label": "Instagram", "link": { "type": "external", "url": "https://instagram.com/example" } } ] } },
+    { "id": "f200", "name": "section", "parent": 0, "children": ["f201"], "settings": { "_background": { "color": { "hex": "#14181c" } }, "_typography": { "color": { "hex": "#f4ece2" }, "text-align": "center" }, "_padding": { "top": "16", "bottom": "16" } } },
+    { "id": "f201", "name": "container", "parent": "f200", "children": ["f202"], "settings": {} },
+    { "id": "f202", "name": "text-basic", "parent": "f201", "children": [], "settings": { "text": "© {current_date:Y} {site_title}. All rights reserved." } }
+  ]
+}

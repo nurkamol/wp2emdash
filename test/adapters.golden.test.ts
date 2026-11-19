@@ -7,7 +7,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { adaptBricks, type BricksElement } from "../src/adapters/bricks/index.js";
+import { adaptBricks, type BricksElement, bricksSite } from "../src/adapters/bricks/index.js";
 import { adaptGutenberg } from "../src/adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../src/adapters/wpbakery/index.js";
 import { Keys } from "../src/ir/portable-text.js";
@@ -23,10 +23,24 @@ const reusable = (id: number) => (id === 99 ? `<!-- wp:paragraph --><p>Shared no
 const adapters = {
 	wpbakery: (src: string) => adaptWpbakery(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0 }),
 	gutenberg: (src: string) => adaptGutenberg(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0, reusable }),
-	// Bricks fixtures: { elements, templates?: { [id]: elements } } — the post meta and the bricks_template posts.
+	// Bricks fixtures: { elements, templates?: { [id]: elements }, options?: { bricks_* }, kind?, title?, postCount?,
+	// permalinks?: { [postId]: path }, popups?: { [templateId]: slug } } — the post meta, the bricks_template posts,
+	// the Bricks options (palette, global classes, theme styles, components, breakpoints) and what transform knows.
 	bricks: (src: string) => {
-		const f = JSON.parse(src) as { elements: BricksElement[]; templates?: Record<string, BricksElement[]> };
-		return adaptBricks(f.elements, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0, template: (id) => f.templates?.[String(id)] });
+		const f = JSON.parse(src) as { elements: BricksElement[]; templates?: Record<string, BricksElement[]>; options?: Record<string, unknown>; kind?: "page" | "partial"; title?: string; postCount?: number; permalinks?: Record<string, string>; popups?: Record<string, string> };
+		return adaptBricks(f.elements, {
+			kind: f.kind ?? "page",
+			keys: new Keys("t"),
+			popupFor,
+			postCount: f.postCount ?? 0,
+			template: (id) => f.templates?.[String(id)],
+			site: bricksSite(f.options ?? {}),
+			postId: 10,
+			title: f.title ?? "Fixture page",
+			siteTitle: "Fixture Studio",
+			permalink: (id) => f.permalinks?.[String(id)],
+			popupSlug: (id) => f.popups?.[String(id)],
+		});
 	},
 };
 

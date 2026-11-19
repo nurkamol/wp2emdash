@@ -1,0 +1,51 @@
+{
+  "elements": [
+    { "id": "sec500", "name": "section", "parent": 0, "children": ["con500"], "settings": {} },
+    { "id": "con500", "name": "container", "parent": "sec500", "children": ["hd500", "tx500", "fm500"], "settings": {} },
+    { "id": "hd500", "name": "heading", "parent": "con500", "children": [], "settings": { "text": "Get in touch", "tag": "h2" } },
+    { "id": "tx500", "name": "text-basic", "parent": "con500", "children": [], "settings": { "text": "We answer within a day." } },
+    { "id": "fm500", "name": "form", "parent": "con500", "children": [], "label": "Contact form", "settings": {
+      "fields": [
+        { "id": "f1", "type": "text", "label": "First name", "placeholder": "Your first name", "width": "50" },
+        { "id": "f2", "type": "text", "label": "Last name", "width": "50" },
+        { "id": "f3", "type": "email", "label": "Email", "placeholder": "you@example.com", "required": true },
+        { "id": "f4", "type": "tel", "label": "Phone" },
+        { "id": "f5", "type": "select", "label": "Class", "options": "yoga:Yoga\npilates:Pilates", "valueLabelOptions": true },
+        { "id": "f6", "type": "radio", "label": "Level", "options": "Beginner\nAdvanced" },
+        { "id": "f7", "type": "checkbox", "label": "Newsletter", "options": "Send me the monthly newsletter" },
+        { "id": "f8", "type": "textarea", "label": "Message", "required": true },
+        { "id": "f9", "type": "file", "label": "Attachment" },
+        { "id": "f10", "type": "text", "label": "Leave empty", "isHoneypot": true },
+        { "id": "f11", "type": "hidden", "name": "source", "value": "{url}" },
+        { "id": "f12", "type": "datepicker", "label": "Preferred date", "description": "We confirm by email" }
+      ],
+      "submitButtonText": "Send message",
+      "actions": ["email", "redirect"],
+      "successMessage": "Thanks! We will reply soon.",
+      "emailTo": "custom",
+      "emailToCustom": "owner@example.invalid",
+      "emailSubject": "Website enquiry"
+    } },
+
+    { "id": "sec501", "name": "section", "parent": 0, "children": ["con501"], "settings": {} },
+    { "id": "con501", "name": "container", "parent": "sec501", "children": ["fm501"], "settings": {} },
+    { "id": "fm501", "name": "form", "parent": "con501", "children": [], "settings": { "fields": [ { "id": "n1", "type": "email", "label": "Email", "required": true } ], "actions": ["mailchimp"] } },
+
+    { "id": "sec502", "name": "section", "parent": 0, "children": ["con502"], "settings": {} },
+    { "id": "con502", "name": "container", "parent": "sec502", "children": ["sc502", "tx502"], "settings": {} },
+    { "id": "sc502", "name": "shortcode", "parent": "con502", "children": [], "settings": { "shortcode": "[fluentform id=\"3\"]" } },
+    { "id": "tx502", "name": "text", "parent": "con502", "children": [], "settings": { "text": "<p>Or book online:</p>\n[contact-form-7 id=\"44\" title=\"Booking\"]" } },
+
+    { "id": "sec503", "name": "section", "parent": 0, "children": ["con503"], "settings": {} },
+    { "id": "con503", "name": "container", "parent": "sec503", "children": ["ht503"], "settings": {} },
+    { "id": "ht503", "name": "html", "parent": "con503", "children": [], "settings": { "html": "<iframe src=\"https://calendly.com/example/intro\" width=\"100%\" height=\"600\"></iframe>" } },
+
+    { "id": "sec504", "name": "section", "parent": 0, "children": ["con504"], "settings": {} },
+    { "id": "con504", "name": "container", "parent": "sec504", "children": ["cd504"], "settings": {} },
+    { "id": "cd504", "name": "code", "parent": "con504", "children": [], "settings": { "code": "<div class=\"price-calc\"><?php echo do_shortcode('[calc]'); ?></div>", "executeCode": true } },
+
+    { "id": "sec505", "name": "section", "parent": 0, "children": ["con505"], "settings": {} },
+    { "id": "con505", "name": "container", "parent": "sec505", "children": ["cd505"], "settings": {} },
+    { "id": "cd505", "name": "code", "parent": "con505", "children": [], "settings": { "code": "<div class=\"note\">Prices include VAT.</div>" } }
+  ]
+}
