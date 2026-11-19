@@ -138,6 +138,9 @@ export const kitConfigSchema = z.object({
 		])
 		.optional(),
 
+	/** Experimental: branded sharing cards (og:image) rendered in the Worker (@wp2emdash/og). Off unless set. */
+	og: z.object({ cards: z.boolean().default(false) }).default({ cards: false }),
+
 	forms: z
 		.object({
 			/**

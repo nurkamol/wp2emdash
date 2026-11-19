@@ -5,5 +5,5 @@ export default defineConfig({
 	// which is only installed in generated projects, so the transform skips tsconfig lookup.
 	oxc: { tsconfig: false },
 	// Starter modules that run inside the generated site import these; tests use small stand-ins.
-	resolve: { alias: { emdash: new URL("./test/stubs/emdash.ts", import.meta.url).pathname, "cloudflare:workers": new URL("./test/stubs/cloudflare-workers.ts", import.meta.url).pathname } },
+	resolve: { alias: { emdash: new URL("./test/stubs/emdash.ts", import.meta.url).pathname, "cloudflare:workers": new URL("./test/stubs/cloudflare-workers.ts", import.meta.url).pathname, "@cf-wasm/satori": new URL("./test/stubs/cf-wasm-satori.ts", import.meta.url).pathname, "@cf-wasm/resvg": new URL("./test/stubs/cf-wasm-resvg.ts", import.meta.url).pathname } },
 });

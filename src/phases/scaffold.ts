@@ -5,6 +5,8 @@
  * an owner-approved step (load, M6).
  */
 import { spawn } from "node:child_process";
+import type { OgCardOptions } from "../../packages/og/src/index.js";
+import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { MenuCapture } from "../audit/interactions.js";
@@ -200,6 +202,20 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		}
 	}
 	write(join(project, "src", "styles", "fonts.css"), fontsCss);
+	// Experimental sharing cards (@wp2emdash/og): fonts as TTF, colours from the tokens, the logo; off unless og.cards.
+	rmSync(join(project, "packages", "og"), { recursive: true, force: true });
+	let og: OgCardOptions | undefined;
+	if (config.og.cards) {
+		try {
+			const productionHost = new URL(siteConfig.productionUrl).host.replace(/^www\./, "");
+			og = { siteName: config.name, domain: productionHost, ...(brand.logo?.startsWith("/") ? { logo: brand.logo } : {}), colors: ogColors(tokens.css), fonts: await ogFonts(join(project, "public"), { display: siteConfig.fonts.display, body: siteConfig.fonts.body, ...(siteConfig.fonts.displayWeight ? { displayWeight: siteConfig.fonts.displayWeight } : {}) }), ...(siteConfig.fonts.displayWeight ? { displayWeight: siteConfig.fonts.displayWeight } : {}) };
+			cpSync(join(KIT_ROOT, "packages", "og"), join(project, "packages", "og"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
+			(siteConfig as { ogCards?: boolean }).ogCards = true;
+			reporter.emit({ type: "log", level: "info", message: "sharing cards on (@wp2emdash/og)" });
+		} catch (e) {
+			reporter.emit({ type: "log", level: "warn", message: `sharing cards off: ${(e as Error).message}` });
+		}
+	}
 	write(join(project, "src", "site.config.json"), siteConfig);
 	write(join(project, "src", "styles", "tokens.css"), tokens.css + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);
@@ -256,6 +272,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			"@astrojs/react": STACK["@astrojs/react"],
 			"@emdash-cms/cloudflare": STACK["@emdash-cms/cloudflare"],
 			"@wp2emdash/forms": "link:./packages/forms",
+			...(og ? { "@wp2emdash/og": "link:./packages/og", ...OG_DEPENDENCIES } : {}),
 			astro: STACK.astro,
 			emdash: STACK.emdash,
 			react: STACK.react,
@@ -270,7 +287,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}
+import emdash from "emdash/astro";${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}
 
 export default defineConfig({
 	site: ${JSON.stringify(siteConfig.productionUrl)},
@@ -285,9 +302,9 @@ export default defineConfig({
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
-			mcp: false,${config.forms.outbox ? `
-			// Admin → Form messages: the form outbox, admins only (@wp2emdash/forms, packages/forms).
-			plugins: [formsPlugin()],` : ""}
+			mcp: false,${config.forms.outbox || og ? `
+			// Admin plugins: Form messages (form outbox, admins only — @wp2emdash/forms) and Sharing images (@wp2emdash/og).
+			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : ""].filter(Boolean).join(", ")}],` : ""}
 		}),
 	],
 	devToolbar: { enabled: false },

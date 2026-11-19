@@ -1,0 +1,21 @@
+{
+  "name": "@wp2emdash/og",
+  "version": "0.1.0",
+  "description": "Branded sharing images (og:image) for EmDash sites on Cloudflare Workers: rendered in the Worker, cached in R2, set in the page head",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./card": "./src/card.ts",
+    "./plugin": "./src/plugin/index.ts"
+  },
+  "files": ["src", "README.md"],
+  "peerDependencies": {
+    "emdash": ">=1.5 <2",
+    "@cf-wasm/satori": "0.4.2",
+    "@cf-wasm/resvg": "0.4.0"
+  },
+  "engines": { "node": ">=24" }
+}

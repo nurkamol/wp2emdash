@@ -21,6 +21,12 @@
       ],
       "astro": [
         "./test/stubs/astro.ts"
+      ],
+      "@cf-wasm/satori": [
+        "./test/stubs/cf-wasm-satori.ts"
+      ],
+      "@cf-wasm/resvg": [
+        "./test/stubs/cf-wasm-resvg.ts"
       ]
     }
   },
