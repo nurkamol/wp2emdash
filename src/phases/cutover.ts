@@ -10,6 +10,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type GateCheck, phaseState, readState } from "../core/state.js";
+import { credentialsFor } from "../commands/provision.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import type { PhaseContext } from "./index.js";
 
@@ -47,7 +48,9 @@ export async function runCutover({ config, paths, reporter }: PhaseContext): Pro
 	const domain = new URL(config.target.productionUrl).host.replace(/^www\./, "");
 	const apexFirst = config.target.canonicalHost === "apex";
 	const cfRes = readJson<CfResources>(join(paths.root, "cloudflare.json")) ?? {};
-	const accountId = env.CLOUDFLARE_ACCOUNT_ID ?? cfRes.accountId;
+	// Production may run in another account than staging (e.g. the client's own): its own token and account first.
+	const prodCreds = credentialsFor("production", env, cfRes as Parameters<typeof credentialsFor>[2]);
+	const accountId = prodCreds.accountId;
 	const worker = cfRes.production?.worker?.name ?? config.slug.replace(/[^a-z0-9-]/g, "-");
 	const outDir = join(paths.root, "cutover");
 	mkdirSync(outDir, { recursive: true });
@@ -66,7 +69,7 @@ export async function runCutover({ config, paths, reporter }: PhaseContext): Pro
 	check("production-resources", "Production D1 and R2 created (separate from staging)", !!prod?.d1?.id && !!prod?.r2?.bucket, prod?.d1?.id ? `${prod.d1.name}, ${prod.r2?.bucket ?? "no bucket"}` : `Create with the build token: npx wrangler d1 create ${worker}-db --location <loc>; npx wrangler r2 bucket create ${worker}-media --location <loc>; record them in cloudflare.json → production`);
 
 	// 3. Production Worker and its secrets (names only — values are never read).
-	const token = env.CLOUDFLARE_API_TOKEN;
+	const token = prodCreds.token;
 	const hasForms = existsSync(join(paths.project, "src", "forms"));
 	// Outbox on hold (owner decision): messages wait in KV, so no email key is needed until it is released.
 	const held = !!config.forms.outbox?.hold;
@@ -88,10 +91,12 @@ export async function runCutover({ config, paths, reporter }: PhaseContext): Pro
 	let records: DnsRecord[] = [];
 	if (!golive) check("zone", `Zone ${domain} on Cloudflare (go-live token)`, false, "Create the go-live token (docs/cloudflare-api-token.md, token B) and set CLOUDFLARE_GOLIVE_TOKEN in sites/<slug>/.env");
 	else {
-		const z = await cf<{ id: string; status: string; name: string }[]>(golive, `/zones?name=${domain}`);
+		const z = await cf<{ id: string; status: string; name: string; account?: { id: string; name?: string } }[]>(golive, `/zones?name=${domain}`);
 		const zone = z.result?.[0];
 		zoneId = zone?.id;
 		check("zone", `Zone ${domain} on Cloudflare (go-live token)`, !!zone && zone.status === "active", zone ? `status ${zone.status}` : (z.error ?? "zone not visible to the go-live token"));
+		// Worker routes only reach a Worker in the zone's own account.
+		if (zone?.account?.id) check("same-account", "Production Worker in the domain's Cloudflare account", zone.account.id === accountId, zone.account.id === accountId ? `${zone.account.name ?? zone.account.id}` : `The domain is in "${zone.account.name ?? zone.account.id}", production in ${accountId ?? "no account"}: provision production there (pnpm wp2emdash provision <slug> production with CLOUDFLARE_API_TOKEN_PRODUCTION / CLOUDFLARE_ACCOUNT_ID_PRODUCTION), deploy, load, verify.`);
 		if (zoneId) {
 			const r = await cf<DnsRecord[]>(golive, `/zones/${zoneId}/dns_records?per_page=500`);
 			records = r.result ?? [];

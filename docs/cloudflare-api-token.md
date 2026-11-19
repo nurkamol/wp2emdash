@@ -104,6 +104,40 @@ pnpm wp2emdash doctor         # verifies the token with Cloudflare; never prints
 
 ## Client-owned Cloudflare accounts
 
-If a client hosts the site on their own Cloudflare account, create token A **in their account**
-(they invite you, or create it and share it through a password manager) and put it in
-`sites/<slug>/.env`; it overrides the kit-level token for that site only.
+**Worker routes only reach a Worker in the domain's own account.** If the client's domain is in their
+Cloudflare account, production has to run there too (the cutover preflight checks this: `same-account`).
+Staging can stay in your account.
+
+1. The client's account needs **Workers Paid** (Workers & Pages → Plans). The zone itself can stay on Free.
+2. Create token A **in the client's account** (Account Resources: that account only) and token B
+   scoped to their zone.
+3. In `sites/<slug>/.env`, with the environment suffix so staging keeps using your kit-level token:
+
+   ```bash
+   CLOUDFLARE_API_TOKEN_PRODUCTION=<token A, client account>
+   CLOUDFLARE_ACCOUNT_ID_PRODUCTION=<client account id>
+   CLOUDFLARE_GOLIVE_TOKEN=<token B>
+   ```
+
+4. `pnpm wp2emdash provision <slug> production` creates the D1 database, R2 bucket and form outbox there
+   (same names, same location), records them in `cloudflare.json` → `production`, and keeps the old
+   production entries under `production.previous` (it never deletes anything; remove the old resources
+   by hand after the monitoring window).
+5. `pnpm wp2emdash run <slug> scaffold`, then deploy with the production pair:
+
+   ```bash
+   cd sites/<slug>/project
+   ( set -a && . ../.env && set +a && CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN_PRODUCTION \
+     CLOUDFLARE_ACCOUNT_ID=$CLOUDFLARE_ACCOUNT_ID_PRODUCTION pnpm deploy:production )
+   ```
+
+   Set the Worker secrets again there (`wrangler secret put`, same pair), sign in once at the new
+   workers.dev `/_emdash/admin`, create `EMDASH_TOKEN_PRODUCTION`, then load and verify (staging-setup.md §7).
+   For GitHub deploys, put token A and the account id on the repository's **production environment**
+   (environment secrets/variables override repository ones), not the repository level.
+
+If the whole site (staging included) lives in the client's account, put the plain `CLOUDFLARE_API_TOKEN` /
+`CLOUDFLARE_ACCOUNT_ID` in `sites/<slug>/.env` instead: they override the kit-level pair for that site only.
+
+Never give a token "All accounts" or "All zones" when you are a member of several client accounts: a
+mistake with it can reach every other client.

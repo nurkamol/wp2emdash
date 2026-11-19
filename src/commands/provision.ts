@@ -1,0 +1,138 @@
+/**
+ * `wp2emdash provision <slug> <staging|production>`: create the Cloudflare resources an environment needs — D1
+ * database, R2 media bucket, KV form outbox (when the site keeps one) — in the account that environment runs in, and
+ * record them in sites/<slug>/cloudflare.json. Idempotent (an existing resource with the same name is reused) and
+ * never deletes anything: when the environment moves to another account, the old entries are kept under `previous`
+ * so they can be removed later, once the new environment serves traffic.
+ *
+ * Credentials: `CLOUDFLARE_API_TOKEN_<ENV>` / `CLOUDFLARE_ACCOUNT_ID_<ENV>` from the site's .env when set (an
+ * environment in a different account, e.g. production in the client's own account), else `CLOUDFLARE_API_TOKEN` /
+ * `CLOUDFLARE_ACCOUNT_ID`. Token permissions: docs/cloudflare-api-token.md (token A).
+ */
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { loadConfig } from "../config/load.js";
+import { sitePaths } from "../core/paths.js";
+import { loadSiteEnv } from "../extract/credentials.js";
+
+const API = "https://api.cloudflare.com/client/v4";
+export type Env = "staging" | "production";
+
+export interface EnvResources {
+	accountId?: string;
+	accountName?: string;
+	d1?: { name: string; id: string; location?: string; fingerprint?: string };
+	r2?: { bucket: string; location?: string };
+	outbox?: { name: string; id: string };
+	worker?: { name?: string; url?: string; addresses?: string[] };
+	live?: boolean;
+	previous?: Omit<EnvResources, "previous">[];
+	[k: string]: unknown;
+}
+
+/** Token and account for an environment: the environment-specific pair when set, else the shared one. */
+export function credentialsFor(env: Env, vars: Record<string, string | undefined>, cf: { accountId?: string } & Partial<Record<Env, EnvResources>> = {}): { token?: string; accountId?: string; scoped: boolean } {
+	const suffix = env.toUpperCase();
+	const token = vars[`CLOUDFLARE_API_TOKEN_${suffix}`];
+	const account = vars[`CLOUDFLARE_ACCOUNT_ID_${suffix}`];
+	if (token || account) return { token: token ?? vars.CLOUDFLARE_API_TOKEN, accountId: account ?? cf[env]?.accountId ?? vars.CLOUDFLARE_ACCOUNT_ID, scoped: true };
+	return { token: vars.CLOUDFLARE_API_TOKEN, accountId: cf[env]?.accountId ?? vars.CLOUDFLARE_ACCOUNT_ID ?? cf.accountId, scoped: false };
+}
+
+export interface ProvisionResult {
+	env: Env;
+	accountId: string;
+	accountName?: string;
+	created: string[];
+	reused: string[];
+	movedFrom?: string;
+	workersSubdomain?: string;
+	notes: string[];
+}
+
+export async function provision(slug: string, env: Env, opts: { location?: string; sitesDir?: string; vars?: Record<string, string | undefined> } = {}, fetcher: typeof fetch = fetch): Promise<ProvisionResult> {
+	const paths = opts.sitesDir ? sitePaths(slug, opts.sitesDir) : sitePaths(slug);
+	const config = await loadConfig(paths.config);
+	const vars = opts.vars ?? ({ ...process.env, ...loadSiteEnv(paths.root) } as Record<string, string | undefined>);
+	const cfFile = join(paths.root, "cloudflare.json");
+	const cf = (existsSync(cfFile) ? JSON.parse(readFileSync(cfFile, "utf8")) : {}) as { accountId?: string; accountName?: string } & Partial<Record<Env, EnvResources>>;
+	const { token, accountId } = credentialsFor(env, vars, cf);
+	if (!token || !accountId) throw new Error(`No Cloudflare token/account for ${env}: set CLOUDFLARE_API_TOKEN${env === "production" ? "_PRODUCTION" : ""} and CLOUDFLARE_ACCOUNT_ID${env === "production" ? "_PRODUCTION" : ""} (docs/cloudflare-api-token.md).`);
+	const call = async <T>(method: string, path: string, body?: unknown): Promise<{ ok: boolean; status: number; result?: T; errors?: { code: number; message: string }[] }> => {
+		const res = await fetcher(`${API}${path}`, { method, headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+		const j = (await res.json().catch(() => ({}))) as { success?: boolean; result?: T; errors?: { code: number; message: string }[] };
+		return { ok: res.ok && j.success !== false, status: res.status, ...(j.result !== undefined ? { result: j.result } : {}), ...(j.errors ? { errors: j.errors } : {}) };
+	};
+	const fail = (what: string, r: { status: number; errors?: { message: string }[] }) => new Error(`${what}: ${r.errors?.map((e) => e.message).join("; ") || `HTTP ${r.status}`}`);
+
+	const account = await call<{ name: string }>("GET", `/accounts/${accountId}`);
+	if (!account.ok) throw fail("The token cannot read this account (Account Settings: Read)", account);
+	const current: EnvResources = { ...(cf[env] ?? {}) };
+	// Legacy files keep one top-level account for every environment.
+	const currentAccount = current.accountId ?? cf.accountId;
+	const result: ProvisionResult = { env, accountId, ...(account.result?.name ? { accountName: account.result.name } : {}), created: [], reused: [], notes: [] };
+	let next: EnvResources = { ...current };
+	if (currentAccount && currentAccount !== accountId && (current.d1 || current.r2 || current.worker)) {
+		const { previous: _p, ...old } = current;
+		next = { ...(current.live !== undefined ? { live: false } : {}), previous: [...(current.previous ?? []), { ...old, accountId: currentAccount, ...(cf.accountName && !current.accountId ? { accountName: cf.accountName } : {}) }] };
+		result.movedFrom = currentAccount;
+	}
+	next.accountId = accountId;
+	if (account.result?.name) next.accountName = account.result.name;
+	const location = opts.location ?? current.d1?.location ?? current.r2?.location ?? "enam";
+	const names = env === "production" ? { d1: `${slug}-db`, r2: `${slug}-media`, kv: `${slug}-form-outbox` } : { d1: `${slug}-staging-db`, r2: `${slug}-stg-media`, kv: `${slug}-staging-form-outbox` };
+
+	// D1
+	const d1Name = next.d1?.name ?? names.d1;
+	const found = await call<{ uuid: string; name: string }[]>("GET", `/accounts/${accountId}/d1/database?name=${encodeURIComponent(d1Name)}`);
+	const hit = found.result?.find((d) => d.name === d1Name);
+	if (hit) {
+		next.d1 = { ...(next.d1?.id === hit.uuid ? next.d1 : {}), name: d1Name, id: hit.uuid, location };
+		result.reused.push(`D1 ${d1Name}`);
+	} else {
+		const made = await call<{ uuid: string }>("POST", `/accounts/${accountId}/d1/database`, { name: d1Name, primary_location_hint: location });
+		if (!made.ok || !made.result) throw fail(`Creating D1 ${d1Name} (D1: Edit)`, made);
+		next.d1 = { name: d1Name, id: made.result.uuid, location };
+		result.created.push(`D1 ${d1Name}`);
+		result.notes.push("New database: after the first `emdash migrate`, record its target fingerprint as d1.fingerprint (docs/staging-setup.md §6).");
+	}
+
+	// R2
+	const bucket = next.r2?.bucket ?? names.r2;
+	const existing = await call("GET", `/accounts/${accountId}/r2/buckets/${encodeURIComponent(bucket)}`);
+	if (existing.ok) result.reused.push(`R2 ${bucket}`);
+	else {
+		const made = await call("POST", `/accounts/${accountId}/r2/buckets`, { name: bucket, locationHint: location });
+		if (!made.ok) throw fail(`Creating R2 bucket ${bucket} (Workers R2 Storage: Edit)`, made);
+		result.created.push(`R2 ${bucket}`);
+	}
+	next.r2 = { bucket, location };
+
+	// KV form outbox (only for sites that keep one)
+	if (config.forms.outbox) {
+		const title = next.outbox?.name ?? names.kv;
+		const list = await call<{ id: string; title: string }[]>("GET", `/accounts/${accountId}/storage/kv/namespaces?per_page=100`);
+		const ns = list.result?.find((n) => n.title === title);
+		if (ns) {
+			next.outbox = { name: title, id: ns.id };
+			result.reused.push(`KV ${title}`);
+		} else {
+			const made = await call<{ id: string }>("POST", `/accounts/${accountId}/storage/kv/namespaces`, { title });
+			if (!made.ok || !made.result) throw fail(`Creating KV namespace ${title} (Workers KV Storage: Edit)`, made);
+			next.outbox = { name: title, id: made.result.id };
+			result.created.push(`KV ${title}`);
+		}
+	}
+
+	// workers.dev subdomain: the Worker's preview address until the switch.
+	const sub = await call<{ subdomain?: string }>("GET", `/accounts/${accountId}/workers/subdomain`);
+	if (sub.result?.subdomain) {
+		result.workersSubdomain = sub.result.subdomain;
+		const worker = env === "production" ? slug : `${slug}-staging`;
+		next.worker = { name: worker, url: `https://${worker}.${sub.result.subdomain}.workers.dev` };
+	} else result.notes.push("The account has no workers.dev subdomain yet: open Workers & Pages once in the dashboard (it offers one) before the first deploy.");
+
+	cf[env] = next;
+	writeFileSync(cfFile, `${JSON.stringify(cf, null, 2)}\n`);
+	return result;
+}

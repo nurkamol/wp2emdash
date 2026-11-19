@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import pc from "picocolors";
 import { cloudflareTokenCheck, doctor } from "../commands/doctor.js";
+import { provision } from "../commands/provision.js";
 import { initSite, validateSlug, validateUrl } from "../commands/init.js";
 import { acceptPhase, runPhase } from "../commands/run.js";
 import { formatTimeline, listSites, statusJson } from "../commands/status.js";
@@ -90,6 +91,22 @@ program
 	.description("List pipeline phases")
 	.action(() => {
 		for (const p of PHASES) console.log(`${pc.bold(p.id.padEnd(10))} ${p.milestone}  ${p.summary}`);
+	});
+
+program
+	.command("provision <slug> <env>")
+	.description("Create an environment's Cloudflare resources (D1, R2, KV outbox) in its account and record them in cloudflare.json")
+	.option("--location <hint>", "D1/R2 location: enam, wnam, weur, eeur, apac, oc (default: the environment's current one, else enam)")
+	.option("--json")
+	.action(async (slug: string, env: string, o: { location?: string; json?: boolean }) => {
+		if (env !== "staging" && env !== "production") throw new Error("env must be staging or production");
+		const r = await provision(slug, env, o.location ? { location: o.location } : {});
+		if (o.json) return console.log(JSON.stringify(r, null, 2));
+		console.log(`${pc.bold(env)} in ${r.accountName ?? r.accountId}${r.movedFrom ? pc.dim(` (moved from ${r.movedFrom}; old resources kept under previous)`) : ""}`);
+		for (const c of r.created) console.log(`${pc.green("+")} ${c}`);
+		for (const c of r.reused) console.log(`${pc.dim("=")} ${c}`);
+		if (r.workersSubdomain) console.log(`${pc.dim("workers.dev:")} ${r.workersSubdomain}`);
+		for (const n of r.notes) console.log(`${pc.yellow("!")} ${n}`);
 	});
 
 program

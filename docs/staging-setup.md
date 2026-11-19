@@ -177,6 +177,10 @@ The client project's `docs/deployment.md` repeats this for whoever maintains the
 
 ## 7. Production before the switch
 
+If the client's domain is in their own Cloudflare account, production must run in that account (Worker routes
+only reach a Worker in the zone's account): see *Client-owned Cloudflare accounts* in `cloudflare-api-token.md`
+(`pnpm wp2emdash provision <slug> production`).
+
 Production is deployed the same way (GitHub Actions → Run workflow → `production`, or `pnpm deploy:production`)
 and first serves only its workers.dev address — noindex there, analytics off (both key on the production domain).
 Record the address in `cloudflare.json` → `production.worker.url`, sign in once at its `/_emdash/admin` (step 3),
