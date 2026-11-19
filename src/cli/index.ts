@@ -3,6 +3,7 @@ import { Command } from "commander";
 import pc from "picocolors";
 import { cloudflareTokenCheck, doctor, encryptionKeyCheck } from "../commands/doctor.js";
 import { provision } from "../commands/provision.js";
+import { importOptions } from "../commands/import-options.js";
 import { initSite, validateSlug, validateUrl } from "../commands/init.js";
 import { acceptPhase, runPhase } from "../commands/run.js";
 import { formatTimeline, listSites, statusJson } from "../commands/status.js";
@@ -149,6 +150,16 @@ program
 	.action(async () => {
 		const { serveMcp } = await import("../mcp/server.js");
 		await serveMcp();
+	});
+
+program
+	.command("import-options <slug> <dump>")
+	.description("Read builder settings the REST API does not serve (Bricks palette, global classes, theme styles, components) from a backup's database.sql into raw/; credentials are dropped")
+	.action(async (slug: string, dump: string) => {
+		const r = await importOptions(slug, dump);
+		console.log(`${pc.green("✔")} ${r.file}: ${r.found.join(", ") || "nothing found"}`);
+		if (r.missing.length) console.log(pc.dim(`not in the dump: ${r.missing.join(", ")}`));
+		if (r.dropped.length) console.log(pc.yellow(`left out (look like credentials): ${r.dropped.join(", ")}`));
 	});
 
 program
