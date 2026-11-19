@@ -96,7 +96,7 @@ describe("Bricks layout tokens", () => {
 		expect(css).not.toContain("@media"); // 36.2px at 768 is on the phone→desktop line
 		expect(bricksLayoutTokens(undefined)).toBe("");
 		expect(bricksLayoutTokens({})).toBe("");
-		expect(bricksLayoutTokens({ link: { color: "#1F442C", underline: false } })).toContain(".section .prose a:not(.btn) { color: #1F442C; }");
+		expect(bricksLayoutTokens({ link: { color: "#2D3E5F", underline: false } })).toContain(".section .prose a:not(.btn) { color: #2D3E5F; }");
 	});
 	it("uses the measured gaps per screen for a title box over a post-content box", () => {
 		const page: BricksElement[] = [
@@ -158,7 +158,7 @@ describe("Bricks header look", () => {
 				{ id: "oc", name: "offcanvas-inner", settings: { _padding: { left: "var(--space-m)" }, _rowGap: "var(--space-xl)" } },
 				{ id: "cl", name: "close", settings: { _top: "var(--space-l)", iconSize: "42" } },
 			],
-			bricks_color_palette: [{ id: "p", colors: [{ id: "green", hex: "#1f442c" }, { id: "light", hex: "#4b8352" }, { id: "white", hex: "#ffffff" }] }],
+			bricks_color_palette: [{ id: "p", colors: [{ id: "green", hex: "#2d3e5f" }, { id: "light", hex: "#3c6e8f" }, { id: "white", hex: "#ffffff" }] }],
 		},
 		liveVariables([390, 1440].map((width) => ({ width, rootFontSize: 16, variables: { "--space-s": "clamp(1.125rem, calc(0.1vw + 1.1rem), 1.25rem)", "--space-m": "clamp(1.5rem, calc(0.5964vw + 1.3658rem), 1.875rem)", "--space-l": "2rem", "--space-xl": "clamp(2.7rem, calc(2.3vw + 2.15rem), 4.2rem)" } }))),
 	);
@@ -186,8 +186,8 @@ describe("Bricks header look", () => {
 		expect(look.navGap).toBe("32px");
 		expect(look.buttonsHidePhone).toBe(true);
 		expect(look.buttons).toEqual([
-			{ label: "Contact Us", bg: "#1f442c", color: "#ffffff", radius: 100, padY: 12, padX: 30 },
-			{ label: "Book Now", bg: "#4b8352", color: "#ffffff", radius: 100, padY: 12, padX: 30 },
+			{ label: "Contact Us", bg: "#2d3e5f", color: "#ffffff", radius: 100, padY: 12, padX: 30 },
+			{ label: "Book Now", bg: "#3c6e8f", color: "#ffffff", radius: 100, padY: 12, padX: 30 },
 		]);
 		expect(look.panel).toMatchObject({ pad: "clamp(24.18px, 22.02px + 0.554vw, 30px)", closeInset: "32px", closeSize: 42, logoHeight: 100, width: 756, buttonsGap: "18px" });
 		expect(look.panel?.buttons?.map((b) => [b.label, b.padY])).toEqual([
