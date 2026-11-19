@@ -7,10 +7,19 @@ import Md from "../Md.astro";
 import { Image } from "emdash/ui";
 const SPACE = /^\d+(?:\.\d+)?(?:px|%)$/;
 const { value: v } = Astro.props as { value: Record<string, any> };
+// Builder flex stack (Bricks): picture width cap, gap between items, rows of links, text sizes.
+const int = (x: unknown, lo: number, hi: number) => (typeof x === "number" && Number.isInteger(x) && x >= lo && x <= hi ? x : undefined);
+const stackVars = (n: number) => {
+	const w = /^\d+(?:\.\d+)?px$/.test(v[`col_${n}_image_width`] ?? "") ? v[`col_${n}_image_width`] : undefined;
+	const PXV = /^\d+(?:\.\d+)?px$/;
+	const out = [w && `--col-image-w:${w}`, PXV.test(v[`col_${n}_image_height`] ?? "") && `--col-image-h:${v[`col_${n}_image_height`]}`, PXV.test(v[`col_${n}_image_height_phone`] ?? "") && `--col-image-h-p:${v[`col_${n}_image_height_phone`]}`, int(v[`col_${n}_image_space`], 1, 200) && `--col-image-space:${v[`col_${n}_image_space`]}px`, int(v[`col_${n}_social_icons`], 0, 100) !== undefined && `--col-icon-gap:${v[`col_${n}_social_icons`]}px`, int(v[`col_${n}_item_gap`], 0, 200) !== undefined && `--col-item-gap:${v[`col_${n}_item_gap`]}px`, int(v[`col_${n}_link_gap`], 0, 100) !== undefined && `--col-link-gap:${v[`col_${n}_link_gap`]}px`, int(v[`col_${n}_link_size`], 10, 40) && `--col-link-size:${v[`col_${n}_link_size`]}px`, int(v[`col_${n}_text_size`], 10, 40) && `--col-text-size:${v[`col_${n}_text_size`]}px`];
+	return out.filter((x): x is string => typeof x === "string");
+};
+const stackOf = (n: number) => ({ image: /^\d+(?:\.\d+)?px$/.test(v[`col_${n}_image_width`] ?? ""), items: int(v[`col_${n}_item_gap`], 0, 200) !== undefined, links: int(v[`col_${n}_link_gap`], 0, 100) !== undefined, size: !!int(v[`col_${n}_text_size`], 10, 40), social: int(v[`col_${n}_social_icons`], 0, 100) !== undefined, after: v[`col_${n}_image_after`] === true, mid: v[`col_${n}_items_center`] === true, tall: /^\d+(?:\.\d+)?px$/.test(v[`col_${n}_image_height`] ?? "") });
 // First picture of the page's lead section (Sections.astro): loaded right away.
 const leadCol = v._lead === true && !v.bg_image ? [1, 2, 3, 4].find((n) => v[`col_${n}_image`] || v[`col_${n}_bg_image`]) : undefined;
 const cols = [1, 2, 3, 4]
-	.map((n) => ({ lead: n === leadCol, body: v[`col_${n}_body`], image: v[`col_${n}_image`], buttons: v[`col_${n}_buttons`], bgImage: v[`col_${n}_bg_image`], bgColor: v[`col_${n}_bg_color`], width: v[`col_${n}_width`], circle: /^\d+(?:\.\d+)?(?:px|rem|vw)$/.test(v[`col_${n}_image_circle`] ?? "") ? v[`col_${n}_image_circle`] : undefined, center: v[`col_${n}_align`] === "center", dots: v[`col_${n}_list`] === "dots", right: v[`col_${n}_align`] === "right", vars: [["--col-inset-end", v[`col_${n}_inset_end`]], ["--col-inset-p", v[`col_${n}_inset_phone`]], ["--col-gap-p", v[`col_${n}_gap_phone`]], ["--col-gap-t", v[`col_${n}_gap_stacked`]], ["--col-gap-above-t", v[`col_${n}_gap_above_stacked`]], ["--heading-gap", v[`col_${n}_heading_gap`]]].filter(([, x]) => SPACE.test(x ?? "")).map(([k, x]) => `${k}:${x}`).concat(/^[1-3](?:\.\d{1,3})?$/.test(v[`col_${n}_leading`] ?? "") ? [`--col-leading:${v[`col_${n}_leading`]}`] : []) }))
+	.map((n) => ({ lead: n === leadCol, body: v[`col_${n}_body`], image: v[`col_${n}_image`], buttons: v[`col_${n}_buttons`], bgImage: v[`col_${n}_bg_image`], bgColor: v[`col_${n}_bg_color`], width: v[`col_${n}_width`], circle: /^\d+(?:\.\d+)?(?:px|rem|vw)$/.test(v[`col_${n}_image_circle`] ?? "") ? v[`col_${n}_image_circle`] : undefined, center: v[`col_${n}_align`] === "center", dots: v[`col_${n}_list`] === "dots", right: v[`col_${n}_align`] === "right", vars: [["--col-inset-end", v[`col_${n}_inset_end`]], ["--col-inset-p", v[`col_${n}_inset_phone`]], ["--col-gap-p", v[`col_${n}_gap_phone`]], ["--col-gap-t", v[`col_${n}_gap_stacked`]], ["--col-gap-above-t", v[`col_${n}_gap_above_stacked`]], ["--heading-gap", v[`col_${n}_heading_gap`]]].filter(([, x]) => SPACE.test(x ?? "")).map(([k, x]) => `${k}:${x}`).concat(/^[1-3](?:\.\d{1,3})?$/.test(v[`col_${n}_leading`] ?? "") ? [`--col-leading:${v[`col_${n}_leading`]}`] : []).concat(stackVars(n)), stack: stackOf(n) }))
 	.filter((c) => (c.body && c.body.length) || c.image || c.bgImage || (c.buttons && c.buttons.length));
 ---
 
@@ -19,7 +28,7 @@ const cols = [1, 2, 3, 4]
 	<div class="columns" style={`--cols:${cols.length}`}>
 		{
 			cols.map((c) => (
-				<div class:list={["columns__col", c.width && c.width !== "auto" && `w-${String(c.width).replace("/", "-")}`, { "has-bg": c.bgImage || c.bgColor, "align-center": c.center, "align-right": c.right, "list-dots": c.dots }]} style={[c.bgColor ? `--col-bg:${c.bgColor}` : "", ...c.vars].filter(Boolean).join(";") || undefined}>
+				<div class:list={["columns__col", c.width && c.width !== "auto" && `w-${String(c.width).replace("/", "-")}`, { "has-bg": c.bgImage || c.bgColor, "align-center": c.center, "align-right": c.right, "list-dots": c.dots, "has-image-w": c.stack.image, "is-stack": c.stack.items, "has-link-rows": c.stack.links, "has-text-size": c.stack.size, "social-icons": c.stack.social, "image-after": c.stack.after, "items-center": c.stack.mid, "has-image-h": c.stack.tall }]} style={[c.bgColor ? `--col-bg:${c.bgColor}` : "", ...c.vars].filter(Boolean).join(";") || undefined}>
 					{c.bgImage && <Image image={c.bgImage} class="columns__bg" sizes="50vw" priority={c.lead} />}
 					{c.image && (c.circle ? <Image image={c.image} class="columns__circle" style={`--circle:${c.circle}`} sizes={`min(${c.circle}, 100vw)`} priority={c.lead && !c.bgImage} /> : <Image image={c.image} sizes="(max-width: 900px) 100vw, 33vw" priority={c.lead && !c.bgImage} />)}
 					<Rich value={c.body} />

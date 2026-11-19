@@ -266,7 +266,10 @@ export const HANDLERS: Record<string, Handler> = {
 	heading: (e, s, path, env) => {
 		const text = dynamicText(str(s.text) ?? "", path, e, env);
 		if (!stripTags(text)) return [];
-		const tag = /^h[1-6]$/.test(str(s.tag) ?? "") ? (s.tag as string) : "h3";
+		// `tag: custom` + `customTag` (span, p, div…): Bricks prints that tag, so the text is not a heading (a footer credit
+		// line set as a span). The default is h3.
+		const custom = str(s.tag) === "custom" ? str(s.customTag)?.trim().toLowerCase() : undefined;
+		const tag = /^h[1-6]$/.test(custom ?? str(s.tag) ?? "") ? ((custom ?? s.tag) as string) : custom ? "p" : "h3";
 		const link = linkOf(s.link, env);
 		const inner = link.href ? `<a href="${esc(link.href)}"${link.newTab ? ' target="_blank"' : ""}>${text}</a>` : text;
 		return richFromHtml(`<${tag}>${inner}</${tag}>`, env.ctx(path));
@@ -314,8 +317,14 @@ export const HANDLERS: Record<string, Handler> = {
 	// Buttons & links
 	button: (e, s, path, env) => {
 		const style = str(s.style) ?? "";
-		const kind: Button["style"] = s.outline === true || /^(secondary|light|muted|dark)$/.test(style) ? "secondary" : "primary";
-		return buttonOf(dynamicText(str(s.text) ?? "", path, e, env), linkOf(s.link, env), e, path, env, kind, /^(lg|xl)$/.test(str(s.size) ?? ""));
+		// Automatic.css button classes (`btn--outline`) are global classes with no Bricks settings: the name carries the look.
+		const outlineClass = classNames(e, env.site).some((c) => /^btn--outline$/.test(c));
+		const kind: Button["style"] = s.outline === true || outlineClass || /^(secondary|light|muted|dark)$/.test(style) ? "secondary" : "primary";
+		// Style "light" (filled, not outlined): a white button with accent text. `_widthMin` (px) keeps short labels wide.
+		const light = style === "light" && s.outline !== true;
+		const min = str(s._widthMin)?.trim();
+		const minWidth = min && /^\d+(?:px)?$/.test(min) && Number.parseInt(min, 10) >= 40 && Number.parseInt(min, 10) <= 600 ? Number.parseInt(min, 10) : undefined;
+		return buttonOf(dynamicText(str(s.text) ?? "", path, e, env), linkOf(s.link, env), e, path, env, kind, /^(lg|xl)$/.test(str(s.size) ?? "")).map((f) => (f.kind === "button" && (light || minWidth) ? { ...f, button: { ...f.button, ...(light ? { light: true } : {}), ...(minWidth ? { minWidth } : {}) } } : f));
 	},
 	"text-link": (e, s, path, env) => buttonOf(dynamicText(str(s.text) ?? "", path, e, env), linkOf(s.link, env), e, path, env, "link"),
 	"social-icons": (e, s, path, env) =>

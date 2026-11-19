@@ -10,7 +10,7 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "block#lf00",
-        "rawHash": "c4d5c58206",
+        "rawHash": "11cc16f0ef",
         "row": 0
       },
       "fields": {
@@ -25,7 +25,7 @@
           {
             "_type": "block",
             "_key": "t0",
-            "style": "h3",
+            "style": "normal",
             "children": [
               {
                 "_type": "span",

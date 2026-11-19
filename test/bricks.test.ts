@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { adaptBricks, type BricksElement, bricksElements, bricksFormToDefinition, bricksSite, gridTracks, isBricks, siteTemplates, templateElements } from "../src/adapters/bricks/index.js";
-import { atBreakpoint, effectiveSettings, resolveColour, resolveLength } from "../src/adapters/bricks/site.js";
+import { atBreakpoint, cssPx, effectiveSettings, liveVariables, resolveColour, resolveLength } from "../src/adapters/bricks/site.js";
 import { kitConfigSchema } from "../src/config/schema.js";
 import { sitePaths } from "../src/core/paths.js";
 import { bricksMediaRefs, bricksOptionsNote, readBricksOptions } from "../src/extract/bricks.js";
@@ -67,6 +67,23 @@ describe("Bricks site data", () => {
 		expect(resolveColour({ rgb: "rgba(0, 0, 0, 0.5)" }, site)).toBe("rgba(0, 0, 0, 0.5)");
 		expect(resolveLength("var(--gap)", site)).toBe("2rem");
 		expect(resolveLength("40", site)).toBe("40px");
+	});
+	it("evaluates lengths through global and live design variables at a screen width (calc, clamp, rem at the live root size)", () => {
+		const live = liveVariables([
+			{ width: 390, rootFontSize: 10, variables: { "--space-l": "clamp(3rem, calc(2vw + 2rem), 5rem)", "--width-l": "calc(80rem * 0.6)", "--shade-50": "rgba(0, 0, 0, 0.5)" } },
+			{ width: 1440, rootFontSize: 10, variables: { "--space-l": "clamp(3rem, calc(2vw + 2rem), 5rem)", "--width-l": "calc(80rem * 0.6)", "--shade-50": "rgba(0, 0, 0, 0.5)" } },
+		]);
+		const s = bricksSite({ bricks_global_variables: [{ id: "w", name: "gap", value: "2rem" }] }, live);
+		expect(cssPx("var(--width-l)", s)).toBe(480);
+		expect(cssPx("var(--space-l)", s, 1440)).toBe(48.8);
+		expect(cssPx("var(--space-l)", s, 390)).toBe(30);
+		expect(cssPx("var(--gap)", s)).toBe(20);
+		expect(cssPx("max(10px, 1.5rem)", s)).toBe(15);
+		expect(cssPx("50%", s)).toBeUndefined();
+		expect(cssPx("var(--nope, 12px)", s)).toBe(12);
+		expect(cssPx("var(--nope)", s)).toBeUndefined();
+		expect(resolveColour({ raw: "var(--shade-50)" }, s)).toBe("rgba(0, 0, 0, 0.5)");
+		expect(cssPx("calc(1rem + 4px)", site)).toBe(20);
 	});
 	it("merges global class settings under the element's own", () => {
 		const s = effectiveSettings({ id: "e", name: "section", parent: 0, settings: { _cssGlobalClasses: ["c1"], _padding: { bottom: "20" } } }, site);

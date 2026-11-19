@@ -603,6 +603,58 @@ body.over-hero { padding-top: var(--announce-h, 0px); }
 .site-footer .prose p > a:only-child, .site-footer .prose p:not(:has(> :not(a, br))) > a { text-decoration: none; }
 .site-footer .prose a:hover { text-decoration: underline; }
 
+/* Builder flex stack (Bricks column fields image_width / item_gap / link_gap / text_size / social_icons; other builders never set them). */
+.columns__col.has-image-w > :is(img, picture) { width: 100%; max-width: var(--col-image-w); height: auto; }
+.columns__col.has-image-w.align-center > :is(img, picture) { margin-inline: auto; }
+.columns__col.is-stack { display: flex; flex-direction: column; gap: var(--col-item-gap); }
+.columns__col.is-stack:is(.align-center, .items-center) { align-items: center; }
+.columns__col.is-stack > .prose { display: contents; }
+.columns__col.is-stack > .prose > *, .columns__col.is-stack > .actions { margin: 0; }
+.columns__col.has-image-w > :is(img, picture) { margin-bottom: var(--col-image-space, 0); }
+.columns__col.has-image-h > :is(img, picture) { height: var(--col-image-h); object-fit: cover; }
+@media (max-width: 690px) { .columns__col.has-image-h > :is(img, picture) { height: var(--col-image-h-p, var(--col-image-h)); } }
+.columns__col.is-stack.image-after > :is(img, picture) { order: 1; }
+.columns__col.has-image-w.items-center > :is(img, picture) { margin-inline: auto; }
+.columns__col.is-stack > .prose > :is(p, ul, ol, h1, h2, h3, h4, h5, h6) { max-width: 100%; }
+.columns__col.has-link-rows.items-center .prose ul:not(:has(> li:not(:has(> a:only-child)))), .columns__col.social-icons.items-center .prose p { justify-content: center; }
+.columns__col.is-stack.items-center > .actions { justify-content: center; }
+.columns__col.has-text-size .prose :is(p, li) { font-size: var(--col-text-size); }
+/* A list whose items are each one link: a row of links (footer menus, social links). */
+.columns__col.has-link-rows .prose ul:not(:has(> li:not(:has(> a:only-child)))) { display: flex; flex-wrap: wrap; column-gap: var(--col-link-gap); row-gap: 5px; margin: 0; padding: 0; list-style: none; }
+.columns__col.has-link-rows.align-center .prose ul:not(:has(> li:not(:has(> a:only-child)))) { justify-content: center; }
+.columns__col.has-link-rows .prose ul:not(:has(> li:not(:has(> a:only-child)))) > li { margin: 0; padding: 0; font-size: var(--col-link-size, inherit); }
+.columns__col.has-link-rows .prose ul:not(:has(> li:not(:has(> a:only-child)))) > li::before { content: none; }
+.columns__col.has-link-rows .prose ul:not(:has(> li:not(:has(> a:only-child)))) a { text-decoration: none; color: inherit; }
+.columns__col.has-link-rows .prose ul:not(:has(> li:not(:has(> a:only-child)))) a:hover { text-decoration: underline; }
+/* A line of social links: round icons in a row (column field social_icons = the gap). */
+.columns__col.social-icons .prose p:has(> a:is([href*="instagram.com"], [href*="tiktok.com"], [href*="facebook.com"], [href*="youtube.com"], [href*="linkedin.com"], [href*="x.com/"], [href*="twitter.com"], [href*="pinterest."])) { display: flex; flex-wrap: wrap; gap: var(--col-icon-gap, 10px); line-height: 0; }
+.columns__col.social-icons.align-center .prose p:has(> a:is([href*="instagram.com"], [href*="tiktok.com"], [href*="facebook.com"], [href*="youtube.com"], [href*="linkedin.com"], [href*="x.com/"], [href*="twitter.com"], [href*="pinterest."])) { justify-content: center; }
+.columns__col.social-icons .prose a:is([href*="instagram.com"], [href*="tiktok.com"], [href*="facebook.com"], [href*="youtube.com"], [href*="linkedin.com"], [href*="x.com/"], [href*="twitter.com"], [href*="pinterest."]) { position: relative; display: inline-block; width: 34px; height: 34px; border-radius: 50%; font-size: 0; color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 7%, var(--color-bg)); transition: background 0.2s; }
+.columns__col.social-icons .prose a:is([href*="instagram.com"], [href*="tiktok.com"], [href*="facebook.com"], [href*="youtube.com"], [href*="linkedin.com"], [href*="x.com/"], [href*="twitter.com"], [href*="pinterest."]):hover { background: color-mix(in srgb, var(--color-accent) 18%, var(--color-bg)); text-decoration: none; }
+.columns__col.social-icons .prose a:is([href*="instagram.com"], [href*="tiktok.com"], [href*="facebook.com"], [href*="youtube.com"], [href*="linkedin.com"], [href*="x.com/"], [href*="twitter.com"], [href*="pinterest."])::before { content: ""; position: absolute; inset: 8px; background: currentColor; -webkit-mask: var(--social-icon) center / contain no-repeat; mask: var(--social-icon) center / contain no-repeat; }
+.columns__col.social-icons a[href*="instagram.com"] { --social-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2'%3E%3Crect x='3' y='3' width='18' height='18' rx='5'/%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Ccircle cx='17.4' cy='6.6' r='1.1' fill='black' stroke='none'/%3E%3C/svg%3E"); }
+.columns__col.social-icons a[href*="tiktok.com"] { --social-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M13.2 2.5h3.1c.3 2.4 1.9 4.1 4.2 4.3v3.2c-1.6 0-3-.5-4.2-1.3v6.6a6 6 0 1 1-6-6c.3 0 .6 0 .9.1v3.2a2.9 2.9 0 1 0 2 2.7z'/%3E%3C/svg%3E"); }
+.columns__col.social-icons a[href*="facebook.com"] { --social-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M13.5 22v-8h2.8l.4-3.3h-3.2V8.6c0-.9.3-1.6 1.7-1.6h1.6V4.1a22 22 0 0 0-2.4-.1c-2.4 0-4 1.4-4 4.1v2.6H7.7V14h2.7v8z'/%3E%3C/svg%3E"); }
+.columns__col.social-icons a[href*="youtube.com"] { --social-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M21.6 7.2a2.6 2.6 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.6 2.6 0 0 0 2.4 7.2 27 27 0 0 0 2 12a27 27 0 0 0 .4 4.8 2.6 2.6 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.6 2.6 0 0 0 1.8-1.8A27 27 0 0 0 22 12a27 27 0 0 0-.4-4.8zM10 15V9l5.2 3z'/%3E%3C/svg%3E"); }
+.columns__col.social-icons a[href*="linkedin.com"] { --social-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 9h3.6v11H4zM5.8 3.5a2.1 2.1 0 1 1 0 4.2 2.1 2.1 0 0 1 0-4.2zM9.8 9h3.4v1.5h.1c.5-.9 1.7-1.8 3.4-1.8 3.6 0 4.3 2.4 4.3 5.4V20h-3.6v-5.3c0-1.3 0-2.9-1.8-2.9s-2.1 1.4-2.1 2.8V20H9.8z'/%3E%3C/svg%3E"); }
+.columns__col.social-icons a:is([href*="x.com/"], [href*="twitter.com"]) { --social-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17.8 3h3.1l-6.8 7.8L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L2 3h6.4l4.4 5.8zm-1.1 16.2h1.7L7.3 4.7H5.5z'/%3E%3C/svg%3E"); }
+.columns__col.social-icons a[href*="pinterest."] { --social-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2a10 10 0 0 0-3.6 19.3c-.1-.8-.2-2 0-2.9l1.2-5s-.3-.6-.3-1.5c0-1.4.8-2.5 1.8-2.5.9 0 1.3.7 1.3 1.4 0 .9-.6 2.2-.9 3.4-.2 1 .5 1.9 1.6 1.9 1.9 0 3.3-2 3.3-4.9 0-2.6-1.8-4.4-4.5-4.4a4.6 4.6 0 0 0-4.8 4.6c0 .9.3 1.9.8 2.4l.1.4-.3 1.2c0 .2-.2.3-.4.2-1.4-.7-2.2-2.7-2.2-4.3 0-3.5 2.5-6.7 7.3-6.7 3.8 0 6.8 2.7 6.8 6.4 0 3.8-2.4 6.9-5.8 6.9-1.1 0-2.2-.6-2.6-1.3l-.7 2.7c-.3 1-1 2.2-1.4 2.9A10 10 0 1 0 12 2z'/%3E%3C/svg%3E"); }
+
+/* Light button (Bricks style "light"): white, accent text; accent on hover. Only buttons with the "light" field. */
+.btn.btn--light { background: #fff; color: var(--color-accent); border-color: #fff; }
+.btn.btn--light:hover { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+/* A section's own minimum height (Bricks _heightMin), content centred like a full-screen row. */
+.section.has-min-h { min-height: var(--section-min-h); display: grid; align-content: center; }
+.section--hero.has-min-h { min-height: var(--section-min-h); }
+/* Hero builder look (Bricks: content width, text size, phone heading size, gap). */
+.has-hero-look .hero__content { max-width: var(--hero-width, none); margin-inline: auto; display: grid; gap: var(--hero-gap, 0); }
+.has-hero-look .hero__content > :not(.actions) { margin: 0; }
+.has-hero-look .hero__content .prose { display: grid; gap: var(--hero-gap, 0); }
+.has-hero-look .hero__content .prose > * { margin: 0; }
+.has-hero-look .hero__body { font-size: var(--hero-body, var(--font-size-body)); }
+.has-hero-look .section__head[style*="--heading-size"] .heading { font-size: var(--heading-size); }
+@media (max-width: 690px) { .has-hero-look .hero__content[style*="--hero-heading-p"] .heading { font-size: var(--hero-heading-p); } }
+
 /* Last on purpose: padding measured on the source page wins over spacing tokens and layout defaults. */
 .section.has-pad-top { padding-top: var(--pad-top); }
 .section.has-pad-bottom { padding-bottom: var(--pad-bottom); }

@@ -3,6 +3,7 @@
 import { decodeSlug, getEmDashEntry, getSeoMeta } from "emdash";
 import Base from "../layouts/Base.astro";
 import Sections from "../components/Sections.astro";
+import site from "../site.config.json";
 
 const raw = Astro.params.slug ? decodeSlug(Astro.params.slug) : "home";
 const slug = raw || "home";
@@ -15,7 +16,9 @@ const data = page.data as any;
 const blocks = (data.content ?? []) as any[];
 const seo = getSeoMeta(page, { siteUrl: Astro.url.origin, path: slug === "home" ? "/" : Astro.url.pathname });
 const first = blocks[0];
-const overHero = first?._type === "section_hero" && (first.bg_image || first.bg_video);
+// The header sits over a hero picture only when it is transparent at the top of the page (audit); a solid header keeps
+// the page below it, as on the source site.
+const overHero = first?._type === "section_hero" && (first.bg_image || first.bg_video) && (site as { header?: { transparentOnTop?: boolean } }).header?.transparentOnTop !== false;
 ---
 
 <Base title={seo.title} pageTitle={data.title} description={seo.description} image={seo.ogImage} canonical={seo.canonical} robots={seo.robots} content={{ collection: "pages", id: data.id, slug: page.id }} overHero={!!overHero}>

@@ -59,10 +59,154 @@ export interface BricksSite {
 	themeStyle?: Obj;
 	/** Which options were present (the rest are reported). */
 	present: string[];
+	/**
+	 * The live site's own design variables (audit `snapshot/css-variables.json`): a CSS framework's tokens (Automatic.css
+	 * `--space-l`, `--black-trans-50`…) that Bricks settings name but no Bricks option defines. Per viewport width.
+	 */
+	live?: LiveVariables;
+}
+
+export interface LiveVariables {
+	/** Root font size, px (Automatic.css: 62.5% → 10px). */
+	rootFontSize: number;
+	/** Narrowest first. */
+	widths: { width: number; vars: Record<string, string> }[];
+}
+
+/** The audit's per-viewport capture → the variables Bricks settings can be resolved against. */
+export function liveVariables(captures: { width: number; rootFontSize: number; variables: Record<string, string> }[] | undefined): LiveVariables | undefined {
+	const list = (captures ?? []).filter((c) => c && c.width > 0 && c.variables && Object.keys(c.variables).length);
+	if (!list.length) return undefined;
+	const widest = list.reduce((a, b) => (b.width > a.width ? b : a));
+	return { rootFontSize: widest.rootFontSize || 16, widths: list.map((c) => ({ width: c.width, vars: Object.fromEntries(Object.entries(c.variables).map(([k, v]) => [k.replace(/^--/, ""), v])) })).sort((a, b) => a.width - b.width) };
+}
+
+/** A live variable at a screen width (the capture nearest that width). */
+function liveVar(site: BricksSite, name: string, width = 1440): string | undefined {
+	const w = site.live?.widths;
+	if (!w?.length) return undefined;
+	const at = w.reduce((a, b) => (Math.abs(b.width - width) < Math.abs(a.width - width) ? b : a));
+	return at.vars[name] ?? w.at(-1)?.vars[name];
+}
+
+/**
+ * A CSS length (a number, px/rem/em/vw, calc()/clamp()/min()/max(), `var(--x)` from Bricks global variables or the live
+ * site's variables) → px at a screen width. rem/em use the live root font size. Undefined for % and anything unknown.
+ */
+export function cssPx(v: unknown, site: BricksSite, width = 1440): number | undefined {
+	const src = str(v)?.trim();
+	if (!src) return undefined;
+	if (/^-?\d+(?:\.\d+)?$/.test(src)) return Number(src);
+	const rem = site.live?.rootFontSize ?? 16;
+	let i = 0;
+	let depth = 0;
+	const text = src;
+	const ws = (t: string) => {
+		while (i < t.length && /\s/.test(t[i] as string)) i++;
+	};
+	// Recursive descent over one string; var() bodies are evaluated as their own strings.
+	const evalStr = (t: string): number | undefined => {
+		if (++depth > 12) return undefined;
+		const saveI = i;
+		i = 0;
+		const r = expr(t);
+		ws(t);
+		const ok = i === t.length;
+		i = saveI;
+		depth--;
+		return ok ? r : undefined;
+	};
+	function expr(t: string): number | undefined {
+		let a = term(t);
+		for (;;) {
+			ws(t);
+			const c = t[i];
+			if (c !== "+" && c !== "-") return a;
+			i++;
+			const b = term(t);
+			if (a === undefined || b === undefined) return undefined;
+			a = c === "+" ? a + b : a - b;
+		}
+	}
+	function term(t: string): number | undefined {
+		let a = factor(t);
+		for (;;) {
+			ws(t);
+			const c = t[i];
+			if (c !== "*" && c !== "/") return a;
+			i++;
+			const b = factor(t);
+			if (a === undefined || b === undefined) return undefined;
+			a = c === "*" ? a * b : b === 0 ? undefined : a / b;
+			if (a === undefined) return undefined;
+		}
+	}
+	function args(t: string): string[] {
+		// i is just after "(": split on top-level commas up to the matching ")".
+		const out: string[] = [];
+		let level = 0;
+		let start = i;
+		for (; i < t.length; i++) {
+			const c = t[i];
+			if (c === "(") level++;
+			else if (c === ")") {
+				if (!level) {
+					out.push(t.slice(start, i));
+					i++;
+					return out;
+				}
+				level--;
+			} else if (c === "," && !level) {
+				out.push(t.slice(start, i));
+				start = i + 1;
+			}
+		}
+		return out;
+	}
+	function factor(t: string): number | undefined {
+		ws(t);
+		const rest = t.slice(i);
+		const fn = /^(calc|clamp|min|max|var)\(/i.exec(rest);
+		if (fn) {
+			i += fn[0].length;
+			const name = (fn[1] as string).toLowerCase();
+			const parts = args(t);
+			if (name === "var") {
+				const ref = (parts[0] ?? "").trim().replace(/^--/, "");
+				const value = site.variables.get(ref) ?? liveVar(site, ref, width);
+				if (value !== undefined) return evalStr(value);
+				return parts.length > 1 ? evalStr(parts.slice(1).join(",")) : undefined;
+			}
+			const vals = parts.map((p) => evalStr(p));
+			if (vals.some((x) => x === undefined)) return undefined;
+			const n = vals as number[];
+			if (name === "calc") return n[0];
+			if (name === "min") return Math.min(...n);
+			if (name === "max") return Math.max(...n);
+			return n.length === 3 ? Math.min(Math.max(n[1] as number, n[0] as number), n[2] as number) : undefined;
+		}
+		if (rest.startsWith("(")) {
+			i++;
+			const r = expr(t);
+			ws(t);
+			if (t[i] !== ")") return undefined;
+			i++;
+			return r;
+		}
+		const m = /^(-?\d*\.?\d+(?:e-?\d+)?)(px|rem|em|vw|%)?/i.exec(rest);
+		if (!m) return undefined;
+		i += m[0].length;
+		const n = Number(m[1]);
+		const unit = (m[2] ?? "").toLowerCase();
+		if (unit === "%") return undefined;
+		return unit === "rem" || unit === "em" ? n * rem : unit === "vw" ? (n * width) / 100 : n;
+	}
+	const r = evalStr(text);
+	return r !== undefined && Number.isFinite(r) ? Math.round(r * 100) / 100 : undefined;
 }
 
 /** Build the site data from option values (arrays, index-keyed objects or JSON text). */
-export function bricksSite(options: Record<string, unknown> = {}): BricksSite {
+export function bricksSite(options: Record<string, unknown> = {}, live?: LiveVariables): BricksSite {
 	const present = BRICKS_OPTIONS.filter((k) => options[k] !== undefined && options[k] !== null && options[k] !== "");
 	const variables = new Map<string, string>();
 	for (const v of list(options.bricks_global_variables)) {
@@ -102,7 +246,7 @@ export function bricksSite(options: Record<string, unknown> = {}): BricksSite {
 		const conditions = list(obj(settings?.conditions)?.conditions);
 		if (settings && conditions.some((c) => c.main === "any" && !c.exclude)) themeStyle = settings;
 	}
-	return { palette, variables, classes, components, breakpoints, ...(themeStyle ? { themeStyle } : {}), present };
+	return { palette, variables, classes, components, breakpoints, ...(themeStyle ? { themeStyle } : {}), present, ...(live ? { live } : {}) };
 }
 
 export const emptySite = (): BricksSite => bricksSite({});
@@ -126,7 +270,7 @@ export function resolveColour(v: unknown, site: BricksSite, depth = 0): string |
 	if (ref) {
 		const name = ref[1] as string;
 		const pal = /^bricks-color-(.+)$/.exec(name)?.[1];
-		const next = pal ? site.palette.get(pal) : site.variables.get(name);
+		const next = pal ? site.palette.get(pal) : (site.variables.get(name) ?? liveVar(site, name));
 		if (next) return resolveColour(next, site, depth + 1);
 		return ref[2] ? resolveColour(ref[2].trim(), site, depth + 1) : undefined;
 	}
@@ -139,7 +283,7 @@ export function resolveLength(v: unknown, site: BricksSite): string | undefined 
 	for (let i = 0; s && i < 4; i++) {
 		const ref = /^var\(\s*--([\w-]+)\s*(?:,\s*([^)]+))?\)$/.exec(s);
 		if (!ref) break;
-		s = site.variables.get(ref[1] as string) ?? ref[2]?.trim();
+		s = site.variables.get(ref[1] as string) ?? liveVar(site, ref[1] as string) ?? ref[2]?.trim();
 	}
 	if (!s) return undefined;
 	return /^-?\d+(?:\.\d+)?$/.test(s) ? `${s}px` : s;

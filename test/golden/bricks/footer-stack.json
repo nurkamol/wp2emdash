@@ -1,0 +1,223 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "block#fs10",
+        "rawHash": "552d17ea1c",
+        "row": 0
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t1",
+                "style": "normal",
+                "listItem": "bullet",
+                "level": 1,
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t2",
+                    "text": "Home",
+                    "marks": [
+                      "t0"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t0",
+                    "href": "/"
+                  }
+                ]
+              },
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "listItem": "bullet",
+                "level": 1,
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Privacy",
+                    "marks": [
+                      "t3"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t3",
+                    "href": "/privacy/"
+                  }
+                ]
+              },
+              {
+                "_type": "block",
+                "_key": "t7",
+                "style": "normal",
+                "listItem": "bullet",
+                "level": 1,
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t8",
+                    "text": "Terms",
+                    "marks": [
+                      "t6"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t6",
+                    "href": "/terms/"
+                  }
+                ]
+              },
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "ta",
+                    "text": "Instagram",
+                    "marks": [
+                      "t9"
+                    ]
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "tc",
+                    "text": " ",
+                    "marks": []
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Facebook",
+                    "marks": [
+                      "tb"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t9",
+                    "href": "https://instagram.com/example-studio",
+                    "blank": true
+                  },
+                  {
+                    "_type": "link",
+                    "_key": "tb",
+                    "href": "https://facebook.com/example-studio",
+                    "blank": true
+                  }
+                ]
+              },
+              {
+                "_type": "block",
+                "_key": "tf",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tg",
+                    "text": "© 2025 ",
+                    "marks": []
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "ti",
+                    "text": "Example Studio",
+                    "marks": [
+                      "th"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "th",
+                    "href": "/"
+                  }
+                ]
+              }
+            ],
+            "media": [
+              {
+                "wpId": 905,
+                "kind": "image",
+                "url": "https://example.com/wp-content/uploads/2025/01/studio-mark.svg"
+              }
+            ],
+            "buttons": [],
+            "align": "center",
+            "imageWidth": "150px",
+            "imageSpace": 12,
+            "itemsCenter": true,
+            "itemGap": 24,
+            "linkGap": 18,
+            "linkSize": 15,
+            "textSize": 13,
+            "socialIcons": 8
+          }
+        ]
+      },
+      "pad": {
+        "top": "clamp(48px, 36.11px + 3.048vw, 80px)",
+        "topTablet": 80,
+        "bottom": "clamp(48px, 36.11px + 3.048vw, 80px)",
+        "bottomTablet": 80
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[underlined-hover] animated underline on hover not reproduced; kept as a text link",
+      "path": "block#fs10/block#fs11/block#fs30/underlined-hover#fs31",
+      "tag": "underlined-hover"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[underlined-hover] animated underline on hover not reproduced; kept as a text link",
+      "path": "block#fs10/block#fs11/block#fs30/underlined-hover#fs32",
+      "tag": "underlined-hover"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[icon] linked icon kept as a \"Instagram\" link (the icon itself is not drawn)",
+      "path": "block#fs10/block#fs11/block#fs40/icon#fs41",
+      "tag": "icon"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[icon] linked icon kept as a \"Facebook\" link (the icon itself is not drawn)",
+      "path": "block#fs10/block#fs11/block#fs40/icon#fs42",
+      "tag": "icon"
+    }
+  ],
+  "forms": []
+}
