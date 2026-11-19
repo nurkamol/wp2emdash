@@ -31,7 +31,7 @@ pnpm wp2emdash status
 | `init` | Workspace, config, access & backup checklist | ✅ |
 | `audit` | Crawl live site, snapshots, screenshots, design, menu motion, forms & integrations scan | ✅ |
 | `extract` | EmDash Exporter API: raw content, meta, SEO, menus, forms, media download | ✅ |
-| `transform` | WPBakery/Salient, Gutenberg, classic → section IR, coverage & text-conservation gate | ✅ |
+| `transform` | WPBakery/Salient, Gutenberg, classic (Bricks started) → section IR, coverage & text-conservation gate | ✅ |
 | `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, analytics, seed; client README, docs and GitHub CI; builds + local preview | ✅ |
 | `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map | ✅ local, staging, production (`WP2EMDASH_LOAD_TARGET`) |
 | `verify` | Old site vs staging or production, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |
@@ -56,20 +56,26 @@ cards replace every page's image or only fill in where a page has none (the defa
 them. Verify downloads every og:image and fails on any that does not load. Details:
 [packages/og/README.md](packages/og/README.md).
 
-## SEO panel in the page editor (opt-in)
+## SEO suite (opt-in)
+
+Technical SEO is part of every migration (titles, descriptions, canonicals, robots, sitemap, structured data, old
+URLs redirected, analytics, verification tags — and verify checks all of it). On top of that, a site can get an SEO
+toolkit for its editors, as the EmDash plugin `@wp2emdash/seo`:
 
 ```ts
 // sites/<slug>/kit.config.ts
 seo: { panel: true },
 ```
 
-Adds an **SEO dashboard** (Plugins → SEO: site-wide scores, most common issues, every page with a link to fix it,
-image descriptions written in one form, robots.txt / sitemap / indexing checks, a dashboard widget, **Google Search
-Console** data through a service account, **IndexNow** on publish after go-live) and an **SEO**
-panel to the page editor's sidebar: a score, the Google result preview, a plain-words checklist
-(title and description length, duplicates across pages, one H1, heading order, text length, image alt text, links,
-address, indexing, sharing image) and an optional focus keyword per page. "Check my unsaved changes" checks the
-draft before saving. No effect on visitors; negligible Worker size. Details: [packages/seo/README.md](packages/seo/README.md).
+| Part | Where | What it does |
+|---|---|---|
+| **SEO panel** | Page editor sidebar (contributors and up) | Score out of 100, Google result preview with cut-off warnings, plain-words checklist (title and description length, duplicates across pages, one H1, heading order, text length, image alt text, links, address, indexing, canonical, sharing image), focus keyword per page, "Check my unsaved changes". |
+| **SEO dashboard** | Plugins → SEO, dashboard widget (editors and admins) | Average score and a score per page, the most common issues and where they are, every page with a link to fix it, every image without a description with a form that writes alt text to the media library, robots.txt / sitemap / indexability checks (environment-aware). |
+| **Google Search Console** | SEO dashboard → Google | Connected once with a service account (key stored encrypted): clicks, impressions, click rate, position, daily chart, top searches and pages, sitemaps (submit), index status per page. Works before go-live. |
+| **IndexNow** | SEO dashboard → IndexNow | After go-live, publishing a page notifies Bing, Yandex and the other IndexNow engines; key file at the domain root; notification log; notify-all button. |
+
+No effect on visitors and negligible Worker size. The site checks call the Worker through a `SELF` service binding the
+scaffold adds (a Worker fetching its own address would skip itself). Details: [packages/seo/README.md](packages/seo/README.md).
 
 ## Docs
 
@@ -79,7 +85,7 @@ draft before saving. No effect on visitors; negligible Worker size. Details: [pa
 - [Staging and production setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, production on `workers.dev`, troubleshooting
 - [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token
 - [`@wp2emdash/forms`](packages/forms/README.md) — the forms package every migrated site uses (endpoint, email, KV outbox, Form messages admin page); usable in any EmDash project
-- [`@wp2emdash/seo`](packages/seo/README.md) — SEO panel in the page editor (score, Google preview, checklist, focus keyword); opt in with `seo: { panel: true }`
+- [`@wp2emdash/seo`](packages/seo/README.md) — SEO suite: editor panel, SEO dashboard, Google Search Console, IndexNow; opt in with `seo: { panel: true }` (above)
 - [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; opt in with `og: { cards: true }` in a site's `kit.config.ts` (below)
 - [Agent rules](CLAUDE.md)
 
