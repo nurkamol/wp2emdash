@@ -298,6 +298,16 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const incomplete: string[] = [];
 		try {
 			const shots = await captureScreenshots(browser, results.filter((r) => r.status === 200).map((r) => r.targetUrl), config, join(outDir, "screens"), reporter, "no-preference");
+			// WP2EMDASH_RECAPTURE_SOURCE=1: photograph the live WordPress pages again (read-only) with the current capture
+			// code, replacing the audit's screenshots — without rerunning the audit's design capture.
+			if (process.env.WP2EMDASH_RECAPTURE_SOURCE === "1") {
+				const fresh = await captureScreenshots(browser, results.filter((r) => r.status === 200).map((r) => r.sourceUrl), config, join(paths.snapshot, "screens"), reporter);
+				const old = readJson<ScreenshotResult[]>(join(paths.snapshot, "screens.json")) ?? [];
+				const key = (x: ScreenshotResult) => `${x.viewport} ${x.url}`;
+				const merged = new Map([...old, ...fresh].map((x) => [key(x), x]));
+				writeFileSync(join(paths.snapshot, "screens.json"), `${JSON.stringify([...merged.values()], null, 2)}\n`);
+				reporter.emit({ type: "log", level: "info", message: `source screenshots recaptured: ${fresh.length}` });
+			}
 			reporter.emit({ type: "step:start", step: "Visual diff", total: shots.length });
 			const sourceShots = readJson<ScreenshotResult[]>(join(paths.snapshot, "screens.json")) ?? [];
 			const footerDoc = readJson<{ partials?: { role: string; file: string }[] }>(join(paths.ir, "site.json"))?.partials?.find((p) => p.role === "footer");

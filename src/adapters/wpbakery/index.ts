@@ -132,7 +132,7 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const right = rows.length > 0 && rows.every((r) => r.tag === "vc_row_inner" && r.attrs.text_align === "right");
 		const gapPhone = Number.parseFloat(n.attrs.bottom_margin_phone ?? "");
 		const textInset = rows.length === 1 && rows[0]?.tag === "vc_row_inner" ? innerTextInset(rows[0].attrs) : undefined;
-		const headingGap = rows.length > 1 && rows[0]?.tag === "vc_row_inner" ? loneHeadingGap(rows[0]) : undefined;
+		const headingGap = rows.length > 1 && rows[0]?.tag === "vc_row_inner" ? loneHeadingGap(rows[0], Number(/^(\d+)px$/.exec(n.attrs.column_element_spacing ?? "")?.[1] ?? Number.NaN)) : undefined;
 		return { ...(headingGap ? { headingGap } : {}), ...(gapPhone > 0 && gapPhone <= 400 ? { gapPhone } : {}), ...(textInset ? { textInset } : {}), ...(inset ? { insetStart: inset } : {}), ...(insetEndPct ? { insetEndPct } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
 	}
 
@@ -557,7 +557,7 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 				...(textCol.insetStart ? { textInset: textCol.insetStart } : {}),
 				// Salient: padding-N-percent is N% of the row; the text keeps the rest of its column (no measure cap).
 				...(textCol.insetEndPct ? { textEnd: `${textCol.insetEndPct}%` } : {}),
-				...(/^\d{1,3}px$/.test(row.attrs.column_margin ?? "") ? { columnGap: row.attrs.column_margin } : {}),
+				...(/^\d{1,3}px$/.test(row.attrs.column_margin ?? "") ? { columnGap: row.attrs.column_margin } : row.attrs.column_margin === "none" ? { columnGap: "0px" } : {}),
 				...(textCol.leadTop ? { textTop: textCol.leadTop } : {}),
 				...(textCol.motion ? { textParallax: textCol.motion } : {}),
 				...(lead.parallax && lead.height ? { mediaParallax: lead.parallax } : {}),
@@ -855,11 +855,17 @@ const FANCY_LIST_GAP = 30;
 
 /** Gap between inner rows in a Salient column (measured: every inner row but the last has a 10px bottom margin). */
 const INNER_ROW_GAP = 10;
+/** Bottom margin of a Salient split-line heading (measured on the pilot: 7px at 43px type). */
+const SPLIT_HEADING_MB = 7;
 
 /** An inner row holding only a heading in a text block with a custom bottom margin → the space under that heading, px. */
-export function loneHeadingGap(row: ShortcodeNode): number | undefined {
+export function loneHeadingGap(row: ShortcodeNode, elementSpacing = Number.NaN): number | undefined {
 	const cols = row.children.filter((c): c is ShortcodeNode => c.type === "shortcode");
 	const items = cols.length === 1 ? (cols[0] as ShortcodeNode).children.filter((c) => c.type === "shortcode" || (c.type === "text" && c.text.trim())) : [];
+	// A Salient split-line heading alone in its inner row: its own 7px bottom margin (measured) plus the column's
+	// element spacing (the space under every element but the last), else the inner-row gap.
+	const split = items.length === 1 && items[0]?.type === "shortcode" && items[0].tag === "split_line_heading" && /^h[1-4]$/.test(items[0].attrs.font_style ?? "") ? items[0] : undefined;
+	if (split) return SPLIT_HEADING_MB + (Number.isFinite(elementSpacing) && elementSpacing >= 0 && elementSpacing <= 200 ? elementSpacing : INNER_ROW_GAP);
 	const text = items.length === 1 && items[0]?.type === "shortcode" && items[0].tag === "vc_column_text" ? items[0] : undefined;
 	if (!text) return undefined;
 	const html = text.children.map((c) => (c.type === "text" ? c.text : "")).join("").replace(/<\/?p>|<br\s*\/?>|&nbsp;/g, "").trim();

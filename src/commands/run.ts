@@ -11,6 +11,8 @@ export interface RunOptions {
 	sitesDir?: string;
 	/** Read-only phases only: run out of order and do not record the gate. */
 	preview?: boolean;
+	/** Progress goes to the run log only, nothing to stdout (the MCP server). */
+	quiet?: boolean;
 }
 
 /** Phases that only read from WordPress (GET) or local files, write only inside the site workspace, and never touch Cloudflare. */
@@ -40,7 +42,7 @@ export async function runPhase(slug: string, phase: PhaseId, opts: RunOptions = 
 
 	const config = await loadConfig(paths.config);
 	const runId = newRunId();
-	const reporter = createReporter({ runsDir: paths.runs, runId, json: !!opts.json });
+	const reporter = createReporter({ runsDir: paths.runs, runId, json: !!opts.json, quiet: !!opts.quiet });
 	const startedAt = new Date().toISOString();
 
 	reporter.emit({ type: "phase:start", phase });

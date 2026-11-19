@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "wp2emdash": {
+      "type": "stdio",
+      "command": "pnpm",
+      "args": ["--silent", "wp2emdash", "mcp"]
+    }
+  }
+}

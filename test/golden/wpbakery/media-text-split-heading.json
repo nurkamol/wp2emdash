@@ -1,0 +1,85 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "cover",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "gap": "none",
+      "valign": "middle",
+      "headingSize": "3vw",
+      "headingLeading": 1.3,
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "468da3537d"
+      },
+      "fields": {
+        "mediaHeight": [
+          {
+            "desktop": "495px"
+          }
+        ],
+        "columnGap": "0px",
+        "headingGap": 37,
+        "media": [
+          {
+            "wpId": 202,
+            "kind": "image"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Sample Classes",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "A short paragraph about the sample classes, written for this fixture.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book Now",
+            "href": "/book/",
+            "style": "primary",
+            "spaceAbove": 70
+          }
+        ],
+        "mediaSide": "right",
+        "ratio": "1/2"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[0]/vc_column[1]/vc_row_inner[0]/vc_column_inner[0]/divider[0]",
+      "tag": "divider"
+    }
+  ]
+}

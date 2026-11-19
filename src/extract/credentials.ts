@@ -73,3 +73,32 @@ export function redact(message: string, creds?: WpCredentials): string {
 	if (creds?.password) m = m.split(creds.password).join("[redacted]");
 	return m;
 }
+
+/**
+ * Removes every value from the site's env files (kit `.env` + `sites/<slug>/.env`, see loadSiteEnv) from a text
+ * before it leaves the kit (MCP tool results, reports read back to an agent), then applies `redact`. Values shorter
+ * than 8 characters are not scrubbed (flags such as `1` or `staging` are not secrets and would mangle the text);
+ * the password inside a migration key and an app password without its spaces are scrubbed too.
+ */
+export function scrubSecrets(text: string, env: Record<string, string>): string {
+	const values = new Set<string>();
+	const add = (v: string) => {
+		if (v.length >= 8) values.add(v);
+	};
+	for (const [key, value] of Object.entries(env)) {
+		add(value);
+		if (key === "EMDASH_WP_MIGRATION_KEY") {
+			try {
+				const k = parseMigrationKey(value);
+				add(k.pass);
+				add(k.pass.replace(/\s/g, ""));
+			} catch {
+				// not a valid key: its raw value is scrubbed above
+			}
+		}
+		if (key === "WP_APP_PASSWORD") add(value.replace(/\s/g, ""));
+	}
+	let out = text;
+	for (const v of [...values].sort((a, b) => b.length - a.length)) out = out.split(v).join("[redacted]");
+	return redact(out);
+}
