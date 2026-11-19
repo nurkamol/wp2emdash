@@ -53,6 +53,15 @@ describe("Bricks adapter", () => {
 	});
 });
 
+describe("Bricks body weight token", () => {
+	it("writes the theme style's body weight only when it is not the default", async () => {
+		const { bricksBodyWeight } = await import("../src/phases/scaffold.js");
+		expect(bricksBodyWeight({ typography: { typographyBody: { "font-weight": "300" } } })).toContain("--body-weight: 300;");
+		expect(bricksBodyWeight({ typography: { typographyBody: { "font-weight": "400" } } })).toBe("");
+		expect(bricksBodyWeight(undefined)).toBe("");
+	});
+});
+
 describe("Bricks site data", () => {
 	const site = bricksSite({
 		bricks_color_palette: [{ id: "p", colors: [{ id: "a1", hex: "#112233" }, { id: "a2", raw: "var(--brand)" }] }],

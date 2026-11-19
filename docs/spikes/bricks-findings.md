@@ -195,3 +195,55 @@ Editor HTML (`text`, accordion/tab content, icon-box content, alert) goes throug
   live site printed on the old domain are now written on the production domain at load (same path).
 - An SVG drawn to a PNG at 4× (capped at 3000px) made the footer logo a 574 KB PNG; the cap is now 1200px. The old
   `/wp-content/uploads/…/logo.svg` address redirects to the drawn `logo.png`.
+
+## Visual parity on the first Bricks site (2026-11-20)
+
+Measured on the live site in headless Chromium (audit capture, 390 / 768 / 1440 px) and compared section by section
+with staging. The site is built with Automatic.css (ACSS) on Bricks: most spacing, widths and colours in the element
+settings are ACSS variables (`var(--space-l)`, `var(--width-l)`, `var(--black-trans-50)`) that no Bricks option
+defines, and many global classes imported from ACSS (`btn--outline`, `btn--black`) carry no Bricks settings at all.
+
+### Design variables and measured boxes (audit)
+
+- The audit now writes `snapshot/css-variables.json`: every custom property on `:root` at each viewport (877 on this
+  site; the design capture keeps only 200) and the root font size. ACSS 3 on this site keeps the root at 16px (the
+  ACSS default of 62.5% would make 1rem = 10px, so the root size is captured, not assumed).
+- Lengths are evaluated, not just looked up: `calc()`, `clamp()`, `min()`, `max()`, `var()` (Bricks global variables
+  first, then the live variables, then the fallback) with px / rem / em / vw at the screen width the kit measures
+  (1440 / 768 / 390). Example: `--width-l: calc(85.375rem * 0.6)` → 819.6px; `--space-l` (a clamp) → 45px at 1440.
+- The screenshot capture also records every rendered Bricks element's box by id (`#brxe-<id>`: width, height, row and
+  column gap, padding, bottom margin, font size, line height) in `screens.json` (`bricks`). The adapter prefers these
+  measured gaps, widths and text sizes over the settings, which miss framework defaults (ACSS gives every container a
+  row gap of `--container-gap` without a Bricks setting).
+- Measured section padding (the audit's section boxes) now applies to Bricks rows too (paired by `sourceRef.row`).
+
+### Rules
+
+- **Top-level boxes are rows.** A template's top-level `block`/`div` (the footer template's outer block with the
+  footer padding) is a row with its own styling, like a section; only leaf elements at the top level are gathered
+  into a text row.
+- **Centred flex stack → one column.** Bricks blocks and containers are flex columns. A single-column row whose box
+  holds a picture with its own width (`_widthMax: 160` logo, `_width: var(--width-l)` image) becomes a `columns`
+  section with one column instead of an image-beside-text section: picture width (and fixed height for an image
+  reveal `height` / `_height`, phone value too), the picture before or after the text as in the builder, the stack's
+  row gap between items, `align-items: center` (each item centred as a box; the text keeps its own alignment, centred
+  only when every text element sets `text-align: center`), the picture's own bottom margin.
+- **Link rows.** A row box whose children are only text links (NextBricks underlined-hover, text-link, linked icons)
+  is one list of links (one item per link), drawn as a row with the box's column gap and the items' text size, no
+  bullets or underlines. A row of social links (Instagram, TikTok, Facebook, YouTube, LinkedIn, X, Pinterest) is one
+  paragraph the starter draws as round icons (34px: 18px glyph + 8px padding, as the live footer) with that row's gap.
+- **Heading with a custom tag.** `tag: custom` + `customTag: span|p|div` prints that tag: the text is a paragraph, not
+  an h3 (the footer credit line was rendered in the display script font).
+- **Hidden elements.** `_hideElementFrontend: true` ("Hide element on frontend") is never rendered on the live site:
+  reported (`lossy`), not migrated. The About page had a hidden copy of an older text block.
+- **Hero.** An absolutely positioned, childless box with a background colour inside the section is an overlay
+  (`.hero__overlay` with `var(--black-trans-50)` → overlay 0.5 over the video). `_heightMin` other than 100vh
+  (`90svh`) is the section's minimum height, content placed by `_justifyContent`. The content box width
+  (`_width`), the heading's size and line height (blade-title `titleTypography`, phone size from
+  `titleTypography:mobile_portrait`), the text block's row gap, the space above the buttons (the outer box's row gap),
+  the gap between buttons and the body text size (else the theme style's body size) are carried as the hero's look.
+- **Buttons.** Bricks `style: light` (not outlined) is a white button with accent text; `_widthMin` is the button's
+  minimum width; an ACSS `btn--outline` class makes an outline button.
+- **Header over the hero.** The starter put the header over any hero with a background picture; on this site the
+  header is solid (audit: `transparentOnTop: false`) and the hero starts below it. The header now sits over the hero
+  only when it is transparent at the top.
