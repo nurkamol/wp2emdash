@@ -91,6 +91,35 @@ async function settle(page: Page, maskSelectors: string[]): Promise<number> {
 	if (maskSelectors.length) {
 		await page.addStyleTag({ content: `${maskSelectors.join(",")} { visibility: hidden !important; }` }).catch(() => {});
 	}
+	// Entrance animations run by script (Salient "fade-in-from-bottom", waypoints) start when an element comes into
+	// view. A full-page screenshot enlarges the viewport to the whole page, which would start any not yet triggered
+	// at the moment of capture and photograph it mid-move. Show the whole page once, let them finish, then restore.
+	const size = page.viewportSize();
+	const full = await page.evaluate(() => document.documentElement.scrollHeight).catch(() => 0);
+	if (size && full > size.height && full <= 40_000) {
+		await page.setViewportSize({ width: size.width, height: full }).catch(() => {});
+		await page.waitForTimeout(1500);
+		await page.setViewportSize(size).catch(() => {});
+		await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+	}
+	// Background videos: every capture shows the same frame (the first), so two playing videos are never compared
+	// mid-play at different moments.
+	await page
+		.evaluate(() =>
+			Promise.all(
+				Array.from(document.querySelectorAll("video")).map(
+					(v) =>
+						new Promise<void>((done) => {
+							v.pause();
+							if (v.currentTime === 0 || v.readyState === 0) return done();
+							const t = setTimeout(done, 3000);
+							v.addEventListener("seeked", () => (clearTimeout(t), done()), { once: true });
+							v.currentTime = 0;
+						}),
+				),
+			),
+		)
+		.catch(() => {});
 	await page.waitForTimeout(400);
 	return page.evaluate(() => Array.from(document.images).filter((i) => i.getAttribute("src") && !i.getAttribute("src")?.startsWith("data:") && (!i.complete || i.naturalWidth === 0) && i.getBoundingClientRect().width > 1).length).catch(() => 0);
 }
