@@ -42,16 +42,12 @@ const siteTitle = settings.data?.title?.trim() || site.name;
 // no /_emdash/ files, so link previews of the workers.dev or staging address would find no image. og:url and the
 // canonical keep the production address.
 // EmDash's getSeoMeta already makes it absolute on the production address: that origin is swapped for this one too.
+// The request's own URL, not Astro.url (which reports the configured `site` address in production builds).
+const servingOrigin = new URL(Astro.request.url).origin;
+const productionOrigin = URL.canParse(site.productionUrl) ? new URL(site.productionUrl).origin : undefined;
 const ogImage = image ? (() => {
-	const u = new URL(image, Astro.url.origin);
-	const prod = (() => {
-		try {
-			return new URL(site.productionUrl).origin;
-		} catch {
-			return undefined;
-		}
-	})();
-	return u.origin === prod || !/^https?:\/\//.test(image) ? new URL(`${u.pathname}${u.search}`, Astro.url.origin).toString() : u.toString();
+	const u = new URL(image, servingOrigin);
+	return u.origin === productionOrigin || !/^https?:\/\//.test(image) ? new URL(`${u.pathname}${u.search}`, servingOrigin).toString() : u.toString();
 })() : undefined;
 // Its size and type from EmDash's media library (link previews use them to lay out the card before fetching).
 let ogImageMeta: { width?: number; height?: number; type?: string } = {};
@@ -77,8 +73,11 @@ const pageCtx = createPublicPageContext({
 	content,
 	seo: { ogImage, robots },
 	siteName: siteTitle,
-	// Structured-data ids use the production origin on every environment (staging is noindex).
-	siteUrl: site.productionUrl,
+	// EmDash makes the page entry's SEO image absolute with this address, and that value wins over `seo.ogImage`.
+	// On the production domain: the production address (structured-data ids stay stable). Anywhere else (workers.dev
+	// before go-live, staging): the serving address, so link previews can fetch the image — the production domain
+	// serves WordPress until the switch. Canonical and og:url keep the production address either way.
+	siteUrl: servingOrigin === productionOrigin ? site.productionUrl : servingOrigin,
 });
 const canonicalUrl = canonical ?? `${site.productionUrl}${Astro.url.pathname}`;
 /** Google Fonts stylesheet, only when the fonts were not self-hosted at scaffold time. */
