@@ -50,6 +50,46 @@ request without it is refused. No remote access, no CDN, no Cloudflare calls.
 Read-only otherwise: it serves only images from the site's `reports/` and `snapshot/screens/`, never runs phases and
 never writes `.env`.
 
+## Claude Code
+
+The kit ships a stdio MCP server and four skills, so Claude Code can drive the pipeline while the owner keeps every
+decision.
+
+**MCP server** — `pnpm wp2emdash mcp`. Tools: `status`, `run_phase`, `read_report`, `list_diagnostics`, `explain_gate`,
+`propose_override`. `run_phase` runs init → verify and any preview run; `load`/`verify` only against `local` or
+`staging`; `cutover` only as its read-only preflight. Anything that would deploy to production or change DNS / Worker
+routes is refused. Results never include `.env` contents, and values from the kit and site `.env` are scrubbed out.
+
+Register it:
+
+- **In the kit:** the checked-in `.mcp.json` registers it as a project server. Claude Code asks you to approve it the
+  first time.
+- **From anywhere** (e.g. a site's own repo):
+  `claude mcp add wp2emdash -- pnpm --silent --dir /path/to/wp-to-emdash-kit wp2emdash mcp`
+  (keep `--silent`, because stdout is the protocol channel).
+
+**Approval queue** — `propose_override` never edits a file. It writes `sites/<slug>/proposals/<id>.json` (a unified
+diff for `overrides.ts` or `decisions.md`, checked to apply cleanly). The owner decides:
+
+```bash
+pnpm wp2emdash proposals <slug>                       # pending proposals (--all for decided ones, --json)
+pnpm wp2emdash proposals <slug> approve <id> --by "…" # applies the patch, prints the rerun command
+pnpm wp2emdash proposals <slug> reject <id> --by "…" --note "…"
+```
+
+**Skills** (in `skills/`): `wp2emdash-run` (phase by phase, stop and explain red gates), `wp2emdash-map` (coverage
+items → adapter handler + fixture, or an override proposal), `wp2emdash-visual-fix` (red visual sections → measured
+cause → fix → new numbers), `wp2emdash-cutover` (preflight and go-live with the owner's confirmation at every
+irreversible step). Install them for yourself or for a project:
+
+```bash
+cp -R skills/wp2emdash-* ~/.claude/skills/              # every project
+cp -R skills/wp2emdash-* <project>/.claude/skills/      # one project (e.g. a site repo)
+```
+
+Claude never accepts a gate (only `wp2emdash accept` with the owner's reason) and never writes `overrides.ts` /
+`decisions.md` directly.
+
 ## Pipeline
 
 | Phase | Does | Status |
