@@ -12,7 +12,9 @@
  * admin on the Form messages page, else FORM_TO) through the site's provider: an API key from Wrangler secrets (Brevo,
  * Resend, Postmark, SendGrid or Mailgun), or EMAIL_PROVIDER=emdash for EmDash's own pipeline (Settings → Email, reached
  * through `withEmDashRuntime`; see emdash-email.ts). Nothing is stored unless the owner enabled the outbox (then only
- * until it is emailed or the retention period ends); with the outbox, a count per day and form is kept for the admin's charts.
+ * until it is emailed or the retention period ends — or, with keep sent (FORM_OUTBOX_KEEP_SENT="1"), every message,
+ * marked emailed once delivered, until the retention period ends); with the outbox, a count per day and form is kept
+ * for the admin's charts.
  * Field values never reach logs — signatures included: a drawn signature (checked PNG) is emailed as an attachment
  * (inline for EMAIL_PROVIDER=emdash), and the email records the submission time and the exact text the visitor was
  * shown (terms, consent) with its SHA-256 (buildEmail). A form generated for a site with
@@ -22,7 +24,7 @@ import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { deliver, parseAddress } from "./deliver.js";
 import { sendViaEmDash } from "./emdash-email.js";
-import { countMessage, emailConfigured, enqueue, type OutboxEnv, resolveRecipients, usesEmDashEmail } from "./outbox.js";
+import { countMessage, emailConfigured, enqueue, keepsSent, type OutboxEnv, resolveRecipients, usesEmDashEmail } from "./outbox.js";
 import { contentToHtml, contentToText, partsToHtml, partsToText } from "./rich.js";
 import { type Attachment, checkSignaturePng, checkTypedSignature, typedName } from "./signature.js";
 import type { FormDefinition, FormField } from "./types.js";
@@ -146,9 +148,11 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	const files = attachments.length ? { attachments } : {};
 	// Kept for later delivery when email is not set up or the provider refuses (outbox, owner opt-in): the visitor's
 	// message is not lost, and the cron emails it once delivery works.
-	const keep = async (reason: string) => {
+	const record = { form: form.id, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html, ...files };
+	// `failed`: the provider refused it (one attempt made), else waiting (not tried: on hold or email not set up).
+	const keep = async (reason: string, failed = false) => {
 		try {
-			if (await enqueue(e, { form: form.id, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html, ...files })) {
+			if (await enqueue(e, { ...record, ...(failed ? { attempts: 1, status: "failed" as const } : {}) })) {
 				console.log(JSON.stringify({ form: form.id, outcome: "queued", reason }));
 				await countMessage(e, form.id, "kept").catch(() => {});
 				return reply(request, 200, { ok: true, message: form.successMessage });
@@ -164,8 +168,15 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	const result = viaEmDash
 		? await sendViaEmDash(to, { ...(replyEmail ? { replyTo: replyEmail } : {}), subject, text, html, ...files })
 		: await deliver(provider, e.EMAIL_API_KEY as string, { from: parseAddress(e.FORM_FROM) as { email: string; name?: string }, to, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html, ...files }, { ...(e.MAILGUN_REGION ? { region: e.MAILGUN_REGION } : {}) });
-	if (!result.ok) return (await keep(result.reason)) ?? fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
-	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: provider }));
+	if (!result.ok) return (await keep(result.reason, true)) ?? fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
+	// Keep sent (owner opt-in): the emailed message stays in Form messages, marked emailed, until the retention period
+	// ends. Best effort — the visitor's message is already delivered, so a KV error does not fail the request.
+	let kept = false;
+	if (keepsSent(e)) {
+		const id = "id" in result && typeof result.id === "string" ? result.id : undefined;
+		kept = await enqueue(e, { ...record, status: "emailed", emailedAt: new Date().toISOString(), emailedTo: to, ...(id ? { messageId: id } : {}) }).catch(() => false);
+	}
+	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: provider, recipients: to.length, ...(keepsSent(e) ? { kept } : {}) }));
 	await countMessage(e, form.id, "emailed").catch(() => {});
 	return reply(request, 200, { ok: true, message: form.successMessage });
 };

@@ -2,16 +2,19 @@
  * Form messages: export and import files, the admin activity log, and one-time download links. Pure functions over the
  * outbox's KV binding, no EmDash imports (unit-tested in the kit).
  */
-import type { KvLike, OutboxEnv, Queued } from "../outbox.js";
+import { type Delivery, deliveryOf, type KvLike, type OutboxEnv, type Queued } from "../outbox.js";
 
 // ── Export ────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export type ExportFormat = "csv" | "json";
-export const EXPORT_COLUMNS = ["Received", "Form", "Name", "Email", "Subject", "Message", "Status", "Email attempts"] as const;
+/** "Status" is the read state (as before 1.4); "Email status" is the delivery: Waiting, Emailed or Failed. */
+export const EXPORT_COLUMNS = ["Received", "Form", "Name", "Email", "Subject", "Message", "Status", "Email attempts", "Email status", "Emailed at"] as const;
+const DELIVERY_NAME: Record<Delivery, string> = { waiting: "Waiting", emailed: "Emailed", failed: "Failed" };
 
 /** One row per message, in the export's column order. */
 function row(q: Queued): string[] {
-	return [q.at, q.form, q.replyTo?.name ?? "", q.replyTo?.email ?? "", q.subject, q.text, q.noEmail ? "Not to email" : q.readAt ? "Read" : "Unread", String(q.attempts)];
+	const d = deliveryOf(q);
+	return [q.at, q.form, q.replyTo?.name ?? "", q.replyTo?.email ?? "", q.subject, q.text, q.noEmail ? "Not to email" : q.readAt ? "Read" : "Unread", String(q.attempts), DELIVERY_NAME[d], d === "emailed" ? (q.emailedAt ?? "") : ""];
 }
 
 /** A spreadsheet would run a cell that starts like a formula: such cells get a leading apostrophe (OWASP CSV injection). */
@@ -30,7 +33,7 @@ export function toJson(messages: Queued[], site?: string): string {
 			version: 1,
 			exportedAt: new Date().toISOString(),
 			...(site ? { site } : {}),
-			messages: messages.map((q) => ({ received: q.at, form: q.form, name: q.replyTo?.name ?? null, email: q.replyTo?.email ?? null, subject: q.subject, message: q.text, read: !!q.readAt, emailAttempts: q.attempts })),
+			messages: messages.map((q) => ({ received: q.at, form: q.form, name: q.replyTo?.name ?? null, email: q.replyTo?.email ?? null, subject: q.subject, message: q.text, read: !!q.readAt, emailAttempts: q.attempts, emailStatus: deliveryOf(q), emailedAt: deliveryOf(q) === "emailed" ? (q.emailedAt ?? null) : null })),
 		},
 		null,
 		2,
@@ -51,6 +54,9 @@ export interface ImportRow {
 	subject: string;
 	message: string;
 	read: boolean;
+	/** From an export of a keep-sent inbox: emailed before (with when), so it is never emailed again by the cron. */
+	emailed?: boolean;
+	emailedAt?: string;
 }
 export interface Parsed {
 	rows: ImportRow[];
@@ -90,7 +96,9 @@ export function parseCsv(text: string): string[][] {
 }
 
 const unguard = (v: string) => (/^'[=+\-@\t\r]/.test(v) ? v.slice(1) : v);
-const ALIASES: Record<keyof ImportRow | "status", string[]> = {
+const ALIASES: Record<Exclude<keyof ImportRow, "emailed"> | "status" | "emailStatus", string[]> = {
+	emailStatus: ["email status", "emailstatus", "delivery"],
+	emailedAt: ["emailed at", "emailedat"],
 	received: ["received", "at", "date", "submitted", "created"],
 	form: ["form"],
 	name: ["name", "full name"],
@@ -121,7 +129,11 @@ function normalise(raw: Record<string, unknown>, line: number, errors: string[])
 	const readValue = get("read");
 	const sizes: [string, string, number][] = [["subject", String(get("subject") ?? ""), LIMITS.subject], ["message", message, LIMITS.message], ["name", name, LIMITS.name], ["email", email, LIMITS.email]];
 	for (const [label, v, max] of sizes) if (v.length > max) return void errors.push(`Row ${line}: the ${label} is longer than ${max} characters.`);
+	// Delivery: only "emailed" is carried over (with its time, when it is a date); waiting or failed arrive as waiting.
+	const emailed = String(get("emailStatus") ?? "").toLowerCase() === "emailed";
+	const emailedAt = Date.parse(String(get("emailedAt") ?? ""));
 	return {
+		...(emailed ? { emailed: true, ...(Number.isNaN(emailedAt) ? {} : { emailedAt: new Date(emailedAt).toISOString() }) } : {}),
 		received: new Date(at).toISOString(),
 		form,
 		...(name ? { name } : {}),
@@ -174,6 +186,7 @@ export function toQueued(r: ImportRow, opts: { email: boolean; markRead: boolean
 		...(opts.email ? {} : { noEmail: true }),
 		storedAt: now,
 		source: "import",
+		...(r.emailed ? { status: "emailed" as const, ...(r.emailedAt ? { emailedAt: r.emailedAt } : {}) } : { status: "waiting" as const }),
 	};
 }
 

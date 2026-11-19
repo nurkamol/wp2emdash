@@ -187,6 +187,13 @@ export const kitConfigSchema = z.object({
 					days: z.number().int().min(1).max(90).default(30),
 					/** Hold: keep every message and send none (a provider that accepts but does not deliver). Off = queue drains. */
 					hold: z.boolean().default(false),
+					/**
+					 * Keep sent: store every message, also once emailed (marked emailed), so Form messages is a full inbox
+					 * (FORM_OUTBOX_KEEP_SENT="1", both environments). A data-retention decision (decisions.md): visitors' text
+					 * stays in KV for `days` even after it was emailed. Off = only messages that could not be emailed are kept.
+					 * On a sensitive site, leave it off unless the owner explicitly wants an inbox.
+					 */
+					keepSent: z.boolean().default(false),
 				})
 				.optional(),
 			/** Production Turnstile site key (public). Staging uses Cloudflare's always-pass test key. */

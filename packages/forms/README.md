@@ -9,6 +9,8 @@ Website forms for [EmDash](https://docs.emdashcms.com/) sites on Cloudflare Work
 - **Outbox (optional)** — when email is not set up or the provider refuses, the message is kept in Workers KV instead of
   being lost, retried by the Worker's cron, deleted once emailed or after the retention period. A hold switch keeps
   everything and sends nothing (for a provider that accepts mail but does not deliver it).
+- **Keep sent (optional, 1.4)** — a full inbox: every message is kept, also once emailed, with its delivery status
+  (Emailed / Waiting / Failed), until the retention period ends. Off by default — a data-retention decision (below).
 - **Form messages admin page** — an EmDash native plugin (Block Kit, no React bundle), **admins only**: inbox with
   search, filters, read state and bulk actions; insights (messages per day and per form, from counts only); CSV/JSON
   export through one-time links; import of exported files; activity log; dashboard widget; **Settings**: who form
@@ -27,7 +29,7 @@ The package is not on npm. Copy `packages/forms` into the project (for example t
 "dependencies": { "@wp2emdash/forms": "link:./packages/forms" }
 ```
 
-Or build a tarball from the kit (`pnpm --dir packages/forms pack`) and `pnpm add ./wp2emdash-forms-1.3.0.tgz`.
+Or build a tarball from the kit (`pnpm --dir packages/forms pack`) and `pnpm add ./wp2emdash-forms-1.4.0.tgz`.
 The package ships TypeScript source; the site's Astro/Vite build compiles it.
 
 ## Wire it up
@@ -108,10 +110,37 @@ with `"triggers": { "crons": ["*/5 * * * *"] }`.
 | `FORM_OUTBOX` | kv_namespaces binding | Turns the outbox on (and with it the admin page's data) |
 | `FORM_OUTBOX_DAYS` | var | Retention, 1–90 days (default 30) |
 | `FORM_OUTBOX_HOLD` | var | `"1"`: keep every message, send none |
+| `FORM_OUTBOX_KEEP_SENT` | var | `"1"`: keep every message, also once emailed (a full inbox, below). Needs `FORM_OUTBOX` |
 
 Without working email (no `EMAIL_API_KEY`, or with `emdash` no provider selected in Settings → Email, or no
 recipients) and without `FORM_OUTBOX` the endpoint answers 503 ("not available") rather than accept a message it cannot
 deliver; with `FORM_OUTBOX` the message is kept and the cron emails it once email works.
+
+**Keep sent — a full inbox (`FORM_OUTBOX_KEEP_SENT="1"`, kit.config `forms.outbox.keepSent: true`).** Without it the
+outbox holds only messages that could not be emailed, so Form messages can show "Messages, 30 days: 1" under Insights
+next to an empty Inbox. With it, every accepted message is stored (the same record as an outbox message, signature
+included) with a delivery status:
+
+| Status | When | Then |
+|---|---|---|
+| `emailed` | the provider accepted it (`emailedAt`, `emailedTo`, `messageId` when the provider returns one: Brevo, Resend, Postmark, Mailgun from the response body, SendGrid from `X-Message-Id`; none for `emdash`) | kept until the retention period ends; the cron never sends it again |
+| `waiting` | not tried yet: email on hold or not set up | the cron sends it once email works → `emailed` |
+| `failed` | the provider refused it (`attempts` counted) | the cron retries every 5 minutes → `emailed` |
+
+Without keep sent the cron deletes a message once emailed, exactly as before. Either way every record — emailed or not —
+is deleted when the retention period (`FORM_OUTBOX_DAYS`) ends: by KV's expiry, and by the cron, which also applies a
+shortened period to messages stored earlier. Records written before 1.4 have no status and count as waiting (or failed
+after a failed attempt). Saving an emailed message is best effort: if KV fails after the provider accepted it, the
+visitor still gets "sent".
+
+On Form messages the inbox then lists the newest 1,000 messages with an **Email** badge and an **Email** filter
+(All / Waiting / Emailed / Failed) next to the read filter; the cards show In inbox, Waiting, Unread and Kept for. A
+message page shows when it was emailed and to whom (admins already see the message; logs carry only a recipient count)
+and the provider's message id. **Email it now** sends a waiting or failed message; **Email again** re-sends an emailed
+one (or one imported for reference) after a confirmation, to the current recipients, and updates when and to whom.
+**Email all now** sends only waiting and failed messages. Exports carry "Email status" and "Emailed at" (CSV) /
+`emailStatus` and `emailedAt` (JSON), never the recipients; an import keeps `emailed` (so it is never sent again by the
+cron) and brings any other status in as waiting. The dashboard widget lists the five newest messages.
 
 **Recipients in the admin.** Plugins → Form messages → **Settings** (admins only, like the rest of the page): up to 10
 addresses, one per line, checked before saving. They are stored in the outbox's KV (`cfg:recipients`), so the endpoint
@@ -159,7 +188,7 @@ later. A drawn signature is sent as an attachment, `signature.png`:
 | emdash | **embedded** in the HTML part as a data-URI image: EmDash 1.5's email message has no attachments. Gmail and some Outlook versions do not show data-URI images — use an API provider for signed forms |
 
 **The outbox** keeps the message with its signature (as base64, in KV) until it is emailed or the retention period
-ends, like any message; the cron sends it with the attachment. On **Form messages** a message with a signature says
+ends, like any message (with keep sent, until the retention period ends, emailed or not); the cron sends it with the attachment. On **Form messages** a message with a signature says
 "signature attached" in the inbox and shows the image on the message page (admins only; only a stored PNG that passes
 the same checks is shown). CSV/JSON exports carry the text record, not the image.
 
@@ -167,6 +196,11 @@ the same checks is shown). CSV/JSON exports carry the text record, not the image
 
 - The endpoint reads only the form's own fields and stores nothing unless the outbox is on — then only until the
   message is emailed or the retention period ends.
+- **Keep sent is a data-retention decision.** With it, what visitors wrote stays in Workers KV for the whole retention
+  period even after it was emailed — a second copy beside the recipients' mailboxes, readable by every site Admin and
+  by anyone with access to the Cloudflare account. Record the owner's choice (kit `decisions.md`) and say so in the
+  site's privacy policy. For sites handling health, legal or financial data, leave it off unless the owner explicitly
+  wants an inbox, and then keep the retention period short.
 - With the outbox, one count per day, outcome (emailed / kept) and form is kept for 400 days for the charts: no names,
   addresses or text.
 - The admin page is for the **Admin** role only: EmDash enforces `plugins:manage` and its CSRF header before the
@@ -179,7 +213,7 @@ the same checks is shown). CSV/JSON exports carry the text record, not the image
 - For sites handling health, legal or financial data, keep forms to contact details only and tell visitors not to send
   sensitive details (`notice` on the form definition).
 - **Signatures are personal data.** They are emailed to the recipients and, with the outbox, kept in KV only until
-  emailed or for the retention period (`FORM_OUTBOX_DAYS`) — the site is not an archive of signed forms. The business
+  emailed or for the retention period (`FORM_OUTBOX_DAYS`; with keep sent, for the whole period) — the site is not an archive of signed forms. The business
   should keep the signed emails (a waiver's signed copy) for as long as its own policy and local law require, in its
   own records, and delete them after that. The kit's contact-only policy for sensitive sites withholds radio, consent,
   content and signature fields like any other non-contact field; whether a sensitive site may collect signatures is
@@ -188,4 +222,4 @@ the same checks is shown). CSV/JSON exports carry the text record, not the image
 ## Development
 
 The kit's tests cover the package (`test/outbox.test.ts`, `test/forms.test.ts`, `test/forms-plugin.test.ts`,
-`test/forms-package.test.ts`, `test/forms-waiver.test.ts`; `emdash` and `emdash/middleware` are stubbed in `test/stubs`; `pnpm test` in the kit root). EmDash behaviours this relies on are recorded in the kit's `docs/spikes/M7-findings.md`.
+`test/forms-package.test.ts`, `test/forms-waiver.test.ts`, `test/forms-keep-sent.test.ts`; `emdash` and `emdash/middleware` are stubbed in `test/stubs`; `pnpm test` in the kit root). EmDash behaviours this relies on are recorded in the kit's `docs/spikes/M7-findings.md`.

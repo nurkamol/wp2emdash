@@ -2,7 +2,7 @@
  * Form messages: Block Kit views (plain JSON, shapes from @emdash-cms/blocks 1.5). Visitor text is only ever placed in
  * plain-text fields, which the admin renders escaped.
  */
-import { type DayCount, MAX_RECIPIENTS, type OutboxStatus, type Queued, type Summary } from "../outbox.js";
+import { type DayCount, type Delivery, deliveryOf, MAX_RECIPIENTS, type OutboxStatus, type Queued, type Summary } from "../outbox.js";
 import { attachmentDataUrl } from "../signature.js";
 import type { Activity } from "./data.js";
 
@@ -19,8 +19,18 @@ export interface Filter {
 	q?: string;
 	form?: string;
 	show?: "all" | "unread" | "read";
+	/** Delivery status: waiting, emailed or failed. */
+	delivery?: "all" | Delivery;
 	sort?: { key: string; dir: "asc" | "desc" };
 }
+
+/** What the inbox shows for a message's delivery: its status, or "archived" for an import kept without email. */
+export type Shown = Delivery | "archived";
+export const shownDelivery = (s: Pick<Summary, "status" | "noEmail">): Shown => (s.status === "emailed" ? "emailed" : s.noEmail ? "archived" : deliveryOf(s));
+const DELIVERY_LABEL: Record<Shown, string> = { emailed: "Emailed", waiting: "Waiting", failed: "Failed", archived: "Not to email" };
+/** Messages the cron (or "Email all now") still has to send. */
+export const toSend = <T extends { s: Summary }>(items: T[]) => items.filter((i) => ["waiting", "failed"].includes(shownDelivery(i.s)));
+export const parseDelivery = (v: unknown): Filter["delivery"] => (v === "waiting" || v === "emailed" || v === "failed" ? v : "all");
 
 const STATUS: Record<Status, { title: string; description: string; variant: "default" | "alert" }> = {
 	held: { title: "Email on hold", description: "New messages are kept here and none are emailed until a working email account is connected.", variant: "alert" },
@@ -57,36 +67,49 @@ export interface Overview {
 	/** EMAIL_PROVIDER. */
 	provider?: string;
 	recipientErrors?: string[];
+	/** Keep sent (FORM_OUTBOX_KEEP_SENT): every message is kept, also once emailed — the page is a full inbox. */
+	keepSent?: boolean;
 }
 
 /** The inbox rows the filter shows, in display order. */
 export function filtered(o: Overview) {
 	const f = o.filter;
-	let rows = o.items.filter(({ key, s }) => (!f.form || f.form === "all" || s.form === f.form) && (f.show === "unread" ? !s.read : f.show === "read" ? !!s.read : true) && (!o.matches || o.matches.has(key)));
+	let rows = o.items.filter(({ key, s }) => (!f.form || f.form === "all" || s.form === f.form) && (f.show === "unread" ? !s.read : f.show === "read" ? !!s.read : true) && (!f.delivery || f.delivery === "all" || shownDelivery(s) === f.delivery) && (!o.matches || o.matches.has(key)));
 	const dir = f.sort?.dir === "asc" ? 1 : -1;
 	const by = f.sort?.key ?? "received";
-	const val = (s: Summary) => (by === "from" ? sender(s).toLowerCase() : by === "subject" ? (s.subject ?? "").toLowerCase() : by === "form" ? s.form : by === "status" ? (s.read ? "1" : "0") : s.at);
+	const val = (s: Summary) => (by === "from" ? sender(s).toLowerCase() : by === "subject" ? (s.subject ?? "").toLowerCase() : by === "form" ? s.form : by === "status" ? (s.read ? "1" : "0") : by === "delivery" ? shownDelivery(s) : s.at);
 	rows = [...rows].sort((a, b) => (val(a.s) < val(b.s) ? -dir : val(a.s) > val(b.s) ? dir : a.key < b.key ? -dir : a.key > b.key ? dir : 0));
 	return rows;
 }
 
 function inbox(o: Overview): Block[] {
 	const unread = o.items.filter((i) => !i.s.read).length;
-	const oldest = o.items[0]?.s.at;
+	const pending = toSend(o.items);
+	const failed = pending.filter((i) => shownDelivery(i.s) === "failed").length;
+	const oldest = (o.keepSent ? pending : o.items)[0]?.s.at;
 	const rows = filtered(o);
-	const filtering = !!(o.filter.q || (o.filter.form && o.filter.form !== "all") || (o.filter.show && o.filter.show !== "all"));
+	const filtering = !!(o.filter.q || (o.filter.form && o.filter.form !== "all") || (o.filter.show && o.filter.show !== "all") || (o.filter.delivery && o.filter.delivery !== "all"));
 	const ready = o.status === "ready";
+	const kept = { label: "Kept for", value: plural(o.days, "day"), description: "then deleted automatically" };
 	return [
 		{ type: "banner", ...STATUS[o.status] },
 		{
 			type: "stats",
-			items: [
-				{ label: "Waiting", value: o.items.length + (o.more ? "+" : ""), description: "in the outbox" },
-				{ label: "Unread", value: unread, ...(unread ? { trend: "up" } : {}) },
-				{ label: "Oldest waiting", value: oldest ? age(oldest) : "—" },
-				{ label: "Kept for", value: plural(o.days, "day"), description: "then deleted automatically" },
-			],
+			items: o.keepSent
+				? [
+						{ label: "In inbox", value: o.items.length + (o.more ? "+" : ""), description: "emailed or not" },
+						{ label: "Waiting", value: pending.length, description: failed ? `${failed} refused by the email provider` : "to be emailed", ...(failed ? { trend: "down" } : {}) },
+						{ label: "Unread", value: unread, ...(unread ? { trend: "up" } : {}) },
+						kept,
+					]
+				: [
+						{ label: "Waiting", value: o.items.length + (o.more ? "+" : ""), description: "in the outbox" },
+						{ label: "Unread", value: unread, ...(unread ? { trend: "up" } : {}) },
+						{ label: "Oldest waiting", value: oldest ? age(oldest) : "—" },
+						kept,
+					],
 		},
+		...(o.keepSent ? [{ type: "context", text: `Every message sent through the site's forms is kept here for ${plural(o.days, "day")}, also after it is emailed, then deleted automatically.` }] : []),
 		{
 			type: "form",
 			block_id: "filter",
@@ -94,6 +117,7 @@ function inbox(o: Overview): Block[] {
 				{ type: "text_input", action_id: "q", label: "Search", placeholder: "Name, email, subject or message", ...(o.filter.q ? { initial_value: o.filter.q } : {}) },
 				{ type: "select", action_id: "form", label: "Form", options: [{ label: "All forms", value: "all" }, ...o.forms.map((f) => ({ label: f, value: f }))], initial_value: o.filter.form ?? "all" },
 				{ type: "select", action_id: "show", label: "Show", options: [{ label: "All messages", value: "all" }, { label: "Unread", value: "unread" }, { label: "Read", value: "read" }], initial_value: o.filter.show ?? "all" },
+				{ type: "select", action_id: "delivery", label: "Email", options: [{ label: "All", value: "all" }, { label: "Waiting", value: "waiting" }, { label: "Emailed", value: "emailed" }, { label: "Failed", value: "failed" }], initial_value: o.filter.delivery ?? "all" },
 			],
 			submit: { label: "Apply", action_id: "filter" },
 		},
@@ -102,26 +126,27 @@ function inbox(o: Overview): Block[] {
 			type: "table",
 			block_id: "messages",
 			page_action_id: "sort",
-			empty_text: filtering ? "No messages match." : "No messages are waiting. New ones appear here when email cannot be sent.",
+			empty_text: filtering ? "No messages match." : o.keepSent ? "No messages yet. Every message sent through the site's forms appears here." : "No messages are waiting. New ones appear here when email cannot be sent.",
 			columns: [
 				{ key: "status", label: "Status", format: "badge", sortable: true },
+				{ key: "delivery", label: "Email", format: "badge", sortable: true },
 				{ key: "received", label: "Received", format: "relative_time", sortable: true },
 				{ key: "from", label: "From", sortable: true },
 				{ key: "subject", label: "Subject", sortable: true },
 				{ key: "form", label: "Form", format: "code", sortable: true },
 				{ key: "open", label: "", format: "element" },
 			],
-			rows: rows.map(({ key, s }) => ({ status: s.noEmail ? "Archived" : s.read ? "Read" : "New", received: s.at, from: sender(s), subject: `${s.subject ?? ""}${s.files ? " · signature attached" : ""}`, form: s.form, open: { type: "button", action_id: "open", label: "Open", value: key } })),
+			rows: rows.map(({ key, s }) => ({ status: s.noEmail ? "Archived" : s.read ? "Read" : "New", delivery: DELIVERY_LABEL[shownDelivery(s)], received: s.at, from: sender(s), subject: `${s.subject ?? ""}${s.files ? " · signature attached" : ""}`, form: s.form, open: { type: "button", action_id: "open", label: "Open", value: key } })),
 		},
-		...(o.more ? [{ type: "context", text: "Only the oldest 1,000 messages are listed. Email or delete some to see the rest." }] : []),
+		...(o.more ? [{ type: "context", text: o.keepSent ? "Only the newest 1,000 messages are listed. Older ones are kept until their retention period ends." : "Only the oldest 1,000 messages are listed. Email or delete some to see the rest." }] : []),
 		...(o.items.length
 			? [
 					{
 						type: "actions",
 						elements: [
 							...(unread ? [{ type: "button", action_id: "read-all", label: `Mark ${plural(unread, "message")} as read`, style: "secondary" }] : []),
-							...(ready ? [{ type: "button", action_id: "send-all", label: "Email all now", style: "primary", confirm: { title: "Email every waiting message?", text: `${plural(o.items.filter((i) => !i.s.noEmail).length, "message")} will be emailed to the site's recipients and then removed from the outbox.`, confirm: "Email them", deny: "Cancel" } }] : []),
-							{ type: "button", action_id: "delete-all", label: filtering ? `Delete ${plural(rows.length, "shown message")}` : "Delete all", style: "danger", value: filtering ? { scope: "shown", filter: { q: o.filter.q, form: o.filter.form, show: o.filter.show } } : { scope: "all" }, confirm: { title: filtering ? "Delete the shown messages?" : "Delete every message?", text: `${plural(filtering ? rows.length : o.items.length, "message")} will be removed and cannot be recovered. Export them first if you need a copy.`, confirm: "Delete", deny: "Keep them", style: "danger" } },
+							...(ready && pending.length ? [{ type: "button", action_id: "send-all", label: o.keepSent ? `Email ${plural(pending.length, "waiting message")} now` : "Email all now", style: "primary", confirm: { title: "Email every waiting message?", text: `${plural(pending.length, "message")} will be emailed to the site's recipients and then ${o.keepSent ? "kept here, marked Emailed" : "removed from the outbox"}.`, confirm: "Email them", deny: "Cancel" } }] : []),
+							{ type: "button", action_id: "delete-all", label: filtering ? `Delete ${plural(rows.length, "shown message")}` : "Delete all", style: "danger", value: filtering ? { scope: "shown", filter: { q: o.filter.q, form: o.filter.form, show: o.filter.show, delivery: o.filter.delivery } } : { scope: "all" }, confirm: { title: filtering ? "Delete the shown messages?" : "Delete every message?", text: `${plural(filtering ? rows.length : o.items.length, "message")} will be removed and cannot be recovered. Export them first if you need a copy.`, confirm: "Delete", deny: "Keep them", style: "danger" } },
 						],
 					},
 				]
@@ -156,7 +181,8 @@ function insights(o: Overview): Block[] {
 				{ label: "Messages, 30 days", value: total() },
 				{ label: "Last 7 days", value: last7 },
 				{ label: "Emailed right away", value: total("emailed") },
-				{ label: "Kept in the outbox", value: total("kept"), ...(total("kept") ? { description: "email was not available" } : {}) },
+				// "kept" counts messages that could not be emailed at once (also with keep sent, where every message is kept).
+				{ label: "Kept in the outbox", value: total("kept"), ...(total("kept") ? { description: o.keepSent ? "not emailed right away" : "email was not available" } : {}) },
 			],
 		},
 		{
@@ -195,7 +221,7 @@ function insights(o: Overview): Block[] {
 				{ key: "kept", label: "Kept", format: "number" },
 				{ key: "waiting", label: "Waiting now", format: "number" },
 			],
-			rows: forms.map((f) => ({ form: f, total: o.counts.filter((c) => c.form === f).reduce((n, c) => n + c.count, 0), kept: o.counts.filter((c) => c.form === f && c.outcome === "kept").reduce((n, c) => n + c.count, 0), waiting: o.items.filter((i) => i.s.form === f).length })),
+			rows: forms.map((f) => ({ form: f, total: o.counts.filter((c) => c.form === f).reduce((n, c) => n + c.count, 0), kept: o.counts.filter((c) => c.form === f && c.outcome === "kept").reduce((n, c) => n + c.count, 0), waiting: toSend(o.items).filter((i) => i.s.form === f).length })),
 		},
 		{ type: "context", text: `${busiest ? `Busiest day: ${busiest[0]} (${plural(busiest[1], "message")}). ` : ""}Counts only — nothing a visitor wrote is kept for these charts.${first ? ` Counting since ${first}.` : ""}` },
 	];
@@ -204,7 +230,7 @@ function insights(o: Overview): Block[] {
 function transfer(o: Overview): Block[] {
 	return [
 		{ type: "header", text: "Export" },
-		{ type: "context", text: "Download the waiting messages as a spreadsheet (CSV) or as a backup file (JSON) to import later. The file contains visitors' names and contact details: keep it somewhere private and delete it when you no longer need it." },
+		{ type: "context", text: `Download the ${o.keepSent ? "messages in the inbox (with whether and when each was emailed)" : "waiting messages"} as a spreadsheet (CSV) or as a backup file (JSON) to import later. The file contains visitors' names and contact details: keep it somewhere private and delete it when you no longer need it.` },
 		...(o.download
 			? [
 					{ type: "banner", title: "Your download is ready", description: "The link works once, for the next 2 minutes.", variant: "default" },
@@ -216,7 +242,7 @@ function transfer(o: Overview): Block[] {
 			block_id: "export",
 			fields: [
 				{ type: "select", action_id: "format", label: "Format", options: [{ label: "Spreadsheet (CSV, opens in Excel or Google Sheets)", value: "csv" }, { label: "Backup (JSON, for importing)", value: "json" }], initial_value: "csv" },
-				{ type: "select", action_id: "scope", label: "Messages", options: [{ label: `All waiting (${o.items.length})`, value: "all" }, { label: `Unread only (${o.items.filter((i) => !i.s.read).length})`, value: "unread" }], initial_value: "all" },
+				{ type: "select", action_id: "scope", label: "Messages", options: [{ label: `${o.keepSent ? "All" : "All waiting"} (${o.items.length})`, value: "all" }, { label: `Unread only (${o.items.filter((i) => !i.s.read).length})`, value: "unread" }], initial_value: "all" },
 			],
 			submit: { label: "Create download link", action_id: "export" },
 		},
@@ -300,9 +326,21 @@ export function overview(o: Overview, tab: number = TABS.inbox): Block[] {
 	];
 }
 
+/** Where the message is on its way to the recipients, in words. */
+function deliveryText(q: Queued, status: Status): string {
+	const d = deliveryOf(q);
+	if (d === "emailed") return `Emailed${q.emailedAt ? ` ${longDate(q.emailedAt)}` : ""}`;
+	if (q.noEmail) return "Not to email (imported for reference)";
+	const when = status === "ready" ? "retried automatically every 5 minutes" : status === "held" ? "email is on hold" : "email is not set up";
+	return d === "failed" ? `Failed: the email provider refused it (${plural(q.attempts, "attempt")}); ${when}` : `Waiting to be emailed (${when})`;
+}
+
 export function message(key: string, q: Queued, status: Status): Block[] {
 	const lines = q.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 300);
-	const canEmail = status === "ready" && !q.noEmail;
+	// Any message can be emailed (again) once email works; one emailed before, or imported without email, asks first.
+	const canEmail = status === "ready";
+	const emailed = deliveryOf(q) === "emailed";
+	const resend = emailed || !!q.noEmail;
 	return [
 		{ type: "header", text: q.subject },
 		{ type: "context", text: `Received ${longDate(q.at)} · form ${q.form}${q.source === "import" ? " · imported" : ""}` },
@@ -313,6 +351,10 @@ export function message(key: string, q: Queued, status: Status): Block[] {
 				{ label: "Name", value: q.replyTo?.name ?? "—" },
 				{ label: "Email", value: q.replyTo?.email ?? "—" },
 				{ label: "Status", value: q.readAt ? `Read ${longDate(q.readAt)}` : "New" },
+				{ label: "Delivery", value: deliveryText(q, status) },
+				// Admins see who it went to (they see the message itself); logs only ever carry a count.
+				...(emailed && q.emailedTo?.length ? [{ label: "Emailed to", value: q.emailedTo.join(", ") }] : []),
+				...(emailed && q.messageId ? [{ label: "Provider message id", value: q.messageId }] : []),
 				{ label: "Email attempts", value: String(q.attempts) },
 				...(q.attachments?.length ? [{ label: "Signature", value: `Signature attached (${q.attachments.map((a) => a.filename).join(", ")})` }] : []),
 			],
@@ -331,21 +373,45 @@ export function message(key: string, q: Queued, status: Status): Block[] {
 			elements: [
 				{ type: "button", action_id: "back", label: "← Back to inbox", style: "secondary" },
 				{ type: "button", action_id: "unread", label: "Mark as unread", style: "secondary", value: key },
-				...(canEmail ? [{ type: "button", action_id: "send", label: "Email it now", style: "primary", value: key }] : []),
+				...(canEmail
+					? [
+							resend
+								? { type: "button", action_id: "send", label: "Email again", style: "secondary", value: key, confirm: { title: "Email this message again?", text: emailed ? `It was emailed${q.emailedAt ? ` ${longDate(q.emailedAt)}` : ""}. It is sent again to the site's current recipients.` : "It was imported to be kept for reference. It is emailed to the site's current recipients.", confirm: "Email it", deny: "Cancel" } }
+								: { type: "button", action_id: "send", label: "Email it now", style: "primary", value: key },
+						]
+					: []),
 				...(q.replyTo?.email ? [{ type: "link", label: "Reply by email", target: { kind: "external", url: `mailto:${encodeURIComponent(q.replyTo.email)}?subject=${encodeURIComponent(`Re: ${q.subject}`)}` }, appearance: "secondary" }] : []),
-				{ type: "button", action_id: "delete", label: "Delete", style: "danger", value: key, confirm: { title: "Delete this message?", text: "It is removed from the outbox and cannot be recovered.", confirm: "Delete", deny: "Keep it", style: "danger" } },
+				{ type: "button", action_id: "delete", label: "Delete", style: "danger", value: key, confirm: { title: "Delete this message?", text: "It is removed from Form messages and cannot be recovered.", confirm: "Delete", deny: "Keep it", style: "danger" } },
 			],
 		},
 	];
 }
 
-export function widget(o: Pick<Overview, "items" | "counts" | "status">): Block[] {
+export function widget(o: Pick<Overview, "items" | "counts" | "status" | "keepSent">): Block[] {
 	const since = new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10);
 	const last7 = o.counts.filter((c) => c.day >= since).reduce((n, c) => n + c.count, 0);
 	const unread = o.items.filter((i) => !i.s.read).length;
+	const pending = toSend(o.items).length;
+	// Keep sent: the newest few messages (items are oldest first). Names and subjects only; the page has the rest.
+	const recent = o.keepSent ? o.items.slice(-5).reverse() : [];
 	return [
-		{ type: "stats", items: [{ label: "Waiting", value: o.items.length }, { label: "Unread", value: unread }, { label: "Last 7 days", value: last7 }] },
-		...(o.status !== "ready" && o.items.length ? [{ type: "context", text: STATUS[o.status].title }] : []),
+		{ type: "stats", items: o.keepSent ? [{ label: "In inbox", value: o.items.length }, { label: "Unread", value: unread }, { label: "Last 7 days", value: last7 }] : [{ label: "Waiting", value: o.items.length }, { label: "Unread", value: unread }, { label: "Last 7 days", value: last7 }] },
+		...(o.status !== "ready" && (o.keepSent ? pending : o.items.length) ? [{ type: "context", text: STATUS[o.status].title }] : []),
+		...(recent.length
+			? [
+					{
+						type: "table",
+						block_id: "recent",
+						page_action_id: "noop",
+						columns: [
+							{ key: "received", label: "Received", format: "relative_time" },
+							{ key: "from", label: "From" },
+							{ key: "delivery", label: "Email", format: "badge" },
+						],
+						rows: recent.map(({ s }) => ({ received: s.at, from: `${sender(s)}${s.read ? "" : " · new"}`, delivery: DELIVERY_LABEL[shownDelivery(s)] })),
+					},
+				]
+			: []),
 		{ type: "actions", elements: [{ type: "link", label: "Open form messages", target: { kind: "plugin-page", path: PAGE }, appearance: "secondary" }] },
 	];
 }

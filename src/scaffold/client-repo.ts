@@ -28,7 +28,7 @@ export interface ClientRepoInput {
 	email: { provider: string; from?: string; to: string[] };
 	turnstileProduction: boolean;
 	/** Messages kept in Workers KV when email cannot be sent (days kept; hold = keep all, send none). */
-	outbox?: { days: number; hold: boolean };
+	outbox?: { days: number; hold: boolean; keepSent?: boolean };
 	/** Tracking carried over from the old site (Google tag ids, Tag Manager container, Cloudflare beacon token). */
 	analytics?: { google: string[]; gtm?: string; cloudflareToken?: string };
 	/** Branded sharing cards (@wp2emdash/og) are on. */
@@ -253,10 +253,10 @@ How a message is handled (\`src/pages/api/forms/[id].ts\` → \`packages/forms/s
 1. A hidden field catches simple bots; Cloudflare's rate limit allows a few messages per minute per visitor.
 2. Cloudflare Turnstile checks the visitor is not a robot. Without a working check the form refuses messages.
 3. Only the form's own fields are read and checked.
-4. The message is emailed${i.outbox ? " (or kept in the outbox, below)" : ""} through ${i.email.provider} to ${i.email.to.length ? i.email.to.join(", ") : "(no recipients set)"}${i.email.from ? `, from ${i.email.from}` : ""}. Nothing is stored, and logs record only the form and the outcome.
+4. The message is emailed${i.outbox ? " (or kept in the outbox, below)" : ""} through ${i.email.provider} to ${i.email.to.length ? i.email.to.join(", ") : "(no recipients set)"}${i.email.from ? `, from ${i.email.from}` : ""}. ${i.outbox?.keepSent ? `Every message is also kept in the site (Form messages, below) for ${i.outbox.days} days` : "Nothing is stored"}, and logs record only the form and the outcome.
 
 ${i.outbox ? `**Outbox.** When email cannot be sent, the message is kept in Cloudflare KV (binding \`FORM_OUTBOX\`) instead of being
-lost, and the site retries it every 5 minutes; it is deleted once emailed, or after ${i.outbox.days} days. ${i.outbox.hold ? "**It is on hold right now:** every message is kept and none is sent, until a working email account is connected. To release the queue: set the new key (\`npx wrangler secret put EMAIL_API_KEY\`), set \`forms.outbox.hold: false\` in the migration kit's config, rerun scaffold and deploy." : ""}
+lost, and the site retries it every 5 minutes; ${i.outbox.keepSent ? `**every message is kept** (the owner chose a full inbox: \`forms.outbox.keepSent\`), also once emailed — marked Emailed, Waiting or Failed — and deleted after ${i.outbox.days} days. Visitors' messages therefore stay in the site for that long even after they were emailed.` : `it is deleted once emailed, or after ${i.outbox.days} days.`} ${i.outbox.hold ? "**It is on hold right now:** every message is kept and none is sent, until a working email account is connected. To release the queue: set the new key (\`npx wrangler secret put EMAIL_API_KEY\`), set \`forms.outbox.hold: false\` in the migration kit's config, rerun scaffold and deploy." : ""}
 To see what is waiting, sign in to the admin as an **Admin** and open **Form messages** (under Plugins; a summary is on
 the dashboard). **Inbox:** search, filter, read/unread, open, email now (once email works), delete one or many.
 **Insights:** messages per day and per form over 30 days (kept as counts only). **Import & export:** download the

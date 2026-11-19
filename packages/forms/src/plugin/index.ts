@@ -2,7 +2,9 @@
  * Form messages — an EmDash native plugin (Block Kit admin, no React bundle) for the form outbox (Workers KV, binding
  * FORM_OUTBOX): an inbox with search, filters, read state and bulk actions; insights from per-day counts; CSV/JSON
  * export through one-time download links; import of exported files; an activity log; a dashboard widget; and the
- * recipients setting (stored in the same KV, so the form endpoint reads it per request; it overrides FORM_TO).
+ * recipients setting (stored in the same KV, so the form endpoint reads it per request; it overrides FORM_TO). With
+ * keep sent (FORM_OUTBOX_KEEP_SENT="1") the inbox holds every message with its delivery status (Emailed / Waiting /
+ * Failed), filterable, and any message can be emailed again.
  *
  * Admins only. The `admin` route keeps EmDash's default plugin-route permission, `plugins:manage` (Admin role); EmDash
  * checks it and its CSRF header before the handler runs, and the handler checks the role again. The `download` route
@@ -14,10 +16,10 @@
  * `formsPlugin()` from `@wp2emdash/forms` in astro.config.
  */
 import { definePlugin, pluginResponse } from "emdash";
-import { deleteQueued, importQueued, isOutboxKey, listSummaries, type OutboxEnv, outboxStatus, parseRecipients, type Queued, readCounts, readQueued, resolveRecipients, retentionDays, sendQueued, updateQueued, writeRecipientSetting } from "../outbox.js";
+import { deleteQueued, deliveryOf, importQueued, isOutboxKey, keepsSent, listSummaries, type OutboxEnv, outboxStatus, parseRecipients, type Queued, readCounts, readQueued, resolveRecipients, retentionDays, sendQueued, updateQueued, writeRecipientSetting } from "../outbox.js";
 import { FORMS_PLUGIN } from "../meta.js";
 import { exportFileName, grantDownload, logActivity, parseImport, readActivity, redeemDownload, toCsv, toJson, toQueued } from "./data.js";
-import { adminsOnly, type Filter, filtered, message, overview, type Overview, PAGE, TABS, WIDGET, widget } from "./views.js";
+import { adminsOnly, type Filter, filtered, message, overview, type Overview, PAGE, parseDelivery, TABS, toSend, WIDGET, widget } from "./views.js";
 
 const ADMIN_ROLE = 50;
 
@@ -34,7 +36,9 @@ const outboxEnv = async () => ((await import("cloudflare:workers")) as unknown a
 
 async function build(env: OutboxEnv, filter: Filter = {}, extra: Partial<Overview> = {}): Promise<Overview> {
 	const since = new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
-	const [{ items, more }, counts, activity, status, recipients] = await Promise.all([listSummaries(env), readCounts(env, since), readActivity(env.FORM_OUTBOX), outboxStatus(env), resolveRecipients(env)]);
+	// Keep sent: an inbox, so the newest messages are listed; otherwise the oldest (the queue drains oldest first).
+	const keepSent = keepsSent(env);
+	const [{ items, more }, counts, activity, status, recipients] = await Promise.all([listSummaries(env, 1000, { newest: keepSent }),readCounts(env, since), readActivity(env.FORM_OUTBOX), outboxStatus(env), resolveRecipients(env)]);
 	let matches: Set<string> | undefined;
 	const q = filter.q?.trim().toLowerCase();
 	if (q) {
@@ -47,7 +51,7 @@ async function build(env: OutboxEnv, filter: Filter = {}, extra: Partial<Overvie
 	}
 	const forms = [...new Set([...items.map((i) => i.s.form), ...counts.map((c) => c.form)])].sort();
 	const configTo = (env.FORM_TO ?? "").split(",").map((x) => x.trim()).filter(Boolean);
-	return { status, items, more, counts, activity, days: retentionDays(env), forms, filter, recipients: { ...recipients, configTo }, provider: env.EMAIL_PROVIDER ?? "brevo", ...(matches ? { matches } : {}), ...extra };
+	return { status, items, more, counts, activity, days: retentionDays(env), forms, filter, recipients: { ...recipients, configTo }, provider: env.EMAIL_PROVIDER ?? "brevo", keepSent, ...(matches ? { matches } : {}), ...extra };
 }
 
 const str = (v: unknown, max = 200) => (typeof v === "string" ? v.slice(0, max) : undefined);
@@ -75,8 +79,9 @@ export function createPlugin() {
 					const i = (ctx.input ?? {}) as Interaction;
 					if (isWidget) {
 						const since = new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10);
-						const [{ items }, counts] = await Promise.all([listSummaries(env), readCounts(env, since)]);
-						return { blocks: widget({ items, counts, status: await outboxStatus(env) }) };
+						const keepSent = keepsSent(env);
+						const [{ items }, counts] = await Promise.all([listSummaries(env, 1000, { newest: keepSent }), readCounts(env, since)]);
+						return { blocks: widget({ items, counts, status: await outboxStatus(env), keepSent }) };
 					}
 					const key = isOutboxKey(i.value) ? i.value : undefined;
 					const act = i.action_id;
@@ -99,11 +104,18 @@ export function createPlugin() {
 							return { blocks: await page(), toast: { message: "Message deleted.", type: "success" } };
 						}
 						if (act === "send") {
+							// "Email it now" for a waiting or failed message; "Email again" (confirmed in the view) for an emailed one.
+							const before = await readQueued(env, key);
+							const again = !!before && deliveryOf(before) === "emailed";
 							const r = await sendQueued(env, key);
-							await logActivity(kv, who, r === "sent" ? "Emailed a message" : "Tried to email a message", 1);
-							if (r === "sent") return { blocks: await page(), toast: { message: "Message emailed.", type: "success" } };
+							await logActivity(kv, who, r === "sent" ? (again ? "Emailed a message again" : "Emailed a message") : "Tried to email a message", 1);
+							if (r === "sent") {
+								// Keep sent: the message stays, now marked emailed — show it; otherwise it left the outbox.
+								const kept = keepsSent(env) ? await readQueued(env, key) : undefined;
+								return { blocks: kept ? message(key, kept, await outboxStatus(env)) : await page(), toast: { message: again ? "Message emailed again." : "Message emailed.", type: "success" } };
+							}
 							const q = await readQueued(env, key);
-							const text = r === "failed" ? "The email provider refused it; it stays in the outbox." : r === "missing" ? "That message is no longer waiting." : "Email is not available right now.";
+							const text = r === "failed" ? `The email provider refused it; it stays here${again ? "" : " and is retried automatically"}.` : r === "missing" ? "That message is no longer here." : "Email is not available right now.";
 							return { blocks: q ? message(key, q, await outboxStatus(env)) : await page(), toast: { message: text, type: "error" } };
 						}
 					}
@@ -125,7 +137,8 @@ export function createPlugin() {
 						if (act === "send-all") {
 							let sent = 0;
 							let failed = 0;
-							for (const m of items.filter((x) => !x.s.noEmail)) {
+							// Waiting and failed messages only: never one already emailed (keep sent) or imported without email.
+							for (const m of toSend(items)) {
 								const r = await sendQueued(env, m.key);
 								if (r === "sent") sent++;
 								else if (r === "failed") failed++;
@@ -139,7 +152,7 @@ export function createPlugin() {
 						let doomed = items;
 						if (choice.scope === "shown") {
 							const f = choice.filter ?? {};
-							const filter: Filter = { ...(str(f.q, 120) ? { q: str(f.q, 120) } : {}), form: str(f.form, 80) ?? "all", show: f.show === "unread" || f.show === "read" ? f.show : "all" };
+							const filter: Filter = { ...(str(f.q, 120) ? { q: str(f.q, 120) } : {}), form: str(f.form, 80) ?? "all", show: f.show === "unread" || f.show === "read" ? f.show : "all", delivery: parseDelivery(f.delivery) };
 							doomed = filtered(await build(env, filter));
 						} else if (choice.scope !== "all") return { blocks: await page() };
 						for (const m of doomed) await deleteQueued(env, m.key);
@@ -150,7 +163,7 @@ export function createPlugin() {
 					if (i.type === "form_submit" && act === "filter") {
 						const v = i.values ?? {};
 						const show = v.show === "unread" || v.show === "read" ? v.show : "all";
-						return { blocks: await page({ ...(str(v.q, 120) ? { q: str(v.q, 120) } : {}), form: str(v.form, 80) ?? "all", show }) };
+						return { blocks: await page({ ...(str(v.q, 120) ? { q: str(v.q, 120) } : {}), form: str(v.form, 80) ?? "all", show, delivery: parseDelivery(v.delivery) }) };
 					}
 
 					if (i.type === "form_submit" && act === "recipients") {
@@ -200,7 +213,7 @@ export function createPlugin() {
 					const query = (ctx.input ?? {}) as Record<string, unknown>;
 					const grant = await redeemDownload(env, Array.isArray(query.token) ? query.token[0] : query.token);
 					if (!grant) return pluginResponse({ status: 410, headers: { "content-type": "text/plain; charset=utf-8" }, body: { kind: "text", value: "This download link has expired or was already used. Create a new one in the admin: Form messages → Import & export." } });
-					const { items } = await listSummaries(env);
+					const { items } = await listSummaries(env, 1000, { newest: keepsSent(env) });
 					const messages: Queued[] = [];
 					for (const { key, s } of items) {
 						if (grant.scope === "unread" && s.read) continue;

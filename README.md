@@ -186,6 +186,24 @@ admin). Rules EmDash cannot hold (conditional rules, complex regular expressions
 listed in `raw/redirects.json` → `unconverted` and fail the extract gate until handled or accepted: nothing is dropped
 silently. Ninja Forms and Formidable exports are flagged for a rebuild by hand.
 
+## Form messages (outbox and inbox)
+
+With `forms.outbox` in a site's `kit.config.ts`, messages that cannot be emailed are kept in Workers KV, retried by the
+Worker's cron and shown to admins under **Plugins → Form messages** (inbox, insights, export/import, activity,
+recipients). By default a message is deleted once emailed, so the inbox only ever shows what is still waiting. An owner
+who wants to see every message there can opt in to a full inbox:
+
+```ts
+// sites/<slug>/kit.config.ts
+forms: { outbox: { days: 30, keepSent: true } },   // → FORM_OUTBOX_KEEP_SENT="1" in both environments
+```
+
+Every message is then kept, marked **Emailed**, **Waiting** or **Failed**, until `days` ends — with a status filter,
+"Email again", and the newest messages on the dashboard widget. This is a **data-retention decision**: what visitors
+wrote stays in the site for the retention period even after it was emailed. Record it in the site's `decisions.md`;
+on sites with `sensitiveData: true` leave it off unless the owner explicitly asks for an inbox. Details:
+[`packages/forms/README.md`](packages/forms/README.md#configuration-wranglerjsonc-per-environment--environments-do-not-inherit).
+
 ## Sharing cards (opt-in)
 
 Every page can get its own branded sharing image (og:image): the site's logo, the page title and the site's colours
