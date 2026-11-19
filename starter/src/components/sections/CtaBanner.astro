@@ -34,7 +34,7 @@ const words = Array.from({ length: 6 }, () => v.heading ?? "");
 			<>
 				<Heading value={v} />
 				<Rich value={v.body} class="lead" />
-				<Buttons items={v.buttons} />
+				<Buttons items={v.buttons} layout={v} />
 			</>
 		)
 	}

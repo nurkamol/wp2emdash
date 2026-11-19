@@ -12,7 +12,7 @@ const { value: v } = Astro.props as { value: Record<string, any> };
 	<div class="hero__content">
 		<Heading value={{ ...v, heading_level: v.heading_level ?? "h1" }} />
 		<Rich value={v.body} class="lead" />
-		<Buttons items={v.buttons} />
+		<Buttons items={v.buttons} layout={v} />
 	</div>
 	{v.media && <figure class="hero__media"><Image image={v.media} priority sizes="(max-width: 900px) 100vw, 50vw" /></figure>}
 </Section>

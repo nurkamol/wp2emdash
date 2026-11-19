@@ -511,3 +511,37 @@ body:not(.over-hero) { padding-top: var(--header-height); }
 
 /* Panel items the source shows on phones and tablets only. */
 @media (min-width: 1000px) { .menu-panel .small-only { display: none; } }
+
+/* ── Button group layout (section settings "Buttons: …"; nothing here applies until one is set) ──
+   Placed last and scoped under .section so an explicit choice wins over a section's own alignment rules. */
+.section .actions[style*="--actions-gap"] { gap: var(--actions-gap); }
+.section .actions.actions--row { flex-direction: row; align-items: center; }
+.section .actions.actions--stacked { flex-direction: column; align-items: flex-start; }
+.section .actions.actions--align-left { justify-content: flex-start; }
+.section .actions.actions--align-center { justify-content: center; }
+.section .actions.actions--align-right { justify-content: flex-end; }
+.section .actions.actions--align-spread { justify-content: space-between; }
+.section .actions.actions--stacked.actions--align-left { align-items: flex-start; }
+.section .actions.actions--stacked.actions--align-center { align-items: center; }
+.section .actions.actions--stacked.actions--align-right { align-items: flex-end; }
+.section .actions.actions--stacked.actions--align-spread { align-items: stretch; }
+/* Auto: each button as wide as its text, even where the section stretches them (popups). */
+.section .actions.actions--auto > .btn { flex: 0 0 auto; }
+.section .actions.actions--auto:not(.actions--row):not([class*="actions--align-"]) { align-items: flex-start; }
+/* Full width: in a row the buttons share the width equally; stacked, each spans it. */
+.section .actions.actions--full > .btn { flex: 1 1 0; justify-content: center; }
+.section .actions.actions--stacked.actions--full { align-items: stretch; }
+.section .actions.actions--stacked.actions--full > .btn { flex: 0 0 auto; }
+/* Equal width: every button as wide as the longest (grid tracks sized to the widest content). */
+.section .actions.actions--equal { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: max-content; max-width: 100%; }
+.section .actions.actions--equal.actions--stacked { grid-auto-flow: row; }
+.section .actions.actions--equal > .btn { justify-content: center; }
+.section .actions.actions--equal.actions--align-center { margin-inline: auto; }
+.section .actions.actions--equal.actions--align-right { margin-inline-start: auto; }
+.section .actions.actions--equal.actions--align-spread { width: auto; }
+/* Phones: equal-width rows would overflow, so they stack; "stacked full width on phones" makes every button span the screen. */
+@media (max-width: 599.98px) {
+	.section .actions.actions--equal { grid-auto-flow: row; }
+	.section .actions.actions--stack-phone { display: flex; flex-direction: column; align-items: stretch; width: auto; }
+	.section .actions.actions--stack-phone > .btn { flex: 0 0 auto; justify-content: center; }
+}

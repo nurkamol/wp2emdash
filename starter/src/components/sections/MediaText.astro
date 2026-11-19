@@ -28,7 +28,7 @@ const drift = typeof v.text_parallax === "number" && v.text_parallax > 0 && v.te
 		<div class="media-text__text" data-drift={drift} style={textVars}>
 			<Heading value={v} />
 			<Rich value={v.body} />
-			<Buttons items={v.buttons} />
+			<Buttons items={v.buttons} layout={v} />
 			{/* The second image belongs to the text column (it sat under the text in the source layout). */}
 			{v.media_2 && (
 				<div class:list={["media-text__media-2-box", { "has-height": h2 }]} style={h2}>

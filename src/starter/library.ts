@@ -126,6 +126,16 @@ const appearance: Field[] = [
 	s("anchor_id", "Anchor id", { validation: ANCHOR, description: "For in-page links, e.g. pricing → /page/#pricing" }),
 ];
 
+/** How a section's button group is laid out; added to every block that has buttons (empty = as before). */
+const buttonLayout: Field[] = [
+	sel("buttons_direction", "Buttons: direction (default = as the section designs it)", ["default", "row", "stacked"], "default"),
+	sel("buttons_align", "Buttons: alignment (default = as the section's text)", ["default", "left", "center", "right", "spread"], "default"),
+	sel("buttons_width", "Buttons: width (auto = fits the text; equal = as wide as the longest)", ["default", "auto", "equal", "full"], "default"),
+	bool("buttons_stack_phone", "Buttons: stacked full width on phones"),
+	s("buttons_gap", "Buttons: space between (e.g. 12px; empty = default)", { validation: { pattern: "^(?:$|\\d{1,3}(?:\\.\\d+)?(?:px|rem))$" } }),
+];
+const hasButtons = (fields: Field[]) => fields.some((f) => f.slug === "buttons" || /^col_\d_buttons$/.test(f.slug));
+
 const block = (slug: string, label: string, description: string, variants: string[], fields: Field[]): BlockType => ({
 	slug,
 	label,
@@ -133,7 +143,7 @@ const block = (slug: string, label: string, description: string, variants: strin
 	category: "Sections",
 	currentVersion: 1,
 	// Block fields have no `description` in EmDash 1.5: it is documentation only here.
-	versions: [{ version: 1, fields: [...(variants.length ? [sel("variant", "Layout", variants, variants[0])] : []), ...fields, ...appearance].map(({ description: _d, ...f }) => f) }],
+	versions: [{ version: 1, fields: [...(variants.length ? [sel("variant", "Layout", variants, variants[0])] : []), ...fields, ...(hasButtons(fields) ? buttonLayout : []), ...appearance].map(({ description: _d, ...f }) => f) }],
 });
 
 export const SECTION_BLOCK_PREFIX = "section_";

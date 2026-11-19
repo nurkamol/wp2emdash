@@ -21,7 +21,7 @@ const cols = [1, 2, 3, 4]
 					{c.bgImage && <Image image={c.bgImage} class="columns__bg" sizes="50vw" />}
 					{c.image && (c.circle ? <Image image={c.image} class="columns__circle" style={`--circle:${c.circle}`} sizes={`min(${c.circle}, 100vw)`} /> : <Image image={c.image} sizes="(max-width: 900px) 100vw, 33vw" />)}
 					<Rich value={c.body} />
-					<Buttons items={c.buttons} />
+					<Buttons items={c.buttons} layout={v} />
 				</div>
 			))
 		}

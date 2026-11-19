@@ -10,5 +10,5 @@ const { value: v } = Astro.props as { value: Record<string, any> };
 <Section value={v} type="rich_text" class={`width-${v.width ?? "normal"} align-${v.align ?? "left"}`}>
 	<Heading value={v} />
 	<Rich value={v.body} />
-	<Buttons items={v.buttons} />
+	<Buttons items={v.buttons} layout={v} />
 </Section>
