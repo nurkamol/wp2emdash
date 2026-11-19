@@ -121,9 +121,57 @@ Claude never accepts a gate (only `wp2emdash accept` with the owner's reason) an
 | `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, analytics, seed; client README, docs and GitHub CI; builds + local preview | ✅ |
 | `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map | ✅ local, staging, production (`WP2EMDASH_LOAD_TARGET`) |
 | `verify` | Old site vs staging or production, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |
-| `cutover` | Preflight (read-only: resources, secrets, Turnstile, zone and DNS record, runbook), then the owner-approved switch: Worker route, smoke, rollback | Preflight ✅ · switch M8 |
+| `cutover` | Preflight (read-only: resources, secrets, Turnstile, zone and DNS record, alias domains, runbook), then the owner-approved switch: Worker route, smoke, rollback; alias domains → one Single Redirect rule each, `check-aliases` (README "Two sites, one domain") | Preflight ✅ · switch M8 |
 
 Each phase ends in a gate; the next phase won't run until it passes or is accepted with a recorded reason.
+
+## Two sites, one domain
+
+For a client with two near-identical WordPress installs on two domains (both indexed, each canonical to itself):
+migrate one (the **primary**), merge what only the other has, then make the other domain (the **alias**) a
+permanent, path-preserving 301 to the primary. Nothing below writes to either WordPress site or changes DNS.
+
+1. **Pick the primary from data**: Search Console → Performance for both properties (clicks, impressions, which
+   queries and pages rank) plus backlinks; the domain with more search equity, or the brand the owner keeps, wins.
+   Record the choice in the primary's `decisions.md`.
+2. **Workspaces**: the primary as usual (`init`), then the alias from it so both share the same settings:
+   ```bash
+   pnpm wp2emdash init --slug acme-old --name "Acme (old domain)" --source https://acme-old.com --from acme
+   ```
+   `--from` copies only `kit.config.ts` (slug, name, `source.url`, `target.productionUrl` replaced, `projectDir`
+   and `stagingUrl` removed, a comment saying where it came from), `overrides.ts` and `decisions.md` (with a dated
+   "started from" row). Never `.env`, `raw/`, `dump/`, `snapshot/`, `ir/`, `reports/`, `runs/`, `cutover/`,
+   `cloudflare.json` or `state.json`. The wizard offers the same ("Start from: an existing site").
+3. **Audit the alias, read-only**: `pnpm wp2emdash run acme-old init`, then `… run acme-old audit` (public pages only,
+   no credentials). The alias workspace never goes past audit.
+4. **Compare**: `pnpm wp2emdash compare acme acme-old` (read-only, no network) → `sites/acme-old/reports/compare/acme.md`
+   and `.json`: pages only on one side; for matched paths, distinct-word similarity with a verdict (identical /
+   minor ≥ 98% / differs), sentences and words found on one side only, title/description/canonical/H1, forms
+   (provider, id, field types) and external links (booking, social, phone, email).
+5. **Merge unique content into the primary**: pages or sections only on the alias go into the primary through
+   `overrides.ts` / `decisions.md` and a rerun, or in the EmDash admin after load — never by hand-editing `ir/`.
+   Record each choice (kept, merged, dropped) in `decisions.md`.
+6. **Set the alias** in the primary's `kit.config.ts`:
+   ```ts
+   target: { productionUrl: "https://acme.com", aliasDomains: ["acme-old.com"] /* www. included */ },
+   ```
+7. **Preflight**: add the alias zone to the go-live token (Zone Read, DNS Read, Single Redirect Read; Single
+   Redirect Edit on launch day — docs/cloudflare-api-token.md) and run `pnpm wp2emdash run acme cutover`. Per alias
+   it checks the zone, snapshots DNS to `cutover/dns-before.acme-old.com.json` with mail records flagged (MX, SPF,
+   DKIM, DMARC, autodiscover — they stay untouched), checks apex and www are proxied and lists existing redirect
+   rules. `cutover/runbook.md` §4 has the exact calls.
+8. **Go-live** (owner approval at each step): switch the primary first (§1 of the runbook) and verify it; then per
+   alias create its one Single Redirect rule (apex + www → `https://acme.com` + same path, query kept, 301) and run
+   ```bash
+   pnpm wp2emdash check-aliases acme --paths-from acme-old    # every audited path, apex and www, no redirect followed
+   ```
+   which must show a 301 to the same path on the primary for every URL (it reports 200, 404, 302 and chains).
+   Rollback: delete that rule by id (runbook). No DNS record changes, so the alias domain's email is unaffected.
+9. **Change of Address**: in the alias's Search Console property, Settings → Change of address → the primary; submit
+   the primary's sitemap; update Google Business Profile, social profiles, booking and other third-party links.
+   Keep the alias domain registered (auto-renew) and its redirect rule in place for good — at least 180 days.
+10. **Monitor** for `target.cutover.monitorDays`: rerun `check-aliases`, watch both Search Console properties (the
+    alias's pages drop out, the primary picks them up) and the primary's 404 log.
 
 ## Where each site lives
 

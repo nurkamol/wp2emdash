@@ -33,17 +33,17 @@ program
 	.requiredOption("--source <url>", "live WordPress URL")
 	.option("--production <url>", "production URL after cutover (default: --source)")
 	.option("--sensitive", "site handles sensitive data (health, legal, finance)", false)
+	.option("--from <slug>", "start from an existing site: copy its kit.config.ts (slug, name, URLs replaced), overrides.ts and decisions.md — nothing else")
 	.action((o) => {
-		const err = validateSlug(o.slug) ?? validateUrl(o.source) ?? (o.production ? validateUrl(o.production) : undefined);
+		const err = validateSlug(o.slug) ?? validateUrl(o.source) ?? (o.production ? validateUrl(o.production) : undefined) ?? (o.from ? validateSlug(o.from) : undefined);
 		if (err) fail(err);
-		const res = initSite({
-			slug: o.slug,
-			name: o.name,
-			sourceUrl: o.source,
-			productionUrl: o.production ?? o.source,
-			sensitiveData: !!o.sensitive,
-		});
-		console.log(pc.green(`Created ${res.root}`));
+		let res: ReturnType<typeof initSite>;
+		try {
+			res = initSite({ slug: o.slug, name: o.name, sourceUrl: o.source, productionUrl: o.production ?? o.source, sensitiveData: !!o.sensitive }, undefined, o.from);
+		} catch (e) {
+			return fail((e as Error).message);
+		}
+		console.log(pc.green(`Created ${res.root}${o.from ? ` (config, overrides and decisions from ${o.from})` : ""}`));
 		console.log(`Next: complete the required items in ${pc.bold("ACCESS.md")}, then \`wp2emdash run ${o.slug} init\`.`);
 	});
 
@@ -90,6 +90,48 @@ program
 		for (const s of slugs) {
 			const p = sitePaths(s);
 			console.log(`${formatTimeline(readState(p.state))}\n  ${pc.dim(`project: ${p.project}${p.project.startsWith(p.root) ? "" : " (projectDir)"}`)}\n`);
+		}
+	});
+
+program
+	.command("compare")
+	.description("Content diff between two audited sites (read-only, no network): pages only on one side, text similarity, meta, forms, external links → sites/<slugB>/reports/compare/<slugA>.md|.json")
+	.argument("<slugA>")
+	.argument("<slugB>")
+	.option("--json", "print the full comparison as JSON")
+	.action(async (a: string, b: string, o: { json?: boolean }) => {
+		const { compareCommand, compareTable } = await import("../compare/sites.js");
+		try {
+			const r = compareCommand(a, b);
+			if (o.json) return console.log(JSON.stringify(r.comparison, null, 2));
+			console.log(compareTable(r.comparison));
+			console.log(pc.dim(`\nReport: ${r.md}`));
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
+	.command("check-aliases")
+	.description("After the alias switch (read-only): every audited path on each target.aliasDomains host (apex and www) must 301 to the same path on the primary; no redirect followed")
+	.argument("<slug>")
+	.option("--paths-from <slugs>", "also check the paths audited on these sites (comma-separated, e.g. the alias site's own workspace)")
+	.option("--limit <n>", "check only the first n paths")
+	.option("--json")
+	.action(async (slug: string, o: { pathsFrom?: string; limit?: string; json?: boolean }) => {
+		const { checkAliases } = await import("../commands/check-aliases.js");
+		try {
+			const r = await checkAliases(slug, { ...(o.pathsFrom ? { pathsFrom: o.pathsFrom.split(",").map((s) => s.trim()).filter(Boolean) } : {}), ...(o.limit ? { limit: Number(o.limit) } : {}) });
+			if (o.json) console.log(JSON.stringify(r.result, null, 2));
+			else {
+				for (const [h, v] of Object.entries(r.result.byHost)) console.log(`${v.ok === v.checked ? pc.green("✔") : pc.red("✖")} ${h.padEnd(36)} ${v.ok}/${v.checked}`);
+				for (const f of r.result.failures.slice(0, 20)) console.log(pc.dim(`  ${f.url} → ${f.problem}`));
+				if (r.result.failures.length > 20) console.log(pc.dim(`  … ${r.result.failures.length - 20} more`));
+				console.log(pc.dim(`Report: ${r.md}`));
+			}
+			process.exit(r.result.ok ? 0 : 2);
+		} catch (e) {
+			fail((e as Error).message);
 		}
 	});
 

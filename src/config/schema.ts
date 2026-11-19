@@ -97,6 +97,19 @@ export const kitConfigSchema = z.object({
 		template: z.string().default("cloudflare:marketing"),
 		trailingSlash: z.enum(["always", "never", "preserve"]).default("preserve"),
 		canonicalHost: z.enum(["apex", "www"]).default("apex"),
+		/**
+		 * Other domains that become a permanent, path-preserving 301 to the production domain (e.g. a second WordPress
+		 * install merged into this site). Apex hostnames; `www.` is covered automatically. Each zone must be in Cloudflare:
+		 * the cutover preflight reads it (go-live token) and the runbook adds one Single Redirect rule per alias.
+		 */
+		aliasDomains: z
+			.array(
+				z
+					.string()
+					.transform((h) => h.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, ""))
+					.pipe(z.string().regex(/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/, "an apex hostname, e.g. old-domain.com")),
+			)
+			.default([]),
 	}),
 
 	audit: z

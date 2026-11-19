@@ -26,6 +26,7 @@ export default {
 		template: "cloudflare:marketing",
 		trailingSlash: "preserve",
 		canonicalHost: "apex",
+		// aliasDomains: ["old-domain.com"], // other domains that 301 to productionUrl (www. included) — README "Two sites, one domain"
 		staging: {
 			// host: "staging.example.com", // empty = *.workers.dev
 			protection: "access", // Cloudflare Access + noindex; or "noindex"

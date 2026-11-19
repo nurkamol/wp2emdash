@@ -47,6 +47,19 @@ export async function wizard(): Promise<void> {
 
 	let slug = choice as string;
 	if (slug === "__new") {
+		// A sibling site (same studio, another domain) starts from an existing site's config, overrides and decisions.
+		let from: string | undefined;
+		if (sites.length) {
+			const start = await p.select({
+				message: "Start from",
+				options: [
+					{ value: "__blank", label: "A blank site" },
+					...sites.map((s) => ({ value: s, label: `An existing site: ${s}`, hint: "copies kit.config.ts, overrides.ts and decisions.md only" })),
+				],
+			});
+			if (cancelled(start)) return p.cancel("Bye.");
+			if (start !== "__blank") from = start as string;
+		}
 		const answers = await p.group(
 			{
 				name: () => p.text({ message: "Client / site name", placeholder: "Acme Clinic" }),
@@ -60,11 +73,19 @@ export async function wizard(): Promise<void> {
 						validate: (v) => validateUrl(v ?? ""),
 					}),
 				sensitiveData: () =>
-					p.confirm({ message: "Does the site handle sensitive data (health, legal, finance)?", initialValue: false }),
+					from
+						? Promise.resolve(false) // unused: the copied config keeps the other site's sensitiveData
+						: p.confirm({ message: "Does the site handle sensitive data (health, legal, finance)?", initialValue: false }),
 			},
 			{ onCancel: () => p.cancel("Cancelled.") },
 		);
-		const res = initSite(answers as never);
+		let res: ReturnType<typeof initSite>;
+		try {
+			res = initSite(answers as never, undefined, from);
+		} catch (e) {
+			p.log.error((e as Error).message);
+			return p.outro("Nothing was created.");
+		}
 		slug = answers.slug as string;
 		p.note(res.created.map((f) => f.replace(`${res.root}/`, "")).join("\n"), `Created sites/${slug}`);
 		p.log.info(`Next: complete ${pc.bold(`sites/${slug}/ACCESS.md`)} (required items), then run the init gate.`);
