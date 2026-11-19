@@ -2,6 +2,7 @@
 import { getEmDashCollection, getEmDashEntry, getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
 import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
+import { env } from "cloudflare:workers";
 import SiteHeader from "../components/SiteHeader.astro";
 import Sections from "../components/Sections.astro";
 import Popups from "../components/Popups.astro";
@@ -37,6 +38,20 @@ if (Astro.cache?.enabled) {
 	for (const r of [settings, primary, secondary, footer, popups]) Astro.cache.set(r.cacheHint);
 }
 const siteTitle = settings.data?.title?.trim() || site.name;
+// Sharing image on the host serving this page: before go-live the production domain still serves WordPress, which has
+// no /_emdash/ files, so link previews of the workers.dev or staging address would find no image. og:url and the
+// canonical keep the production address.
+const ogImage = image ? (/^https?:\/\//.test(image) ? image : new URL(image, Astro.url.origin).toString()) : undefined;
+// Its size and type from EmDash's media library (link previews use them to lay out the card before fetching).
+let ogImageMeta: { width?: number; height?: number; type?: string } = {};
+const ogKey = image ? /\/_emdash\/api\/media\/file\/([^/?#]+)$/.exec(image)?.[1] : undefined;
+const db = (env as { DB?: { prepare(q: string): { bind(...v: unknown[]): { first<T>(): Promise<T | null> } } } }).DB;
+if (ogKey && db) {
+	try {
+		const row = await db.prepare("SELECT width, height, mime_type FROM media WHERE storage_key = ? LIMIT 1").bind(decodeURIComponent(ogKey)).first<{ width: number | null; height: number | null; mime_type: string | null }>();
+		if (row) ogImageMeta = { ...(row.width ? { width: row.width } : {}), ...(row.height ? { height: row.height } : {}), ...(row.mime_type?.startsWith("image/") ? { type: row.mime_type } : {}) };
+	} catch {}
+}
 const sep = settings.data?.seo?.titleSeparator?.trim() || "-";
 const fullTitle = title ? (title.includes(siteTitle) ? title : `${title} ${sep} ${siteTitle}`) : siteTitle;
 const pageCtx = createPublicPageContext({
@@ -47,9 +62,9 @@ const pageCtx = createPublicPageContext({
 	pageTitle: pageTitle ?? title ?? siteTitle,
 	description: description || settings.data?.tagline || undefined,
 	canonical: canonical ?? `${site.productionUrl}${Astro.url.pathname}`,
-	image,
+	image: ogImage,
 	content,
-	seo: { ogImage: image, robots },
+	seo: { ogImage, robots },
 	siteName: siteTitle,
 	// Structured-data ids use the production origin on every environment (staging is noindex).
 	siteUrl: site.productionUrl,
@@ -68,7 +83,10 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		<EmDashHead page={pageCtx} />
 		{/* EmDash's head has no og:locale; SEO plugins publish it (en-US → en_US). */}
 		<meta property="og:locale" content={(site as { ogLocale?: string }).ogLocale ?? (site.lang ?? "en").replace("-", "_")} />
-		{image && <meta property="og:image:alt" content={pageTitle ?? title ?? siteTitle} />}
+		{ogImage && <meta property="og:image:alt" content={pageTitle ?? title ?? siteTitle} />}
+		{ogImageMeta.width && <meta property="og:image:width" content={String(ogImageMeta.width)} />}
+		{ogImageMeta.height && <meta property="og:image:height" content={String(ogImageMeta.height)} />}
+		{ogImageMeta.type && <meta property="og:image:type" content={ogImageMeta.type} />}
 		<StructuredData canonical={canonicalUrl} pageTitle={pageTitle ?? title ?? siteTitle} description={description || settings.data?.tagline} />
 		{((site.fonts as { preload?: string[] }).preload ?? []).map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
 		{googleHref && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}

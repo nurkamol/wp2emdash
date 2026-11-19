@@ -113,6 +113,22 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		reporter.emit({ type: "step:start", step: "Pages", total: pagesToCheck.length });
 		const results: PageResult[] = [];
 		const targetSnaps = new Map<string, PageSnapshot>();
+		// og:image URLs checked once each: 200 with an image type, else why not.
+		const ogChecked = new Map<string, Promise<string | undefined>>();
+		const ogImageProblem = (url: string) => {
+			if (!ogChecked.has(url))
+				ogChecked.set(
+					url,
+					kitFetch(url, { redirect: "follow" })
+						.then(async (res) => {
+							await res.body?.cancel();
+							const type = res.headers.get("content-type") ?? "";
+							return res.status !== 200 ? `HTTP ${res.status}` : type.startsWith("image/") ? undefined : `not an image: ${type || "no type"}`;
+						})
+						.catch((e: Error) => e.message.split("\n")[0]),
+				);
+			return ogChecked.get(url) as Promise<string | undefined>;
+		};
 		for (const [i, u] of pagesToCheck.entries()) {
 			const name = screenName(u.url);
 			const targetUrl = `${base}${u.path}`;
@@ -133,6 +149,15 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 						r.headings = compareHeadings(source.headings, snap.headings);
 						// Local and staging run with EmDash's staging flag (noindex) until cutover; only production must be indexable.
 						r.seo = compareSeo(source.seo, snap.seo, `${prod}${u.path}`, !live, u.kind);
+						// The sharing image must load from where the page points (link previews fetch it; a tag alone is not enough).
+						const ogImg = snap.seo.og["og:image"];
+						if (r.seo && ogImg) {
+							const why = await ogImageProblem(ogImg);
+							if (why) {
+								r.seo.og.ok = false;
+								r.seo.og.missing.push(`og:image does not load (${why}): ${ogImg}`);
+							}
+						}
 						r.missingExternal = missingExternalLinks(source.links, snap.links);
 						r.imagesWithoutAlt = snap.images.filter((im) => im.alt === undefined).map((im) => im.src);
 						// Content forms only: the theme's search box is site chrome, not a migrated form.
