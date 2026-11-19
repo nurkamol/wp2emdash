@@ -126,6 +126,7 @@
           }
         ],
         "textInset": "10vw",
+        "columnGap": "0px",
         "textTop": "10vh",
         "textParallax": 0.175,
         "media": [
@@ -284,6 +285,7 @@
             "small": "350px"
           }
         ],
+        "columnGap": "0px",
         "textTop": "10vh",
         "stackSpace": "8%",
         "quoteGap": "4%",

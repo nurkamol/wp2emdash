@@ -151,6 +151,7 @@ export interface Rect {
  */
 const MOVING = [
 	"[data-motion='parallax']",
+	"[data-parallax]", // the kit's own image + text parallax picture
 	".parallax-layer", // Salient (rows and columns)
 	".row-bg.using-image[data-parallax-speed]", // Salient rows (older)
 	".jarallax-img, [data-jarallax] > .jarallax-container",
@@ -164,7 +165,9 @@ const STILL_CSS = `
 .parallax-layer, .row-bg.using-image[data-parallax-speed], .jarallax-container, .elementor-motion-effects-layer, .et_parallax_bg, .vc_parallax-inner { background-image: none !important; background-color: #8a8a8a !important; transform: none !important; }
 .jarallax-img, .jarallax-container img { visibility: hidden !important; }
 [data-motion='parallax'] { background-color: #8a8a8a !important; }
-[data-motion='parallax'] img, [data-motion='parallax'] video, [data-motion='parallax'] picture { visibility: hidden !important; }`;
+[data-motion='parallax'] img, [data-motion='parallax'] video, [data-motion='parallax'] picture { visibility: hidden !important; }
+[data-parallax] { background-color: #8a8a8a !important; }
+[data-parallax] img, [data-parallax] picture { visibility: hidden !important; }`;
 
 export async function movingRegions(page: Page): Promise<Rect[]> {
 	return page.evaluate((sel) => {
