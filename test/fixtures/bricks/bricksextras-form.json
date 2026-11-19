@@ -1,0 +1,12 @@
+{
+  "elements": [
+    { "id": "sec730", "name": "section", "parent": 0, "children": ["con730"], "settings": {} },
+    { "id": "con730", "name": "container", "parent": "sec730", "children": ["hd730", "xf730"], "settings": {} },
+    { "id": "hd730", "name": "heading", "parent": "con730", "children": [], "settings": { "text": "Hire the studio", "tag": "h2" } },
+    { "id": "xf730", "name": "xfluentform", "parent": "con730", "children": [], "settings": { "fluentFormSelect": "4", "labelsTypography": { "color": { "raw": "var(--neutral)" } } } },
+
+    { "id": "sec731", "name": "section", "parent": 0, "children": ["con731"], "settings": {} },
+    { "id": "con731", "name": "container", "parent": "sec731", "children": ["xf731"], "settings": {} },
+    { "id": "xf731", "name": "xfluentform", "parent": "con731", "children": [], "settings": { "formSource": true, "fluentFormID": "{acf_form_id}" } }
+  ]
+}

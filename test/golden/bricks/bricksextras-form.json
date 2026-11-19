@@ -1,0 +1,58 @@
+{
+  "sections": [
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec730",
+        "rawHash": "f967ef4b49"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Hire the studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "formRef": {
+          "provider": "fluent-forms",
+          "id": "4"
+        },
+        "aside": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[xfluentform] Fluent Forms #4 as a form section; BricksExtras form styling not reproduced",
+      "path": "section#sec730/container#con730/xfluentform#xf730",
+      "tag": "xfluentform"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "[xfluentform] form id \"{acf_form_id}\" is dynamic; choose the form in overrides.ts",
+      "path": "section#sec731/container#con731/xfluentform#xf731",
+      "carriesContent": true,
+      "tag": "xfluentform"
+    }
+  ],
+  "forms": []
+}

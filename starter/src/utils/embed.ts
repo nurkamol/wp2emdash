@@ -3,6 +3,7 @@
  * provider's hosts, plus plain container markup and <style>. Everything else is removed.
  */
 export const PROVIDER_HOSTS: Record<string, string[]> = {
+	marianatek: ["marianaiframes.com"],
 	momence: ["momence.com"],
 	janeapp: ["janeapp.com"],
 	calendly: ["calendly.com"],

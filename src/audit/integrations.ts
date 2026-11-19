@@ -62,6 +62,7 @@ const SIGNATURES: Signature[] = [
 	{ id: "booksy", kind: "booking", name: "Booksy", pattern: /booksy\.com/i, proposed: "keep" },
 	{ id: "glofox", kind: "booking", name: "Glofox", pattern: /glofox\.com/i, proposed: "keep" },
 	{ id: "momence", kind: "booking", name: "Momence", pattern: /momence\.com/i, proposed: "keep" },
+	{ id: "marianatek", kind: "booking", name: "Mariana Tek", pattern: /marianatek\.com|marianaiframes\.com|data-mariana-integrations/i, proposed: "keep", note: "Booking widget (web integrations): keep it as an embed section; the starter loads <tenant>.marianaiframes.com" },
 	{ id: "cal-com", kind: "booking", name: "Cal.com", pattern: /cal\.com\//i, proposed: "keep" },
 	{ id: "google-calendar-booking", kind: "booking", name: "Google Calendar booking", pattern: /calendar\.app\.google|calendar\.google\.com\/calendar\/appointments/i, proposed: "keep" },
 	// Analytics / tags / pixels

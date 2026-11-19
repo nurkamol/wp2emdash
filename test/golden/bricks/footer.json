@@ -35,7 +35,14 @@
                 "markDefs": []
               }
             ],
-            "media": [],
+            "media": [
+              {
+                "wpId": 901,
+                "kind": "image",
+                "url": "https://example.com/wp-content/uploads/logo.svg",
+                "alt": "Fixture Studio"
+              }
+            ],
             "buttons": []
           },
           {
@@ -175,7 +182,7 @@
     {
       "level": "info",
       "code": "dynamic",
-      "message": "[logo] is rendered by the site (menu, logo, post data, filters), not migrated as content",
+      "message": "[logo] kept as a picture linking to / (the starter's header draws its own logo from the design capture)",
       "path": "section#f100/container#f101/block#f110/logo#f111",
       "tag": "logo"
     },

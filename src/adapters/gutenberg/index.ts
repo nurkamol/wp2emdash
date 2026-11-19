@@ -3,7 +3,7 @@
  * parser) → rows → the shared section recognisers. Classic content (no blocks) becomes rich text.
  */
 import type { Diagnostic, MediaRef, Section, SectionType } from "../../ir/schema.js";
-import type { Keys } from "../../ir/portable-text.js";
+import { autop, type Keys } from "../../ir/portable-text.js";
 import { embedOrLegacy, type Fragment, type HandlerCtx, mediaFrom, richFromHtml } from "../wpbakery/elements.js";
 import { adaptWpbakery, mergeRich, recognise, type Row, splitRow } from "../wpbakery/index.js";
 import type { Col } from "../wpbakery/elements.js";
@@ -63,6 +63,8 @@ export interface GutenbergOptions {
 	/** Resolve a reusable block / synced pattern by id. */
 	reusable?: (id: number) => string | undefined;
 	rowOverrides?: Record<string, SectionType | "drop">;
+	/** Return the content as fragments (no sections): post content shown inside another builder's layout. */
+	asFragments?: boolean;
 }
 
 const DECORATIVE = new Set(["core/spacer", "core/separator", "core/nextpage", "core/more"]);
@@ -70,7 +72,16 @@ const PROSE = new Set(["core/paragraph", "core/heading", "core/list", "core/list
 const CONTAINERS = new Set(["core/group", "core/columns", "core/cover", "core/media-text", "core/row", "core/stack"]);
 const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : undefined);
 
-export function adaptGutenberg(content: string, opts: GutenbergOptions): { sections: Section[]; diagnostics: Diagnostic[] } {
+/**
+ * Post content as fragments, for a page builder that shows it inside its own layout (a Bricks post-content element or
+ * `{post_content}` tag): blocks, classic text and shortcodes (forms…) through the same handlers as a whole page.
+ */
+export function gutenbergFragments(content: string, opts: Omit<GutenbergOptions, "asFragments" | "rowOverrides">): { fragments: Fragment[]; diagnostics: Diagnostic[] } {
+	const r = adaptGutenberg(content, { ...opts, asFragments: true });
+	return { fragments: r.fragments ?? [], diagnostics: r.diagnostics };
+}
+
+export function adaptGutenberg(content: string, opts: GutenbergOptions): { sections: Section[]; diagnostics: Diagnostic[]; fragments?: Fragment[] } {
 	const diagnostics: Diagnostic[] = [];
 	const diag = (d: Diagnostic) => diagnostics.push(d);
 	const ctxFor = (path: string): HandlerCtx => ({ keys: opts.keys, path, diag, popupFor: opts.popupFor, postCount: opts.postCount, children: () => [] });
@@ -79,6 +90,11 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 	// Classic content: no blocks at all.
 	if (blocks.length === 1 && blocks[0]?.name === "core/freeform") {
 		// Classic content with shortcodes (forms, galleries…) goes through the shortcode adapter.
+		if (opts.asFragments) {
+			// the_content runs wpautop on classic content.
+			const r = adaptWpbakery(autop(blocks[0].innerHTML), { kind: opts.kind, keys: opts.keys, popupFor: opts.popupFor, postCount: opts.postCount, asFragments: true });
+			return { sections: [], diagnostics: [...diagnostics, ...r.diagnostics], fragments: r.fragments ?? [] };
+		}
 		if (/\[[a-z][\w-]*[\s\]]/i.test(blocks[0].innerHTML)) {
 			const r = adaptWpbakery(blocks[0].innerHTML, { kind: opts.kind, keys: opts.keys, popupFor: opts.popupFor, postCount: opts.postCount });
 			return { sections: r.sections.map((x) => ({ ...x, sourceRef: { ...x.sourceRef, adapter: "classic" as const } })), diagnostics: [...diagnostics, ...r.diagnostics] };
@@ -187,6 +203,13 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 	blocks.forEach((b, i) => {
 		const path = `blocks[${i}]`;
 		if (b.name === "core/shortcode" || (b.name === "core/freeform" && /\[[a-z_]+[\s\]]/.test(b.innerHTML))) {
+			if (opts.asFragments) {
+				const r = adaptWpbakery(b.innerHTML, { kind: opts.kind, keys: opts.keys, popupFor: opts.popupFor, postCount: opts.postCount, asFragments: true });
+				diagnostics.push(...r.diagnostics);
+				if (!run.length) runStart = i;
+				run.push(...(r.fragments ?? []));
+				return;
+			}
 			flush(i);
 			const r = adaptWpbakery(b.innerHTML, { kind: opts.kind, keys: opts.keys, popupFor: opts.popupFor, postCount: opts.postCount });
 			diagnostics.push(...r.diagnostics);
@@ -227,6 +250,19 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 			attrs.text_color = b.attrs.isDark === false ? "dark" : "light";
 		}
 		return { attrs, columns: [{ fragments: mergeRich(b.innerBlocks.flatMap((i, k) => fragmentsOf(i, `${path}/${k}`))) }], path, raw, adapter: "gutenberg" };
+	}
+
+	if (opts.asFragments) {
+		const fragments = mergeRich(
+			rows.flatMap((r): Fragment[] => {
+				// A cover's picture stays as a picture above its text (no section background inside another layout).
+				const bg = r.attrs.video_bg ? undefined : mediaFrom(r.attrs.bg_image);
+				if (bg) diag({ level: "info", code: "lossy", message: "core/cover background shown as a picture above its text (post content inside a page-builder layout)", path: r.path });
+				const body = r.columns.filter((c) => c.fragments.length).length > 1 ? [{ kind: "subrow" as const, columns: r.columns }] : r.columns.flatMap((c) => c.fragments);
+				return [...(bg ? [{ kind: "media" as const, media: bg, role: "content" as const }] : []), ...body];
+			}),
+		);
+		return { sections: [], diagnostics, fragments };
 	}
 
 	const sections: Section[] = [];

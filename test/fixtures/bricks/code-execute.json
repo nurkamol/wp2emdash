@@ -1,0 +1,15 @@
+{
+  "elements": [
+    { "id": "sec740", "name": "section", "parent": 0, "children": ["con740"], "settings": {} },
+    { "id": "con740", "name": "container", "parent": "sec740", "children": ["cd740"], "settings": {} },
+    { "id": "cd740", "name": "code", "parent": "con740", "children": [], "settings": { "code": "<div data-booking-widget=\"/classes\"></div>", "executeCode": true, "signature": "0000000000000000" } },
+
+    { "id": "sec741", "name": "section", "parent": 0, "children": ["con741"], "settings": {} },
+    { "id": "con741", "name": "container", "parent": "sec741", "children": ["cd741"], "settings": {} },
+    { "id": "cd741", "name": "code", "parent": "con741", "children": [], "settings": { "code": "<style>.menu-columns ul { columns: 2; }</style>\n<p>Opening hours: 7–21</p>", "executeCode": true } },
+
+    { "id": "sec742", "name": "section", "parent": 0, "children": ["con742"], "settings": {} },
+    { "id": "con742", "name": "container", "parent": "sec742", "children": ["cd742"], "settings": { "_alignItems": "center" } },
+    { "id": "cd742", "name": "code", "parent": "con742", "children": [], "settings": { "code": "<div data-mariana-integrations=\"/schedule/daily\"></div>", "executeCode": true, "signature": "0000000000000000" } }
+  ]
+}

@@ -194,7 +194,7 @@
     {
       "level": "error",
       "code": "flagged",
-      "message": "[code] executes PHP on the server; never copied automatically — review and rebuild",
+      "message": "[code] executes real PHP on the server (<?php … ?> tags); never copied automatically — review and rebuild",
       "path": "section#sec504/container#con504/code#cd504",
       "carriesContent": true,
       "tag": "code"
