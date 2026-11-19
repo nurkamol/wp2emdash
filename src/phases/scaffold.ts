@@ -365,7 +365,10 @@ export default defineConfig({
 	const outboxKv = (e: "staging" | "production") => (config.forms.outbox && cf[e]?.outbox?.id ? `,\n\t"kv_namespaces": [${JSON.stringify({ binding: "FORM_OUTBOX", id: cf[e]?.outbox?.id })}]` : "");
 	const formVars = { ...outboxDays, EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
 	const prodVars = { ...formVars, ...(config.forms.turnstileSiteKey ? { TURNSTILE_SITE_KEY: config.forms.turnstileSiteKey } : {}) };
-	const stagingVars = { STAGING: "1", ...formVars, TURNSTILE_SITE_KEY: "1x00000000000000000000AA", TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA" };
+	// Staging never emails the client: only email.stagingTo, else everything stays held in the outbox.
+	const stagingMail = config.email.stagingTo.length ? { FORM_TO: config.email.stagingTo.join(",") } : { FORM_TO: "", ...(config.forms.outbox ? { FORM_OUTBOX_HOLD: "1" } : {}) };
+	const { FORM_OUTBOX_HOLD: _prodHold, ...formVarsNoHold } = formVars as Record<string, string>;
+	const stagingVars = { STAGING: "1", ...formVarsNoHold, ...stagingMail, TURNSTILE_SITE_KEY: "1x00000000000000000000AA", TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA" };
 	// Rate-limit namespaces are account-wide integers: derived from the Worker name so sites don't share one.
 	const ns = 1000 + ([...workerName].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 8000) * 2;
 	const limiter = (id: number) => JSON.stringify([{ name: "FORM_LIMITER", namespace_id: String(id), simple: { limit: config.forms.rateLimit.limit, period: config.forms.rateLimit.period } }]);

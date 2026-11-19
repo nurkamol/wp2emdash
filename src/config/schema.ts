@@ -34,6 +34,11 @@ const emailConfig = z.object({
 	from: z.string().optional(),
 	/** Default notification recipients; individual forms can override. */
 	to: z.array(z.string()).default([]),
+	/**
+	 * Staging sends form email only to these addresses (the team's test inbox). Unset → staging holds every message in
+	 * the outbox and sends nothing, so a test submission can never reach the client.
+	 */
+	stagingTo: z.array(z.string().email()).default([]),
 	/** Name of the Wrangler secret holding the API key / service-account JSON. Never the value itself. */
 	secretName: z.string().default("EMAIL_API_KEY"),
 	/** Provider-specific, non-secret options (e.g. Mailgun region, SES region, Workspace delegated user). */
