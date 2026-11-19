@@ -157,3 +157,16 @@ describe("section library", () => {
 		}
 	});
 });
+
+describe("more buttons than a section holds", () => {
+	it("keeps the first three as buttons and turns the rest into links after the text", () => {
+		const k = new Keys("o");
+		const btn = (label: string, href: string) => ({ label, href, style: "link" as const });
+		const sec = { type: "rich_text" as const, theme: { tone: "light" as const }, spacing: "normal" as const, sourceRef: { adapter: "bricks" as const, path: "r", rawHash: "x" }, fields: { body: [{ _type: "block" as const, _key: k.next(), style: "normal" as const, children: [{ _type: "span" as const, _key: k.next(), text: "Links", marks: [] }], markDefs: [] }], width: "normal" as const, align: "left" as const, buttons: [btn("Home", "/"), btn("Privacy", "/privacy/"), btn("Terms", "/terms/"), btn("Waiver", "/waiver/"), btn("Contact", "/contact/")] } };
+		const b = sectionToBlock(sec as never, "s1", media);
+		expect((b.buttons as { label: string }[]).map((x) => x.label)).toEqual(["Home", "Privacy", "Terms"]);
+		const last = (b.body as { children: { text: string }[]; markDefs: { href: string }[] }[]).at(-1);
+		expect(last?.children.map((c) => c.text).join("")).toBe("Waiver · Contact");
+		expect(last?.markDefs.map((m) => m.href)).toEqual(["/waiver/", "/contact/"]);
+	});
+});

@@ -79,6 +79,25 @@ const pt = (blocks: RichText | undefined) => (blocks?.length ? blocks : undefine
 const buttons = (list: Button[] | undefined) =>
 	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, ...(b.size ? { size: b.size } : {}), ...(b.textSize ? { text_size: `${b.textSize}px` } : {}), ...(b.spaceAbove ? { space_above: `${b.spaceAbove}px` } : {}), ...(b.inset ? { side_space: `${b.inset}px` } : {}), ...(b.hoverLabel ? { hover_label: b.hoverLabel } : {}), new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
 
+/**
+ * Sections hold up to 3 buttons. Extra ones (a footer column of legal links, say) become links in a paragraph after
+ * the text instead of being dropped.
+ */
+const MAX_BUTTONS = 3;
+function overflowLinks(body: RichText | undefined, list: Button[] | undefined, key: string): { body: RichText | undefined; buttons: Button[] } {
+	const all = list ?? [];
+	if (all.length <= MAX_BUTTONS) return { body, buttons: all };
+	const extra = all.slice(MAX_BUTTONS);
+	const block = {
+		_type: "block" as const,
+		_key: `${key}-more`,
+		style: "normal" as const,
+		children: extra.flatMap((b, i) => [...(i ? [{ _type: "span" as const, _key: `${key}-sep${i}`, text: " · ", marks: [] as string[] }] : []), { _type: "span" as const, _key: `${key}-l${i}`, text: b.label, marks: [`${key}-m${i}`] }]),
+		markDefs: extra.map((b, i) => ({ _type: "link" as const, _key: `${key}-m${i}`, href: b.opensPopup ? `#${b.opensPopup}` : b.href })),
+	};
+	return { body: [...(body ?? []), block] as RichText, buttons: all.slice(0, MAX_BUTTONS) };
+}
+
 const fraction = (w?: string) => (w && ["1/4", "1/3", "1/2", "2/3", "3/4"].includes(w) ? w : "auto");
 
 const FIELDS = new Map(BLOCK_TYPES.map((b) => [b.slug, b.versions[b.versions.length - 1]?.fields ?? []]));
@@ -188,12 +207,14 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 			const { head: h, rest } = headingFromBody(s.fields.body);
 			const l = s.fields.look ?? {};
 			const look = Object.fromEntries(Object.entries({ text_heading_size: l.headingSize, text_heading_size_tablet: l.headingSizeTablet, text_heading_size_phone: l.headingSizePhone, text_heading_leading: l.headingLeading, body_size: l.bodySize, body_size_small: l.bodySizeSmall, body_leading: l.bodyLeading, body_width: l.bodyWidth }).filter(([, v]) => v !== undefined));
-			return base("rich_text", { ...h, body: pt(rest), width: s.fields.width, align: s.fields.align, buttons: buttons(s.fields.buttons), variant: s.variant === "buttons" ? "buttons" : "default", ...look });
+			const rtMore = overflowLinks(rest, s.fields.buttons, key);
+			return base("rich_text", { ...h, body: pt(rtMore.body), width: s.fields.width, align: s.fields.align, buttons: buttons(rtMore.buttons), variant: s.variant === "buttons" ? "buttons" : "default", ...look });
 		}
 		case "media_text": {
 			const { head: h, rest } = headingFromBody(s.fields.body);
 			const ratio = ["1/3", "1/2", "2/3"].includes(s.fields.ratio) ? s.fields.ratio : "1/2";
-			return base("media_text", { ...h, body: pt(rest), buttons: buttons(s.fields.buttons), media: media(s.fields.media[0]), media_2: s.fields.media[1] ? media(s.fields.media[1]) : undefined, media_side: s.fields.mediaSide, ratio, ...heightFields(s.fields.mediaHeight), ...(s.fields.textInset ? { text_inset: s.fields.textInset } : {}), ...(s.fields.textEnd ? { text_end: s.fields.textEnd } : {}), ...(s.fields.columnGap ? { column_gap: s.fields.columnGap } : {}), ...(s.fields.innerGutters ? { inner_gutters: true } : {}), ...(s.fields.textTop ? { text_top: s.fields.textTop } : {}), ...(s.fields.textParallax ? { text_parallax: s.fields.textParallax } : {}), ...(s.fields.mediaParallax ? { media_parallax: s.fields.mediaParallax } : {}), ...(s.fields.mediaRadius ? { media_radius: s.fields.mediaRadius } : {}), ...(s.fields.headingGap ? { heading_gap: `${s.fields.headingGap}px` } : {}), ...mediaTextLookFields(s.fields) });
+			const mtMore = overflowLinks(rest, s.fields.buttons, key);
+			return base("media_text", { ...h, body: pt(mtMore.body), buttons: buttons(mtMore.buttons), media: media(s.fields.media[0]), media_2: s.fields.media[1] ? media(s.fields.media[1]) : undefined, media_side: s.fields.mediaSide, ratio, ...heightFields(s.fields.mediaHeight), ...(s.fields.textInset ? { text_inset: s.fields.textInset } : {}), ...(s.fields.textEnd ? { text_end: s.fields.textEnd } : {}), ...(s.fields.columnGap ? { column_gap: s.fields.columnGap } : {}), ...(s.fields.innerGutters ? { inner_gutters: true } : {}), ...(s.fields.textTop ? { text_top: s.fields.textTop } : {}), ...(s.fields.textParallax ? { text_parallax: s.fields.textParallax } : {}), ...(s.fields.mediaParallax ? { media_parallax: s.fields.mediaParallax } : {}), ...(s.fields.mediaRadius ? { media_radius: s.fields.mediaRadius } : {}), ...(s.fields.headingGap ? { heading_gap: `${s.fields.headingGap}px` } : {}), ...mediaTextLookFields(s.fields) });
 		}
 		case "columns": {
 			const cols: Record<string, unknown> = {};
