@@ -1,0 +1,59 @@
+{
+	"id": "7",
+	"title": "Example Studio Waiver",
+	"form": {
+		"form_fields": {
+			"fields": [
+				{
+					"element": "input_name",
+					"attributes": { "name": "names" },
+					"settings": {},
+					"fields": {
+						"first_name": { "element": "input_text", "attributes": { "name": "first_name" }, "settings": { "label": "First Name", "visible": true, "validation_rules": { "required": { "value": true } } } },
+						"middle_name": { "element": "input_text", "attributes": { "name": "middle_name" }, "settings": { "label": "Middle Name", "visible": false } },
+						"last_name": { "element": "input_text", "attributes": { "name": "last_name" }, "settings": { "label": "Last Name", "visible": true, "validation_rules": { "required": { "value": true } } } }
+					}
+				},
+				{ "element": "input_email", "attributes": { "name": "email", "type": "email" }, "settings": { "label": "Email", "validation_rules": { "required": { "value": true } } } },
+				{
+					"element": "custom_html",
+					"attributes": {},
+					"settings": {
+						"html_codes": "<p><strong>Release of liability.</strong> I take part in classes at Example Studio at my own risk &amp; I understand the activity is physical.</p><hr><ul><li>I will tell the instructor about any injury.</li><li>I have read the <a href=\"/studio-rules/\">studio rules</a> and the <a href=\"javascript:alert(1)\">fine print</a>.</li></ul><script>alert('x')</script><p onclick=\"x()\">Questions? See <a href=\"https://example.com/faq\" target=\"_blank\">our FAQ</a>.</p>"
+					}
+				},
+				{ "element": "section_break", "attributes": {}, "settings": { "label": "Photos", "description": "<p>Tell us how we may use photos.</p>" } },
+				{
+					"element": "input_radio",
+					"attributes": { "type": "radio", "name": "input_radio" },
+					"settings": {
+						"label": "Photo Consent (Optional)",
+						"advanced_options": [
+							{ "label": "Yes, you may use photos of me in studio materials.", "value": "Yes, you may use photos of me in studio materials." },
+							{ "label": "No, please do not use photos of me.", "value": "No, please do not use photos of me." }
+						],
+						"validation_rules": { "required": { "value": false } }
+					}
+				},
+				{
+					"element": "terms_and_condition",
+					"attributes": { "type": "checkbox", "name": "terms-n-condition" },
+					"settings": {
+						"tnc_html": "<p>I have read and accept the terms above, as well as the <a href=\"/terms/\" target=\"_blank\" rel=\"noopener\">Terms</a> and <a href=\"data:text/html,x\">Privacy Policy</a>.</p>",
+						"has_checkbox": true,
+						"admin_field_label": "Terms and Conditions",
+						"validation_rules": { "required": { "value": true } }
+					}
+				},
+				{
+					"element": "signature",
+					"attributes": { "name": "signature" },
+					"settings": { "label": "Signature", "sign_pad_height": 200, "sign_instruction": "Sign Here", "validation_rules": { "required": { "value": true } } }
+				},
+				{ "element": "turnstile", "attributes": {}, "settings": { "label": "" } }
+			],
+			"submitButton": { "element": "button", "settings": { "button_ui": { "text": "Sign and Send" } } }
+		}
+	},
+	"settings": { "formSettings": [{ "value": { "confirmation": { "messageToShow": "<p>Thank you, your waiver is signed.</p>", "samePageFormBehavior": "hide_form" } } }] }
+}

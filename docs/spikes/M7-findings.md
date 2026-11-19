@@ -149,3 +149,23 @@ npm, pinned — the kit's `sandboxedPlugins` (kit.config.ts) does this per envir
 - Needs a cron for the retry queue (the kit's Worker runs `*/5 * * * *` with EmDash's scheduled handler).
 - For sensitive sites: use it for EmDash's own email (sign-in, invites); keep website forms on `@wp2emdash/forms`
   direct delivery, and turn "keep email content" off.
+
+## Forms 1.3: signatures, attachments, rich consent (verified 2026-11-19, emdash 1.5.0 from the installed source)
+
+- **EmDash email has no attachments.** `EmailMessage` in emdash 1.5.0 (`dist/types-*.d.mts`) is `to`, `cc`, `replyTo`,
+  `subject`, `text`, `html` — nothing else. With `EMAIL_PROVIDER=emdash` a signature PNG is embedded in the HTML part
+  as a `data:image/png;base64,` `<img>`; the text part says so. Gmail (web and apps) and some Outlook builds do not show
+  data-URI images, so a site that takes signed waivers should use an API provider (attachment) — see the forms README.
+- **Provider attachment fields** (each provider's API reference, 2026-11-19): Brevo `attachment: [{ name, content }]`
+  (base64; png allowed); Resend `attachments: [{ filename, content }]` (base64 string; type derived from the filename);
+  Postmark `Attachments: [{ Name, Content, ContentType }]`; SendGrid `attachments: [{ content, filename, type,
+  disposition }]`; Mailgun `attachment` file parts, which require `multipart/form-data`. Not yet sent end-to-end.
+- **Block Kit image in the admin.** `@emdash-cms/blocks` 1.5 `image` block = `{ url, alt, title? }`, rendered as
+  `<img src={url}>` by React. The image-host policy (`allowedImageHosts`, https or root-relative only) is applied to
+  sandboxed and marketplace plugins only (`getSandboxedAdminDefinition`); a native plugin's blocks are not filtered.
+  EmDash's admin CSP has `img-src 'self' https: data: blob:`, so a `data:image/png` URL renders. The Form messages page
+  only uses one after re-checking it is a PNG within the caps.
+- **Fluent Forms elements** (from a real export): radio `input_radio` (`settings.advanced_options[].label/value`),
+  terms `terms_and_condition` (`settings.tnc_html`, `admin_field_label`, `attributes.name` `terms-n-condition`),
+  GDPR `gdpr_agreement`, signature add-on `signature` (`settings.label`, `sign_*` pad styling, `validation_rules`),
+  `custom_html` (`settings.html_codes`), `section_break` (`settings.label`, `description`).

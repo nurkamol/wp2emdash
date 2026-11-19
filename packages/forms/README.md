@@ -27,7 +27,7 @@ The package is not on npm. Copy `packages/forms` into the project (for example t
 "dependencies": { "@wp2emdash/forms": "link:./packages/forms" }
 ```
 
-Or build a tarball from the kit (`pnpm --dir packages/forms pack`) and `pnpm add ./wp2emdash-forms-1.2.0.tgz`.
+Or build a tarball from the kit (`pnpm --dir packages/forms pack`) and `pnpm add ./wp2emdash-forms-1.3.0.tgz`.
 The package ships TypeScript source; the site's Astro/Vite build compiles it.
 
 ## Wire it up
@@ -45,8 +45,22 @@ export const POST = createFormEndpoint({ getForm: (id) => (id ? forms.get(id) : 
 ```
 
 A form definition (`FormDefinition`): `id`, `title`, `submitLabel`, `successMessage`, `fields` (`name`, `label`,
-`type`: text/email/tel/number/url/date/textarea/select/checkbox, `required`, `options`, `autocomplete`), optional
-`notice` and `afterSubmit` (`"hide"` | `"reset"`). The page renders the form itself and posts `multipart/form-data` to
+`type`, `required`, `options`, `autocomplete`, and per type below), optional `notice` and `afterSubmit` (`"hide"` |
+`"reset"`). Field types:
+
+| Type | Renders | Posts | Checked |
+|---|---|---|---|
+| text, email, tel, number, url, date, textarea | one input | the value | length; email/tel format |
+| select, radio | a select / a fieldset of radio buttons | the chosen option | one of `options` |
+| checkbox | a checkbox | anything = "Yes" | — |
+| consent | a checkbox whose label is `labelParts` (text runs; links kept only when http(s) or site-relative — `safeHref`) | anything = accepted | required → must be ticked |
+| signature | a signature pad plus "type your full name" (below) | `<name>` PNG data URL and/or `<name>_typed` | PNG or typed name |
+| content | `content` blocks (paragraphs, list items, headings, rules; bold, italic, safe links) — not an input | nothing | — |
+
+Rich text (`labelParts`, `content`) is data, never HTML: pages render it as elements (`@wp2emdash/forms/rich` has
+`safeHref` and the converters), so nothing in a definition is inserted as markup.
+
+The page renders the form itself and posts `multipart/form-data` to
 `/api/forms/<id>` with the fields, `_hp` (an empty honeypot input, visually hidden) and `cf-turnstile-response`
 (the Turnstile widget); send `Accept: application/json` for a JSON answer (`{ ok, message, errors? }`), or let the
 browser post and come back with `?form=sent|error`.
@@ -116,6 +130,39 @@ one). EmDash's `email:beforeSend`/`email:afterSend` hook plugins see these messa
 with sensitive forms, do not install plugins that hook those events. Turnstile test keys (always pass): site `1x00000000000000000000AA`, secret
 `1x0000000000000000000000000000000AA` — for staging and `.dev.vars` only.
 
+## Signatures, consent and the emailed record
+
+**The pad** (`@wp2emdash/forms/signature-pad`, `mountSignaturePads()`, no dependencies; markup in its header and in the
+kit starter's `Form.astro`): draw with mouse, finger or pen (pointer events), **Clear signature** button. After each
+stroke the drawing is cropped to the strokes, scaled to fit 600×200 on white and written to a hidden input as a PNG
+data URL (kept under 150 KB). The canvas is skipped by the keyboard: its label tells keyboard and screen-reader users
+to type their full name in the input below it, which is always there (and is the whole field without JavaScript — the
+pad stays hidden). A drawing or a typed name satisfies a required signature.
+
+**The endpoint** accepts a drawing only if it is `data:image/png;base64,`, at most 150 KB (checked from the length
+before decoding), decodes, starts with the PNG signature bytes and an IHDR chunk, and is at most 600×200; a typed name
+is 2–200 characters with a letter and no markup. A refused signature is a 422 on the field. Signatures are never
+logged (logs carry the form id, outcome and a reason word).
+
+**The email** is a complete record: form title, submission time (UTC), every answer, consent as
+`Accepted: "<the consent text>"`, and — for a form with consent, `content` or a signature — the exact text shown on
+the form (terms, consent label with link targets) and its SHA-256, so the record can be checked against the form
+later. A drawn signature is sent as an attachment, `signature.png`:
+
+| `EMAIL_PROVIDER` | Signature |
+|---|---|
+| brevo | attachment (`attachment[{ name, content }]`) |
+| resend | attachment (`attachments[{ filename, content }]`) |
+| postmark | attachment (`Attachments[{ Name, Content, ContentType }]`) |
+| sendgrid | attachment (`attachments[{ content, filename, type, disposition }]`) |
+| mailgun | attachment (multipart `attachment` part) |
+| emdash | **embedded** in the HTML part as a data-URI image: EmDash 1.5's email message has no attachments. Gmail and some Outlook versions do not show data-URI images — use an API provider for signed forms |
+
+**The outbox** keeps the message with its signature (as base64, in KV) until it is emailed or the retention period
+ends, like any message; the cron sends it with the attachment. On **Form messages** a message with a signature says
+"signature attached" in the inbox and shows the image on the message page (admins only; only a stored PNG that passes
+the same checks is shown). CSV/JSON exports carry the text record, not the image.
+
 ## Privacy
 
 - The endpoint reads only the form's own fields and stores nothing unless the outbox is on — then only until the
@@ -131,8 +178,14 @@ with sensitive forms, do not install plugins that hook those events. Turnstile t
 - The activity log (180 days) and logs record actions and counts, never message content or recipient addresses.
 - For sites handling health, legal or financial data, keep forms to contact details only and tell visitors not to send
   sensitive details (`notice` on the form definition).
+- **Signatures are personal data.** They are emailed to the recipients and, with the outbox, kept in KV only until
+  emailed or for the retention period (`FORM_OUTBOX_DAYS`) — the site is not an archive of signed forms. The business
+  should keep the signed emails (a waiver's signed copy) for as long as its own policy and local law require, in its
+  own records, and delete them after that. The kit's contact-only policy for sensitive sites withholds radio, consent,
+  content and signature fields like any other non-contact field; whether a sensitive site may collect signatures is
+  the owner's decision (kit.config `forms.sensitive`).
 
 ## Development
 
 The kit's tests cover the package (`test/outbox.test.ts`, `test/forms.test.ts`, `test/forms-plugin.test.ts`,
-`test/forms-package.test.ts`; `emdash` and `emdash/middleware` are stubbed in `test/stubs`; `pnpm test` in the kit root). EmDash behaviours this relies on are recorded in the kit's `docs/spikes/M7-findings.md`.
+`test/forms-package.test.ts`, `test/forms-waiver.test.ts`; `emdash` and `emdash/middleware` are stubbed in `test/stubs`; `pnpm test` in the kit root). EmDash behaviours this relies on are recorded in the kit's `docs/spikes/M7-findings.md`.

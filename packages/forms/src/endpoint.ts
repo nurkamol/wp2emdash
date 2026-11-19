@@ -13,7 +13,9 @@
  * Resend, Postmark, SendGrid or Mailgun), or EMAIL_PROVIDER=emdash for EmDash's own pipeline (Settings → Email, reached
  * through `withEmDashRuntime`; see emdash-email.ts). Nothing is stored unless the owner enabled the outbox (then only
  * until it is emailed or the retention period ends); with the outbox, a count per day and form is kept for the admin's charts.
- * Field values never reach logs. A form generated for a site with
+ * Field values never reach logs — signatures included: a drawn signature (checked PNG) is emailed as an attachment
+ * (inline for EMAIL_PROVIDER=emdash), and the email records the submission time and the exact text the visitor was
+ * shown (terms, consent) with its SHA-256 (buildEmail). A form generated for a site with
  * sensitive data only has the fields the owner approved (e.g. contact details), so that is all this can send.
  */
 import { env } from "cloudflare:workers";
@@ -21,6 +23,8 @@ import type { APIRoute } from "astro";
 import { deliver, parseAddress } from "./deliver.js";
 import { sendViaEmDash } from "./emdash-email.js";
 import { countMessage, emailConfigured, enqueue, type OutboxEnv, resolveRecipients, usesEmDashEmail } from "./outbox.js";
+import { contentToHtml, contentToText, partsToHtml, partsToText } from "./rich.js";
+import { type Attachment, checkSignaturePng, checkTypedSignature, typedName } from "./signature.js";
 import type { FormDefinition, FormField } from "./types.js";
 
 interface Env extends OutboxEnv {
@@ -33,7 +37,7 @@ interface Env extends OutboxEnv {
 	FORM_LIMITER?: { limit(o: { key: string }): Promise<{ success: boolean }> };
 }
 
-const MAX: Record<FormField["type"], number> = { text: 200, email: 254, tel: 40, number: 40, url: 500, date: 40, select: 200, checkbox: 10, textarea: 5000 };
+const MAX: Record<FormField["type"], number> = { text: 200, email: 254, tel: 40, number: 40, url: 500, date: 40, select: 500, radio: 500, checkbox: 10, consent: 10, textarea: 5000, signature: 200, content: 0 };
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TEL = /^[+()\-.\s\d]{5,40}$/;
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
@@ -94,17 +98,38 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	// Validation: only the definition's fields are read.
 	const values: { field: FormField; value: string }[] = [];
 	const errors: Record<string, string> = {};
+	const attachments: Attachment[] = [];
 	for (const field of form.fields) {
-		const raw = field.type === "checkbox" ? (data.get(field.name) ? "Yes" : "") : String(data.get(field.name) ?? "").trim();
+		if (field.type === "content") continue; // text shown on the form, not an input
+		if (field.type === "signature") {
+			// A drawn signature (PNG data URL) or a typed name; never logged, only emailed (and kept by the outbox).
+			const drawn = String(data.get(field.name) ?? "");
+			const typed = String(data.get(typedName(field.name)) ?? "").trim();
+			if (drawn) {
+				const sig = checkSignaturePng(drawn);
+				if (!sig.ok) {
+					errors[field.name] = sig.reason === "too-large" ? `${field.label}: the drawing is too large. Please clear it and sign again.` : `${field.label} could not be read. Please clear it and sign again, or type your full name.`;
+					continue;
+				}
+				const filename = attachments.length ? `signature-${attachments.length + 1}.png` : "signature.png";
+				attachments.push({ filename, contentType: "image/png", content: sig.base64 });
+				values.push({ field, value: `Signed (drawn signature attached as ${filename})` });
+			} else if (typed) {
+				if (!checkTypedSignature(typed)) errors[field.name] = `${field.label}: type your full name.`;
+				else values.push({ field, value: `Signed by typing their name: ${typed}` });
+			} else if (field.required) errors[field.name] = `${field.label} is required. Sign in the box or type your full name.`;
+			continue;
+		}
+		const raw = field.type === "checkbox" || field.type === "consent" ? (data.get(field.name) ? "Yes" : "") : String(data.get(field.name) ?? "").trim();
 		if (!raw) {
-			if (field.required) errors[field.name] = `${field.label} is required.`;
+			if (field.required) errors[field.name] = field.type === "consent" ? `Please accept: ${field.label}.` : `${field.label} is required.`;
 			continue;
 		}
 		if (raw.length > (MAX[field.type] ?? 200)) errors[field.name] = `${field.label} is too long.`;
 		else if (field.type === "email" && !EMAIL.test(raw)) errors[field.name] = `${field.label} is not a valid email address.`;
 		else if (field.type === "tel" && !TEL.test(raw)) errors[field.name] = `${field.label} is not a valid phone number.`;
-		else if (field.type === "select" && field.options?.length && !field.options.includes(raw)) errors[field.name] = `Choose one of the ${field.label} options.`;
-		values.push({ field, value: raw });
+		else if ((field.type === "select" || field.type === "radio") && field.options?.length && !field.options.includes(raw)) errors[field.name] = `Choose one of the ${field.label} options.`;
+		values.push({ field, value: field.type === "consent" ? `Accepted: “${partsToText(field.labelParts) || field.label}”` : raw });
 	}
 	if (Object.keys(errors).length) return fail(422, "Please check the highlighted fields.", "invalid", errors);
 
@@ -117,14 +142,13 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	const replyEmail = values.find((v) => v.field.type === "email")?.value;
 	const name = values.filter((v) => /name/i.test(v.field.name) || /name/.test(v.field.autocomplete ?? "")).map((v) => v.value).join(" ");
 	const page = request.headers.get("referer") ?? "";
-	const subject = `New website message${name ? ` from ${name}` : ""}`;
-	const text = [...values.map((v) => `${v.field.label}: ${v.value}`), "", page ? `Sent from ${page}` : ""].join("\n").trim();
-	const html = `<table cellpadding="6" style="border-collapse:collapse;font:14px/1.5 sans-serif">${values.map((v) => `<tr><th align="left" valign="top">${esc(v.field.label)}</th><td>${esc(v.value).replace(/\n/g, "<br>")}</td></tr>`).join("")}</table>${page ? `<p style="font:12px sans-serif;color:#666">Sent from ${esc(page)}</p>` : ""}`;
+	const { subject, text, html } = await buildEmail(form, values, { page, origin: new URL(request.url).origin, at: new Date(), name });
+	const files = attachments.length ? { attachments } : {};
 	// Kept for later delivery when email is not set up or the provider refuses (outbox, owner opt-in): the visitor's
 	// message is not lost, and the cron emails it once delivery works.
 	const keep = async (reason: string) => {
 		try {
-			if (await enqueue(e, { form: form.id, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html })) {
+			if (await enqueue(e, { form: form.id, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html, ...files })) {
 				console.log(JSON.stringify({ form: form.id, outcome: "queued", reason }));
 				await countMessage(e, form.id, "kept").catch(() => {});
 				return reply(request, 200, { ok: true, message: form.successMessage });
@@ -138,10 +162,43 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	if (!emailReady) return (await keep("email not configured")) ?? fail(503, "The form is not available right now. Please call or email us instead.", "email not configured");
 	// Sender: FORM_FROM for an API provider; EmDash's Settings → Email for the emdash pipeline (it has its own sender).
 	const result = viaEmDash
-		? await sendViaEmDash(to, { ...(replyEmail ? { replyTo: replyEmail } : {}), subject, text, html })
-		: await deliver(provider, e.EMAIL_API_KEY as string, { from: parseAddress(e.FORM_FROM) as { email: string; name?: string }, to, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html }, { ...(e.MAILGUN_REGION ? { region: e.MAILGUN_REGION } : {}) });
+		? await sendViaEmDash(to, { ...(replyEmail ? { replyTo: replyEmail } : {}), subject, text, html, ...files })
+		: await deliver(provider, e.EMAIL_API_KEY as string, { from: parseAddress(e.FORM_FROM) as { email: string; name?: string }, to, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html, ...files }, { ...(e.MAILGUN_REGION ? { region: e.MAILGUN_REGION } : {}) });
 	if (!result.ok) return (await keep(result.reason)) ?? fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
 	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: provider }));
 	await countMessage(e, form.id, "emailed").catch(() => {});
 	return reply(request, 200, { ok: true, message: form.successMessage });
 };
+
+/**
+ * The email: every answer, when it was submitted, and — for a form with terms, consent or a signature — the exact
+ * text the visitor was shown and agreed to, with its SHA-256, so the email is a complete record on its own.
+ */
+export async function buildEmail(form: FormDefinition, values: { field: FormField; value: string }[], ctx: { page?: string; origin?: string; at: Date; name?: string }): Promise<{ subject: string; text: string; html: string }> {
+	const signed = values.some((v) => v.field.type === "signature");
+	const subject = signed ? `Signed: ${form.title}${ctx.name ? ` — ${ctx.name}` : ""}` : `New website message${ctx.name ? ` from ${ctx.name}` : ""}`;
+	const submitted = `${ctx.at.toISOString().slice(0, 19).replace("T", " ")} UTC`;
+	const shown = form.fields.filter((f) => f.type === "content" || f.type === "consent" || f.type === "signature");
+	const shownText = shown
+		.map((f) => (f.type === "content" ? contentToText(f.content, { links: true }) : f.type === "consent" ? `[${f.required ? "required" : "optional"} checkbox] ${partsToText(f.labelParts, { links: true }) || f.label}` : `[signature] ${f.label}`))
+		.filter(Boolean)
+		.join("\n");
+	const hasRecord = form.fields.some((f) => f.type === "content" || f.type === "consent") || signed;
+	const digest = hasRecord ? [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(shownText)))].map((b) => b.toString(16).padStart(2, "0")).join("") : "";
+	const text = [
+		`Form: ${form.title}`,
+		`Submitted: ${submitted}`,
+		"",
+		...values.map((v) => `${v.field.label}: ${v.value}`),
+		...(hasRecord ? ["", "— Text shown on the form —", shownText, `(SHA-256 of the text shown: ${digest})`] : []),
+		"",
+		ctx.page ? `Sent from ${ctx.page}` : "",
+	]
+		.join("\n")
+		.trim();
+	const shownHtml = shown
+		.map((f) => (f.type === "content" ? contentToHtml(f.content, ctx.origin) : f.type === "consent" ? `<p>[${f.required ? "required" : "optional"} checkbox] ${partsToHtml(f.labelParts, ctx.origin) || esc(f.label)}</p>` : ""))
+		.join("");
+	const html = `<p style="font:14px/1.5 sans-serif;margin:0 0 8px"><strong>${esc(form.title)}</strong><br>Submitted ${esc(submitted)}</p><table cellpadding="6" style="border-collapse:collapse;font:14px/1.5 sans-serif">${values.map((v) => `<tr><th align="left" valign="top">${esc(v.field.label)}</th><td>${esc(v.value).replace(/\n/g, "<br>")}</td></tr>`).join("")}</table>${hasRecord ? `<div style="font:13px/1.5 sans-serif;color:#333;border-top:1px solid #ddd;margin-top:16px;padding-top:8px"><p><strong>Text shown on the form</strong></p>${shownHtml}<p style="font-size:12px;color:#666">SHA-256 of the text shown: ${digest}</p></div>` : ""}${ctx.page ? `<p style="font:12px sans-serif;color:#666">Sent from ${esc(ctx.page)}</p>` : ""}`;
+	return { subject, text, html };
+}

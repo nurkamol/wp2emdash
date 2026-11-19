@@ -11,6 +11,7 @@
  */
 import { deliver, type Message, parseAddress } from "./deliver.js";
 import { emdashEmailAvailable, sendViaEmDash } from "./emdash-email.js";
+import type { Attachment } from "./signature.js";
 
 export interface KvLike {
 	put(key: string, value: string, opts?: { expirationTtl?: number; metadata?: unknown }): Promise<void>;
@@ -41,6 +42,8 @@ export interface Queued {
 	subject: string;
 	text: string;
 	html: string;
+	/** Files emailed with it (a signed form's signature.png), kept with the message until it is emailed or expires. */
+	attachments?: Attachment[];
 	/** When an admin first opened it. */
 	readAt?: string;
 	/** Imported without email: kept for reference, never sent by the cron. */
@@ -59,6 +62,8 @@ export interface Summary {
 	email?: string;
 	read?: boolean;
 	noEmail?: boolean;
+	/** How many files are attached (a signature). */
+	files?: number;
 }
 
 const PREFIX = "msg:";
@@ -79,6 +84,7 @@ export function summaryOf(q: Queued): Summary {
 		...(q.replyTo?.email ? { email: clip(q.replyTo.email, 120) } : {}),
 		...(q.readAt ? { read: true } : {}),
 		...(q.noEmail ? { noEmail: true } : {}),
+		...(q.attachments?.length ? { files: q.attachments.length } : {}),
 	};
 }
 
@@ -263,10 +269,11 @@ export async function sendQueued(env: OutboxEnv, key: string): Promise<"sent" | 
 async function sendOne(env: OutboxEnv, q: Queued, to: string[]): Promise<boolean> {
 	const text = `${q.text}\n\n(Received ${q.at}; delivered late from the website's outbox.)`;
 	const html = `${q.html}<p style="font:12px sans-serif;color:#666">Received ${q.at}; delivered late from the website's outbox.</p>`;
-	if (usesEmDashEmail(env)) return (await sendViaEmDash(to, { ...(q.replyTo ? { replyTo: q.replyTo.email } : {}), subject: q.subject, text, html })).ok;
+	const files = q.attachments?.length ? { attachments: q.attachments } : {};
+	if (usesEmDashEmail(env)) return (await sendViaEmDash(to, { ...(q.replyTo ? { replyTo: q.replyTo.email } : {}), subject: q.subject, text, html, ...files })).ok;
 	const from = parseAddress(env.FORM_FROM);
 	if (!from || !env.EMAIL_API_KEY) return false;
-	const m: Message = { from, to, ...(q.replyTo ? { replyTo: q.replyTo } : {}), subject: q.subject, text, html };
+	const m: Message = { from, to, ...(q.replyTo ? { replyTo: q.replyTo } : {}), subject: q.subject, text, html, ...files };
 	const r = await deliver(env.EMAIL_PROVIDER ?? "brevo", env.EMAIL_API_KEY, m, { ...(env.MAILGUN_REGION ? { region: env.MAILGUN_REGION } : {}) });
 	return r.ok;
 }
