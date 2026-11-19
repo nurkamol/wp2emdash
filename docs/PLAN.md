@@ -3,7 +3,7 @@
 **Goal:** A reusable kit that migrates any WordPress site to EmDash (Astro on Cloudflare Workers + D1 + R2) and proves, with automated checks, that nothing was lost: content, URLs, SEO, design, forms, integrations.
 
 **Targets:** EmDash (default) or Astro + Pages CMS, chosen per site (§2.3).
-**v1 scope:** Gutenberg/classic and WPBakery (incl. Salient `nectar_*` elements). Elementor, Bricks and Divi come later as adapters on the same core.
+**v1 scope:** Gutenberg/classic and WPBakery (incl. Salient `nectar_*` elements). Elementor is the next adapter; Bricks and Divi follow. All use the same core and section format, and each adapter is built and measured against a real client site.
 **Pilot site:** a ~10-page clinic site on Salient + WPBakery with Rank Math, Fluent Forms, Popup Maker and third-party booking widgets.
 **Editing model:** fixed library of section types (EmDash `blocks` field), not a free-form row/column builder.
 
@@ -428,7 +428,7 @@ Docs are generated from real data where possible (config schema → `configurati
 
 ## 9. Out of scope for v1 (detected and reported, migration stops for a decision)
 
-WooCommerce/shop, membership/LMS/paywalls, multisite, WPML/Polylang, user accounts/front-end login, custom plugins with business logic (→ later via `wordpress-plugin-to-emdash`), Elementor/Bricks/Divi pages (adapters in v2).
+WooCommerce/shop, membership/LMS/paywalls, multisite, WPML/Polylang, user accounts/front-end login, custom plugins with business logic (→ later via `wordpress-plugin-to-emdash`), Elementor/Bricks/Divi pages (adapters in v2: Elementor next, then Bricks and Divi, each built against a real client site).
 
 ---
 
@@ -532,7 +532,7 @@ Any failed assumption changes the plan before code depends on it.
 | M8a | Docs: client project docs generated for the pilot; kit GitHub docs complete | Both repos pass a docs review checklist; every command in docs verified by running it |
 | M9 | Second site (Gutenberg-heavy) to harden the kit | Runs end-to-end with only config + overrides |
 | M10 | `astro-pagescms` target: starter, file writer, `_redirects`, `.pages.yml` + schema generation, CI content validation | Same site migrates to either target from one IR; verify passes for both |
-| v2 | Elementor (`_elementor_data`), Bricks (`_bricks_page_content_2` + templates), Divi adapters; i18n; plugin porting | — |
+| v2 | Adapters, each built and measured against a real client site: Elementor first (`_elementor_data`), then Bricks (`_bricks_page_content_2` + templates) and Divi; i18n; plugin porting | Elementor: a real client site migrates with 0 unmapped content and passes verify |
 
 **Status (2026-11-19):** M0–M6 done. M7: the verify suite runs against staging and production and every check passes on the pilot except visual parity, which is being closed section by section (measured Salient rules in `docs/spikes/M7-findings.md`); the dashboard (§10b) is not built yet. M8: cutover preflight done; the pilot runs in production on `workers.dev` and waits for the owner's go-live approval, the go-live token and a working email account (form messages are held in the KV outbox until then). The form outbox has an admin page (Plugins → Form messages, admins only: inbox with search, filters, read state and bulk actions; insights from per-day counts; CSV/JSON export via one-time links and import; activity log; dashboard widget). Forms are the kit package `@wp2emdash/forms` (`packages/forms`: endpoint, email, outbox, admin plugin), copied into each client repo and linked from its package.json; usable in any EmDash project (its README). Backlog: recipients editable in the admin and sending through EmDash's email pipeline (`email:send`).
 
