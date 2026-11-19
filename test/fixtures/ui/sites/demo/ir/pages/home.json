@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "kind": "page",
+  "source": { "wpId": 10, "type": "page", "status": "publish", "slug": "home", "builder": "wpbakery", "modifiedGmt": "2026-01-01T00:00:00" },
+  "route": { "path": "/", "isFrontPage": true },
+  "title": "Home",
+  "seo": { "jsonLdTypes": [] },
+  "sections": [
+    {
+      "type": "hero",
+      "theme": { "tone": "light" },
+      "spacing": "normal",
+      "fields": { "heading": [{ "_type": "block", "_key": "h1", "style": "h1", "children": [{ "_type": "span", "_key": "s1", "text": "Welcome", "marks": [] }], "markDefs": [] }] },
+      "sourceRef": { "adapter": "wpbakery", "path": "vc_row[0]", "rawHash": "aaaa1111" }
+    },
+    {
+      "type": "rich_text",
+      "theme": { "tone": "light" },
+      "spacing": "normal",
+      "fields": { "body": [] },
+      "sourceRef": { "adapter": "wpbakery", "path": "vc_row[1]#0", "rawHash": "bbbb2222" }
+    },
+    {
+      "type": "feature_grid",
+      "theme": { "tone": "light" },
+      "spacing": "normal",
+      "fields": { "items": [] },
+      "sourceRef": { "adapter": "wpbakery", "path": "vc_row[1]#1", "rawHash": "bbbb2222" }
+    }
+  ],
+  "diagnostics": []
+}

@@ -39,7 +39,7 @@ export function indexHtml(): string {
 	<button type="button" class="ghost" id="theme" aria-label="Toggle colour theme">Theme</button>
 </header>
 <main id="app" tabindex="-1"><p class="muted pad">Loading…</p></main>
-<footer class="foot muted">Local only (127.0.0.1). Read-only except visual decisions, which are appended to <code>decisions.md</code>. Gates are accepted only with <code>wp2emdash accept</code>.</footer>
+<footer class="foot muted">Local only (127.0.0.1). Writes only what you decide here: visual decisions and approved proposals (<code>decisions.md</code>, <code>overrides.ts</code>) and secrets (<code>.env</code>, write-only). Gates are accepted only with <code>wp2emdash accept</code>; the launch switch is done from the terminal.</footer>
 <script src="/app.js" defer></script>
 </body>
 </html>

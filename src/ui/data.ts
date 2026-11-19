@@ -10,6 +10,7 @@ import { loadConfig } from "../config/load.js";
 import { listSites } from "../commands/status.js";
 import { SITES_DIR, sitePaths } from "../core/paths.js";
 import { PHASE_IDS, PHASES, type PhaseId } from "../core/phases.js";
+import { listProposals } from "../core/proposals.js";
 import { type GateCheck, nextPhase, phaseState, readState, type SiteState } from "../core/state.js";
 import type { VerifyResult } from "../phases/verify.js";
 
@@ -251,6 +252,8 @@ export interface SiteSummary {
 	current?: { id: PhaseId; status: string };
 	readiness: Pick<Readiness, "score" | "passed" | "total"> & { blockers: ReadinessItem[] };
 	lastRun?: RunSummary;
+	/** Proposals waiting in the approval queue. */
+	pendingProposals: number;
 	error?: string;
 }
 
@@ -272,6 +275,12 @@ export async function siteSummary(slug: string, sitesDir = SITES_DIR): Promise<S
 	const meta = await siteMeta(slug, sitesDir);
 	const lastId = listRuns(slug, sitesDir)[0];
 	const lastRun = lastId ? readRun(slug, lastId, sitesDir) : undefined;
+	let pendingProposals = 0;
+	try {
+		pendingProposals = listProposals(slug, { sitesDir, status: "pending" }).length;
+	} catch {
+		// an unreadable queue shows as empty
+	}
 	try {
 		const state = readState(sitePaths(slug, sitesDir).state);
 		const next = nextPhase(state) ?? null;
@@ -285,6 +294,7 @@ export async function siteSummary(slug: string, sitesDir = SITES_DIR): Promise<S
 			current: { id: curId, status: phaseState(state, curId).status },
 			readiness: { score: r.score, passed: r.passed, total: r.total, blockers: r.blockers },
 			...(lastRun ? { lastRun } : {}),
+			pendingProposals,
 		};
 	} catch (e) {
 		return {
@@ -294,6 +304,7 @@ export async function siteSummary(slug: string, sitesDir = SITES_DIR): Promise<S
 			next: null,
 			readiness: { score: 0, passed: 0, total: 0, blockers: [] },
 			...(lastRun ? { lastRun } : {}),
+			pendingProposals,
 			error: `state.json unreadable: ${(e as Error).message.split("\n")[0]}`,
 		};
 	}
@@ -307,7 +318,18 @@ export async function portfolio(sitesDir = SITES_DIR): Promise<SiteSummary[]> {
 /** Files the dashboard may serve, relative to the site root. Everything else is refused. */
 export const SERVABLE_ROOTS = ["reports", join("snapshot", "screens")];
 
-const fileUrl = (slug: string, rel: string) => `/files/${encodeURIComponent(slug)}/${rel.split(/[\\/]/).map(encodeURIComponent).join("/")}`;
+export const fileUrl = (slug: string, rel: string) => `/files/${encodeURIComponent(slug)}/${rel.split(/[\\/]/).map(encodeURIComponent).join("/")}`;
+
+/** URL of a file under the site root, or undefined when it does not exist. */
+export const siteFileUrl = (slug: string, root: string, rel: string): string | undefined => (existsSync(join(root, rel)) ? fileUrl(slug, rel) : undefined);
+
+/** verify.json stores absolute paths from the machine that ran it; keep the part from reports/verify/ on. */
+export function verifyFileUrl(slug: string, root: string, abs: string | undefined): string | undefined {
+	if (!abs) return undefined;
+	const norm = abs.replace(/\\/g, "/");
+	const i = norm.lastIndexOf("/reports/verify/");
+	return i < 0 ? undefined : siteFileUrl(slug, root, norm.slice(i + 1));
+}
 
 export interface VisualDecision {
 	date: string;
@@ -365,15 +387,8 @@ export async function visualReport(slug: string, sitesDir = SITES_DIR): Promise<
 
 	const decisions = visualDecisions(slug, sitesDir);
 	const latest = (path: string, vp: string) => [...decisions].reverse().find((d) => d.path === path && d.viewport === vp);
-	const exists = (rel: string) => existsSync(join(paths.root, rel));
-	const url = (rel: string) => (exists(rel) ? fileUrl(slug, rel) : undefined);
-	/** verify.json stores absolute paths from the machine that ran it; keep the part from reports/verify/ on. */
-	const fromAbs = (abs: string | undefined) => {
-		if (!abs) return undefined;
-		const norm = abs.replace(/\\/g, "/");
-		const i = norm.lastIndexOf("/reports/verify/");
-		return i < 0 ? undefined : url(norm.slice(i + 1));
-	};
+	const url = (rel: string) => siteFileUrl(slug, paths.root, rel);
+	const fromAbs = (abs: string | undefined) => verifyFileUrl(slug, paths.root, abs);
 
 	const pages: VisualPage[] = (v.pages ?? []).map((p) => ({
 		path: p.path,

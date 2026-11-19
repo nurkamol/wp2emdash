@@ -1,0 +1,13 @@
+{
+  "id": "p-20260102-d4e5f6",
+  "createdAt": "2026-01-02T08:00:00.000Z",
+  "by": "claude (wp2emdash-map)",
+  "summary": "Record that the site has no redirects",
+  "file": "decisions.md",
+  "patch": "--- a/decisions.md\n+++ b/decisions.md\n@@ -1,1 +1,2 @@\n # Decisions\n+| 2026-01-02 | extract | No redirects to migrate | Owner confirmed | Jane Owner |\n",
+  "rerun": null,
+  "status": "rejected",
+  "decidedAt": "2026-01-02T08:30:00.000Z",
+  "decidedBy": "Jane Owner",
+  "note": "There are redirects in Rank Math"
+}

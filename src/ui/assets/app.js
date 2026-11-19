@@ -140,7 +140,8 @@
 			el("dl", { class: "kv" },
 				el("dt", { text: "Next" }), el("dd", null, s.next ? el("span", null, el("b", { text: s.next }), " ", pill(s.current ? s.current.status : "pending")) : pill("passed", "all gates done")),
 				el("dt", { text: "Readiness" }), el("dd", { text: s.readiness.passed + " / " + s.readiness.total + " launch checks pass" }),
-				el("dt", { text: "Last run" }), el("dd", null, runLine(s.lastRun))),
+				el("dt", { text: "Last run" }), el("dd", null, runLine(s.lastRun)),
+				el("dt", { text: "Approvals" }), el("dd", null, s.pendingProposals ? el("a", { href: href + "/approvals", text: s.pendingProposals + " waiting" }) : el("span", { class: "muted", text: "none waiting" }))),
 			blockers.length ? el("details", null, el("summary", { text: blockers.length + " blocker" + (blockers.length === 1 ? "" : "s") }),
 				el("ul", { class: "list small" }, blockers.slice(0, 6).map(function (b) { return el("li", null, el("b", { text: b.label }), b.detail ? el("span", { class: "muted", text: " — " + b.detail }) : null); }),
 					blockers.length > 6 ? el("li", null, el("a", { href: href, text: "+" + (blockers.length - 6) + " more" })) : null)) : el("p", { class: "small", text: "Nothing blocks launch." }),
@@ -150,7 +151,7 @@
 	// ── site ─────────────────────────────────────────────────────────────────────────────────────
 	function tabs(slug, active) {
 		var base = "#/site/" + encodeURIComponent(slug);
-		var t = [["overview", base, "Overview & readiness"], ["visual", base + "/visual", "Visual diff"], ["runs", base + "/runs", "Runs"]];
+		var t = [["overview", base, "Overview"], ["visual", base + "/visual", "Visual diff"], ["inspect", base + "/inspect", "Inspector"], ["approvals", base + "/approvals", "Approvals"], ["secrets", base + "/secrets", "Secrets"], ["checklist", base + "/checklist", "Checklist"], ["cockpit", base + "/cockpit", "Launch"], ["runs", base + "/runs", "Runs"]];
 		return el("nav", { class: "tabs", "aria-label": "Site sections" }, t.map(function (x) { return el("a", { href: x[1], text: x[2], "aria-current": x[0] === active ? "page" : null }); }));
 	}
 
@@ -311,7 +312,8 @@
 				el("div", { class: "row spread" },
 					el("div", null, el("h2", { text: page.path + " · " + view.viewport }),
 						el("div", { class: "small muted" }, "Difference ", el("b", { class: view.over ? "err" : "", text: pct(view.ratio) }), " over " + view.comparedHeight + " px · height " + view.sourceHeight + " → " + view.targetHeight + " px · ",
-							el("a", { href: page.sourceUrl, target: "_blank", rel: "noopener noreferrer", text: "WordPress ↗" }), " ", el("a", { href: page.targetUrl, target: "_blank", rel: "noopener noreferrer", text: "EmDash ↗" })),
+							el("a", { href: page.sourceUrl, target: "_blank", rel: "noopener noreferrer", text: "WordPress ↗" }), " ", el("a", { href: page.targetUrl, target: "_blank", rel: "noopener noreferrer", text: "EmDash ↗" }), " · ",
+							el("a", { href: "#/site/" + encodeURIComponent(slug) + "/inspect/" + encodeURIComponent(page.name) + "/" + encodeURIComponent(view.viewport), text: "Inspect sections →" })),
 						view.error ? el("p", { class: "err", text: view.error }) : null),
 					modeBar),
 				el("div", { class: "spacer" }), stage, range),
@@ -359,6 +361,237 @@
 				: el("p", { class: "small muted", text: "Verify gate: " + v.verifyGate.status + "." }));
 	}
 
+	// ── shared bits for v2 views ─────────────────────────────────────────────────────────────────
+	function siteHead(slug, title, tab, sub) {
+		setCrumbs([{ text: "Portfolio", href: "#/" }, { text: slug, href: "#/site/" + encodeURIComponent(slug) }, { text: title }]);
+		return [el("div", { class: "head" }, el("div", null, el("h1", { text: title }), sub ? el("p", { class: "muted", text: sub }) : null)), tabs(slug, tab)];
+	}
+	function postJson(path, body) {
+		return api(path, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) });
+	}
+	/** A unified diff as text lines (never HTML), coloured by line kind. */
+	function diffView(patch) {
+		return el("pre", { class: "diff", tabindex: "0", "aria-label": "Proposed change (unified diff)" }, String(patch || "").split("\n").map(function (l) {
+			var k = l.slice(0, 3) === "+++" || l.slice(0, 3) === "---" ? "file" : l.charAt(0) === "+" ? "add" : l.charAt(0) === "-" ? "del" : l.slice(0, 2) === "@@" ? "hunk" : "";
+			return el("span", { class: k, text: l + "\n" });
+		}));
+	}
+	var lastName = "";
+	function nameInput(id) {
+		var i = el("input", { type: "text", id: id, required: true, maxlength: 120, autocomplete: "name", value: lastName || null });
+		i.addEventListener("input", function () { lastName = i.value; });
+		return i;
+	}
+	function statusPill(s) { return pill(s === "approved" ? "passed" : s === "rejected" || s === "failed" ? "failed" : "running", s); }
+
+	// ── approvals ────────────────────────────────────────────────────────────────────────────────
+	function approvals(slug) {
+		api("/api/sites/" + encodeURIComponent(slug) + "/proposals").then(function (list) {
+			var pending = list.filter(function (p) { return p.status === "pending"; });
+			show(el("div", null, siteHead(slug, "Approval queue", "approvals", pending.length + " waiting · " + list.length + " in sites/" + slug + "/proposals/"),
+				el("p", { class: "notice" }, "Claude proposes changes to ", el("code", { text: "overrides.ts" }), " or ", el("code", { text: "decisions.md" }), "; nothing changes until you approve. Approving applies the diff exactly as shown. It never accepts a gate."),
+				list.length ? el("div", { class: "grid" }, list.map(function (p) { return proposalCard(slug, p); })) : el("p", { class: "card muted", text: "No proposals yet." })));
+		}).catch(fail);
+	}
+	function proposalCard(slug, p) {
+		var id = "p-" + p.id;
+		var msg = el("p", { class: "small", role: "status" });
+		var by = nameInput(id + "-by");
+		var note = el("input", { type: "text", id: id + "-note", maxlength: 1000 });
+		var rerun = p.previewable ? el("input", { type: "checkbox", id: id + "-rerun", checked: true }) : null;
+		var after = el("div");
+		function decide(kind) {
+			msg.className = "small"; msg.textContent = "Saving…";
+			postJson("/api/sites/" + encodeURIComponent(slug) + "/proposals/" + encodeURIComponent(p.id) + "/" + kind, { by: by.value, note: note.value, rerun: !!(rerun && rerun.checked) }).then(function (r) {
+				var q = r.proposal;
+				msg.textContent = q.status === "approved" ? "Approved: the change is in " + q.file + "." : q.status === "failed" ? "The patch no longer applies; marked failed. " + (q.note || "") : "Rejected.";
+				if (q.status === "failed") msg.className = "err";
+				clear(after);
+				if (r.run && r.run.runId) append(after, el("h3", { text: "Preview run: " + r.run.phase }), liveRun(slug, r.run.runId));
+				else if (r.run) append(after, el("p", { class: "small" }, "Preview run of " + r.run.phase + " started; it appears under ", el("a", { href: "#/site/" + encodeURIComponent(slug) + "/runs", text: "Runs" }), "."));
+				if (r.runError) append(after, el("p", { class: "err", text: r.runError }));
+				if (q.status === "approved" && q.command) append(after, el("p", { class: "small", text: "To record the gate, run in the terminal:" }), fixLine(q.command));
+			}).catch(function (e) { msg.className = "err"; msg.textContent = e.message; });
+		}
+		return el("article", { class: "card proposal" },
+			el("div", { class: "row spread" }, el("h2", { text: p.summary }), statusPill(p.status)),
+			el("dl", { class: "kv small" },
+				el("dt", { text: "File" }), el("dd", null, el("code", { text: p.file })),
+				el("dt", { text: "Proposed by" }), el("dd", { text: p.by + " · " + ago(p.createdAt) }),
+				el("dt", { text: "Rerun" }), el("dd", { text: p.rerun ? p.rerun + (p.previewable ? " (the dashboard can start a preview run)" : " (from the terminal)") : "none needed" }),
+				p.decidedBy ? [el("dt", { text: "Decided" }), el("dd", { text: p.status + " by " + p.decidedBy + " · " + ago(p.decidedAt) + (p.note ? " — " + p.note : "") })] : null),
+			el("details", { open: p.status === "pending" ? true : null }, el("summary", { text: "Change (" + p.file + ")" }), diffView(p.patch)),
+			p.status === "pending" ? el("div", { class: "decide" },
+				el("div", { class: "grid two" }, el("div", null, el("label", { for: id + "-by", text: "Decided by" }), by), el("div", null, el("label", { for: id + "-note", text: "Note (optional)" }), note)),
+				rerun ? el("label", { class: "check", for: id + "-rerun" }, rerun, " After approving, start a preview run of " + p.rerun + " (gate not recorded)") : p.command ? el("p", { class: "small muted", text: "After approving, rerun from the terminal: " + p.command }) : null,
+				el("div", { class: "row" }, el("button", { type: "button", class: "primary", onclick: function () { decide("approve"); } }, "Approve and apply"), el("button", { type: "button", class: "danger", onclick: function () { decide("reject"); } }, "Reject")),
+				msg, after) : (p.status === "approved" && p.command ? el("div", null, el("p", { class: "small muted", text: "Rerun to record the gate:" }), fixLine(p.command)) : null));
+	}
+
+	// ── secrets ──────────────────────────────────────────────────────────────────────────────────
+	var GROUPS = { wordpress: "WordPress (extract)", emdash: "EmDash", email: "Email", production: "Production", "go-live": "Go-live (cutover only)" };
+	function secrets(slug) {
+		api("/api/sites/" + encodeURIComponent(slug) + "/secrets").then(function (s) {
+			show(el("div", null, siteHead(slug, "Secrets", "secrets", "Written to " + s.file + " (gitignored, mode 600)"),
+				el("p", { class: "notice" }, "Values are write-only: they are saved to ", el("code", { text: s.file }), " and never shown again, logged, streamed or sent to Claude. The page shows only whether a key is set and a short fingerprint (first 8 hex of its SHA-256), so you can tell two values apart."),
+				s.reminders.length ? el("div", { class: "notice warn-box", role: "note" }, el("b", { text: "Revocation reminders" }), el("ul", { class: "list small" }, s.reminders.map(function (r) { return el("li", { text: r }); }))) : null,
+				Object.keys(GROUPS).map(function (g) {
+					var keys = s.keys.filter(function (k) { return k.group === g; });
+					if (!keys.length) return null;
+					return el("section", { class: "card secrets", "aria-label": GROUPS[g] }, el("h2", { text: GROUPS[g] }), keys.map(function (k) { return secretRow(slug, k); }));
+				})));
+		}).catch(fail);
+	}
+	function secretRow(slug, k) {
+		var id = "s-" + k.key;
+		var input = el("input", { type: "password", id: id, autocomplete: "off", spellcheck: "false", maxlength: 4096, "aria-describedby": id + "-help" });
+		var state = el("span", null, k.set ? pill("passed", "set") : pill("pending", "not set"), k.fingerprint ? el("code", { class: "fp", title: "First 8 hex of SHA-256", text: k.fingerprint }) : null);
+		var msg = el("span", { class: "small", role: "status" });
+		function save() {
+			if (/[\r\n]/.test(input.value)) { msg.className = "err"; msg.textContent = "Line breaks are not allowed."; return; }
+			msg.className = "small"; msg.textContent = "Saving…";
+			var value = input.value;
+			input.value = "";
+			postJson("/api/sites/" + encodeURIComponent(slug) + "/secrets", { key: k.key, value: value }).then(function (r) {
+				value = "";
+				clear(state); append(state, [pill("passed", "set"), el("code", { class: "fp", text: r.fingerprint })]);
+				msg.textContent = "Saved.";
+			}).catch(function (e) { value = ""; msg.className = "err"; msg.textContent = e.message; });
+		}
+		input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); save(); } });
+		return el("div", { class: "secret" },
+			el("div", { class: "row spread" }, el("label", { for: id }, el("b", { text: k.label }), " ", el("code", { text: k.key })), state),
+			el("p", { class: "small muted", id: id + "-help", text: k.help + (k.format ? " Format: " + k.format + "." : "") }),
+			el("div", { class: "row" }, input, el("button", { type: "button", class: "primary", onclick: save }, k.set ? "Replace" : "Save"), msg));
+	}
+
+	// ── section inspector ────────────────────────────────────────────────────────────────────────
+	function inspector(slug, pageName, vp) {
+		if (!pageName) {
+			return api("/api/sites/" + encodeURIComponent(slug) + "/visual").then(function (v) {
+				var first = v.pages && v.pages[0];
+				if (first && first.viewports[0]) { location.replace("#/site/" + encodeURIComponent(slug) + "/inspect/" + encodeURIComponent(first.name) + "/" + encodeURIComponent(first.viewports[0].viewport)); return; }
+				show(el("div", null, siteHead(slug, "Section inspector", "inspect"), el("p", { class: "card", text: "No verify report yet. Run: pnpm wp2emdash run " + slug + " verify" })));
+			}).catch(fail);
+		}
+		Promise.all([api("/api/sites/" + encodeURIComponent(slug) + "/inspect/" + encodeURIComponent(pageName) + "/" + encodeURIComponent(vp)), api("/api/sites/" + encodeURIComponent(slug) + "/visual")]).then(function (res) {
+			var d = res[0], v = res[1];
+			var base = "#/site/" + encodeURIComponent(slug) + "/inspect/";
+			var detail = el("section", { class: "card", "aria-live": "polite" }, el("p", { class: "muted", text: "Click a row on the WordPress screenshot (or pick one below) to see what it became." }));
+			var canvas = el("div", { class: "shot" });
+			var img = d.sourceImage ? el("img", { src: d.sourceImage, alt: "WordPress " + d.page.path + " " + d.viewport }) : el("div", { class: "missing", text: "Audit screenshot missing" });
+			append(canvas, img);
+			var buttons = [];
+			function select(i) {
+				buttons.forEach(function (b, k) { b.setAttribute("aria-pressed", k === i ? "true" : "false"); });
+				clear(detail); append(detail, regionDetail(slug, d, d.regions[i]));
+			}
+			function place() {
+				var h = d.pageHeight || img.naturalHeight || 1;
+				d.regions.forEach(function (r, i) {
+					var b = buttons[i];
+					b.style.setProperty("top", (100 * r.y / h) + "%");
+					b.style.setProperty("height", Math.max(0.4, 100 * r.height / h) + "%");
+				});
+			}
+			d.regions.forEach(function (r, i) {
+				var cls = "region" + (r.verify ? (r.verify.over ? " over" : " within") : "");
+				var b = el("button", { type: "button", class: cls, "aria-pressed": "false", "aria-label": r.label + (r.verify ? ", difference " + pct(r.verify.ratio) : ""), onclick: function () { select(i); } }, el("span", { text: r.label + (r.verify ? " · " + pct(r.verify.ratio) : "") }));
+				buttons.push(b); append(canvas, b);
+			});
+			if (img.tagName === "IMG") { if (img.complete) place(); else img.addEventListener("load", place); }
+			place();
+			var inRegion = {};
+			d.regions.forEach(function (r) { r.sections.forEach(function (k) { inRegion[k] = true; }); });
+			var others = d.sections.map(function (s, k) { return k; }).filter(function (k) { return !inRegion[k]; });
+			show(el("div", null, siteHead(slug, "Section inspector", "inspect", d.page.path + " · " + d.viewport + (d.page.irFile ? " · " + d.page.irFile : "")),
+				el("div", { class: "row pickers" },
+					el("label", { for: "ins-page", class: "inline", text: "Page" }),
+					el("select", { id: "ins-page", onchange: function (e) { var p = v.pages.find(function (x) { return x.name === e.target.value; }); location.hash = base + encodeURIComponent(p.name) + "/" + encodeURIComponent((p.viewports.find(function (x) { return x.viewport === d.viewport; }) || p.viewports[0]).viewport); } },
+						v.pages.map(function (p) { return el("option", { value: p.name, selected: p.name === d.page.name ? true : null, text: p.path }); })),
+					el("div", { class: "seg", role: "group", "aria-label": "Viewport" }, d.viewports.map(function (x) { return el("a", { class: "chip", href: base + encodeURIComponent(d.page.name) + "/" + encodeURIComponent(x), "aria-current": x === d.viewport ? "true" : null, text: x }); }))),
+				d.notes.length ? el("ul", { class: "notice list small" }, d.notes.map(function (n) { return el("li", { text: n }); })) : null,
+				el("div", { class: "inspect" },
+					el("section", { class: "card" }, el("h2", { text: "WordPress (audit screenshot)" }), canvas),
+					el("div", { class: "grid" }, detail,
+						others.length ? el("section", { class: "card" }, el("h2", { text: "Sections without a row box" }), el("p", { class: "small muted", text: "Footer rows or pages the audit could not measure row by row (e.g. Gutenberg)." }),
+							el("div", { class: "grid" }, others.map(function (k) { return sectionCard(slug, d, d.sections[k]); }))) : null))));
+		}).catch(fail);
+	}
+	function regionDetail(slug, d, r) {
+		var imgs = (r.verify && r.verify.images) || {};
+		var crop = function (src, alt) { return src ? el("a", { href: src, target: "_blank", rel: "noopener" }, el("img", { class: "crop", src: src, alt: alt, loading: "lazy" })) : el("div", { class: "missing small", text: "no crop" }); };
+		return el("div", null,
+			el("div", { class: "row spread" }, el("h2", { text: (r.footer ? "Footer " : "") + "row " + (r.index + 1) }), r.verify ? pill(r.verify.over ? "failed" : "passed", pct(r.verify.ratio)) : pill("pending", "not compared")),
+			r.verify && r.verify.note ? el("p", { class: "small muted", text: r.verify.note }) : null,
+			r.verify ? el("div", { class: "crops" }, el("figure", null, crop(imgs.source, "WordPress crop " + r.label), el("figcaption", { text: "WordPress" })), el("figure", null, crop(imgs.target, "Staging crop " + r.label), el("figcaption", { text: "EmDash (" + r.verify.types.join(" + ") + ")" })), el("figure", null, crop(imgs.diff, "Difference " + r.label), el("figcaption", { text: "Difference" }))) : null,
+			r.sections.length ? el("div", { class: "grid" }, r.sections.map(function (k) { return sectionCard(slug, d, d.sections[k]); })) : el("p", { class: "muted small", text: "No IR section came from this row (dropped, decorative, or not paired)." }));
+	}
+	function sectionCard(slug, d, s) {
+		var id = "sec-" + (s.footer ? "f" : "p") + s.index;
+		var sel = el("select", { id: id + "-type" }, d.sectionTypes.map(function (t) { return el("option", { value: t, selected: t === s.type ? true : null, text: t }); }));
+		var by = nameInput(id + "-by");
+		var note = el("input", { type: "text", id: id + "-note", maxlength: 500 });
+		var msg = el("p", { class: "small", role: "status" });
+		function propose(action) {
+			msg.className = "small"; msg.textContent = "Creating proposal…";
+			postJson("/api/sites/" + encodeURIComponent(slug) + "/inspect/" + encodeURIComponent(d.page.name) + "/" + encodeURIComponent(d.viewport) + "/proposals", { section: s.index, footer: s.footer, action: action, type: sel.value, by: by.value, note: note.value })
+				.then(function () { clear(msg); append(msg, "Proposal created. Review and approve it in ", el("a", { href: "#/site/" + encodeURIComponent(slug) + "/approvals", text: "Approvals" }), "; transform reruns after approval."); })
+				.catch(function (e) { msg.className = "err"; msg.textContent = e.message; });
+		}
+		return el("article", { class: "sec" },
+			el("div", { class: "row spread" }, el("b", { text: (s.footer ? "Footer · " : "") + "#" + (s.index + 1) + " " + s.type }), el("code", { class: "small", text: s.path || "(no source path)" })),
+			el("p", { class: "small muted" }, "overrides.ts key ", el("code", { text: s.overrideKey }), s.override ? el("span", null, " · currently forced to ", el("b", { text: s.override })) : null),
+			el("details", null, el("summary", { text: "WordPress source" }), s.raw ? [el("p", { class: "small muted", text: s.raw.note }), s.raw.text ? el("pre", { class: "code", tabindex: "0", text: s.raw.text }) : null] : el("p", { class: "small muted", text: "Raw source not available for this row." })),
+			el("details", null, el("summary", { text: "IR section (JSON)" }), el("pre", { class: "code", tabindex: "0", text: JSON.stringify(s.json, null, 2) })),
+			el("details", null, el("summary", { text: "Change this section (creates a proposal)" }),
+				el("div", { class: "grid two" }, el("div", null, el("label", { for: id + "-type", text: "Section type" }), sel), el("div", null, el("label", { for: id + "-by", text: "Proposed by" }), by)),
+				el("label", { for: id + "-note", text: "Why (optional, goes into the summary)" }), note,
+				el("div", { class: "row spacer-t" }, el("button", { type: "button", class: "primary", onclick: function () { propose("type"); } }, "Propose type change"), el("button", { type: "button", class: "danger", onclick: function () { propose("drop"); } }, "Propose dropping the row")),
+				el("p", { class: "small muted", text: "Applies to the whole WordPress row (" + s.overrideKey + "). Nothing changes until the proposal is approved." }), msg));
+	}
+
+	// ── launch cockpit ───────────────────────────────────────────────────────────────────────────
+	function checkList(items) {
+		return el("ul", { class: "list small" }, items.map(function (c) { return el("li", null, pill(c.ok ? "passed" : "failed", c.ok ? "ok" : "fail"), " ", el("span", { text: c.label }), c.detail ? el("div", { class: "muted", text: c.detail }) : null); }));
+	}
+	function cockpit(slug) {
+		api("/api/sites/" + encodeURIComponent(slug) + "/cockpit").then(function (c) {
+			var pf = c.preflight;
+			show(el("div", null, siteHead(slug, "Launch cockpit", "cockpit", "Read-only"),
+				el("p", { class: "notice warn-box", role: "note" }, el("b", { text: "No switch here. " }), c.note),
+				el("div", { class: "grid two" },
+					el("section", { class: "card" }, el("h2", { text: "Go-live prerequisites" }), checkList(c.prerequisites)),
+					el("section", { class: "card" },
+						el("div", { class: "row spread" }, el("h2", { text: "Last cutover preflight" }), pf.source === "none" ? pill("pending", "not run") : pill(pf.ok ? "passed" : "failed", pf.ok ? "passed" : "failed")),
+						el("p", { class: "small muted", text: pf.source === "state" ? "Recorded gate (state.json)" + (pf.ranAt ? " · " + ago(pf.ranAt) : "") : pf.source === "run-log" ? "Run " + pf.runId + (pf.ranAt ? " · " + ago(pf.ranAt) : "") : "" }),
+						pf.note ? el("p", { class: "small", text: pf.note }) : null,
+						pf.checks.length ? checkList(pf.checks) : null)),
+				el("section", { class: "card" }, el("h2", { text: "Commands (run them in the terminal)" }), el("ul", { class: "list" }, c.commands.map(function (x) { return el("li", null, el("div", { class: "small", text: x.label }), fixLine(x.command)); }))),
+				el("section", { class: "card" }, el("h2", { text: "Runbook" }),
+					c.runbook ? [el("p", { class: "small muted", text: c.runbook.path + " · generated " + ago(c.runbook.modifiedAt) + (c.runbook.truncated ? " · truncated" : "") }), el("pre", { class: "code runbook", tabindex: "0", text: c.runbook.text })]
+						: el("p", { class: "muted", text: "No runbook yet: run the cutover preflight (pnpm wp2emdash run " + slug + " cutover --preview)." }))));
+		}).catch(fail);
+	}
+
+	// ── owner checklist ──────────────────────────────────────────────────────────────────────────
+	function checklist(slug) {
+		api("/api/sites/" + encodeURIComponent(slug) + "/checklist").then(function (c) {
+			if (!c.available) return show(el("div", null, siteHead(slug, "Owner checklist", "checklist"), el("p", { class: "card muted", text: "No " + c.file + " yet (created by wp2emdash init)." })));
+			show(el("div", null, siteHead(slug, "Owner checklist", "checklist", c.counts.done + " of " + c.counts.total + " done · " + c.counts.requiredOpen + " required open"),
+				el("p", { class: "notice" }, "Read-only view of ", el("code", { text: c.file }), ". Tick items in the file (", el("code", { text: "- [x]" }), "); items marked required block the pipeline. Never write passwords in it — use the Secrets tab."),
+				el("div", { class: "grid cards" }, c.sections.filter(function (s) { return s.items.length || s.notes.length; }).map(function (s) {
+					var open = s.items.filter(function (i) { return !i.done; }).length;
+					return el("section", { class: "card" + (s.pluginData ? " plugin" : "") },
+						el("div", { class: "row spread" }, el("h2", { text: s.heading || "Notes" }), s.items.length ? pill(open ? "pending" : "passed", s.items.length - open + "/" + s.items.length) : null),
+						s.notes.map(function (n) { return el("p", { class: "small muted", text: n }); }),
+						s.items.length ? el("ul", { class: "checks" }, s.items.map(function (i) {
+							return el("li", { class: i.done ? "done" : "" }, el("span", { class: "box", "aria-hidden": "true", text: i.done ? "✓" : "" }), el("span", { class: "sr", text: i.done ? "Done: " : "Open: " }), el("span", { text: i.text }), i.required ? el("span", { class: "req", text: "required" }) : null);
+						})) : null);
+				}))));
+		}).catch(fail);
+	}
+
 	// ── router ───────────────────────────────────────────────────────────────────────────────────
 	function route() {
 		stopAll();
@@ -366,6 +599,11 @@
 		if (parts[0] === "site" && parts[1]) {
 			if (parts[2] === "visual") return visual(parts[1], parts[3], parts[4]);
 			if (parts[2] === "runs") return runs(parts[1], parts[3]);
+			if (parts[2] === "approvals") return approvals(parts[1]);
+			if (parts[2] === "secrets") return secrets(parts[1]);
+			if (parts[2] === "inspect") return inspector(parts[1], parts[3], parts[4]);
+			if (parts[2] === "cockpit") return cockpit(parts[1]);
+			if (parts[2] === "checklist") return checklist(parts[1]);
 			return overview(parts[1]);
 		}
 		return portfolio();

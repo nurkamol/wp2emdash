@@ -8,16 +8,28 @@
  *   HttpOnly, SameSite=Strict cookie, every later request must carry the cookie (or the query token);
  * - POSTs also need a same-origin Origin header (when the browser sends one) and a JSON body;
  * - files are served only from inside the site's reports/ and snapshot/screens/ (no traversal, no symlinks out);
- * - read-only apart from appending visual decisions to decisions.md: no phases, no .env, no Cloudflare.
+ * - POSTs also refuse a cross-site Sec-Fetch-Site;
+ * - writes are limited to: visual decisions appended to decisions.md; approving / rejecting proposals in
+ *   sites/<slug>/proposals/ (approve applies the proposal's patch to overrides.ts or decisions.md); new proposals from
+ *   the section inspector; one allow-listed key at a time in sites/<slug>/.env (values are write-only: never returned,
+ *   logged or streamed). After an approval it may start a *preview* run of transform, scaffold or verify — never load,
+ *   never cutover, never Cloudflare, routes or DNS.
  */
+import { spawn } from "node:child_process";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { closeSync, createReadStream, existsSync, openSync, readSync, realpathSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
-import { SITES_DIR, sitePaths } from "../core/paths.js";
-import { appendVisualDecision, isRunId, isSiteSlug, portfolio, readiness, runFile, runHistory, SERVABLE_ROOTS, siteSummary, UserError, visualReport } from "./data.js";
+import { KIT_ROOT, SITES_DIR, sitePaths } from "../core/paths.js";
+import { isProposalId } from "../core/proposals.js";
+import { loadSiteEnv, scrubSecrets } from "../extract/credentials.js";
+import { checklistView, cockpitView } from "./cockpit.js";
+import { appendVisualDecision, isRunId, isSiteSlug, listRuns, portfolio, readiness, runFile, runHistory, SERVABLE_ROOTS, siteMeta, siteSummary, UserError, visualReport } from "./data.js";
+import { inspectorView, proposeSectionChange } from "./inspector.js";
 import { appCss, appJs, indexHtml } from "./page.js";
+import { canStartFromDashboard, type DashboardRerun, decideProposal, proposalsView } from "./queue.js";
+import { secretsStatus, writeSecret } from "./secrets.js";
 
 export interface UiServerOptions {
 	sitesDir?: string;
@@ -25,6 +37,27 @@ export interface UiServerOptions {
 	port?: number;
 	/** SSE poll interval for run logs (ms). */
 	pollMs?: number;
+	/** Starts a preview run after an approval (tests inject a stub). Default: a child `wp2emdash run <slug> <phase> --preview`. */
+	startRun?: (slug: string, phase: DashboardRerun, sitesDir: string) => Promise<{ runId?: string }>;
+}
+
+/** Spawns `wp2emdash run <slug> <phase> --preview` and waits briefly for its run log to appear. */
+export async function spawnPreviewRun(slug: string, phase: DashboardRerun, sitesDir: string): Promise<{ runId?: string }> {
+	const before = new Set(listRuns(slug, sitesDir));
+	const child = spawn(process.execPath, [join(KIT_ROOT, "bin", "wp2emdash.js"), "run", slug, phase, "--preview"], {
+		cwd: KIT_ROOT,
+		env: { ...process.env, WP2EMDASH_SITES_DIR: sitesDir },
+		stdio: "ignore",
+	});
+	child.on("error", () => {});
+	const deadline = Date.now() + 8000;
+	while (Date.now() < deadline) {
+		const fresh = listRuns(slug, sitesDir).find((r) => !before.has(r));
+		if (fresh) return { runId: fresh };
+		if (child.exitCode !== null) break;
+		await new Promise((r) => setTimeout(r, 150));
+	}
+	return {};
 }
 
 export interface UiServer {
@@ -98,6 +131,14 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 	let port = 0;
 	const cookieName = () => `wp2emdash_ui_${port}`;
 	const streams = new Set<() => void>();
+	const startRun = opts.startRun ?? spawnPreviewRun;
+	/** Deep scrubber with the site's current env values (kit .env + site .env), read per request. */
+	const scrubFor = (slug: string) => {
+		const env = loadSiteEnv(sitePaths(slug, sitesDir).root);
+		return <T>(data: T): T => scrubDeep(data, env);
+	};
+	/** Sites with a dashboard-started run in its first seconds (one at a time per site). */
+	const running = new Set<string>();
 
 	const send = (res: ServerResponse, status: number, body: string | Buffer, type: string, extra: Record<string, string> = {}) => {
 		res.writeHead(status, { ...SECURITY_HEADERS, "Content-Type": type, "Content-Length": Buffer.byteLength(body), ...extra });
@@ -139,24 +180,71 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 		if (req.method === "POST") {
 			const origin = req.headers.origin;
 			if (origin && origin !== `http://127.0.0.1:${port}` && origin !== `http://localhost:${port}`) return text(res, 403, "Cross-origin request refused");
+			const fetchSite = req.headers["sec-fetch-site"];
+			if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") return text(res, 403, "Cross-site request refused");
 			if (!(req.headers["content-type"] ?? "").startsWith("application/json")) return text(res, 415, "JSON only");
-			// POST /api/sites/:slug/visual-decisions
-			if (parts.length === 4 && parts[0] === "api" && parts[1] === "sites" && parts[3] === "visual-decisions") {
-				const slug = parts[2] as string;
-				if (!isSiteSlug(slug, sitesDir)) return json(res, 404, { error: "Unknown site" });
-				let body: unknown;
+			if (parts[0] !== "api" || parts[1] !== "sites" || parts[2] === undefined) return text(res, 404, "Not found");
+			const slug = parts[2];
+			if (!isSiteSlug(slug, sitesDir)) return json(res, 404, { error: "Unknown site" });
+			const body = async (limit = 16_384): Promise<Record<string, unknown> | undefined> => {
 				try {
-					body = JSON.parse(await readBody(req, 16_384));
+					const v = JSON.parse(await readBody(req, limit)) as unknown;
+					return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
 				} catch {
-					return json(res, 400, { error: "Invalid JSON" });
+					return undefined;
 				}
+			};
+			/** Input errors become 400 with their message (never containing a submitted secret). */
+			const guarded = async (fn: () => Promise<void> | void) => {
 				try {
-					const d = await appendVisualDecision(slug, body as never, sitesDir);
-					return json(res, 200, { ok: true, decision: d });
+					await fn();
 				} catch (e) {
 					if (e instanceof UserError) return json(res, 400, { error: e.message });
 					throw e;
 				}
+			};
+			// POST /api/sites/:slug/visual-decisions
+			if (parts.length === 4 && parts[3] === "visual-decisions") {
+				const b = await body();
+				if (!b) return json(res, 400, { error: "Invalid JSON" });
+				return guarded(async () => json(res, 200, { ok: true, decision: await appendVisualDecision(slug, b as never, sitesDir) }));
+			}
+			// POST /api/sites/:slug/secrets — write-only: the answer carries the key, "set" and the fingerprint, never the value.
+			if (parts.length === 4 && parts[3] === "secrets") {
+				const b = await body(8192);
+				if (!b) return json(res, 400, { error: "Invalid JSON" });
+				return guarded(() => json(res, 200, { ok: true, ...writeSecret(slug, b, sitesDir) }));
+			}
+			// POST /api/sites/:slug/proposals/:id/(approve|reject)
+			if (parts.length === 6 && parts[3] === "proposals" && (parts[5] === "approve" || parts[5] === "reject")) {
+				const id = parts[4] as string;
+				if (!isProposalId(id)) return json(res, 404, { error: "Unknown proposal" });
+				const b = await body();
+				if (!b) return json(res, 400, { error: "Invalid JSON" });
+				return guarded(async () => {
+					const p = decideProposal(slug, id, parts[5] as "approve" | "reject", b, sitesDir);
+					let run: { phase: string; runId?: string } | undefined;
+					let runError: string | undefined;
+					if (p.status === "approved" && b.rerun === true && canStartFromDashboard(p.rerun)) {
+						if (running.has(slug)) runError = "A dashboard run was just started for this site; run this one from the terminal.";
+						else {
+							running.add(slug);
+							setTimeout(() => running.delete(slug), 10_000).unref();
+							try {
+								run = { phase: p.rerun, ...(await startRun(slug, p.rerun, sitesDir)) };
+							} catch (e) {
+								runError = `Could not start the preview run: ${(e as Error).message}`;
+							}
+						}
+					}
+					json(res, 200, scrubFor(slug)({ ok: true, proposal: p, ...(run ? { run } : {}), ...(runError ? { runError } : {}) }));
+				});
+			}
+			// POST /api/sites/:slug/inspect/:page/:viewport/proposals
+			if (parts.length === 7 && parts[3] === "inspect" && parts[6] === "proposals") {
+				const b = await body();
+				if (!b) return json(res, 400, { error: "Invalid JSON" });
+				return guarded(async () => json(res, 200, scrubFor(slug)({ ok: true, proposal: await proposeSectionChange(slug, parts[4] as string, parts[5] as string, b, sitesDir) })));
 			}
 			return text(res, 404, "Not found");
 		}
@@ -169,18 +257,28 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 
 		// ── API ──
 		if (parts[0] === "api") {
-			if (parts.length === 2 && parts[1] === "portfolio") return json(res, 200, await portfolio(sitesDir));
+			if (parts.length === 2 && parts[1] === "portfolio") return json(res, 200, (await portfolio(sitesDir)).map((s) => scrubFor(s.slug)(s)));
 			if (parts[1] === "sites" && parts[2] !== undefined) {
 				const slug = parts[2];
 				if (!isSiteSlug(slug, sitesDir)) return json(res, 404, { error: "Unknown site" });
-				if (parts.length === 3) return json(res, 200, { summary: await siteSummary(slug, sitesDir), readiness: readiness(slug, sitesDir) });
-				if (parts.length === 4 && parts[3] === "visual") return json(res, 200, await visualReport(slug, sitesDir));
-				if (parts.length === 4 && parts[3] === "runs") return json(res, 200, runHistory(slug, sitesDir));
+				// Everything a site route returns passes through the site's secret scrubber (values from .env never leave).
+				const out = (data: unknown) => json(res, 200, scrubFor(slug)(data));
+				if (parts.length === 3) return out({ summary: await siteSummary(slug, sitesDir), readiness: readiness(slug, sitesDir) });
+				if (parts.length === 4 && parts[3] === "visual") return out(await visualReport(slug, sitesDir));
+				if (parts.length === 4 && parts[3] === "runs") return out(runHistory(slug, sitesDir));
+				if (parts.length === 4 && parts[3] === "proposals") return out(proposalsView(slug, sitesDir));
+				if (parts.length === 4 && parts[3] === "secrets") return out(secretsStatus(slug, sitesDir));
+				if (parts.length === 4 && parts[3] === "cockpit") return out(cockpitView(slug, sitesDir));
+				if (parts.length === 4 && parts[3] === "checklist") return out(checklistView(slug, sitesDir));
+				if (parts.length === 6 && parts[3] === "inspect") {
+					const v = await inspectorView(slug, parts[4] as string, parts[5] as string, sitesDir, (await siteMeta(slug, sitesDir)).visualLimit);
+					return v ? out(v) : json(res, 404, { error: "Unknown page or viewport" });
+				}
 				if (parts.length === 6 && parts[3] === "runs" && parts[5] === "stream") {
 					const runId = parts[4] as string;
 					const file = isRunId(runId) ? runFile(slug, runId, sitesDir) : undefined;
 					if (!file) return json(res, 404, { error: "Unknown run" });
-					return streamRun(req, res, file);
+					return streamRun(req, res, file, scrubFor(slug));
 				}
 			}
 			return json(res, 404, { error: "Not found" });
@@ -205,7 +303,7 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 	};
 
 	/** Server-sent events: every complete line of the run log, then new lines as they are appended. */
-	const streamRun = (req: IncomingMessage, res: ServerResponse, file: string) => {
+	const streamRun = (req: IncomingMessage, res: ServerResponse, file: string, scrub: (v: unknown) => unknown) => {
 		res.writeHead(200, { ...SECURITY_HEADERS, "Content-Type": "text/event-stream; charset=utf-8", Connection: "keep-alive" });
 		res.write(": connected\n\n");
 		let offset = 0;
@@ -232,12 +330,13 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 					partial = lines.pop() ?? "";
 					for (const line of lines) {
 						if (!line.trim()) continue;
+						let event: unknown;
 						try {
-							JSON.parse(line);
+							event = JSON.parse(line);
 						} catch {
 							continue;
 						}
-						res.write(`event: progress\ndata: ${line}\n\n`);
+						res.write(`event: progress\ndata: ${JSON.stringify(scrub(event))}\n\n`);
 					}
 				} finally {
 					closeSync(fd);
@@ -285,6 +384,17 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 			});
 		});
 	});
+}
+
+/** Every string in a JSON-able value run through scrubSecrets (structure and keys unchanged). */
+export function scrubDeep<T>(data: T, env: Record<string, string>): T {
+	const walk = (v: unknown): unknown => {
+		if (typeof v === "string") return scrubSecrets(v, env);
+		if (Array.isArray(v)) return v.map(walk);
+		if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+		return v;
+	};
+	return walk(data) as T;
 }
 
 function readBody(req: IncomingMessage, limit: number): Promise<string> {
