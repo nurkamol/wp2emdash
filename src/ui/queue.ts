@@ -4,7 +4,7 @@
  * unified-diff writer the section inspector uses. Approving applies the patch; it never accepts a gate.
  */
 import { SITES_DIR } from "../core/paths.js";
-import { applyProposal, listProposals, type Proposal, readProposal, rejectProposal } from "../core/proposals.js";
+import { approveProposal, listProposals, type Proposal, readProposal, rejectProposal } from "../core/proposals.js";
 import { UserError } from "./data.js";
 
 /** Phases the dashboard may start itself after an approval, always as preview runs (gate not recorded). */
@@ -45,7 +45,7 @@ export function oneLine(v: unknown, what: string, max: number, required: boolean
 	return s;
 }
 
-export function decideProposal(slug: string, id: string, decision: "approve" | "reject", body: { by?: unknown; note?: unknown }, sitesDir = SITES_DIR): ProposalView {
+export async function decideProposal(slug: string, id: string, decision: "approve" | "reject", body: { by?: unknown; note?: unknown }, sitesDir = SITES_DIR): Promise<ProposalView> {
 	const by = oneLine(body.by, "Name", 120, true) as string;
 	const note = oneLine(body.note, "Note", 1000, false);
 	let p: Proposal | undefined;
@@ -58,7 +58,7 @@ export function decideProposal(slug: string, id: string, decision: "approve" | "
 	if (p.status !== "pending") throw new UserError(`This proposal is already ${p.status}.`);
 	try {
 		const opts = { sitesDir, ...(note ? { note } : {}) };
-		return view(slug, decision === "approve" ? applyProposal(slug, id, by, opts) : rejectProposal(slug, id, by, opts));
+		return view(slug, decision === "approve" ? await approveProposal(slug, id, by, opts) : rejectProposal(slug, id, by, opts));
 	} catch (e) {
 		throw new UserError((e as Error).message);
 	}

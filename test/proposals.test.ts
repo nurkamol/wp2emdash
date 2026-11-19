@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { initSite } from "../src/commands/init.js";
 import { applyHunks, parseUnifiedDiff, PatchError } from "../src/core/diff.js";
 import { sitePaths } from "../src/core/paths.js";
-import { applyProposal, createProposal, isProposalId, listProposals, newProposalId, proposalsDir, readProposal, rejectProposal, rerunCommand } from "../src/core/proposals.js";
+import { applyProposal, approveProposal, createProposal, isProposalId, listProposals, newProposalId, proposalsDir, readProposal, rejectProposal, rerunCommand } from "../src/core/proposals.js";
 
 const BASE = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\n";
 
@@ -94,6 +94,18 @@ describe("proposals (approval queue)", () => {
 		expect(() => createProposal(slug, { summary: "x", file: "overrides.ts", patch: escape }, { sitesDir: dir })).toThrow(/may only change/);
 		expect(() => createProposal(slug, { summary: "x", file: "overrides.ts", patch: "--- a/overrides.ts\n+++ /dev/null\n@@ -1 +0,0 @@\n-/**\n" }, { sitesDir: dir })).toThrow(/deleting/);
 		expect(listProposals(slug, { sitesDir: dir })).toEqual([]);
+	});
+
+	it("approveProposal refuses a change that would stop overrides.ts from loading, and applies a valid one", async () => {
+		const before = readFileSync(overrides, "utf8");
+		const bad = createProposal(slug, { summary: "Unknown type", file: "overrides.ts", patch: elementsPatch().replace('"home:row-3": "drop"', '"home:row-3": "not_a_section_type"'), rerun: "transform" }, { sitesDir: dir });
+		const f = await approveProposal(slug, bad.id, "Owner", { sitesDir: dir });
+		expect(f.status).toBe("failed");
+		expect(f.note).toMatch(/would no longer load/);
+		expect(readFileSync(overrides, "utf8")).toBe(before);
+		const good = createProposal(slug, { summary: "Drop divider", file: "overrides.ts", patch: elementsPatch(), rerun: "transform" }, { sitesDir: dir });
+		expect((await approveProposal(slug, good.id, "Owner", { sitesDir: dir })).status).toBe("approved");
+		expect(readFileSync(overrides, "utf8")).toContain('"home:row-3": "drop"');
 	});
 
 	it("approve applies the patch, records who decided and gives the rerun command", () => {

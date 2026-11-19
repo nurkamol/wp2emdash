@@ -135,9 +135,9 @@ program
 	.option("--note <text>", "note recorded with the decision")
 	.option("--all", "list decided proposals too")
 	.option("--json")
-	.action((slug: string, action: string | undefined, id: string | undefined, o) => {
+	.action(async (slug: string, action: string | undefined, id: string | undefined, o) => {
 		try {
-			process.exitCode = proposalsCommand(slug, action, id, o);
+			process.exitCode = await proposalsCommand(slug, action, id, o);
 		} catch (e) {
 			fail((e as Error).message);
 		}

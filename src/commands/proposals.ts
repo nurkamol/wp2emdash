@@ -1,7 +1,7 @@
 /** `wp2emdash proposals <slug> [approve|reject <id>]`: the approval queue from the terminal (docs/PLAN.md §10b). */
 import pc from "picocolors";
 import { siteExists } from "../core/paths.js";
-import { applyProposal, listProposals, type Proposal, rejectProposal, rerunCommand } from "../core/proposals.js";
+import { approveProposal, listProposals, type Proposal, rejectProposal, rerunCommand } from "../core/proposals.js";
 
 function line(p: Proposal): string {
 	const color = p.status === "pending" ? pc.cyan : p.status === "approved" ? pc.green : p.status === "failed" ? pc.red : pc.dim;
@@ -9,7 +9,7 @@ function line(p: Proposal): string {
 	return `${color(p.status.padEnd(8))} ${pc.bold(p.id)} ${p.file}${p.rerun ? pc.dim(` → rerun ${p.rerun}`) : ""}\n         ${p.summary}${decided}`;
 }
 
-export function proposalsCommand(slug: string, action: string | undefined, id: string | undefined, o: { by?: string; note?: string; json?: boolean; all?: boolean; sitesDir?: string }): number {
+export async function proposalsCommand(slug: string, action: string | undefined, id: string | undefined, o: { by?: string; note?: string; json?: boolean; all?: boolean; sitesDir?: string }): Promise<number> {
 	if (!siteExists(slug, o.sitesDir)) throw new Error(`No site "${slug}"`);
 	const opts = { ...(o.sitesDir ? { sitesDir: o.sitesDir } : {}), ...(o.note ? { note: o.note } : {}) };
 	if (!action) {
@@ -27,7 +27,7 @@ export function proposalsCommand(slug: string, action: string | undefined, id: s
 	if (action !== "approve" && action !== "reject") throw new Error(`Unknown action "${action}" (approve or reject)`);
 	if (!id) throw new Error(`Give the proposal id: wp2emdash proposals ${slug} ${action} <id> --by "…"`);
 	if (!o.by?.trim()) throw new Error("--by is required (who decided)");
-	const p = action === "approve" ? applyProposal(slug, id, o.by, opts) : rejectProposal(slug, id, o.by, opts);
+	const p = action === "approve" ? await approveProposal(slug, id, o.by, opts) : rejectProposal(slug, id, o.by, opts);
 	if (o.json) {
 		console.log(JSON.stringify({ ...p, rerunCommand: rerunCommand(slug, p) ?? null }, null, 2));
 		return p.status === "failed" ? 2 : 0;

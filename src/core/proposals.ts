@@ -10,7 +10,7 @@
  *     status: "pending"|"approved"|"rejected"|"failed", decidedAt?, decidedBy?, note? }
  */
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { applyHunks, parseUnifiedDiff, PatchError } from "./diff.js";
@@ -172,6 +172,44 @@ export function applyProposal(slug: string, id: string, decidedBy: string, opts:
 	const approved: Proposal = { ...p, status: "approved", decidedAt, decidedBy: by, ...(opts.note ? { note: opts.note } : {}) };
 	writeProposal(slug, approved, opts.sitesDir);
 	return approved;
+}
+
+/**
+ * Approve with a check: a patched overrides.ts must still load against the schema (a wrong section type or a syntax
+ * error would otherwise pass review and only break the next transform). The check runs on a temporary copy next to
+ * the real file; a failure marks the proposal failed and leaves overrides.ts untouched. Use this from the CLI and the
+ * dashboard; applyProposal stays the plain, synchronous apply.
+ */
+export async function approveProposal(slug: string, id: string, decidedBy: string, opts: ProposalOpts & { note?: string } = {}): Promise<Proposal> {
+	const by = decider(decidedBy);
+	const p = pending(slug, id, opts.sitesDir);
+	if (p.file === "overrides.ts") {
+		let next: string | undefined;
+		try {
+			next = patchedContent(slug, p.file, p.patch, opts.sitesDir);
+		} catch {
+			next = undefined; // applyProposal records the patch failure
+		}
+		if (next !== undefined) {
+			const tmp = join(sitePaths(slug, opts.sitesDir).root, `.overrides.check-${process.pid}-${randomBytes(3).toString("hex")}.ts`);
+			let problem: string | undefined;
+			try {
+				writeFileSync(tmp, next);
+				const { loadOverrides } = await import("../config/overrides.js");
+				await loadOverrides(tmp);
+			} catch (e) {
+				problem = (e as Error).message.split("\n").slice(0, 3).join(" ").slice(0, 400);
+			} finally {
+				rmSync(tmp, { force: true });
+			}
+			if (problem) {
+				const failed: Proposal = { ...p, status: "failed", decidedAt: new Date().toISOString(), decidedBy: by, note: `overrides.ts would no longer load: ${problem}${opts.note ? ` — ${opts.note}` : ""}` };
+				writeProposal(slug, failed, opts.sitesDir);
+				return failed;
+			}
+		}
+	}
+	return applyProposal(slug, id, decidedBy, opts);
 }
 
 /** Rejects a pending proposal; the file is never touched. */

@@ -222,7 +222,7 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 				const b = await body();
 				if (!b) return json(res, 400, { error: "Invalid JSON" });
 				return guarded(async () => {
-					const p = decideProposal(slug, id, parts[5] as "approve" | "reject", b, sitesDir);
+					const p = await decideProposal(slug, id, parts[5] as "approve" | "reject", b, sitesDir);
 					let run: { phase: string; runId?: string } | undefined;
 					let runError: string | undefined;
 					if (p.status === "approved" && b.rerun === true && canStartFromDashboard(p.rerun)) {
