@@ -45,7 +45,9 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .btn--primary:hover { background: var(--color-accent-hover, var(--color-accent)); transform: translateY(-1px); }
 .btn--secondary { background: transparent; color: inherit; border-color: currentColor; }
 .btn--secondary:hover { background: var(--color-text); color: var(--color-bg); }
-.btn--link { padding: 0; border-radius: 0; background: none; color: inherit; font-size: inherit; font-weight: inherit; text-transform: none; letter-spacing: normal; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.3em; }
+.btn--link { padding: 0 var(--btn-inset, 0); border: 0; border-radius: 0; background: none; color: inherit; font-size: inherit; font-weight: inherit; text-transform: none; letter-spacing: normal; text-decoration: none; }
+/* Salient text links: a 1px line at the bottom of the line box, under the text only (not the side space). */
+.btn--link > span { background: linear-gradient(currentColor, currentColor) 0 100% / 100% 1px no-repeat; }
 .tone-dark .btn--secondary:hover { background: #fff; color: #000; }
 
 /* ── Sections ── */
@@ -196,6 +198,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .card--image.has-overlay::after { background: var(--card-overlay); }
 .card--image .card__body { display: grid; gap: 0.5rem; justify-items: inherit; }
 .card--image .btn--link { font-family: var(--font-body); font-size: 0.875rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.5em; padding: 0; }
+.card--image .btn--link > span { background: none; }
 /* builder spacers around the text set the card height (Salient: 35vh · text · 35vh, 5% padding) */
 .grid.has-card-space { container-type: inline-size; row-gap: 0; }
 .grid.has-card-space > .card--image { min-height: 0; aspect-ratio: auto; padding: calc(var(--card-space-phone, var(--card-space)) + var(--card-inset, 5cqi)) var(--card-inset, 5cqi); }
@@ -236,7 +239,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 /* Column spacing carried from the builder: a short text measure on desktop, side space and a gap below on phones. */
 @media (min-width: 691px) { .columns__col { padding-inline-end: var(--col-inset-end, 0); } }
 .columns__col .prose :where(p, li) { line-height: var(--col-leading, inherit); }
-@media (max-width: 999.98px) { .columns__col { padding-block-end: var(--col-gap-t, 0); } }
+@media (max-width: 999.98px) { .columns__col { padding-block: var(--col-gap-above-t, 0) var(--col-gap-t, 0); } }
 @media (max-width: 690px) { .columns__col { padding-inline: var(--col-inset-p, 0); padding-block-end: var(--col-gap-p, var(--col-gap-t, 0)); } }
 /* Large call-to-action (its own padding in the source). */
 .btn--lg { padding: 15px 35px; }

@@ -74,15 +74,18 @@
               {
                 "label": "Privacy",
                 "href": "/privacy/",
-                "style": "link"
+                "style": "link",
+                "inset": 25
               },
               {
                 "label": "Terms",
                 "href": "/terms/",
-                "style": "link"
+                "style": "link",
+                "inset": 25
               }
             ],
-            "align": "right"
+            "align": "right",
+            "gapAboveStacked": "10px"
           }
         ]
       }

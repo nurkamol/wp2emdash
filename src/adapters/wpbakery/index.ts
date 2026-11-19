@@ -635,6 +635,7 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					...(c.textInset?.end ? { insetEnd: c.textInset.end } : {}),
 					...(c.textInset?.phone ? { insetPhone: c.textInset.phone } : {}),
 					...(c.textInset?.below ? { gapStacked: c.textInset.below } : {}),
+					...(c.textInset?.above ? { gapAboveStacked: c.textInset.above } : {}),
 					...(c.background || bg ? { background: { ...c.background, ...(bg ? { image: bg.media } : {}) } } : {}),
 				};
 			}),
@@ -804,7 +805,7 @@ export function rowPad(a: Record<string, string | undefined>): { inset?: { deskt
  * A column's only inner row, padded on one side on desktop (Salient right_padding_desktop, e.g. 40% to keep a
  * paragraph short) and/or evenly on phones: the column's text keeps that measure. Equal desktop sides are rowPad's.
  */
-export function innerTextInset(a: Record<string, string | undefined>): { end?: string; phone?: string; below?: string } | undefined {
+export function innerTextInset(a: Record<string, string | undefined>): { end?: string; phone?: string; below?: string; above?: string } | undefined {
 	const pct = (v?: string) => {
 		const m = /^\s*(\d+(?:\.\d+)?)\s*(%|px)?\s*$/.exec(v ?? "");
 		return m && Number(m[1]) > 0 && Number(m[1]) < 80 ? `${m[1]}${m[2] ?? "px"}` : undefined;
@@ -813,7 +814,9 @@ export function innerTextInset(a: Record<string, string | undefined>): { end?: s
 	const phone = a.left_padding_phone === a.right_padding_phone ? pct(a.left_padding_phone) : undefined;
 	// Its bottom padding on tablets (Salient carries tablet values down to phones) spaces it from the next column once stacked.
 	const below = pct(a.bottom_padding_tablet);
-	return end || phone || below ? { ...(end ? { end } : {}), ...(phone ? { phone } : {}), ...(below ? { below } : {}) } : undefined;
+	// …and its top padding on tablets sets it apart from the column above (e.g. links under a footer copyright line).
+	const above = pct(a.top_padding_tablet);
+	return end || phone || below || above ? { ...(end ? { end } : {}), ...(phone ? { phone } : {}), ...(below ? { below } : {}), ...(above ? { above } : {}) } : undefined;
 }
 
 /** A spacer that is the first thing in the row's first column: its height sits above the content. */

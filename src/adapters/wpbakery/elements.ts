@@ -78,7 +78,7 @@ export interface Col {
 	/** Space below the column once columns stack on phones (Salient bottom_margin_phone, px). */
 	gapPhone?: number;
 	/** Text column narrowed by its single inner row's padding: trailing edge on desktop, both sides on phones. */
-	textInset?: { end?: string; phone?: string; below?: string };
+	textInset?: { end?: string; phone?: string; below?: string; above?: string };
 	/** Padding on the column's leading edge (Salient padding-N-percent), as a CSS length. */
 	insetStart?: string;
 }
@@ -173,14 +173,14 @@ export function embedOrLegacy(html: string, ctx: HandlerCtx, reason: string): Fr
 
 const inlineButtons = (frags: Fragment[]): Fragment[] => frags.map((f) => (f.kind === "button" ? { ...f, inline: true } : f));
 
-function buttonFrom(label: string | undefined, href: string | undefined, ctx: HandlerCtx, o: { style?: Button["style"]; newTab?: boolean; classes?: string; size?: "large"; textSize?: number; spaceAbove?: string } = {}): Fragment[] {
+function buttonFrom(label: string | undefined, href: string | undefined, ctx: HandlerCtx, o: { style?: Button["style"]; newTab?: boolean; classes?: string; size?: "large"; textSize?: number; spaceAbove?: string; inset?: number } = {}): Fragment[] {
 	const text = (label ?? "").trim();
 	const popup = ctx.popupFor({ ...(href ? { href } : {}), ...(o.classes ? { classes: o.classes } : {}) });
 	if (!text) return [];
 	if (!href && !popup) {
 		ctx.diag({ level: "warn", code: "link-unknown", message: `Button "${text}" has no link`, path: ctx.path });
 	}
-	return [{ kind: "button", button: { label: text, href: href || (popup ? `#${popup}` : "#"), style: o.style ?? "primary", ...(o.size ? { size: o.size } : {}), ...(o.textSize ? { textSize: o.textSize } : {}), ...(spaceAbove(o.spaceAbove) ? { spaceAbove: spaceAbove(o.spaceAbove) } : {}), ...(o.newTab ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}) } }];
+	return [{ kind: "button", button: { label: text, href: href || (popup ? `#${popup}` : "#"), style: o.style ?? "primary", ...(o.size ? { size: o.size } : {}), ...(o.textSize ? { textSize: o.textSize } : {}), ...(spaceAbove(o.spaceAbove) ? { spaceAbove: spaceAbove(o.spaceAbove) } : {}), ...(o.inset ? { inset: o.inset } : {}), ...(o.newTab ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}) } }];
 }
 
 /** Salient button margin_top (px): the space above the button. */
@@ -253,7 +253,9 @@ export const HANDLERS: Record<string, Handler> = {
 		const ctaStyle = /underline|arrow/i.test(n.attrs.btn_style ?? "") || (/text-reveal/i.test(n.attrs.btn_style ?? "") && (!n.attrs.button_color || n.attrs.button_color === "default")) ? "link" : "primary";
 		// Its own padding (15px+ vertical) makes it a large button, set apart from the text above.
 		const large = ctaStyle === "primary" && Number.parseFloat(n.attrs.padding_top ?? "") >= 15;
-		out.push(...buttonFrom(n.attrs.link_text, n.attrs.url, ctx, { style: ctaStyle, newTab: n.attrs.link_type === "new_tab", ...(large ? { size: "large" as const } : {}), ...(n.attrs.margin_top ? { spaceAbove: n.attrs.margin_top } : {}), ...(n.attrs.class ? { classes: n.attrs.class } : {}) }));
+		// A text link's own side padding (Salient pads the link, the underline stays under the text).
+		const side = ctaStyle === "link" ? Math.round(Math.min(Number.parseFloat(n.attrs.padding_left ?? "") || 0, Number.parseFloat(n.attrs.padding_right ?? "") || 0)) : 0;
+		out.push(...buttonFrom(n.attrs.link_text, n.attrs.url, ctx, { style: ctaStyle, newTab: n.attrs.link_type === "new_tab", ...(large ? { size: "large" as const } : {}), ...(side > 0 && side <= 80 ? { inset: side } : {}), ...(n.attrs.margin_top ? { spaceAbove: n.attrs.margin_top } : {}), ...(n.attrs.class ? { classes: n.attrs.class } : {}) }));
 		return out;
 	},
 	vc_btn: (n, ctx) => {

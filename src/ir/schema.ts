@@ -60,6 +60,8 @@ export const button = z.object({
 	textSize: z.number().int().min(10).max(32).optional(),
 	/** Space above the button (px), when the source sets its own. */
 	spaceAbove: z.number().int().min(0).max(200).optional(),
+	/** Space on each side of a text link (px), when the source pads it (Salient nectar_cta padding_left/right). */
+	inset: z.number().int().min(0).max(80).optional(),
 });
 export type Button = z.infer<typeof button>;
 
@@ -150,6 +152,8 @@ const column = z.object({
 	list: z.enum(["dots"]).optional(),
 	/** Space below the column once columns stack (tablets and phones; % of the column or px). */
 	gapStacked: z.string().regex(/^\d+(?:\.\d+)?(?:%|px)$/).optional(),
+	/** Space above the column once columns stack (tablets and phones; % of the column or px). */
+	gapAboveStacked: z.string().regex(/^\d+(?:\.\d+)?(?:%|px)$/).optional(),
 	/** Space below the column once stacked on phones (px). */
 	gapPhone: z.number().int().min(0).max(400).optional(),
 	/** Text kept short on desktop by space on its trailing side (% of the column or px). */
