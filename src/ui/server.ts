@@ -23,6 +23,7 @@ import type { AddressInfo } from "node:net";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import { KIT_ROOT, SITES_DIR, sitePaths } from "../core/paths.js";
 import { isProposalId } from "../core/proposals.js";
+import { loadSiteEnv, scrubSecrets } from "../extract/credentials.js";
 import { checklistView, cockpitView } from "./cockpit.js";
 import { appendVisualDecision, isRunId, isSiteSlug, listRuns, portfolio, readiness, runFile, runHistory, SERVABLE_ROOTS, siteMeta, siteSummary, UserError, visualReport } from "./data.js";
 import { inspectorView, proposeSectionChange } from "./inspector.js";
@@ -131,6 +132,11 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 	const cookieName = () => `wp2emdash_ui_${port}`;
 	const streams = new Set<() => void>();
 	const startRun = opts.startRun ?? spawnPreviewRun;
+	/** Deep scrubber with the site's current env values (kit .env + site .env), read per request. */
+	const scrubFor = (slug: string) => {
+		const env = loadSiteEnv(sitePaths(slug, sitesDir).root);
+		return <T>(data: T): T => scrubDeep(data, env);
+	};
 	/** Sites with a dashboard-started run in its first seconds (one at a time per site). */
 	const running = new Set<string>();
 
@@ -231,14 +237,14 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 							}
 						}
 					}
-					json(res, 200, { ok: true, proposal: p, ...(run ? { run } : {}), ...(runError ? { runError } : {}) });
+					json(res, 200, scrubFor(slug)({ ok: true, proposal: p, ...(run ? { run } : {}), ...(runError ? { runError } : {}) }));
 				});
 			}
 			// POST /api/sites/:slug/inspect/:page/:viewport/proposals
 			if (parts.length === 7 && parts[3] === "inspect" && parts[6] === "proposals") {
 				const b = await body();
 				if (!b) return json(res, 400, { error: "Invalid JSON" });
-				return guarded(async () => json(res, 200, { ok: true, proposal: await proposeSectionChange(slug, parts[4] as string, parts[5] as string, b, sitesDir) }));
+				return guarded(async () => json(res, 200, scrubFor(slug)({ ok: true, proposal: await proposeSectionChange(slug, parts[4] as string, parts[5] as string, b, sitesDir) })));
 			}
 			return text(res, 404, "Not found");
 		}
@@ -251,26 +257,28 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 
 		// ── API ──
 		if (parts[0] === "api") {
-			if (parts.length === 2 && parts[1] === "portfolio") return json(res, 200, await portfolio(sitesDir));
+			if (parts.length === 2 && parts[1] === "portfolio") return json(res, 200, (await portfolio(sitesDir)).map((s) => scrubFor(s.slug)(s)));
 			if (parts[1] === "sites" && parts[2] !== undefined) {
 				const slug = parts[2];
 				if (!isSiteSlug(slug, sitesDir)) return json(res, 404, { error: "Unknown site" });
-				if (parts.length === 3) return json(res, 200, { summary: await siteSummary(slug, sitesDir), readiness: readiness(slug, sitesDir) });
-				if (parts.length === 4 && parts[3] === "visual") return json(res, 200, await visualReport(slug, sitesDir));
-				if (parts.length === 4 && parts[3] === "runs") return json(res, 200, runHistory(slug, sitesDir));
-				if (parts.length === 4 && parts[3] === "proposals") return json(res, 200, proposalsView(slug, sitesDir));
-				if (parts.length === 4 && parts[3] === "secrets") return json(res, 200, secretsStatus(slug, sitesDir));
-				if (parts.length === 4 && parts[3] === "cockpit") return json(res, 200, cockpitView(slug, sitesDir));
-				if (parts.length === 4 && parts[3] === "checklist") return json(res, 200, checklistView(slug, sitesDir));
+				// Everything a site route returns passes through the site's secret scrubber (values from .env never leave).
+				const out = (data: unknown) => json(res, 200, scrubFor(slug)(data));
+				if (parts.length === 3) return out({ summary: await siteSummary(slug, sitesDir), readiness: readiness(slug, sitesDir) });
+				if (parts.length === 4 && parts[3] === "visual") return out(await visualReport(slug, sitesDir));
+				if (parts.length === 4 && parts[3] === "runs") return out(runHistory(slug, sitesDir));
+				if (parts.length === 4 && parts[3] === "proposals") return out(proposalsView(slug, sitesDir));
+				if (parts.length === 4 && parts[3] === "secrets") return out(secretsStatus(slug, sitesDir));
+				if (parts.length === 4 && parts[3] === "cockpit") return out(cockpitView(slug, sitesDir));
+				if (parts.length === 4 && parts[3] === "checklist") return out(checklistView(slug, sitesDir));
 				if (parts.length === 6 && parts[3] === "inspect") {
 					const v = await inspectorView(slug, parts[4] as string, parts[5] as string, sitesDir, (await siteMeta(slug, sitesDir)).visualLimit);
-					return v ? json(res, 200, v) : json(res, 404, { error: "Unknown page or viewport" });
+					return v ? out(v) : json(res, 404, { error: "Unknown page or viewport" });
 				}
 				if (parts.length === 6 && parts[3] === "runs" && parts[5] === "stream") {
 					const runId = parts[4] as string;
 					const file = isRunId(runId) ? runFile(slug, runId, sitesDir) : undefined;
 					if (!file) return json(res, 404, { error: "Unknown run" });
-					return streamRun(req, res, file);
+					return streamRun(req, res, file, scrubFor(slug));
 				}
 			}
 			return json(res, 404, { error: "Not found" });
@@ -295,7 +303,7 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 	};
 
 	/** Server-sent events: every complete line of the run log, then new lines as they are appended. */
-	const streamRun = (req: IncomingMessage, res: ServerResponse, file: string) => {
+	const streamRun = (req: IncomingMessage, res: ServerResponse, file: string, scrub: (v: unknown) => unknown) => {
 		res.writeHead(200, { ...SECURITY_HEADERS, "Content-Type": "text/event-stream; charset=utf-8", Connection: "keep-alive" });
 		res.write(": connected\n\n");
 		let offset = 0;
@@ -322,12 +330,13 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 					partial = lines.pop() ?? "";
 					for (const line of lines) {
 						if (!line.trim()) continue;
+						let event: unknown;
 						try {
-							JSON.parse(line);
+							event = JSON.parse(line);
 						} catch {
 							continue;
 						}
-						res.write(`event: progress\ndata: ${line}\n\n`);
+						res.write(`event: progress\ndata: ${JSON.stringify(scrub(event))}\n\n`);
 					}
 				} finally {
 					closeSync(fd);
@@ -375,6 +384,17 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 			});
 		});
 	});
+}
+
+/** Every string in a JSON-able value run through scrubSecrets (structure and keys unchanged). */
+export function scrubDeep<T>(data: T, env: Record<string, string>): T {
+	const walk = (v: unknown): unknown => {
+		if (typeof v === "string") return scrubSecrets(v, env);
+		if (Array.isArray(v)) return v.map(walk);
+		if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+		return v;
+	};
+	return walk(data) as T;
 }
 
 function readBody(req: IncomingMessage, limit: number): Promise<string> {

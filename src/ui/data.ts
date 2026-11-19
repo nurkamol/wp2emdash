@@ -277,7 +277,7 @@ export async function siteSummary(slug: string, sitesDir = SITES_DIR): Promise<S
 	const lastRun = lastId ? readRun(slug, lastId, sitesDir) : undefined;
 	let pendingProposals = 0;
 	try {
-		pendingProposals = listProposals(slug, sitesDir).filter((p) => p.status === "pending").length;
+		pendingProposals = listProposals(slug, { sitesDir, status: "pending" }).length;
 	} catch {
 		// an unreadable queue shows as empty
 	}

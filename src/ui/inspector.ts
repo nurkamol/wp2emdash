@@ -11,12 +11,13 @@ import { type AstNode, parseShortcodes, serialise } from "../adapters/wpbakery/p
 import type { SectionBox, ScreenshotResult } from "../audit/browser.js";
 import { loadOverrides } from "../config/overrides.js";
 import { SITES_DIR, sitePaths } from "../core/paths.js";
+import { createProposal } from "../core/proposals.js";
 import { SECTION_TYPES } from "../ir/schema.js";
 import type { VerifyResult } from "../phases/verify.js";
 import { overridesTemplate } from "../templates/site.js";
 import { sourceRowIndex } from "../verify/sections.js";
 import { siteFileUrl, UserError, verifyFileUrl } from "./data.js";
-import { createProposal, oneLine, unifiedDiff } from "./queue.js";
+import { oneLine, unifiedDiff } from "./queue.js";
 
 const readJson = <T>(file: string): T | undefined => {
 	try {
@@ -334,5 +335,9 @@ export async function proposeSectionChange(slug: string, pageName: string, viewp
 	const patch = unifiedDiff(before, after, "overrides.ts");
 	const what = value === "drop" ? `drop ${s.overrideKey}` : `make ${s.overrideKey} a ${value} section`;
 	const summary = `Section inspector: ${what} (${v.page.path}, now ${s.type})${note ? ` — ${note}` : ""}`;
-	return createProposal(slug, { by, summary, file: "overrides.ts", patch, rerun: "transform" }, sitesDir);
+	try {
+		return createProposal(slug, { by, summary, file: "overrides.ts", patch, rerun: "transform" }, { sitesDir });
+	} catch (e) {
+		throw new UserError(`Could not create the proposal: ${(e as Error).message}`);
+	}
 }

@@ -18,8 +18,8 @@ pnpm wp2emdash             # asks how you want to work: Terminal or Web dashboar
 **Terminal or web.** The first question is how you want to work: **Terminal** (guided steps: create a site, run
 each phase, accept gates) or **Web dashboard** (opens in the browser: every site, launch readiness, live runs and
 the visual review). The choice is remembered on this machine (`.wp2emdash.local.json`, not committed);
-`WP2EMDASH_MODE=terminal` or `WP2EMDASH_MODE=web` skips the question. In v1 the dashboard reads and reviews;
-creating a site and running phases are done in the terminal.
+`WP2EMDASH_MODE=terminal` or `WP2EMDASH_MODE=web` skips the question. The dashboard reviews, approves and takes
+secrets; creating a site, recording gates and the launch switch are done in the terminal.
 
 Or without the wizard:
 
@@ -46,9 +46,29 @@ request without it is refused. No remote access, no CDN, no Cloudflare calls.
   section-by-section table. Approve or reject a difference with a reason: a dated row is appended to `decisions.md`.
   This does **not** accept the verify gate: the owner still runs `wp2emdash accept <slug> verify --reason … --by …`
   (the dashboard shows the command).
+- **Section inspector** — click a WordPress row on the audit screenshot: the row's raw shortcode / block source
+  (`raw/exporter/content`), the IR section(s) it became, and the WordPress / staging / difference crops from verify.
+  "Change section type" and "drop row" create a **proposal** that patches `overrides.ts` → `elements` (never `ir/`).
+- **Approval queue** — `sites/<slug>/proposals/*.json` (from Claude via `wp2emdash mcp`, or from the inspector), pending
+  first, with the summary, file, the unified diff (shown as text) and the phase to rerun. Approve or reject with your
+  name and an optional note: approve applies the diff (a patch that no longer applies is marked failed and nothing is
+  written). After approving, the dashboard can start a **preview** run of `transform`, `scaffold` or `verify` (gate not
+  recorded) and stream it; it never starts `load` or `cutover`. The command that records the gate is shown.
+- **Secrets** — a form per site that writes one allow-listed key at a time to `sites/<slug>/.env` (migration key, app
+  password, EmDash tokens and encryption keys, email key, production Turnstile/Cloudflare values, go-live token), with
+  format checks where the format is known. Values are **write-only**: never returned, logged or streamed; the page shows
+  only "set / not set" and a fingerprint (first 8 hex of the SHA-256). Other lines and comments are kept, the file stays
+  mode 600, values with line breaks are refused. Reminds you to revoke the app password once extract has run.
+- **Owner checklist** — `ACCESS.md` as sections with items, required markers and the generated "Plugin data" section.
+  Read-only: ticking stays in the file.
+- **Launch cockpit** — read-only: the last cutover preflight (state or latest run log), the go-live prerequisites, the
+  runbook (`cutover/runbook.md`, as text) and the exact commands. There is no switch, rollback or DNS button: the owner
+  does those from the terminal with the runbook.
 
-Read-only otherwise: it serves only images from the site's `reports/` and `snapshot/screens/`, never runs phases and
-never writes `.env`.
+What it writes: rows in `decisions.md` (visual decisions, approved proposals that patch it), `overrides.ts` (approved
+proposals only), new files in `proposals/`, and keys in `.env`. Everything it returns passes through the site's secret
+scrubber (no `.env` value leaves the server). It serves files only from `reports/` and `snapshot/screens/`, never
+touches Cloudflare, routes or DNS, and never accepts a gate.
 
 ## Claude Code
 

@@ -2,7 +2,8 @@ import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, sta
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { applyUnifiedDiff, listProposals, readProposal } from "../src/core/proposals.js";
+import { applyHunks, parseUnifiedDiff } from "../src/core/diff.js";
+import { listProposals, readProposal } from "../src/core/proposals.js";
 import { checklistView, cockpitView, parseAccess } from "../src/ui/cockpit.js";
 import { inspectorView, setElementOverride } from "../src/ui/inspector.js";
 import { unifiedDiff } from "../src/ui/queue.js";
@@ -10,8 +11,10 @@ import { fingerprint, secretsStatus } from "../src/ui/secrets.js";
 import { startUiServer, type UiServer } from "../src/ui/server.js";
 
 const FIXTURE = new URL("./fixtures/ui/sites", import.meta.url).pathname;
-const PENDING = "2026-01-03T09-00-00-000Z-a1b2c3";
+const PENDING = "p-20260103-a1b2c3";
 const ENC_KEY = `emdash_enc_v1_${"A".repeat(43)}`;
+/** Applies a single-file patch with the kit's strict applier (src/core/diff.ts). */
+const applyUnifiedDiff = (original: string, patch: string, _file: string) => applyHunks(original, (parseUnifiedDiff(patch)[0] as ReturnType<typeof parseUnifiedDiff>[number]).hunks);
 
 let dir: string;
 let ui: UiServer;
@@ -50,12 +53,12 @@ describe("unified diff", () => {
 		const patch = unifiedDiff(before, after, "overrides.ts");
 		expect(patch).toContain('+\t\t"home:vc_row[0]": "hero",');
 		expect(applyUnifiedDiff(before, patch, "overrides.ts")).toBe(after);
-		expect(() => applyUnifiedDiff(after, patch, "overrides.ts")).toThrow(/context mismatch/);
-		expect(() => applyUnifiedDiff(before, patch.replace(/overrides\.ts/g, "../kit.config.ts"), "overrides.ts")).toThrow(/patch targets/);
+		expect(() => applyUnifiedDiff(after, patch, "overrides.ts")).toThrow();
+		expect(parseUnifiedDiff(patch)[0]).toMatchObject({ oldPath: "overrides.ts", newPath: "overrides.ts" });
 		// A second entry goes into the existing block; the same key is replaced, not duplicated.
-		const two = setElementOverride(setElementOverride(after, "home:vc_row[1]", "drop"), "home:vc_row[0]", "cards");
+		const two = setElementOverride(setElementOverride(after, "home:vc_row[1]", "drop"), "home:vc_row[0]", "feature_grid");
 		expect(two.match(/home:vc_row\[0\]/g)).toHaveLength(1);
-		expect(two).toContain('"home:vc_row[0]": "cards",');
+		expect(two).toContain('"home:vc_row[0]": "feature_grid",');
 		expect(two).toContain('"home:vc_row[1]": "drop",');
 		// New file from /dev/null.
 		expect(applyUnifiedDiff("", unifiedDiff("", "a\nb\n", "overrides.ts"), "overrides.ts")).toBe("a\nb\n");
@@ -82,9 +85,10 @@ describe("approval queue", () => {
 		const form = await fetch(`${base()}/api/sites/demo/proposals/${PENDING}/approve`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/x-www-form-urlencoded" }, body: "by=x" });
 		expect(form.status).toBe(415);
 		expect((await post("/api/sites/demo/proposals/..%2F..%2Fstate/approve", { by: "x" })).status).toBe(404);
-		expect((await post("/api/sites/demo/proposals/nope/approve", { by: "x" })).status).toBe(400);
+		expect((await post("/api/sites/demo/proposals/nope/approve", { by: "x" })).status).toBe(404);
+		expect((await post("/api/sites/demo/proposals/p-20990101-abcdef/approve", { by: "x" })).status).toBe(400);
 		expect((await post(`/api/sites/demo/proposals/${PENDING}/approve`, { by: "" })).status).toBe(400);
-		expect(readProposal("demo", PENDING, dir)?.status).toBe("pending");
+		expect(readProposal("demo", PENDING, { sitesDir: dir })?.status).toBe("pending");
 	});
 
 	it("approve applies the patch to overrides.ts and starts a preview rerun when asked", async () => {
@@ -94,7 +98,7 @@ describe("approval queue", () => {
 		expect(body.proposal).toMatchObject({ status: "approved", decidedBy: "Jane Owner", note: "Looks right" });
 		expect(body.run).toEqual({ phase: "transform", runId: "2026-01-03T10-00-00-000Z" });
 		expect(runs).toEqual([{ slug: "demo", phase: "transform" }]);
-		expect(readFileSync(join(dir, "demo", "overrides.ts"), "utf8")).toContain('"home:vc_row[1]": "text_block",');
+		expect(readFileSync(join(dir, "demo", "overrides.ts"), "utf8")).toContain('"home:vc_row[1]": "rich_text",');
 		// Decided once only.
 		expect((await post(`/api/sites/demo/proposals/${PENDING}/reject`, { by: "Jane Owner" })).status).toBe(400);
 	});
@@ -103,12 +107,12 @@ describe("approval queue", () => {
 		const pdir = join(dir, "demo", "proposals");
 		const mk = (id: string, patch: string) =>
 			writeFileSync(join(pdir, `${id}.json`), JSON.stringify({ id, createdAt: "2026-01-04T00:00:00.000Z", by: "claude", summary: "s", file: "decisions.md", patch, rerun: "load", status: "pending" }));
-		mk("p-reject", "--- a/decisions.md\n+++ b/decisions.md\n@@ -1,1 +1,2 @@\n # Decisions\n+x\n");
-		mk("p-stale", "--- a/decisions.md\n+++ b/decisions.md\n@@ -1,1 +1,2 @@\n # Not the first line\n+x\n");
+		mk("p-20260104-00000a", "--- a/decisions.md\n+++ b/decisions.md\n@@ -1,1 +1,2 @@\n # Decisions\n+x\n");
+		mk("p-20260104-00000b", "--- a/decisions.md\n+++ b/decisions.md\n@@ -1,1 +1,2 @@\n # Not the first line\n+x\n");
 		const decisions = readFileSync(join(dir, "demo", "decisions.md"), "utf8");
-		const r = await post("/api/sites/demo/proposals/p-reject/reject", { by: "Jane Owner", note: "no" });
+		const r = await post("/api/sites/demo/proposals/p-20260104-00000a/reject", { by: "Jane Owner", note: "no" });
 		expect(((await r.json()) as { proposal: { status: string } }).proposal.status).toBe("rejected");
-		const s = await post("/api/sites/demo/proposals/p-stale/approve", { by: "Jane Owner", rerun: true });
+		const s = await post("/api/sites/demo/proposals/p-20260104-00000b/approve", { by: "Jane Owner", rerun: true });
 		const sb = (await s.json()) as { proposal: { status: string; note: string }; run?: unknown };
 		expect(sb.proposal.status).toBe("failed");
 		expect(sb.proposal.note).toMatch(/did not apply/);
@@ -212,13 +216,14 @@ describe("section inspector", () => {
 		]);
 		expect(v.regions[0]?.verify).toMatchObject({ ratio: 0.12, over: true, images: { target: "/files/demo/reports/verify/sections/mobile/home/00-target.png" } });
 		const intro = v.sections[1];
-		expect(intro).toMatchObject({ type: "text_block", path: "vc_row[1]#0", overrideKey: "home:vc_row[1]" });
+		expect(intro).toMatchObject({ type: "rich_text", path: "vc_row[1]#0", overrideKey: "home:vc_row[1]" });
 		// Row numbering skips the disabled row exactly like the adapter.
 		expect(intro?.raw?.text).toBe('[vc_row el_class="intro"][vc_column][vc_column_text]<p>Synthetic intro text</p>[/vc_column_text][/vc_column][/vc_row]');
 		expect(v.sections[0]?.raw?.text).toContain("<h1>Welcome</h1>");
 		expect(v.sections[3]).toMatchObject({ footer: true, overrideKey: "site-footer:vc_row[0]" });
 		// The approved proposal earlier set this row's override.
-		expect(intro?.override).toBe("text_block");
+		expect(v.notes).toEqual([]);
+		expect(intro?.override).toBe("rich_text");
 		expect(v.sectionTypes).toContain("hero");
 	});
 
@@ -231,15 +236,15 @@ describe("section inspector", () => {
 		expect(p.summary).toContain("home:vc_row[0]");
 		expect(p.patch).toContain('+\t\t"home:vc_row[0]": "media_text",');
 		expect(readFileSync(join(dir, "demo", "overrides.ts"), "utf8")).toBe(before);
-		expect(applyUnifiedDiff(before, p.patch, "overrides.ts")).toContain('"home:vc_row[1]": "text_block",');
+		expect(applyUnifiedDiff(before, p.patch, "overrides.ts")).toContain('"home:vc_row[1]": "rich_text",');
 
 		const d = await post("/api/sites/demo/inspect/home/mobile/proposals", { section: 0, footer: true, action: "drop", by: "Jane Owner" });
 		expect(((await d.json()) as { proposal: { patch: string } }).proposal.patch).toContain('"site-footer:vc_row[0]": "drop"');
-		expect(listProposals("demo", dir).filter((x) => x.status === "pending")).toHaveLength(2);
+		expect(listProposals("demo", { sitesDir: dir }).filter((x) => x.status === "pending")).toHaveLength(2);
 
 		expect((await post("/api/sites/demo/inspect/home/mobile/proposals", { section: 0, action: "type", type: "<script>", by: "x" })).status).toBe(400);
 		expect((await post("/api/sites/demo/inspect/home/mobile/proposals", { section: 99, action: "drop", by: "x" })).status).toBe(400);
-		expect((await post("/api/sites/demo/inspect/home/mobile/proposals", { section: 1, action: "type", type: "text_block", by: "x" })).status).toBe(400);
+		expect((await post("/api/sites/demo/inspect/home/mobile/proposals", { section: 1, action: "type", type: "rich_text", by: "x" })).status).toBe(400);
 		expect((await post("/api/sites/demo/inspect/home/mobile/proposals", { section: 0, action: "drop", by: "x" }, { Origin: "http://evil.example" })).status).toBe(403);
 		expect((await get("/api/sites/demo/inspect/home/desktop")).status).toBe(404);
 		expect((await get("/api/sites/demo/inspect/..%2F..%2Fetc/mobile")).status).toBe(404);
@@ -248,6 +253,8 @@ describe("section inspector", () => {
 
 describe("launch cockpit and owner checklist", () => {
 	it("shows the last preflight, the runbook as text, prerequisites and commands — no switch", async () => {
+		// A value from .env that leaked into a file the dashboard shows is scrubbed on the way out.
+		writeFileSync(join(dir, "demo", "cutover", "runbook.md"), `${readFileSync(join(dir, "demo", "cutover", "runbook.md"), "utf8")}\ntoken: ec_live_SECRET-VALUE-123\n`);
 		const res = await get("/api/sites/demo/cockpit");
 		expect(res.status).toBe(200);
 		const c = (await res.json()) as ReturnType<typeof cockpitView>;

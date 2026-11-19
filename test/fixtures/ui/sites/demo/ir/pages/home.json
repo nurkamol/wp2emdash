@@ -14,14 +14,14 @@
       "sourceRef": { "adapter": "wpbakery", "path": "vc_row[0]", "rawHash": "aaaa1111" }
     },
     {
-      "type": "text_block",
+      "type": "rich_text",
       "theme": { "tone": "light" },
       "spacing": "normal",
       "fields": { "body": [] },
       "sourceRef": { "adapter": "wpbakery", "path": "vc_row[1]#0", "rawHash": "bbbb2222" }
     },
     {
-      "type": "cards",
+      "type": "feature_grid",
       "theme": { "tone": "light" },
       "spacing": "normal",
       "fields": { "items": [] },
