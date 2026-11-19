@@ -198,6 +198,10 @@ export const section = z.discriminatedUnion("type", [
 			headingGap: z.number().min(0).max(200).optional(),
 			/** Space before the text column on desktop (Salient column padding). */
 			textInset: cssLength.optional(),
+			/** Space after the text column on desktop, % of the row (Salient right column padding, e.g. 4%). */
+			textEnd: z.string().regex(/^\d+(?:\.\d+)?%$/).optional(),
+			/** Space between the image and the text on desktop (the builder row's column margin, px). */
+			columnGap: z.string().regex(/^\d{1,3}px$/).optional(),
 			/** Space above the text on desktop (Salient inner-row top padding reset to 0 below desktop). */
 			textTop: cssLength.optional(),
 			/** The text column drifts with scroll: offset = this × (column centre − viewport centre) (Salient column parallax). */

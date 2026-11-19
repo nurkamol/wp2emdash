@@ -6,7 +6,7 @@ import Buttons from "../Buttons.astro";
 import { Image } from "emdash/ui";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const ratio = String(v.ratio ?? "1/2").replace("/", "-");
-const LENGTH = /^\d+(?:\.\d+)?(?:px|vh|svh|vw|rem|em|%)$/;
+const LENGTH = /^\d+(?:\.\d+)?(?:px|vh|svh|vw|rem|em|%|cqi)$/;
 const len = (x: unknown) => (typeof x === "string" && LENGTH.test(x) ? x : undefined);
 // Fixed picture heights (from the source's spacers) and the text column's leading space.
 const vars = (pairs: [string, unknown][]) => pairs.flatMap(([k, x]) => (len(x) ? [`${k}:${x}`] : [])).join(";") || undefined;
@@ -14,7 +14,7 @@ const h1 = vars([["--media-h", v.media_height], ["--media-h-small", v.media_heig
 const h2 = vars([["--media-h", v.media_2_height], ["--media-h-small", v.media_2_height_small], ["--media-h-phone", v.media_2_height_phone]]);
 // The picture moves inside its fixed-height box on scroll (old site's column parallax); needs a box height.
 const plx = typeof v.media_parallax === "number" && v.media_parallax > 0 && v.media_parallax <= 1 && len(v.media_height) ? v.media_parallax : undefined;
-const inset = vars([["--text-inset", v.text_inset], ["--text-top", v.text_top], ["--stack-space", v.stack_space]]);
+const inset = vars([["--text-inset", v.text_inset], ["--text-top", v.text_top], ["--stack-space", v.stack_space], ["--text-end", typeof v.text_end === "string" && /^\d+(?:\.\d+)?%$/.test(v.text_end) ? v.text_end.replace("%", "cqi") : undefined], ["--mt-gap", v.column_gap]]);
 const lead = typeof v.body_leading === "number" && v.body_leading >= 1 && v.body_leading <= 3 ? String(v.body_leading) : undefined;
 const textVars = [vars([["--heading-gap", v.heading_gap], ["--body-size", v.body_size], ["--body-size-small", v.body_size_small], ["--quote-size", v.quote_size], ["--quote-size-small", v.quote_size_small], ["--quote-width", v.quote_width], ["--quote-gap", v.quote_gap], ["--media-2-gap", v.media_2_gap]]), lead && `--body-leading:${lead}`].filter(Boolean).join(";") || undefined;
 const drift = typeof v.text_parallax === "number" && v.text_parallax > 0 && v.text_parallax <= 1 ? v.text_parallax : undefined;

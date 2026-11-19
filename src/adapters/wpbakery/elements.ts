@@ -81,6 +81,8 @@ export interface Col {
 	textInset?: { end?: string; phone?: string; below?: string; above?: string };
 	/** Padding on the column's leading edge (Salient padding-N-percent), as a CSS length. */
 	insetStart?: string;
+	/** Right-side column padding, % of the row (Salient padding-N-percent with position right). */
+	insetEndPct?: number;
 }
 
 export interface HandlerCtx {

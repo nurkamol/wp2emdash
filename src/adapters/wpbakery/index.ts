@@ -121,6 +121,7 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const overlay = columnOverlay(n.attrs);
 		const pct = /^padding-(\d+)-percent$/.exec(n.attrs.column_padding ?? "")?.[1];
 		const inset = pct && ["left", "all"].includes(n.attrs.column_padding_position ?? "all") && Number(pct) > 0 ? `${pct}vw` : undefined;
+		const insetEndPct = pct && ["right", "all"].includes(n.attrs.column_padding_position ?? "all") && Number(pct) > 0 && Number(pct) <= 20 ? Number(pct) : undefined;
 		const inner = n.children.flatMap((r) => (r.type === "shortcode" && r.tag === "vc_row_inner" ? r.children : [])).filter((c): c is ShortcodeNode => c.type === "shortcode" && c.tag === "vc_column_inner" && c.children.length > 0);
 		const centered = n.attrs.centered_text === "true" || (inner.length > 0 && inner.length === n.children.filter((c) => c.type === "shortcode").length && inner.every((c) => c.attrs.centered_text === "true"));
 		const rows = n.children.filter((c): c is ShortcodeNode => c.type === "shortcode");
@@ -132,7 +133,7 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const gapPhone = Number.parseFloat(n.attrs.bottom_margin_phone ?? "");
 		const textInset = rows.length === 1 && rows[0]?.tag === "vc_row_inner" ? innerTextInset(rows[0].attrs) : undefined;
 		const headingGap = rows.length > 1 && rows[0]?.tag === "vc_row_inner" ? loneHeadingGap(rows[0]) : undefined;
-		return { ...(headingGap ? { headingGap } : {}), ...(gapPhone > 0 && gapPhone <= 400 ? { gapPhone } : {}), ...(textInset ? { textInset } : {}), ...(inset ? { insetStart: inset } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
+		return { ...(headingGap ? { headingGap } : {}), ...(gapPhone > 0 && gapPhone <= 400 ? { gapPhone } : {}), ...(textInset ? { textInset } : {}), ...(inset ? { insetStart: inset } : {}), ...(insetEndPct ? { insetEndPct } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -545,6 +546,9 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 			fields: {
 				...(heights.some(Boolean) ? { mediaHeight: heights.map((h) => h ?? null) } : {}),
 				...(textCol.insetStart ? { textInset: textCol.insetStart } : {}),
+				// Salient: padding-N-percent is N% of the row; the text keeps the rest of its column (no measure cap).
+				...(textCol.insetEndPct ? { textEnd: `${textCol.insetEndPct}%` } : {}),
+				...(/^\d{1,3}px$/.test(row.attrs.column_margin ?? "") ? { columnGap: row.attrs.column_margin } : {}),
 				...(textCol.leadTop ? { textTop: textCol.leadTop } : {}),
 				...(textCol.motion ? { textParallax: textCol.motion } : {}),
 				...(lead.parallax && lead.height ? { mediaParallax: lead.parallax } : {}),

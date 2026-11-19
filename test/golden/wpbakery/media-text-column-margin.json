@@ -1,0 +1,89 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "cover",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4ece2"
+        }
+      },
+      "spacing": "normal",
+      "valign": "middle",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "df00531874"
+      },
+      "fields": {
+        "mediaHeight": [
+          {
+            "desktop": "55vh",
+            "small": "40vh",
+            "phone": "300px"
+          }
+        ],
+        "textEnd": "4%",
+        "columnGap": "90px",
+        "mediaRadius": "5px",
+        "headingGap": 30,
+        "media": [
+          {
+            "wpId": 101,
+            "kind": "image"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "What is the method?",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "A full-body workout on a sample machine that builds strength and balance through controlled movements.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book Now",
+            "href": "/book/",
+            "style": "primary",
+            "spaceAbove": 40
+          }
+        ],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[0]/vc_column[0]/vc_row_inner[0]/vc_column_inner[0]/divider[0]",
+      "tag": "divider"
+    }
+  ]
+}
