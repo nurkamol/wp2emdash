@@ -70,6 +70,16 @@ weeks out. Name it e.g. `wp2emdash go-live <domain>`.
 **Zone Resources:** Include → Specific zone → the client's domain. Revoke the token after the
 monitoring window (`target.cutover.monitorDays`).
 
+**Where it goes:** the site's own `.env` (never the kit-level one, so it can only ever touch that client):
+
+```bash
+# sites/<slug>/.env
+CLOUDFLARE_GOLIVE_TOKEN=<token B>
+```
+
+`pnpm wp2emdash run <slug> cutover` (the read-only preflight) uses it to read the zone, record its DNS and check that
+no Worker route is in the way.
+
 ## Where the token goes
 
 ```bash
