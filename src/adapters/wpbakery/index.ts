@@ -688,6 +688,8 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					...(c.stack?.imageHeightPhone ? { imageHeightPhone: c.stack.imageHeightPhone } : {}),
 					...(c.stack?.imageAfter ? { imageAfter: true } : {}),
 					...(c.stack?.itemsCenter ? { itemsCenter: true } : {}),
+					...(c.stack?.textWidth ? { textWidth: c.stack.textWidth } : {}),
+					...(c.stack?.textGap !== undefined ? { textGap: c.stack.textGap } : {}),
 					...(c.stack?.itemGap !== undefined ? { itemGap: c.stack.itemGap } : {}),
 					...(c.stack?.linkGap !== undefined ? { linkGap: c.stack.linkGap } : {}),
 					...(c.stack?.linkSize ? { linkSize: c.stack.linkSize } : {}),

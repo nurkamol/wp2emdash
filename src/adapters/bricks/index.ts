@@ -403,7 +403,7 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 			const mb = holders.map((x) => lenPx(obj(atBreakpoint(eff(x), "_margin", desktop, site))?.bottom)).find((v) => v !== undefined);
 			if (mb && mb > 0 && mb <= 200) out.imageSpace = Math.round(mb);
 		}
-		const rows = all.filter((x) => STRUCTURE.has(x.name) && isRowBox(x) && childrenOf(x).length >= 2 && childrenOf(x).every((k) => LINKISH.has(k.name) && !!k.settings?.link));
+		const rows = all.filter((x) => STRUCTURE.has(x.name) && isRowBox(x) && childrenOf(x).length >= 2 && childrenOf(x).every((k) => LINKISH.has(k.name) && !!k.settings?.link) && !childrenOf(x).every((k) => k.name === "button"));
 		const row = rows[0];
 		if (row) {
 			out.linkGap = gapOf(row, "column") ?? 0;
@@ -418,6 +418,14 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		const tsizes = new Set(texts.map((x) => textPx(x)));
 		const tsize = texts.length && tsizes.size === 1 ? [...tsizes][0] : undefined;
 		if (tsize && tsize >= 10 && tsize <= 40) out.textSize = Math.round(tsize);
+		// A paragraph with its own width (`_width: var(--width-m)`): the column's paragraphs keep that measure.
+		const narrow = texts.find((x) => x.name !== "heading" && str(eff(x)._width) && !/%$|^auto$/.test((str(eff(x)._width) as string).trim()));
+		const tw = narrow ? (measuredBox(narrow)?.w ?? lenPx(eff(narrow)._width)) : undefined;
+		if (out.itemGap !== undefined && tw && tw >= 120 && tw <= 2000) out.textWidth = Math.round(tw);
+		// Texts grouped in their own box inside the stack (heading + description): that box's row gap between them.
+		const group = texts[0] ? all.find((x) => STRUCTURE.has(x.name) && childrenOf(e).includes(x) && childrenOf(x).filter((k) => texts.includes(k)).length >= 2) : undefined;
+		const tg = group ? gapOf(group, "row") : undefined;
+		if (out.itemGap !== undefined && tg !== undefined && tg !== out.itemGap && tg <= 200) out.textGap = tg;
 		if (!Object.keys(out).length) return {};
 		// align-items: center centres each item as a box; the text itself is centred only when its own setting says so.
 		if (str(atBreakpoint(s, "_alignItems", desktop, site)) === "center") out.itemsCenter = true;

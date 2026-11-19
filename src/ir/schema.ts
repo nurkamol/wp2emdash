@@ -180,6 +180,9 @@ const column = z.object({
 	imageHeight: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(),
 	imageHeightPhone: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(),
 	imageAfter: z.boolean().optional(),
+	/** The paragraphs' measure (px) and the space between grouped texts (px; a heading and its description). */
+	textWidth: z.number().int().min(120).max(2000).optional(),
+	textGap: z.number().int().min(0).max(200).optional(),
 	/** Items centred as boxes in the column (builder align-items: center); long text keeps its own alignment. */
 	itemsCenter: z.boolean().optional(),
 	/** Extra space under that picture (px): its own bottom margin in the builder. */

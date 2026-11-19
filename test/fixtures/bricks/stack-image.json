@@ -1,0 +1,27 @@
+{
+  "kind": "page",
+  "permalinks": { "31": "/contact/" },
+  "options": {
+    "bricks_global_classes": [
+      { "id": "si01", "name": "intro", "settings": { "_alignItems": "center", "_rowGap": "var(--gap-l)", "_width": "var(--width-xl)" } },
+      { "id": "si02", "name": "intro__text", "settings": { "_rowGap": "var(--gap-xs)", "_alignItems": "center" } },
+      { "id": "si03", "name": "intro__desc", "settings": { "_width": "var(--width-m)", "_typography": { "text-align": "center" } } },
+      { "id": "si04", "name": "intro__title", "settings": { "_typography": { "text-align": "center" } } },
+      { "id": "si05", "name": "intro__buttons", "settings": { "_direction": "row", "_columnGap": "12" } },
+      { "id": "si06", "name": "btn--outline", "settings": {} }
+    ]
+  },
+  "live": [{ "width": 1440, "rootFontSize": 16, "variables": { "--gap-l": "2rem", "--gap-xs": "0.5rem", "--width-xl": "70rem", "--width-m": "32rem", "--width-l": "50rem" } }],
+  "elements": [
+    { "id": "si10", "name": "section", "parent": 0, "children": ["si20"], "settings": {} },
+    { "id": "si20", "name": "container", "parent": "si10", "children": ["si30", "si40", "si50", "si60"], "settings": { "_cssGlobalClasses": ["si01"] } },
+    { "id": "si30", "name": "block", "parent": "si20", "children": ["si31", "si32"], "settings": { "_cssGlobalClasses": ["si02"] } },
+    { "id": "si31", "name": "heading", "parent": "si30", "children": [], "settings": { "_cssGlobalClasses": ["si04"], "tag": "h1", "text": "Studio Rentals" } },
+    { "id": "si32", "name": "text-basic", "parent": "si30", "children": [], "settings": { "_cssGlobalClasses": ["si03"], "tag": "p", "text": "Book the room for a workshop, a shoot or a private class." } },
+    { "id": "si40", "name": "div", "parent": "si20", "children": ["si41", "si42"], "settings": { "_cssGlobalClasses": ["si05"] } },
+    { "id": "si41", "name": "button", "parent": "si40", "children": [], "settings": { "_cssGlobalClasses": ["si06"], "text": "Options", "link": { "type": "external", "url": "#options" } } },
+    { "id": "si42", "name": "button", "parent": "si40", "children": [], "settings": { "text": "Ask us", "link": { "type": "internal", "postId": "31" } } },
+    { "id": "si50", "name": "imagereveal", "parent": "si20", "children": [], "settings": { "image": { "id": 940, "url": "https://example.com/wp-content/uploads/2025/01/studio-room.webp" }, "_width": "var(--width-l)", "_width:mobile_landscape": "100%", "height": "480", "height:mobile_portrait": "360" } },
+    { "id": "si60", "name": "text", "parent": "si20", "children": [], "settings": { "_hideElementFrontend": true, "text": "<p>An older draft of the text, hidden on the live site.</p>" } }
+  ]
+}

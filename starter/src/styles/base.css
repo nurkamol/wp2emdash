@@ -616,16 +616,20 @@ body.over-hero { padding-top: var(--announce-h, 0px); }
 .columns__col.is-stack.image-after > :is(img, picture) { order: 1; }
 .columns__col.has-image-w.items-center > :is(img, picture) { margin-inline: auto; }
 .columns__col.is-stack > .prose > :is(p, ul, ol, h1, h2, h3, h4, h5, h6) { max-width: 100%; }
-.columns__col.has-link-rows.items-center .prose ul:not(:has(> li:not(:has(> a:only-child)))), .columns__col.social-icons.items-center .prose p { justify-content: center; }
+.columns__col.is-stack[style*="--col-text-w"] > .prose > p { max-width: min(100%, var(--col-text-w)); }
+.columns__col.is-stack[style*="--col-text-gap"] > .prose > :is(h1, h2, h3, h4, h5, h6) + p { margin-top: calc(var(--col-text-gap) - var(--col-item-gap)); }
+.columns__col.has-link-rows.items-center .prose ul:not(:has(> li > :not(a))), .columns__col.social-icons.items-center .prose p { justify-content: center; }
 .columns__col.is-stack.items-center > .actions { justify-content: center; }
 .columns__col.has-text-size .prose :is(p, li) { font-size: var(--col-text-size); }
 /* A list whose items are each one link: a row of links (footer menus, social links). */
-.columns__col.has-link-rows .prose ul:not(:has(> li:not(:has(> a:only-child)))) { display: flex; flex-wrap: wrap; column-gap: var(--col-link-gap); row-gap: 5px; margin: 0; padding: 0; list-style: none; }
-.columns__col.has-link-rows.align-center .prose ul:not(:has(> li:not(:has(> a:only-child)))) { justify-content: center; }
-.columns__col.has-link-rows .prose ul:not(:has(> li:not(:has(> a:only-child)))) > li { margin: 0; padding: 0; font-size: var(--col-link-size, inherit); }
-.columns__col.has-link-rows .prose ul:not(:has(> li:not(:has(> a:only-child)))) > li::before { content: none; }
-.columns__col.has-link-rows .prose ul:not(:has(> li:not(:has(> a:only-child)))) a { text-decoration: none; color: inherit; }
-.columns__col.has-link-rows .prose ul:not(:has(> li:not(:has(> a:only-child)))) a:hover { text-decoration: underline; }
+.columns__col.has-link-rows .prose ul:not(:has(> li > :not(a))) { display: flex; flex-wrap: wrap; column-gap: var(--col-link-gap); row-gap: 5px; margin: 0; padding: 0; list-style: none; }
+.columns__col.has-link-rows.align-center .prose ul:not(:has(> li > :not(a))) { justify-content: center; }
+.columns__col.has-link-rows .prose ul:not(:has(> li > :not(a))) > li { margin: 0; padding: 0; font-size: var(--col-link-size, inherit); }
+.columns__col.has-link-rows .prose ul:not(:has(> li > :not(a))) > li::before { content: none; }
+.columns__col.has-link-rows .prose ul:not(:has(> li > :not(a))) a { text-decoration: none; color: inherit; }
+.columns__col.has-link-rows .prose ul:not(:has(> li > :not(a))) a:hover { text-decoration: underline; }
+/* Links inside a line of text in such a column: accent colour, no underline (the builder theme's link style). */
+.columns__col.has-link-rows .prose p > a { color: var(--color-link, var(--color-accent)); text-decoration: none; }
 /* A line of social links: round icons in a row (column field social_icons = the gap). */
 .columns__col.social-icons .prose p:has(> a:is([href*="instagram.com"], [href*="tiktok.com"], [href*="facebook.com"], [href*="youtube.com"], [href*="linkedin.com"], [href*="x.com/"], [href*="twitter.com"], [href*="pinterest."])) { display: flex; flex-wrap: wrap; gap: var(--col-icon-gap, 10px); line-height: 0; }
 .columns__col.social-icons.align-center .prose p:has(> a:is([href*="instagram.com"], [href*="tiktok.com"], [href*="facebook.com"], [href*="youtube.com"], [href*="linkedin.com"], [href*="x.com/"], [href*="twitter.com"], [href*="pinterest."])) { justify-content: center; }

@@ -247,6 +247,8 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 				if (c.imageHeightPhone) cols[`col_${n}_image_height_phone`] = c.imageHeightPhone;
 				if (c.imageAfter) cols[`col_${n}_image_after`] = true;
 				if (c.itemsCenter) cols[`col_${n}_items_center`] = true;
+				if (c.textWidth) cols[`col_${n}_text_width`] = c.textWidth;
+				if (c.textGap !== undefined) cols[`col_${n}_text_gap`] = c.textGap;
 				if (c.itemGap !== undefined) cols[`col_${n}_item_gap`] = c.itemGap;
 				if (c.linkGap !== undefined) cols[`col_${n}_link_gap`] = c.linkGap;
 				if (c.linkSize) cols[`col_${n}_link_size`] = c.linkSize;
