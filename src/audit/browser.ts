@@ -210,6 +210,8 @@ export interface ScreenshotResult {
 
 /** A rendered Bricks element's measured box (px): size, gaps, padding, bottom margin, text size and line height. */
 export interface BricksBox {
+	/** The element type from its `brxe-<name>` class (checked against the element the adapter pairs it with). */
+	name: string;
 	w: number;
 	h: number;
 	rowGap?: number;
@@ -220,7 +222,11 @@ export interface BricksBox {
 	lh?: number;
 }
 
-/** Every visible Bricks element (`id="brxe-<id>"`) with its computed spacing, so the adapter can use the live values. */
+/**
+ * Every rendered Bricks element with its computed spacing, so the adapter can use the live values. Bricks prints an
+ * element id only when it needs one, so elements are keyed by their position: `c:<top-level index>/<child>/<child>…` in
+ * the content area, `f:…` in the footer, counting only element nodes (class `brxe-<name>`), as the element tree does.
+ */
 export async function bricksMeasure(page: Page): Promise<Record<string, BricksBox>> {
 	return page.evaluate(() => {
 		const out: Record<string, BricksBox> = {};
@@ -228,11 +234,14 @@ export async function bricksMeasure(page: Page): Promise<Record<string, BricksBo
 			const x = Number.parseFloat(v);
 			return Number.isFinite(x) ? Math.round(x * 10) / 10 : undefined;
 		};
-		for (const el of Array.from(document.querySelectorAll<HTMLElement>("[id^='brxe-']")).slice(0, 3000)) {
+		const nameOf = (el: Element) => Array.from(el.classList).find((c) => c.startsWith("brxe-"))?.slice(5);
+		const kids = (el: Element) => Array.from(el.children).filter((c) => !!nameOf(c));
+		let count = 0;
+		const visit = (el: HTMLElement, key: string) => {
+			if (++count > 4000) return;
 			const r = el.getBoundingClientRect();
-			if (!r.width && !r.height) continue;
 			const cs = getComputedStyle(el);
-			const box: BricksBox = { w: Math.round(r.width), h: Math.round(r.height) };
+			const box: BricksBox = { name: nameOf(el) ?? "", w: Math.round(r.width), h: Math.round(r.height) };
 			const rg = n(cs.rowGap);
 			const cg = n(cs.columnGap);
 			if (rg) box.rowGap = rg;
@@ -244,7 +253,12 @@ export async function bricksMeasure(page: Page): Promise<Record<string, BricksBo
 			box.font = n(cs.fontSize);
 			const lh = n(cs.lineHeight);
 			if (lh) box.lh = lh;
-			out[el.id.slice(5)] = box;
+			out[key] = box;
+			kids(el).forEach((c, i) => visit(c as HTMLElement, `${key}/${i}`));
+		};
+		for (const [area, sel] of [["c", "#brx-content"], ["f", "#brx-footer"]] as const) {
+			const root = document.querySelector(sel);
+			if (root) kids(root).forEach((c, i) => visit(c as HTMLElement, `${area}:${i}`));
 		}
 		return out;
 	});

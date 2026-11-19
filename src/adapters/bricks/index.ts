@@ -19,7 +19,7 @@ import { fluid } from "../../scaffold/generate.js";
 import { type Col, type Fragment, type HandlerCtx, mediaFrom } from "../wpbakery/elements.js";
 import { mergeRich, recognise, type Row, splitRow } from "../wpbakery/index.js";
 import { DECORATIVE, DYNAMIC, dynamicListing, type Env, HANDLERS, isFilter, linkOf, mediaOf, navMenuLinks, plain } from "./elements.js";
-import { atBreakpoint, type BricksSite, cssPx, effectiveSettings, emptySite, obj, resolveColour, screens, str } from "./site.js";
+import { atBreakpoint, type BricksSite, cssPx, effectiveSettings, emptySite, obj, pxOf, resolveColour, screens, str } from "./site.js";
 
 export { bricksSite, type BricksSite, siteTemplates, templateElements, templateType, bricksDesign, BRICKS_OPTIONS, liveVariables } from "./site.js";
 export { bricksFormToDefinition } from "./forms.js";
@@ -59,8 +59,11 @@ export interface BricksOptions {
 	permalink?: (postId: number) => string | undefined;
 	/** Bricks popup template id → the IR popup slug (buttons whose interaction shows a popup). */
 	popupSlug?: (templateId: number) => string | undefined;
-	/** The live element's measured box by Bricks id, per viewport (audit screenshots): real gaps, widths, text sizes. */
-	measured?: (id: string) => Partial<Record<"desktop" | "tablet" | "mobile", BricksBox>> | undefined;
+	/**
+	 * The live element's measured box per viewport (audit screenshots), by its position on the page: `c:<top-level
+	 * index>/<child index>/…` (content) or `f:…` (footer template). Real gaps, widths and text sizes.
+	 */
+	measured?: (key: string) => Partial<Record<"desktop" | "tablet" | "mobile", BricksBox>> | undefined;
 	/** A WordPress menu by id (a nav-menu element's `menu` setting) → its top-level items (links). */
 	menuItems?: (menuId: string) => IrMenuItem[] | undefined;
 }
@@ -334,8 +337,12 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 	/** A typography setting's font size (px). */
 	const fontPx = (s: Record<string, unknown>) => lenPx(obj(s.titleTypography)?.["font-size"] ?? obj(s._typography)?.["font-size"]);
 	const LINKISH = new Set(["text-link", "underlined-hover", "icon", "button"]);
-	/** The live element's measured box (audit), by its Bricks id (template/component copies keep the original id last). */
-	const measuredBox = (x: BricksElement, vp: "desktop" | "tablet" | "mobile" = "desktop") => opts.measured?.(x.id.split("~").at(-1) as string)?.[vp];
+	/** The live element's measured box (audit), paired by position; only when the rendered element is of the same type. */
+	const measuredBox = (x: BricksElement, vp: "desktop" | "tablet" | "mobile" = "desktop") => {
+		const key = domKey.get(x);
+		const b = key ? opts.measured?.(key)?.[vp] : undefined;
+		return b && b.name === x.name ? b : undefined;
+	};
 	/** A gap: as measured on the live page, else from the settings (global / live design variables). */
 	const gapOf = (x: BricksElement, axis: "row" | "column") => {
 		const m = measuredBox(x);
@@ -595,7 +602,11 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		const [s, ...inner] = chain(e) as [Record<string, unknown>, ...Record<string, unknown>[]];
 		const first = <T>(read: (x: Record<string, unknown>) => T | undefined) => [s, ...inner].map(read).find((v) => v !== undefined && v !== "");
 		const a: Record<string, string> = {};
-		const bg = first((x) => obj(x._background));
+		// An inner box with rounded corners is a card inside the section, not the section's background (a grey call-to-action
+		// panel): its background stays off the section (reported; the section library has no inner card).
+		const card = inner.find((x) => obj(x._background)?.color && Object.values(obj(obj(x._border)?.radius) ?? {}).some((v) => (pxOf(str(v)) ?? 0) > 0));
+		if (card) diag({ level: "info", code: "lossy", message: `[${e.name}] rounded inner panel background ${JSON.stringify(obj(card._background)?.color)} not reproduced (no inner card in the section library); the section keeps a plain background`, path, tag: e.name });
+		const bg = [s, ...inner].filter((x) => x !== card).map((x) => obj(x._background)).find((v) => v !== undefined);
 		const color = resolveColour(bg?.color, site);
 		if (color) a.bg_color = color;
 		else if (bg?.color) diag({ level: "info", code: "lossy", message: `[${e.name}] background colour ${JSON.stringify(bg.color)} not resolved (palette/variables missing from the extract?)`, path, tag: e.name });
@@ -718,6 +729,18 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 	// not in the list is never shown on the live page.
 	for (const e of all.filter((x) => !isRoot(x.parent) && !byId.has(String(x.parent)))) diag({ level: "info", code: "flagged", message: `[${e.name}] its parent element ${e.parent} is not on the page, so Bricks does not render it; not migrated`, path: pathOf(e), tag: e.name });
 	const roots = all.filter((e) => isRoot(e.parent));
+	// Each element's position in the rendered page (the key of its measured box): top-level index, then child indexes,
+	// counting the elements Bricks renders (not those hidden on the front end).
+	const domKey = new Map<BricksElement, string>();
+	{
+		const shown = (x: BricksElement) => eff(x)._hideElementFrontend !== true && eff(x)._hideElementFrontend !== "true";
+		const mark = (x: BricksElement, key: string) => {
+			domKey.set(x, key);
+			childrenOf(x).filter(shown).forEach((k, i) => mark(k, `${key}/${i}`));
+		};
+		const area = opts.kind === "partial" ? "f" : "c";
+		all.filter((e) => isRoot(e.parent)).filter(shown).forEach((r, i) => mark(r, `${area}:${i}`));
+	}
 	// Each top-level element is one element in the rendered page (a template or component in its place included).
 	for (const { e: r, path, index } of roots.flatMap((root, index) => expandRoots([root]).map((x) => ({ ...x, index })))) {
 		// Structural boxes are rows with their own styling (a footer template's top-level block with its padding); other
