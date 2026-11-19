@@ -33,6 +33,8 @@ export interface ClientRepoInput {
 	analytics?: { google: string[]; gtm?: string; cloudflareToken?: string };
 	/** Branded sharing cards (@wp2emdash/og) are on. */
 	ogCards?: boolean;
+	/** SEO panel in the page editor (@wp2emdash/seo) is on. */
+	seoPanel?: boolean;
 	sensitiveData: boolean;
 	stack: Record<string, string>;
 }
@@ -210,6 +212,16 @@ domain, a live preview, and **Redraw all cards** after a design change. A card f
 title and the next share shows the new card. Networks keep a preview for a while — refresh it with their tools
 (Facebook Sharing Debugger, LinkedIn Post Inspector) or the Telegram @WebpageBot. The cards are made by the
 \`@wp2emdash/og\` package in \`packages/og\` (its README explains how); updates come from the migration kit.
+` : ""}${i.seoPanel ? `
+## SEO panel
+
+Open a page and unfold **SEO** at the bottom of the right sidebar: a score out of 100, how the page looks in Google,
+and what to improve — title and description length, duplicates with other pages, one main heading (H1), heading
+order, text length, image descriptions (alt text, set in the media library), links, the address, whether the page is
+hidden from search, and the sharing image. Enter a **focus keyword** (what people type into Google to find this page)
+to check it is in the title, description, main heading, first paragraph and address. **Check my unsaved changes**
+checks the page before you save; changes to the SEO fields themselves show after saving. A good score helps, but
+rankings also depend on content quality, links from other sites and the Google Business Profile.
 ` : ""}`);
 
 	const formRows = i.forms.map((f) => `| ${f.title} (\`${f.id}\`) | ${f.fields.join(", ") || "—"} | ${f.withheld.length ? f.withheld.join(", ") : "—"} |`).join("\n");

@@ -140,6 +140,8 @@ export const kitConfigSchema = z.object({
 
 	/** Experimental: branded sharing cards (og:image) rendered in the Worker (@wp2emdash/og). Off unless set. */
 	og: z.object({ cards: z.boolean().default(false) }).default({ cards: false }),
+	/** Experimental: SEO panel in the page editor (@wp2emdash/seo). Off unless set. */
+	seo: z.object({ panel: z.boolean().default(false) }).default({ panel: false }),
 
 	forms: z
 		.object({

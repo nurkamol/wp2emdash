@@ -216,6 +216,10 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			reporter.emit({ type: "log", level: "warn", message: `sharing cards off: ${(e as Error).message}` });
 		}
 	}
+	// Experimental SEO panel in the page editor (@wp2emdash/seo); off unless seo.panel.
+	rmSync(join(project, "packages", "seo"), { recursive: true, force: true });
+	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: ["pages"], ...(og ? { ogCards: true } : {}) } : undefined;
+	if (seoPanel) cpSync(join(KIT_ROOT, "packages", "seo"), join(project, "packages", "seo"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
 	write(join(project, "src", "site.config.json"), siteConfig);
 	write(join(project, "src", "styles", "tokens.css"), tokens.css + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);
@@ -273,6 +277,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			"@emdash-cms/cloudflare": STACK["@emdash-cms/cloudflare"],
 			"@wp2emdash/forms": "link:./packages/forms",
 			...(og ? { "@wp2emdash/og": "link:./packages/og", ...OG_DEPENDENCIES } : {}),
+			...(seoPanel ? { "@wp2emdash/seo": "link:./packages/seo" } : {}),
 			astro: STACK.astro,
 			emdash: STACK.emdash,
 			react: STACK.react,
@@ -287,7 +292,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}
+import emdash from "emdash/astro";${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}
 
 export default defineConfig({
 	site: ${JSON.stringify(siteConfig.productionUrl)},
@@ -302,9 +307,10 @@ export default defineConfig({
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
-			mcp: false,${config.forms.outbox || og ? `
-			// Admin plugins: Form messages (form outbox, admins only — @wp2emdash/forms) and Sharing images (@wp2emdash/og).
-			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : ""].filter(Boolean).join(", ")}],` : ""}
+			mcp: false,${config.forms.outbox || og || seoPanel ? `
+			// Admin plugins: Form messages (form outbox, admins only — @wp2emdash/forms), Sharing images (@wp2emdash/og),
+			// SEO panel in the page editor (@wp2emdash/seo).
+			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : ""].filter(Boolean).join(", ")}],` : ""}
 		}),
 	],
 	devToolbar: { enabled: false },
@@ -375,6 +381,7 @@ export default defineConfig({
 			...(config.forms.outbox ? { outbox: { days: config.forms.outbox.days, hold: config.forms.outbox.hold } } : {}),
 			...(hasAnalytics && analytics ? { analytics } : {}),
 			...(og ? { ogCards: true } : {}),
+			...(seoPanel ? { seoPanel: true } : {}),
 			sensitiveData: config.sensitiveData,
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
 		}),

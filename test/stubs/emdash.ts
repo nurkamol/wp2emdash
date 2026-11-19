@@ -35,7 +35,7 @@ interface Route {
 interface PluginDefinition {
 	id: string;
 	version: string;
-	admin?: { pages?: { path: string; label: string; icon?: string }[]; widgets?: { id: string; title?: string; size?: string }[] };
+	admin?: { pages?: { path: string; label: string; icon?: string }[]; widgets?: { id: string; title?: string; size?: string }[]; editorPanels?: { id: string; title: string; route: string; collections?: string[]; order?: number; draft?: { read?: { fields?: string[] }; patch?: { fields?: string[] } } }[] };
 	capabilities?: string[];
 	routes?: Record<string, Route>;
 	hooks?: { "page:metadata"?: (event: { page: PageContext }, ctx: { kv: KvStub }) => Promise<Contribution[] | null> };

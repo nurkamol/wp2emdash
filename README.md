@@ -56,6 +56,18 @@ cards replace every page's image or only fill in where a page has none (the defa
 them. Verify downloads every og:image and fails on any that does not load. Details:
 [packages/og/README.md](packages/og/README.md).
 
+## SEO panel in the page editor (opt-in)
+
+```ts
+// sites/<slug>/kit.config.ts
+seo: { panel: true },
+```
+
+Adds an **SEO** panel to the page editor's sidebar: a score, the Google result preview, a plain-words checklist
+(title and description length, duplicates across pages, one H1, heading order, text length, image alt text, links,
+address, indexing, sharing image) and an optional focus keyword per page. "Check my unsaved changes" checks the
+draft before saving. No effect on visitors; negligible Worker size. Details: [packages/seo/README.md](packages/seo/README.md).
+
 ## Docs
 
 - [Plan](docs/PLAN.md)
@@ -64,6 +76,7 @@ them. Verify downloads every og:image and fails on any that does not load. Detai
 - [Staging and production setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, production on `workers.dev`, troubleshooting
 - [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token
 - [`@wp2emdash/forms`](packages/forms/README.md) — the forms package every migrated site uses (endpoint, email, KV outbox, Form messages admin page); usable in any EmDash project
+- [`@wp2emdash/seo`](packages/seo/README.md) — SEO panel in the page editor (score, Google preview, checklist, focus keyword); opt in with `seo: { panel: true }`
 - [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; opt in with `og: { cards: true }` in a site's `kit.config.ts` (below)
 - [Agent rules](CLAUDE.md)
 
