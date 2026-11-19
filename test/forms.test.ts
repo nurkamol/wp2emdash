@@ -103,3 +103,17 @@ describe("contact-and-message policy", () => {
 		expect(applySensitivePolicy(def, "contact-only", "n").fields.map((f) => f.name)).toEqual(["name", "email"]);
 	});
 });
+
+describe("Fluent dropdown placeholder", () => {
+	it("reads the placeholder Fluent keeps in the field settings", async () => {
+		const { fluentFormToDefinition } = await import("../src/scaffold/forms.js");
+		const def = fluentFormToDefinition(
+			{ id: "9", title: "Booking Inquiry", form: { form_fields: { fields: [{ element: "select", attributes: { name: "kind", value: "" }, settings: { label: "Kind", placeholder: "- Select -", validation_rules: { required: { value: true } }, advanced_options: [{ label: "A", value: "A" }, { label: "B", value: "B" }] } }] } } },
+			false,
+		);
+		const f = def.fields.find((x) => x.name === "kind");
+		expect(f?.type).toBe("select");
+		expect(f?.placeholder).toBe("- Select -");
+		expect(f?.options).toEqual(["A", "B"]);
+	});
+});

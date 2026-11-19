@@ -16,6 +16,8 @@ import type { GateCheck } from "../core/state.js";
 import type { IrPage } from "../ir/schema.js";
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
 import { sourceText } from "../transform/coverage.js";
+import { loadOverrides } from "../config/overrides.js";
+import { currentYearText } from "../transform/year.js";
 import { accessibility, type A11yResult, launchFor, measurePerformance, type PerfResult, visualDiff, type VisualResult } from "../verify/browser.js";
 import { compareHeadings, compareMotion, compareSeo, compareText, type HeadingResult, missingExternalLinks, missingMenuItems, type SeoResult, type TextResult } from "../verify/compare.js";
 import { verifyReport } from "../verify/report.js";
@@ -66,6 +68,9 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 	const g = config.gates;
 
 	// ── Target ─────────────────────────────────────────────────────────────────
+	// A footer whose typed © year was set to show the current year (overrides.copyrightYear) is compared as that year.
+	const yearNow = String(new Date().getFullYear());
+	const liveYear = (await loadOverrides(paths.overrides).catch(() => undefined))?.copyrightYear === "current" ? (t: string) => currentYearText(t).replaceAll("{year}", yearNow) : (t: string) => t;
 	const want = targetName(process.env.WP2EMDASH_TARGET ?? process.env.WP2EMDASH_LOAD_TARGET, config.target.stagingUrl || stagingRecorded(paths.root) ? "staging" : "local");
 	let base: string;
 	let stop = () => {};
@@ -145,7 +150,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 					const source = readJson<PageSnapshot>(join(paths.snapshot, "pages", `${name}.json`));
 					const sourceHtml = existsSync(join(paths.snapshot, "html", `${name}.html`)) ? readFileSync(join(paths.snapshot, "html", `${name}.html`), "utf8") : "";
 					if (source) {
-						r.text = compareText(sourceText(sourceHtml), sourceText(html));
+						r.text = compareText(sourceText(liveYear(sourceHtml)), sourceText(html));
 						r.headings = compareHeadings(source.headings, snap.headings);
 						// Local and staging run with EmDash's staging flag (noindex) until cutover; only production must be indexable.
 						r.seo = compareSeo(source.seo, snap.seo, `${prod}${u.path}`, !live, u.kind);

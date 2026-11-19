@@ -124,7 +124,7 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 			return;
 		}
 		const name = str(a.name) ?? el;
-		const placeholder = type === "signature" ? str(s.sign_instruction) : str(a.placeholder);
+		const placeholder = type === "signature" ? str(s.sign_instruction) : str(a.placeholder) ?? (type === "select" ? str(s.placeholder) : undefined);
 		const required = o(o(s.validation_rules).required).value === true || el === "gdpr_agreement";
 		if (type === "consent") {
 			// Fluent keeps the checkbox text as HTML (tnc_html, with links to the terms): runs + safe links only.

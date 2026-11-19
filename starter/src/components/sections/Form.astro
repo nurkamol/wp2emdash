@@ -25,7 +25,8 @@ const run = (p: InlinePart) => {
 		</div>
 		{
 			form ? (
-				<form class="form" method="post" action={`/api/forms/${form.id}`} data-form={form.id} data-after={form.afterSubmit ?? "reset"} novalidate>
+				<form class="form" method="post" action={`/api/forms/${form.id}`} data-form={form.id} data-after={form.afterSubmit ?? "reset"} aria-labelledby={`form-name-${form.id}`} novalidate>
+					<span class="visually-hidden" id={`form-name-${form.id}`}>{form.title}</span>
 					{form.fields.map((f) => {
 						const req = f.required && <span aria-hidden="true"> *</span>;
 						const parts = (list: InlinePart[] | undefined) =>
@@ -89,7 +90,7 @@ const run = (p: InlinePart) => {
 								{f.type === "textarea" ? (
 									<textarea name={f.name} required={f.required} placeholder={f.placeholder} rows={typeof f.rows === "number" && f.rows >= 2 && f.rows <= 20 ? f.rows : 5} />
 								) : f.type === "select" ? (
-									<select name={f.name} required={f.required}>{(f.options ?? []).map((o) => <option value={o}>{o}</option>)}</select>
+									<select name={f.name} required={f.required}><option value="" selected>{f.placeholder ?? "Choose…"}</option>{(f.options ?? []).map((o) => <option value={o}>{o}</option>)}</select>
 								) : (
 									<input type={f.type === "date" && f.time ? "datetime-local" : f.type} name={f.name} required={f.required} placeholder={f.placeholder} autocomplete={f.autocomplete} />
 								)}
