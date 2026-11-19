@@ -2,7 +2,7 @@
 
 > Migrates WordPress sites to [EmDash](https://docs.emdashcms.com/) on Cloudflare Workers (D1 + R2) and proves the result with automated gates: content, URLs, SEO, design, forms and integrations.
 
-**Status:** `init` → `load` work end to end on a real Salient + WPBakery site: 0 unmapped content, 100% of page text carried over, a generated EmDash project, and an idempotent load of all media and content into EmDash — locally and on a Cloudflare staging deployment. `verify` and `cutover` are next — see [`docs/PLAN.md`](docs/PLAN.md) §13.
+**Status:** `init` → `verify` run end to end on a real Salient + WPBakery site: 0 unmapped content, 100% of page text carried over, a generated EmDash project loaded idempotently into local, staging and production (`workers.dev`), and a verify report comparing the live WordPress site with the migrated one section by section at phone, tablet and desktop widths. The cutover preflight is implemented; the traffic switch waits for the owner's approval — see [`docs/PLAN.md`](docs/PLAN.md) §13.
 
 **Requires:** Node.js 24+ and pnpm. Generated sites run on Cloudflare Workers (Workers Paid plan — the EmDash Worker is above the free plan's 3 MB limit) with the latest Astro that EmDash supports.
 
@@ -33,18 +33,18 @@ pnpm wp2emdash status
 | `extract` | EmDash Exporter API: raw content, meta, SEO, menus, forms, media download | ✅ |
 | `transform` | WPBakery/Salient, Gutenberg, classic → section IR, coverage & text-conservation gate | ✅ |
 | `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, analytics, seed; client README, docs and GitHub CI; builds + local preview | ✅ |
-| `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map | ✅ local + staging |
-| `verify` | Old site vs staging, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), links, forms, analytics, security, visual diff, a11y, performance, menu motion; HTML report | ✅ runs · pilot fixes in progress |
-| `cutover` | Preflight, delta, deploy, smoke, rollback | M8 |
+| `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map | ✅ local, staging, production (`WP2EMDASH_LOAD_TARGET`) |
+| `verify` | Old site vs staging or production, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |
+| `cutover` | Preflight (read-only: resources, secrets, Turnstile, zone and DNS record, runbook), then the owner-approved switch: Worker route, smoke, rollback | Preflight ✅ · switch M8 |
 
 Each phase ends in a gate; the next phase won't run until it passes or is accepted with a recorded reason.
 
 ## Docs
 
 - [Plan](docs/PLAN.md)
-- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, SEO image, old URLs](docs/spikes/M7-findings.md)
+- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md)
 - [Site workspaces](sites/README.md)
-- [Staging setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, troubleshooting
+- [Staging and production setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, production on `workers.dev`, troubleshooting
 - [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token
 - [Agent rules](CLAUDE.md)
 

@@ -248,6 +248,7 @@ Output: `reports/<run>/index.html` — one row per URL, every check green/red, s
 **Gate:** all green or each red item has an approved entry in `decisions.md`. Owner sign-off recorded.
 
 ### Phase 7 — `cutover`
+Implemented so far: the read-only **preflight** (`src/phases/cutover.ts`): last verify passed or accepted, production resources and Worker secrets present, production Turnstile key set, zone on Cloudflare with proxied apex/www records and no Worker route in the way (go-live token), canonical-host redirects; it records the zone's DNS and writes `cutover/runbook.md` with the launch and rollback commands. Production is deployed and loaded on its `workers.dev` address first (`WP2EMDASH_LOAD_TARGET=production`, `WP2EMDASH_TARGET=production`). The traffic switch below is a separate, owner-approved step.
 - **Preflight:** production D1/R2/secrets separate from staging; domain/zone ready; DNS records (MX, SPF, DKIM, DMARC, verification TXT) recorded and untouched; TTLs lowered 24–48h ahead if DNS changes; canonical host policy (apex vs www, trailing slash, http→https); rollback owner and procedure tested.
 - **Freeze + delta:** content freeze on WordPress; REST query for anything with `modified_gmt` after the last extract; rerun `extract → transform → load` (idempotent through id-map); re-verify changed URLs.
 - **Deploy:** production deploy (`workers.dev` first, smoke-tested there), then switch traffic by `target.cutover.method` — default `route`: add Worker routes for apex + www in front of the existing proxied WordPress record. Never delete the WordPress A/AAAA records at launch. See §7a.
@@ -532,6 +533,8 @@ Any failed assumption changes the plan before code depends on it.
 | M9 | Second site (Gutenberg-heavy) to harden the kit | Runs end-to-end with only config + overrides |
 | M10 | `astro-pagescms` target: starter, file writer, `_redirects`, `.pages.yml` + schema generation, CI content validation | Same site migrates to either target from one IR; verify passes for both |
 | v2 | Elementor (`_elementor_data`), Bricks (`_bricks_page_content_2` + templates), Divi adapters; i18n; plugin porting | — |
+
+**Status (2026-11-19):** M0–M6 done. M7: the verify suite runs against staging and production and every check passes on the pilot except visual parity, which is being closed section by section (measured Salient rules in `docs/spikes/M7-findings.md`); the dashboard (§10b) is not built yet. M8: cutover preflight done; the pilot runs in production on `workers.dev` and waits for the owner's go-live approval, the go-live token and a working email account (form messages are held in the KV outbox until then). Backlog: an EmDash forms plugin (admin page for the outbox and recipients, `email:send` capability).
 
 ---
 

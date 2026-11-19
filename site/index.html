@@ -129,7 +129,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 <main id="main">
 	<section class="hero" id="top">
 		<div class="wrap">
-			<span class="eyebrow"><span class="dot" aria-hidden="true"></span>Open source · MIT · audit → transform → scaffold working</span>
+			<span class="eyebrow"><span class="dot" aria-hidden="true"></span>Open source · MIT · audit → verify running on a real site</span>
 			<h1>Move WordPress to EmDash. <em>Prove</em> nothing was lost.</h1>
 			<p class="lead">wp2emdash migrates WordPress sites built with WPBakery, Salient, Gutenberg or the classic editor to <a href="https://docs.emdashcms.com/">EmDash</a> on Cloudflare Workers. It rebuilds pages as editable sections, keeps every URL, image, form and menu animation, and stops at a gate whenever something doesn't match.</p>
 			<div class="cta">
@@ -162,9 +162,9 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 				<li class="phase"><span class="badge done">ready</span><h3>extract</h3><p>Raw content, meta, SEO, menus, form definitions and media via the EmDash Exporter. Read-only.</p></li>
 				<li class="phase"><span class="badge done">ready</span><h3>transform</h3><p>Builder layouts → a typed section format, with coverage and text-conservation gates.</p></li>
 				<li class="phase"><span class="badge done">ready</span><h3>scaffold</h3><p>EmDash project: section library, tokens, header &amp; burger menu from the recipe, local preview.</p></li>
-				<li class="phase"><span class="badge next">next</span><h3>load</h3><p>Content and media into staging; id-map makes reruns idempotent.</p></li>
-				<li class="phase"><span class="badge plan">planned</span><h3>verify</h3><p>Old vs new, URL by URL: text, SEO, links, visual diff, forms, a11y, performance.</p></li>
-				<li class="phase"><span class="badge plan">planned</span><h3>cutover</h3><p>Worker route in front of WordPress, smoke tests, one-step rollback.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>load</h3><p>Content and media into local, staging or production through the EmDash API; an id-map makes reruns idempotent.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>verify</h3><p>Old vs new, URL by URL: text, SEO, links, forms, a11y, performance, and a visual diff per section on phone, tablet and desktop.</p></li>
+				<li class="phase"><span class="badge next">preflight ready</span><h3>cutover</h3><p>Read-only preflight and runbook; then, with the owner's approval, a Worker route in front of WordPress, smoke tests and one-step rollback.</p></li>
 			</ol>
 		</div>
 	</section>
@@ -180,6 +180,9 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></div><h3>Forms &amp; integrations</h3><p>Every form and widget found, with fields, recipients and a decision: keep, rebuild natively, replace or drop. Booking embeds stay on an allowlist.</p></div>
 				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 7v6c0 4 3.5 7 8 8 4.5-1 8-4 8-8V7z"/></svg></div><h3>Safe by default</h3><p>Read-only towards WordPress. Never reads form submissions. Secrets stay in a local <code>.env</code>. Production changes need the owner's explicit approval.</p></div>
 				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H4zM8 20h8"/></svg></div><h3>Editable afterwards</h3><p>Pages arrive as EmDash sections with plain fields — the client edits text, images, buttons and menus in the admin; the design stays consistent.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/></svg></div><h3>Visual parity, measured</h3><p>Every section is compared with the live site at phone, tablet and desktop widths. Spacing and type come from the builder's own settings, measured on the live theme — not eyeballed.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg></div><h3>Forms that deliver</h3><p>A native endpoint with Turnstile, rate limiting and validation; email through Brevo, Resend, Postmark, SendGrid or Mailgun; an optional outbox in Workers KV that holds messages until email works.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></div><h3>SEO and old URLs kept</h3><p>Titles, descriptions, structured data, sharing images and the sitemap carry over; old upload and sitemap addresses redirect; analytics ids move without copying scripts.</p></div>
 			</div>
 		</div>
 	</section>
@@ -187,12 +190,12 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 	<section class="block" id="proof">
 		<div class="wrap">
 			<h2>Tested on a real site first</h2>
-			<p class="sub">The pilot is a ten-page clinic site on Salient + WPBakery with Rank Math, Fluent Forms, Popup Maker and two booking systems.</p>
+			<p class="sub">The pilot is a ten-page clinic site on Salient + WPBakery with Rank Math, Fluent Forms, Popup Maker and two booking systems. It runs in production on Cloudflare, waiting for the owner's go-live.</p>
 			<div class="stats">
 				<div class="stat"><b>0</b><span>unmapped content nodes</span></div>
 				<div class="stat"><b>100%</b><span>of live-page words carried over</span></div>
-				<div class="stat"><b>5.2 MB</b><span>Worker bundle (gzip), well under the limit</span></div>
-				<div class="stat"><b>54</b><span>tests incl. golden fixtures per element</span></div>
+				<div class="stat"><b>162</b><span>sections compared with the live site at phone, tablet and desktop widths</span></div>
+				<div class="stat"><b>102</b><span>tests incl. golden fixtures per element</span></div>
 			</div>
 		</div>
 	</section>
@@ -209,7 +212,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 						<tr><td>Salient theme (nectar_*)</td><td class="yes">Supported</td><td>Headings, CTAs, team, testimonials, pricing lists, marquees, global sections, page headers</td></tr>
 						<tr><td>Gutenberg / block editor</td><td class="yes">Supported</td><td>Core blocks, reusable blocks, cover, media &amp; text, columns, details</td></tr>
 						<tr><td>Classic editor</td><td class="yes">Supported</td><td>wpautop-faithful paragraphs; shortcodes inside go through the shortcode adapter</td></tr>
-						<tr><td>Popup Maker, Fluent Forms, Rank Math</td><td class="yes">Supported</td><td>Popups → dialogs with their triggers; form definitions; SEO titles and descriptions</td></tr>
+						<tr><td>Popup Maker, Fluent Forms, Rank Math</td><td class="yes">Supported</td><td>Popups → dialogs with their triggers; forms rebuilt on a native endpoint; SEO titles, descriptions and structured data</td></tr>
 						<tr><td>Elementor, Bricks, Divi</td><td class="soon">Planned</td><td>Same section format; adapters after the first migrations ship</td></tr>
 					</tbody>
 				</table>
@@ -236,10 +239,19 @@ pnpm wp2emdash run acme transform
 pnpm wp2emdash run acme scaffold
 
 <span class="c"># preview the migrated site locally</span>
-cd sites/acme/project &amp;&amp; pnpm dev</pre>
+cd sites/acme/project &amp;&amp; pnpm dev
+
+<span class="c"># load into staging and compare it with the live site</span>
+WP2EMDASH_LOAD_TARGET=staging pnpm wp2emdash run acme load
+WP2EMDASH_TARGET=staging pnpm wp2emdash run acme verify
+
+<span class="c"># check everything the switch-over needs (read-only)</span>
+pnpm wp2emdash run acme cutover</pre>
 			<div class="grid grid-2" style="margin-top:16px">
 				<a class="card" data-repo-link data-path="/blob/main/docs/PLAN.md" href="#" style="text-decoration:none"><h3>Read the plan →</h3><p>Architecture, phases, gates, section library and the roadmap.</p></a>
 				<a class="card" data-repo-link data-path="/tree/main/docs/spikes" href="#" style="text-decoration:none"><h3>Verified platform facts →</h3><p>Every EmDash and Cloudflare behaviour the kit relies on, checked against the installed versions.</p></a>
+				<a class="card" data-repo-link data-path="/blob/main/docs/staging-setup.md" href="#" style="text-decoration:none"><h3>Staging and production setup →</h3><p>Resources, deploys, the first admin sign-in, API tokens and troubleshooting.</p></a>
+				<a class="card" data-repo-link data-path="/blob/main/docs/cloudflare-api-token.md" href="#" style="text-decoration:none"><h3>Cloudflare API tokens →</h3><p>The reusable build and staging token, and the separate go-live token used only at cutover.</p></a>
 			</div>
 		</div>
 	</section>
