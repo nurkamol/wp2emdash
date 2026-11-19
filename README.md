@@ -139,6 +139,30 @@ Every phase then reads and writes the project there; `pnpm wp2emdash status` sho
 write into a folder that already holds something other than this kit's project. To move an existing project: move
 the folder, set `projectDir`, run `pnpm install` in it once (pnpm's helper scripts keep absolute paths).
 
+## One folder for everything
+
+The fastest start: ask the owner (or do it yourself in WordPress admin) for every export in one folder,
+`sites/<slug>/dump/` — inside the site workspace, so it is gitignored and never leaves your machine:
+
+- the plugin exports the audit lists in `ACCESS.md` (forms, redirects, SEO settings)
+- builder and theme settings (Bricks settings and theme styles, Salient options, Automatic.css settings)
+- a full backup, unzipped, with its `database.sql` (and, for reference, plugins and themes — useful when a
+  third-party element pack needs mapping)
+
+Then run:
+
+```bash
+pnpm wp2emdash import-dump <slug>
+```
+
+It sorts every file by its content: plugin exports into `raw/plugin-exports/` (read by extract), builder settings into
+`raw/`, and from the database dump only the allow-listed builder options (Bricks palette, global classes, theme styles,
+components) with anything that looks like a credential left out. Every file is listed with what it was used for; files
+it does not recognise are named, never guessed. Inside a backup, uploads, form uploads, plugins and caches are counted,
+never opened — form entries are never read. With Claude Code (see below), the same folder is what the agent inspects to
+map unknown elements: give it the plugin's source from the backup and the audit's screenshots, and it proposes the
+handler with a fixture and a test. Delete the folder when the project ends.
+
 ## Plugin data (forms and redirects)
 
 The REST API does not expose most plugins' settings. After the audit, `ACCESS.md` gets a **Plugin data** section

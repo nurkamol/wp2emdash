@@ -4,6 +4,7 @@ import pc from "picocolors";
 import { cloudflareTokenCheck, doctor, encryptionKeyCheck } from "../commands/doctor.js";
 import { provision } from "../commands/provision.js";
 import { importOptions } from "../commands/import-options.js";
+import { importDump } from "../commands/import-dump.js";
 import { initSite, validateSlug, validateUrl } from "../commands/init.js";
 import { acceptPhase, runPhase } from "../commands/run.js";
 import { formatTimeline, listSites, statusJson } from "../commands/status.js";
@@ -150,6 +151,15 @@ program
 	.action(async () => {
 		const { serveMcp } = await import("../mcp/server.js");
 		await serveMcp();
+	});
+
+program
+	.command("import-dump <slug> [dir]")
+	.description("Sort everything exported from the site (sites/<slug>/dump/ by default: plugin exports, builder settings, a backup's database.sql) into the places the phases read")
+	.action(async (slug: string, dir: string | undefined) => {
+		const items = await importDump(slug, dir);
+		for (const it of items) console.log(`${it.ok ? pc.green("✔") : pc.yellow("!")} ${it.file.padEnd(48)} ${pc.dim(it.used)}`);
+		if (!items.length) console.log(pc.yellow("The folder is empty."));
 	});
 
 program

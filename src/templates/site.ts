@@ -76,7 +76,8 @@ Never write passwords, keys or tokens in this file — store them in a password 
 - [ ] Application password created for a dedicated user, stored in .env (WP_APP_USER / WP_APP_PASSWORD)
 - [ ] Cloudflare Bot Fight Mode / WAF allows the exporter (skip rule or temporarily off)
 - [ ] Salient sites (optional): Salient → Options → Import/Export → download, saved as raw/salient-options.json
-- [ ] Redirects exported (Rank Math → Redirections → Export / Redirection plugin → Export) to raw/redirects.csv, or "no redirects" noted in decisions.md
+- [ ] Redirects exported (Rank Math → Redirections → Export / Redirection plugin → Export), or "no redirects" noted in decisions.md
+- [ ] Everything exported goes in one folder, \`sites/<slug>/dump/\` (plugin exports, builder/theme settings, Automatic.css settings, a full backup with its database.sql), then \`pnpm wp2emdash import-dump <slug>\` sorts it — see "One folder for everything" in the kit README
 
 ## Before scaffold
 - [ ] Cloudflare API token A (build & staging) in the kit \`.env\` — permissions in docs/cloudflare-api-token.md; \`pnpm wp2emdash doctor\` shows it active

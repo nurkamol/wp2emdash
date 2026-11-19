@@ -16,6 +16,7 @@ import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
 import { selfHostGoogleFonts } from "../scaffold/fonts.js";
 import { clientRepoFiles, deployScripts, writeClientRepo } from "../scaffold/client-repo.js";
+import { loadOverrides } from "../config/overrides.js";
 import { applySensitivePolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
 import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras, stackBreakpoint } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
@@ -243,11 +244,19 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const forms: FormDefinitionOut[] = [];
 	// Every provider extract wrote: Fluent Forms in its REST shape, the others (plugin exports) with a ready definition.
 	const formsDir = join(paths.raw, "forms");
+	const scaffoldOverrides = await loadOverrides(paths.overrides);
 	const formFiles = existsSync(formsDir) ? readdirSync(formsDir).flatMap((p) => (statSync(join(formsDir, p)).isDirectory() ? readdirSync(join(formsDir, p)).filter((f) => f.endsWith(".json")).map((f) => join(formsDir, p, f)) : [])) : [];
 	{
 		for (const file of formFiles) {
 			const raw = readJson<{ id: string; title: string; status: string; form?: { form_fields?: Record<string, unknown> }; settings?: Record<string, unknown>; definition?: FormDefinitionOut }>(file);
 			if (!raw || !/^publish(ed)?$/.test(raw.status)) continue; // never "unpublished"
+			// The owner moved this form elsewhere (overrides.ts → integrations "form:<provider>:<id>": replace | drop).
+			const provider = file.split(/[\\/]/).at(-2) ?? "";
+			const decision = scaffoldOverrides.integrations[`form:${provider}:${raw.id}`];
+			if (decision === "replace" || decision === "drop") {
+				reporter.emit({ type: "log", level: "info", message: `form ${provider} #${raw.id} not rebuilt: integration decision "${decision}" in overrides.ts` });
+				continue;
+			}
 			const base: FormDefinitionOut | undefined = raw.definition ? { ...raw.definition, warnings: raw.definition.warnings ?? [], ...(config.sensitiveData ? { sensitive: true } : {}) } : raw.form ? fluentFormToDefinition({ ...raw, form: raw.form }, config.sensitiveData) : undefined;
 			if (!base) continue;
 			const def = applySensitivePolicy(base, config.forms.sensitive, config.forms.notice);

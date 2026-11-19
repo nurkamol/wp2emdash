@@ -10,6 +10,7 @@ import { type PageSnapshot, parsePage } from "../audit/page.js";
 import { captureHeaderScroll, captureMenu, type HeaderScrollCapture, type MenuCapture, motionRecipe } from "../audit/interactions.js";
 import { auditReport, integrationsReport, interactionsReport, pluginMatrixReport } from "../audit/report.js";
 import { isInternal, looksLikeAsset, matchesExclude, normalizeUrl, pathKey, siteHosts } from "../audit/urls.js";
+import { loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import type { PhaseContext } from "./index.js";
 
@@ -244,7 +245,11 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	const failedScreens = screens.filter((s) => s.error);
 	const unsupportedBuilders = Object.keys(fp.builders).filter((b) => ["elementor", "divi"].includes(b));
 	const outOfScope = fp.plugins.filter((p) => p.action === "out-of-scope");
-	const sensitiveForms = integrations.filter((i) => i.form && i.form.sensitiveFields.length > 0);
+	// A form the owner decided to handle elsewhere (overrides.ts → integrations: "replace" | "drop", e.g. a waiver signed
+	// in the booking system) is not rebuilt on the site, so it does not make the site sensitive.
+	const decisions = (await loadOverrides(paths.overrides).catch(() => undefined))?.integrations ?? {};
+	const handledElsewhere = (id: string) => decisions[id] === "replace" || decisions[id] === "drop";
+	const sensitiveForms = integrations.filter((i) => i.form && i.form.sensitiveFields.length > 0 && !handledElsewhere(i.id));
 	const parsedAll = urlRecords.filter((r) => r.kind === "page").every((r) => snapshots.has(r.url));
 
 	return [
