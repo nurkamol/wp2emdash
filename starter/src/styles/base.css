@@ -126,7 +126,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 
 /* Boxed cards (Salient card columns): background, radius, shadow and padding (a share of the row) from the builder */
 .has-boxed-cards .grid { container-type: inline-size; }
-.section.has-boxed-cards .grid > .card { background: var(--card-bg); border-radius: var(--card-radius, 0); padding: calc(var(--card-pad, 3) * 1cqi + 1.5rem) calc(var(--card-pad, 3) * 1cqi); }
+.section.has-boxed-cards .grid > .card { background: var(--card-bg); border-radius: var(--card-radius, 0); padding: calc(var(--card-pad, 3) * 1cqi); gap: 0.5rem; }
 .has-boxed-cards .grid { padding: 0; }
 .card-shadow-small .card { box-shadow: 0 10px 30px -8px rgb(0 0 0 / 0.12); }
 .card-shadow-medium .card { box-shadow: 0 18px 40px -10px rgb(0 0 0 / 0.16); }
@@ -134,7 +134,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .cards-center .card, .cards-center .card__body { text-align: center; justify-items: center; align-items: center; }
 .cards-center .card__icon { margin-inline: auto; }
 /* a small uppercase label title (the theme's h5/h6 style) */
-.card .card__title--h5, .has-boxed-cards .card__body :is(h5, h5 a) { margin: 0; font-family: var(--h5-font, var(--font-body)); font-size: var(--font-size-h5, 0.875rem); font-weight: var(--h5-weight, 600); letter-spacing: var(--h5-tracking, 0.1em); text-transform: var(--h5-transform, uppercase); line-height: var(--h5-leading, 1.4); }
+.card .card__title--h5, .has-boxed-cards .card__title--h5 ~ .prose :is(p, strong, a) { margin: 0; font-family: var(--h5-font, var(--font-body)); font-size: var(--font-size-h5, 0.875rem); font-weight: var(--h5-weight, 600); letter-spacing: var(--h5-tracking, 0.1em); text-transform: var(--h5-transform, uppercase); line-height: var(--h5-leading, 1.4); }
 .card .card__title--h6 { margin: 0; font-family: var(--h6-font, var(--font-body)); font-size: var(--font-size-h6, 0.8rem); font-weight: var(--h6-weight, 600); letter-spacing: var(--h6-tracking, 0.1em); text-transform: var(--h6-transform, uppercase); }
 
 /* media + text */

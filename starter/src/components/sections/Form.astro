@@ -77,7 +77,7 @@ const run = (p: InlinePart) => {
 							<label class:list={["field", `field--${f.type}`, { "field--half": f.half }]} data-field={f.name}>
 								<span class="field__label">{f.label}{req}</span>
 								{f.type === "textarea" ? (
-									<textarea name={f.name} required={f.required} placeholder={f.placeholder} rows={5} />
+									<textarea name={f.name} required={f.required} placeholder={f.placeholder} rows={typeof f.rows === "number" && f.rows >= 2 && f.rows <= 20 ? f.rows : 5} />
 								) : f.type === "select" ? (
 									<select name={f.name} required={f.required}>{(f.options ?? []).map((o) => <option value={o}>{o}</option>)}</select>
 								) : (

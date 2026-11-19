@@ -13,6 +13,8 @@ export interface FormFieldOut {
 	name: string;
 	label: string;
 	type: "text" | "email" | "tel" | "number" | "url" | "date" | "textarea" | "select" | "checkbox" | "radio" | "consent" | "signature" | "content";
+	/** Visible lines of a message box, as the source form set them. */
+	rows?: number;
 	required?: boolean;
 	placeholder?: string;
 	options?: string[];
@@ -132,7 +134,7 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 		}
 		const label = str(s.label) || (placeholder ?? name).replace(/\*\s*$/, "").trim();
 		const options = Array.isArray(s.advanced_options) ? (s.advanced_options as Obj[]).map((x) => str(x.label) ?? str(x.value) ?? "").filter(Boolean) : undefined;
-		fields.push({ name, label, type, ...(required ? { required } : {}), ...(placeholder ? { placeholder } : {}), ...(options?.length ? { options } : {}), ...(half && type !== "signature" ? { half } : {}), ...(AUTOCOMPLETE[name] ? { autocomplete: AUTOCOMPLETE[name] } : {}) });
+		fields.push({ name, label, type, ...(required ? { required } : {}), ...(placeholder ? { placeholder } : {}), ...(options?.length ? { options } : {}), ...(type === "textarea" && Number(a.rows) >= 2 && Number(a.rows) <= 20 ? { rows: Number(a.rows) } : {}), ...(half && type !== "signature" ? { half } : {}), ...(AUTOCOMPLETE[name] ? { autocomplete: AUTOCOMPLETE[name] } : {}) });
 	};
 	let contentCount = 0;
 	const ff = o(raw.form.form_fields);
