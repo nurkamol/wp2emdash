@@ -223,6 +223,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 				...head,
 				intro: pt(s.fields.intro),
 				columns: s.fields.columns,
+				...(s.fields.look ? stripUndefined({ card_bg: s.fields.look.cardBackground, card_radius: s.fields.look.cardRadius, card_shadow: s.fields.look.cardShadow, card_padding: s.fields.look.cardPadding, card_align: s.fields.look.align, title_level: s.fields.look.titleLevel }) : {}),
 				...(s.fields.cardSpace ? { card_space: s.fields.cardSpace.desktop, ...(s.fields.cardSpace.phone ? { card_space_phone: s.fields.cardSpace.phone } : {}), ...(s.fields.cardSpace.inset !== undefined ? { card_inset: s.fields.cardSpace.inset } : {}) } : {}),
 				items: s.fields.items.map((it) => stripUndefined({ title: it.title, overlay: it.overlay, image_motion: it.imageMotion, body: ptToMd(it.body) || undefined, image: it.image ? media(it.image) : undefined, icon: it.icon ? `${it.icon.library}:${it.icon.name}` : undefined, link_label: it.link?.label, link_url: it.link?.href, link_new_tab: it.link?.newTab || undefined })),
 			});

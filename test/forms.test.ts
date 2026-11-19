@@ -77,3 +77,29 @@ describe("email delivery", () => {
 		expect(await deliver("brevo", "bad", { from: { email: "a@b.co" }, to: ["c@d.co"], subject: "secret subject", text: "secret", html: "secret" })).toEqual({ ok: false, status: 401, reason: "brevo HTTP 401" });
 	});
 });
+
+describe("contact-and-message policy", () => {
+	it("keeps contact fields and the first message box, withholds the rest, adds the notice", async () => {
+		const { applySensitivePolicy } = await import("../src/scaffold/forms.js");
+		const def = {
+			id: "f",
+			title: "Contact",
+			submitLabel: "Send",
+			successMessage: "Thanks",
+			sensitive: true,
+			warnings: [],
+			fields: [
+				{ name: "name", label: "Full Name", type: "text" as const },
+				{ name: "email", label: "Email", type: "email" as const },
+				{ name: "comment", label: "Comment", type: "textarea" as const },
+				{ name: "notes", label: "Notes", type: "textarea" as const },
+				{ name: "insurance", label: "Insurance", type: "select" as const, options: ["a", "b"] },
+			],
+		};
+		const out = applySensitivePolicy(def, "contact-and-message", "No health details, please.");
+		expect(out.fields.map((f) => f.name)).toEqual(["name", "email", "comment"]);
+		expect(out.withheld).toEqual(["Notes", "Insurance"]);
+		expect(out.notice).toBe("No health details, please.");
+		expect(applySensitivePolicy(def, "contact-only", "n").fields.map((f) => f.name)).toEqual(["name", "email"]);
+	});
+});

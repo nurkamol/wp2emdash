@@ -121,6 +121,9 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 			if (f.kind === "button" && !f.button.spaceAbove && prev?.kind === "rich" && prev.list === "dots" && prev.blocks.at(-1)?.listItem) f.button = { ...f.button, spaceAbove: FANCY_LIST_GAP };
 		});
 		const color = colourValue(n.attrs.background_color);
+		const boxShadow = ({ small_depth: "small", medium_depth: "medium", large_depth: "large", x_large_depth: "large" } as const)[n.attrs.column_shadow as "small_depth"];
+		const boxRadius = /^\d{1,3}px$/.test(n.attrs.column_border_radius ?? "") && n.attrs.column_border_radius !== "0px" ? n.attrs.column_border_radius : undefined;
+		const padPctAll = /^padding-(\d+)-percent$/.exec(n.attrs.column_padding ?? "")?.[1];
 		const spacer = columnSpacer(n);
 		const overlay = columnOverlay(n.attrs);
 		const pct = /^padding-(\d+)-percent$/.exec(n.attrs.column_padding ?? "")?.[1];
@@ -137,7 +140,7 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const gapPhone = Number.parseFloat(n.attrs.bottom_margin_phone ?? "");
 		const textInset = rows.length === 1 && rows[0]?.tag === "vc_row_inner" ? innerTextInset(rows[0].attrs) : undefined;
 		const headingGap = rows.length > 1 && rows[0]?.tag === "vc_row_inner" ? loneHeadingGap(rows[0], Number(/^(\d+)px$/.exec(n.attrs.column_element_spacing ?? "")?.[1] ?? Number.NaN)) : undefined;
-		return { ...(headingGap ? { headingGap } : {}), ...(gapPhone > 0 && gapPhone <= 400 ? { gapPhone } : {}), ...(textInset ? { textInset } : {}), ...(inset ? { insetStart: inset } : {}), ...(insetEndPct ? { insetEndPct } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
+		return { ...(headingGap ? { headingGap } : {}), ...(gapPhone > 0 && gapPhone <= 400 ? { gapPhone } : {}), ...(textInset ? { textInset } : {}), ...(inset ? { insetStart: inset } : {}), ...(insetEndPct ? { insetEndPct } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), ...(boxShadow ? { boxShadow } : {}), ...(boxRadius ? { boxRadius } : {}), ...(padPctAll && (n.attrs.column_padding_position ?? "all") === "all" ? { padPct: Number(padPctAll) } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -145,7 +148,9 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const gap = /^\d+px$/.test(n.attrs.column_margin ?? "") ? n.attrs.column_margin : undefined;
 		const cols = n.children
 			.flatMap((c, i) => (c.type === "shortcode" && c.tag === "vc_column_inner" ? [columnOf(c, `${path}/vc_column_inner[${i}]`)] : []))
-			.map((c) => (gap ? { ...c, fragments: c.fragments.map((f) => (f.kind === "team" ? { ...f, gap } : f)) } : c));
+			.map((c) => (gap ? { ...c, fragments: c.fragments.map((f) => (f.kind === "team" ? { ...f, gap } : f)) } : c))
+			// The inner row's own text alignment (Salient text_align="center") centres its columns.
+			.map((c) => (n.attrs.text_align === "center" && !c.centered ? { ...c, centered: true } : c));
 		const stray = n.children.filter((c) => c.type === "shortcode" && c.tag !== "vc_column_inner") as ShortcodeNode[];
 		const strayFrags = stray.flatMap((s) => dispatch(s, `${path}/${s.tag}`));
 		const nonEmpty = cols.filter((c) => c.fragments.length);
@@ -592,9 +597,24 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 			return { ...(titleBlock ? { title: titleBlock.children.map((s) => s.text).join("") } : {}), body, ...(image ? { image: image.media } : {}), ...(icon ? { icon: icon.icon } : {}), ...(link ? { link: link.button } : {}), ...(image && c.overlay ? { overlay: c.overlay } : {}), ...(image?.role === "background" && c.parallax ? { imageMotion: "parallax" as const } : {}) };
 		});
 		const variant = items.every((i) => i.image) ? "image-cards" : "icons";
+		// Salient "card" columns (background + shadow/radius): white cards with the column's padding, centred content
+		// and the title at its source heading level (h5 = the theme's small uppercase label).
+		const bg0 = cols[0]?.background?.color;
+		const boxed = variant === "icons" && bg0 && cols.every((c) => c.background?.color === bg0 && (c.boxShadow || c.boxRadius));
+		const titleLevels = cols.map((c) => c.fragments.flatMap((f) => (f.kind === "rich" ? f.blocks : [])).find(isHeading)?.style);
+		const look = boxed
+			? {
+					cardBackground: bg0,
+					...(cols[0]?.boxRadius ? { cardRadius: cols[0].boxRadius } : {}),
+					...(cols[0]?.boxShadow ? { cardShadow: cols[0].boxShadow } : {}),
+					...(cols[0]?.padPct ? { cardPadding: cols[0].padPct } : {}),
+					...(cols.every((c) => c.centered) || row.attrs.text_align === "center" ? { align: "center" as const } : {}),
+					...(titleLevels[0] && /^h[4-6]$/.test(titleLevels[0]) && titleLevels.every((l) => l === titleLevels[0]) ? { titleLevel: titleLevels[0] } : {}),
+				}
+			: undefined;
 		const sp = cols[0]?.spacer;
 		const cardSpace = variant === "image-cards" && sp && cols.every((c) => c.spacer?.desktop === sp.desktop && c.spacer?.phone === sp.phone && c.spacer?.inset === sp.inset) ? sp : undefined;
-		push({ ...base("feature_grid", variant), fields: { intro: [], items, columns: Math.min(6, cols.length), ...(cardSpace ? { cardSpace } : {}) } });
+		push({ ...base("feature_grid", variant), fields: { intro: [], items, columns: Math.min(6, cols.length), ...(cardSpace ? { cardSpace } : {}), ...(look ? { look } : {}) } });
 		return sections;
 	}
 

@@ -172,7 +172,11 @@ export const kitConfigSchema = z.object({
 			 * "contact-only" keeps only contact fields (name, email, phone) and drops free text, so nothing
 			 * sensitive can pass through the Worker or email. Unset on a sensitive site = the scaffold gate fails.
 			 */
-			sensitive: z.enum(["contact-only"]).optional(),
+			/**
+			 * contact-only: name, email, phone. contact-and-message: also the form's first message box, with the notice
+			 * shown right above it (owner decision: visitors can still type health details there).
+			 */
+			sensitive: z.enum(["contact-only", "contact-and-message"]).optional(),
 			/** Note shown above the submit button of a sensitive form. */
 			notice: z.string().default("Please don't include health details here — we'll get back to you."),
 			/** Submissions per visitor (IP) and form, per period (Workers rate limiting: 10 or 60 s). */

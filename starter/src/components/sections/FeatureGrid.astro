@@ -13,12 +13,18 @@ const items = (v.items ?? []) as Array<Record<string, any>>;
 const LENGTH = /^\d+(?:\.\d+)?(?:px|vh|svh|vw|rem|em|%)$/;
 const TINT = /^(?:(?:linear|radial)-gradient\([^;{}<>"']*\)|rgba?\([\d\s.,%]+\)|#[0-9a-f]{3,8})$/i;
 const space = [LENGTH.test(v.card_space ?? "") && `--card-space:${v.card_space}`, LENGTH.test(v.card_space_phone ?? "") && `--card-space-phone:${v.card_space_phone}`, Number.isInteger(v.card_inset) && v.card_inset >= 0 && v.card_inset <= 20 && `--card-inset:${v.card_inset}cqi`].filter(Boolean).join(";");
+// Boxed cards (the builder's white "card" columns): background, radius, shadow, padding as a share of the row.
+const COLOR = /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
+const boxed = COLOR.test(v.card_bg ?? "");
+const boxVars = boxed ? [`--card-bg:${v.card_bg}`, LENGTH.test(v.card_radius ?? "") && `--card-radius:${v.card_radius}`, typeof v.card_padding === "number" && v.card_padding >= 0 && v.card_padding <= 20 && `--card-pad:${v.card_padding}cqi`].filter(Boolean).join(";") : "";
+const shadow = ["small", "medium", "large"].includes(v.card_shadow) ? v.card_shadow : undefined;
+const TitleTag = (["h4", "h5", "h6"].includes(v.title_level) ? v.title_level : "h3") as "h3";
 ---
 
-<Section value={v} type="feature_grid">
+<Section value={v} type="feature_grid" class={[boxed && "has-boxed-cards", shadow && `card-shadow-${shadow}`, v.card_align === "center" && "cards-center"].filter(Boolean).join(" ") || undefined}>
 	<Heading value={v} />
 	<Rich value={v.intro} class="lead" />
-	<ul class:list={["grid", { "has-card-space": !!space }]} style={`--cols:${Math.min(v.columns ?? items.length, 6)}${space ? `;${space}` : ""}`} role="list">
+	<ul class:list={["grid", { "has-card-space": !!space }]} style={`--cols:${Math.min(v.columns ?? items.length, 6)}${space ? `;${space}` : ""}${boxVars ? `;${boxVars}` : ""}`} role="list">
 		{
 			items.map((it) => {
 				const href = safeHref(it.link_url);
@@ -27,7 +33,7 @@ const space = [LENGTH.test(v.card_space ?? "") && `--card-space:${v.card_space}`
 						{it.image && <Image image={it.image} class="card__image" sizes="(max-width: 900px) 100vw, 40vw" />}
 						{it.icon && <span class="card__icon" aria-hidden="true"><Icon name={it.icon} /></span>}
 						<div class="card__body">
-							{it.title && <h3 class="card__title">{href && v.variant === "image-cards" ? <a href={href} class="card__link" target={it.link_new_tab ? "_blank" : undefined}>{it.title}</a> : it.title}</h3>}
+							{it.title && <TitleTag class:list={["card__title", TitleTag !== "h3" && `card__title--${TitleTag}`]}>{href && v.variant === "image-cards" ? <a href={href} class="card__link" target={it.link_new_tab ? "_blank" : undefined}>{it.title}</a> : it.title}</TitleTag>}
 							<Md text={it.body} />
 							{href && it.link_label && <a href={href} class="btn btn--link" target={it.link_new_tab ? "_blank" : undefined} rel={it.link_new_tab ? "noopener" : undefined}>{it.link_label}</a>}
 						</div>

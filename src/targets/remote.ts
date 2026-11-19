@@ -25,8 +25,10 @@ export interface RemoteTarget {
 export function remoteTarget(root: string, config: KitConfig, env: Record<string, string>, which: "staging" | "production"): RemoteTarget | { error: string } {
 	const cf = (existsSync(join(root, "cloudflare.json")) ? JSON.parse(readFileSync(join(root, "cloudflare.json"), "utf8")) : {}) as Cf;
 	if (which === "staging") {
-		if (!config.target.stagingUrl) return { error: "Set target.stagingUrl in kit.config.ts" };
-		return { url: config.target.stagingUrl.replace(/\/$/, ""), ...(env.EMDASH_TOKEN ? { token: env.EMDASH_TOKEN } : {}), addresses: cf.staging?.worker?.addresses ?? [], live: false };
+		// The address provision recorded (cloudflare.json → staging.worker.url) when the config does not set one.
+		const stagingUrl = config.target.stagingUrl ?? (cf.staging as { worker?: { url?: string } } | undefined)?.worker?.url;
+		if (!stagingUrl) return { error: "Set target.stagingUrl in kit.config.ts (or run wp2emdash provision <slug> staging)" };
+		return { url: stagingUrl.replace(/\/$/, ""), ...(env.EMDASH_TOKEN ? { token: env.EMDASH_TOKEN } : {}), addresses: cf.staging?.worker?.addresses ?? [], live: false };
 	}
 	const live = !!cf.production?.live;
 	const url = live ? config.target.productionUrl : cf.production?.worker?.url;

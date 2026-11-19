@@ -290,6 +290,17 @@ export const section = z.discriminatedUnion("type", [
 			columns: z.number().int().min(1).max(6),
 			/** Space above and below each card's text (builder spacers around it), per screen. */
 			cardSpace: z.object({ desktop: cssLength, phone: cssLength.optional(), /** Card padding, % of the row width (Salient column_padding). */ inset: z.number().min(0).max(20).optional() }).optional(),
+			/** Boxed cards from the builder's column look (background, radius, shadow, padding % of the row), alignment, title level. */
+			look: z
+				.object({
+					cardBackground: z.string().regex(/^#[0-9a-f]{3,8}$|^rgba?\([\d\s.,%]+\)$/i).optional(),
+					cardRadius: cssLength.optional(),
+					cardShadow: z.enum(["small", "medium", "large"]).optional(),
+					cardPadding: z.number().min(0).max(20).optional(),
+					align: z.enum(["center"]).optional(),
+					titleLevel: z.enum(["h4", "h5", "h6"]).optional(),
+				})
+				.optional(),
 		}),
 	}),
 	z.object({ type: z.literal("cta_banner"), ...base, fields: z.object({ heading, body: richText.default([]), buttons: z.array(button).default([]), media: mediaRef.optional() }) }),

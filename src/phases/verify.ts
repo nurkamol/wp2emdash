@@ -66,7 +66,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 	const g = config.gates;
 
 	// ── Target ─────────────────────────────────────────────────────────────────
-	const want = targetName(process.env.WP2EMDASH_TARGET ?? process.env.WP2EMDASH_LOAD_TARGET, config.target.stagingUrl ? "staging" : "local");
+	const want = targetName(process.env.WP2EMDASH_TARGET ?? process.env.WP2EMDASH_LOAD_TARGET, config.target.stagingUrl || stagingRecorded(paths.root) ? "staging" : "local");
 	let base: string;
 	let stop = () => {};
 	// Live = the production domain serves this site: indexable, analytics loading. Production on workers.dev is not live.
@@ -164,8 +164,14 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 						for (const sf of source.forms.filter((f) => !/search/i.test(f.provider ?? "") && !f.fields.every((x) => x.name === "s" || x.type === "hidden") && f.fields.some((x) => x.type !== "hidden"))) {
 							const visible = (f: { type: string }) => !["hidden", "submit", "button"].includes(f.type);
 							// A sensitive site's contact-only policy (owner decision) withholds everything but contact fields.
-							const contactOnly = config.sensitiveData && config.forms.sensitive === "contact-only";
-							const kept = (x: { type: string }) => !contactOnly || ["email", "tel", "text"].includes(x.type);
+							const policy = config.sensitiveData ? config.forms.sensitive : undefined;
+							let messageKept = false;
+							const kept = (x: { type: string }) => {
+								if (!policy || ["email", "tel", "text"].includes(x.type)) return true;
+								// contact-and-message: the first message box stays too
+								if (policy === "contact-and-message" && x.type === "textarea" && !messageKept) return (messageKept = true);
+								return false;
+							};
 							const withheld = sf.fields.filter(visible).filter((x) => !kept(x)).length;
 							const want2 = sf.fields.filter(visible).filter(kept).map((x) => (x.type === "textarea" ? "textarea" : x.type)).sort();
 							const tf = snap.forms.find((f) => f.fields.filter(visible).length >= want2.length);
@@ -416,5 +422,14 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		write(join(outDir, "index.html"), verifyReport(config.name, out, checks, g.visualDiff));
 		reporter.emit({ type: "log", level: "info", message: `Report: ${join(outDir, "index.html")}` });
 		return checks;
+	}
+}
+
+/** provision recorded a staging Worker address for this site. */
+function stagingRecorded(root: string): boolean {
+	try {
+		return !!(JSON.parse(readFileSync(join(root, "cloudflare.json"), "utf8")) as { staging?: { worker?: { url?: string } } }).staging?.worker?.url;
+	} catch {
+		return false;
 	}
 }

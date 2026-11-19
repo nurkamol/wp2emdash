@@ -1,0 +1,128 @@
+{
+  "sections": [
+    {
+      "type": "feature_grid",
+      "variant": "icons",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4ece2"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]#0",
+        "rawHash": "b5fd51d0d5"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Phone",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "h5",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t4",
+                    "text": "555-0100",
+                    "marks": [
+                      "t3"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t3",
+                    "href": "tel:555-0100"
+                  }
+                ]
+              }
+            ],
+            "icon": {
+              "library": "iconsmind",
+              "name": "iconsmind-Telephone"
+            }
+          },
+          {
+            "title": "Email",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t7",
+                "style": "h5",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "hello@example.com",
+                    "marks": [
+                      "t8"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t8",
+                    "href": "mailto:hello@example.com"
+                  }
+                ]
+              }
+            ],
+            "icon": {
+              "library": "iconsmind",
+              "name": "iconsmind-Mail"
+            }
+          },
+          {
+            "title": "Location",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "h5",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "te",
+                    "text": "1 Sample Street",
+                    "marks": [
+                      "td"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "td",
+                    "href": "https://maps.example.com"
+                  }
+                ]
+              }
+            ],
+            "icon": {
+              "library": "iconsmind",
+              "name": "iconsmind-Map2"
+            }
+          }
+        ],
+        "columns": 3,
+        "look": {
+          "cardBackground": "#ffffff",
+          "cardRadius": "15px",
+          "cardShadow": "small",
+          "cardPadding": 3,
+          "align": "center",
+          "titleLevel": "h5"
+        }
+      }
+    }
+  ],
+  "diagnostics": []
+}

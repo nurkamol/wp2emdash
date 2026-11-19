@@ -46,11 +46,14 @@ export function isContactField(f: FormFieldOut): boolean {
 }
 
 /** Apply a sensitive site's form policy to a definition. */
-export function applySensitivePolicy(def: FormDefinitionOut, policy: "contact-only" | undefined, notice: string): FormDefinitionOut {
+export function applySensitivePolicy(def: FormDefinitionOut, policy: "contact-only" | "contact-and-message" | undefined, notice: string): FormDefinitionOut {
 	if (!def.sensitive) return def;
 	if (!policy) return { ...def, warnings: [...def.warnings, "site has sensitiveData: set forms.sensitive in kit.config (owner decision) before this form can be rebuilt"] };
-	const keep = def.fields.filter(isContactField);
-	const withheld = def.fields.filter((f) => !isContactField(f)).map((f) => f.label || f.name);
+	// contact-and-message keeps the first free-text box too (the notice above it asks for no health details).
+	const message = policy === "contact-and-message" ? def.fields.find((f) => f.type === "textarea") : undefined;
+	const kept = (f: FormFieldOut) => isContactField(f) || f === message;
+	const keep = def.fields.filter(kept);
+	const withheld = def.fields.filter((f) => !kept(f)).map((f) => f.label || f.name);
 	if (!keep.some((f) => f.type === "email" || f.type === "tel")) return { ...def, warnings: [...def.warnings, "contact-only policy leaves no email or phone field to reply to"] };
 	return { ...def, fields: keep, notice, ...(withheld.length ? { withheld } : {}) };
 }

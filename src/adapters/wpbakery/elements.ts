@@ -83,6 +83,11 @@ export interface Col {
 	insetStart?: string;
 	/** Right-side column padding, % of the row (Salient padding-N-percent with position right). */
 	insetEndPct?: number;
+	/** Salient column box: shadow depth and corner radius (a white "card" column). */
+	boxShadow?: "small" | "medium" | "large";
+	boxRadius?: string;
+	/** Column padding, % of the row (Salient padding-N-percent on all sides). */
+	padPct?: number;
 	/** Lifted out of an inner row with Salient's default gutters (30px padding each side, row widened by 30px). */
 	innerGutters?: boolean;
 }
