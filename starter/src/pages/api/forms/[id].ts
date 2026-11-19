@@ -5,13 +5,15 @@
  * definition (only its fields are read; anything else in the request is ignored) → email through the
  * site's provider: the provider API key from Wrangler secrets (Brevo, Resend, Postmark, SendGrid or Mailgun). EmDash's own pipeline (Settings → Email)
  * is used if EmDash exposes it to this route — in EmDash 1.5 it does not for anonymous requests (see docs/spikes/M7-findings.md);
- * the planned forms plugin will send through it. Nothing is stored. Field values never reach logs. A form generated for a site with
+ * a later version of the forms plugin will send through it. Nothing is stored unless the owner enabled the outbox (then only
+ * until it is emailed or the retention period ends); with the outbox, a count per day and form is kept for the admin's charts.
+ * Field values never reach logs. A form generated for a site with
  * sensitive data only has the fields the owner approved (e.g. contact details), so that is all this can send.
  */
 import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { deliver, parseAddress } from "../../../forms/deliver";
-import { enqueue, type OutboxEnv } from "../../../forms/outbox";
+import { countMessage, enqueue, type OutboxEnv } from "../../../forms/outbox";
 import { getForm, type FormField } from "../../../forms/index";
 
 export const prerender = false;
@@ -121,6 +123,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		try {
 			if (await enqueue(e, { form: form.id, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html })) {
 				console.log(JSON.stringify({ form: form.id, outcome: "queued", reason }));
+				await countMessage(e, form.id, "kept").catch(() => {});
 				return reply(request, 200, { ok: true, message: form.successMessage });
 			}
 		} catch (err) {
@@ -142,5 +145,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		if (!result.ok) return (await keep(result.reason)) ?? fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
 	}
 	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: viaEmDash ? "emdash" : (e.EMAIL_PROVIDER ?? "brevo") }));
+	await countMessage(e, form.id, "emailed").catch(() => {});
 	return reply(request, 200, { ok: true, message: form.successMessage });
 };

@@ -218,8 +218,12 @@ How a message is handled (\`src/pages/api/forms/[id].ts\`):
 
 ${i.outbox ? `**Outbox.** When email cannot be sent, the message is kept in Cloudflare KV (binding \`FORM_OUTBOX\`) instead of being
 lost, and the site retries it every 5 minutes; it is deleted once emailed, or after ${i.outbox.days} days. ${i.outbox.hold ? "**It is on hold right now:** every message is kept and none is sent, until a working email account is connected. To release the queue: set the new key (\`npx wrangler secret put EMAIL_API_KEY\`), set \`forms.outbox.hold: false\` in the migration kit's config, rerun scaffold and deploy." : ""}
-To see what is waiting, sign in to the admin as an **Admin** and open **Form messages** (under Plugins): each message
-can be read, emailed now (once email works) or deleted. Editors and other roles cannot open it. With Cloudflare access to
+To see what is waiting, sign in to the admin as an **Admin** and open **Form messages** (under Plugins; a summary is on
+the dashboard). **Inbox:** search, filter, read/unread, open, email now (once email works), delete one or many.
+**Insights:** messages per day and per form over 30 days (kept as counts only). **Import & export:** download the
+messages as CSV or JSON through a link that works once for two minutes (the file holds visitors' contact details: keep it
+private), or paste an exported file to bring messages back (duplicates are skipped). **Activity:** who did what, without
+message content. Editors and other roles cannot open it. With Cloudflare access to
 the account the queue is also in Workers KV: \`npx wrangler kv key list --binding FORM_OUTBOX --remote\` (add \`--env staging\`
 for staging), then \`npx wrangler kv key get <key> --binding FORM_OUTBOX --remote\`.
 
