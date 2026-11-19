@@ -117,8 +117,9 @@ export function bricksLayoutTokens(layout: BricksLayout | undefined): string {
 	if (WRAP.test(layout.textWrap ?? "")) rules.push(`body { text-wrap: ${layout.textWrap}; }`);
 	if (WRAP.test(layout.headingWrap ?? "")) rules.push(`:where(h1, h2, h3, h4, h5, h6) { text-wrap: ${layout.headingWrap}; }`);
 	// Automatic.css rounds every image outside the header; section and column backgrounds are pictures here, not there.
-	// Automatic.css links in text: its link colour, no underline unless --link-decoration sets one.
-	if (layout.link) rules.push(`.section .prose a:not(.btn) { ${layout.link.color && /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(layout.link.color) ? `color: ${layout.link.color}; ` : ""}text-decoration: ${layout.link.underline ? "underline" : "none"}; }`);
+	// Automatic.css links in text: its link colour. The underline stays even where the source has none: a link in a
+	// paragraph must be told apart from the text without colour alone (WCAG 1.4.1; verify's axe check gates on it).
+	if (layout.link?.color && /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(layout.link.color)) rules.push(`.section .prose a:not(.btn) { color: ${layout.link.color}; }`);
 	if (layout.imageRadius !== undefined) rules.push(`:where(.section__inner, .site-footer) img:not(.columns__bg) { border-radius: var(--radius-media); }`);
 	const b = layout.button;
 	const btn = [b?.leading !== undefined ? `line-height: ${b.leading};` : "", b?.border !== undefined ? `border-width: ${r2(b.border)}px;` : ""].filter(Boolean).join(" ");

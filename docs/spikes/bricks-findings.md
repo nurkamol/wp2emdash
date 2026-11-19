@@ -345,4 +345,6 @@ staging; Automatic.css (ACSS) rules read from the live `automatic.css` / `automa
 - **Bold text** is `bolder` than the text around it, as measured on the live site (`<strong>` in a 300 legal paragraph is
   400; `<b>` in a 400 text element is 700). The first round's `--strong-weight: 700` was compensating for the missing text
   element weight, which is now carried (`textWeight`); Bricks sites keep the starter's `bolder`.
-- **Links in text**: ACSS `--link-color` (primary) and an empty `--link-decoration` → accent colour, no underline.
+- **Links in text**: ACSS `--link-color` (primary) and an empty `--link-decoration` → accent colour, no underline on the
+  live site. The starter takes the colour but keeps the underline: without it axe reports `link-in-text-block` (green on
+  black text is under 3:1), which the verify gate fails.
