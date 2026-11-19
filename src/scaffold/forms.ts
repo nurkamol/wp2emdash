@@ -2,17 +2,28 @@
  * WordPress form plugin definitions → the starter's form JSON (src/forms/<provider>-<id>.json).
  * Field names, labels, required flags, options and the success message are kept; notification
  * recipients are not copied into the project (they become Worker secrets/config in M6).
+ *
+ * Field types match @wp2emdash/forms (packages/forms/src/types.ts): radio choices, consent checkboxes whose label keeps
+ * its safe links (`labelParts`), signatures (drawn or typed), and `content` — text the form shows between fields
+ * (Fluent `custom_html`, `section_break`), sanitised to paragraphs, lists, headings, bold/italic and safe links.
  */
+import { type ContentBlock, htmlToContent, htmlToParts, type InlinePart } from "../../packages/forms/src/rich.js";
+
 export interface FormFieldOut {
 	name: string;
 	label: string;
-	type: "text" | "email" | "tel" | "number" | "url" | "date" | "textarea" | "select" | "checkbox";
+	type: "text" | "email" | "tel" | "number" | "url" | "date" | "textarea" | "select" | "checkbox" | "radio" | "consent" | "signature" | "content";
 	required?: boolean;
 	placeholder?: string;
 	options?: string[];
 	half?: boolean;
 	autocomplete?: string;
+	labelParts?: InlinePart[];
+	content?: ContentBlock[];
 }
+
+/** Shown above the submit button of a form with a signature field (unless the form has its own notice). */
+export const SIGNATURE_NOTICE = "When you submit this form, your answers and your signature are emailed to us as your signed copy, with the date and time and the terms shown above.";
 export interface FormDefinitionOut {
 	id: string;
 	title: string;
@@ -59,9 +70,12 @@ const TYPE: Record<string, FormFieldOut["type"]> = {
 	input_date: "date",
 	textarea: "textarea",
 	select: "select",
+	input_radio: "radio",
 	input_checkbox: "checkbox",
-	gdpr_agreement: "checkbox",
-	terms_and_condition: "checkbox",
+	gdpr_agreement: "consent",
+	terms_and_condition: "consent",
+	// The "Fluent Forms Signature Addon" (fluentform-signature) element.
+	signature: "signature",
 };
 const AUTOCOMPLETE: Record<string, string> = { first_name: "given-name", last_name: "family-name", middle_name: "additional-name", email: "email", phone: "tel" };
 
@@ -90,18 +104,34 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 			customSubmit = str(o(s.button_ui).text) ?? str(s.btn_text) ?? customSubmit;
 			return;
 		}
+		// Text the form shows between fields (a waiver's terms, a section heading): kept, sanitised, in field order.
+		if (el === "custom_html" || el === "section_break") {
+			const blocks = el === "custom_html" ? htmlToContent(str(s.html_codes) ?? "") : [...(str(s.label)?.trim() ? [{ kind: "h" as const, parts: htmlToParts(str(s.label) as string) }] : []), ...htmlToContent(str(s.description) ?? ""), { kind: "hr" as const }];
+			const content = blocks.filter((b) => b.kind === "hr" || b.parts?.length);
+			if (content.some((b) => b.kind !== "hr")) fields.push({ name: `content-${++contentCount}`, label: el === "section_break" ? (str(s.label) ?? "Section") : "Text", type: "content", content });
+			return;
+		}
 		const type = TYPE[el];
 		if (!type) {
-			if (!["custom_html", "section_break", "recaptcha", "hcaptcha", "turnstile", "input_hidden"].includes(el)) warnings.push(`field "${el}" not supported; rebuild by hand`);
+			if (!["recaptcha", "hcaptcha", "turnstile", "input_hidden"].includes(el)) warnings.push(`field "${el}" not supported; rebuild by hand`);
 			return;
 		}
 		const name = str(a.name) ?? el;
 		const placeholder = str(a.placeholder);
+		const required = o(o(s.validation_rules).required).value === true || el === "gdpr_agreement";
+		if (type === "consent") {
+			// Fluent keeps the checkbox text as HTML (tnc_html, with links to the terms): runs + safe links only.
+			const labelParts = htmlToParts(str(s.tnc_html) ?? str(s.label) ?? "");
+			const label = str(s.admin_field_label)?.trim() || (el === "gdpr_agreement" ? "GDPR Agreement" : "Terms and Conditions");
+			fields.push({ name, label, type, ...(required ? { required } : {}), ...(labelParts.length ? { labelParts } : {}) });
+			if (!labelParts.length) warnings.push(`consent field "${name}" has no text; write it by hand`);
+			return;
+		}
 		const label = str(s.label) || (placeholder ?? name).replace(/\*\s*$/, "").trim();
-		const required = o(o(s.validation_rules).required).value === true;
 		const options = Array.isArray(s.advanced_options) ? (s.advanced_options as Obj[]).map((x) => str(x.label) ?? str(x.value) ?? "").filter(Boolean) : undefined;
-		fields.push({ name, label, type, ...(required ? { required } : {}), ...(placeholder ? { placeholder } : {}), ...(options?.length ? { options } : {}), ...(half ? { half } : {}), ...(AUTOCOMPLETE[name] ? { autocomplete: AUTOCOMPLETE[name] } : {}) });
+		fields.push({ name, label, type, ...(required ? { required } : {}), ...(placeholder && type !== "signature" ? { placeholder } : {}), ...(options?.length ? { options } : {}), ...(half && type !== "signature" ? { half } : {}), ...(AUTOCOMPLETE[name] ? { autocomplete: AUTOCOMPLETE[name] } : {}) });
 	};
+	let contentCount = 0;
 	const ff = o(raw.form.form_fields);
 	for (const f of (Array.isArray(ff.fields) ? ff.fields : []) as Obj[]) visit(f, false);
 	const submitLabel = customSubmit ?? str(o(o(o(ff.submitButton).settings).button_ui).text) ?? "Send";
@@ -109,5 +139,6 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 	const confirmation = o(o(o(fs).value).confirmation);
 	const success = str(confirmation.messageToShow);
 	const afterSubmit = str(confirmation.samePageFormBehavior) === "hide_form" ? "hide" : str(confirmation.samePageFormBehavior) === "reset_form" ? "reset" : undefined;
-	return { id: `fluent-forms-${raw.id}`, title: raw.title, submitLabel, successMessage: success ? stripHtml(success) : "Thank you — we will be in touch.", fields, ...(afterSubmit ? { afterSubmit } : {}), ...(sensitive ? { sensitive: true } : {}), warnings };
+	const signed = fields.some((f) => f.type === "signature");
+	return { id: `fluent-forms-${raw.id}`, title: raw.title, submitLabel, successMessage: success ? stripHtml(success) : "Thank you — we will be in touch.", fields, ...(signed ? { notice: SIGNATURE_NOTICE } : {}), ...(afterSubmit ? { afterSubmit } : {}), ...(sensitive ? { sensitive: true } : {}), warnings };
 }

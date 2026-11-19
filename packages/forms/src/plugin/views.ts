@@ -3,6 +3,7 @@
  * plain-text fields, which the admin renders escaped.
  */
 import { type DayCount, MAX_RECIPIENTS, type OutboxStatus, type Queued, type Summary } from "../outbox.js";
+import { attachmentDataUrl } from "../signature.js";
 import type { Activity } from "./data.js";
 
 export type Block = Record<string, unknown>;
@@ -110,7 +111,7 @@ function inbox(o: Overview): Block[] {
 				{ key: "form", label: "Form", format: "code", sortable: true },
 				{ key: "open", label: "", format: "element" },
 			],
-			rows: rows.map(({ key, s }) => ({ status: s.noEmail ? "Archived" : s.read ? "Read" : "New", received: s.at, from: sender(s), subject: s.subject ?? "", form: s.form, open: { type: "button", action_id: "open", label: "Open", value: key } })),
+			rows: rows.map(({ key, s }) => ({ status: s.noEmail ? "Archived" : s.read ? "Read" : "New", received: s.at, from: sender(s), subject: `${s.subject ?? ""}${s.files ? " · signature attached" : ""}`, form: s.form, open: { type: "button", action_id: "open", label: "Open", value: key } })),
 		},
 		...(o.more ? [{ type: "context", text: "Only the oldest 1,000 messages are listed. Email or delete some to see the rest." }] : []),
 		...(o.items.length
@@ -313,10 +314,17 @@ export function message(key: string, q: Queued, status: Status): Block[] {
 				{ label: "Email", value: q.replyTo?.email ?? "—" },
 				{ label: "Status", value: q.readAt ? `Read ${longDate(q.readAt)}` : "New" },
 				{ label: "Email attempts", value: String(q.attempts) },
+				...(q.attachments?.length ? [{ label: "Signature", value: `Signature attached (${q.attachments.map((a) => a.filename).join(", ")})` }] : []),
 			],
 		},
 		{ type: "divider" },
 		...lines.map((text) => ({ type: "section", text })),
+		// The signature image, for admins (this page is admins only). Only a PNG that still passes the endpoint's checks is
+		// shown, as a data URL in an <img> (EmDash's admin CSP allows data: images; React escapes the attribute).
+		...(q.attachments ?? []).flatMap((a): Block[] => {
+			const url = attachmentDataUrl(a);
+			return url ? [{ type: "image", url, alt: "Signature sent with this form", title: a.filename }] : [{ type: "context", text: `${a.filename}: attached (not shown here).` }];
+		}),
 		{ type: "divider" },
 		{
 			type: "actions",

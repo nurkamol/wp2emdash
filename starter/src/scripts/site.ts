@@ -1,7 +1,9 @@
 /**
  * Site behaviour, no framework: header scroll states, burger menu (motion from motion.css),
- * popups (<dialog>), tabs, reveal-on-scroll, form submission.
+ * popups (<dialog>), tabs, reveal-on-scroll, form submission, signature pads.
  */
+import { mountSignaturePads } from "@wp2emdash/forms/signature-pad";
+
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ── Header: transparent over the hero → solid; hide on scroll down, reveal on scroll up ──
@@ -183,6 +185,8 @@ if (!reduce && "IntersectionObserver" in window) {
 	if (state && status) status.textContent = state === "sent" ? "Thank you — your message was sent." : "Your message could not be sent. Please try again, or call or email us.";
 	if (state === "sent") status?.closest<HTMLFormElement>("form[data-after=hide]")?.classList.add("is-sent");
 }
+// Signature fields: the drawing pad (without JavaScript the typed-name input is the signature).
+mountSignaturePads();
 for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")) {
 	form.addEventListener("submit", async (e) => {
 		e.preventDefault();
@@ -204,7 +208,7 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")
 				field?.classList.add("is-invalid");
 				const err = field?.querySelector<HTMLElement>(".field__error");
 				if (err) err.textContent = msg;
-				field?.querySelector<HTMLElement>("input, textarea, select")?.setAttribute("aria-invalid", "true");
+				field?.querySelector<HTMLElement>("input:not([type=hidden]), textarea, select")?.setAttribute("aria-invalid", "true");
 			}
 			if (res.ok) {
 				form.reset();

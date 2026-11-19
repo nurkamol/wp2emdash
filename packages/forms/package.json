@@ -1,6 +1,6 @@
 {
   "name": "@wp2emdash/forms",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Website forms for EmDash on Cloudflare Workers: form endpoint, email delivery, KV outbox and a Form messages admin page",
   "license": "MIT",
   "private": true,
@@ -12,7 +12,10 @@
     "./outbox": "./src/outbox.ts",
     "./deliver": "./src/deliver.ts",
     "./plugin": "./src/plugin/index.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./rich": "./src/rich.ts",
+    "./signature": "./src/signature.ts",
+    "./signature-pad": "./src/signature-pad.ts"
   },
   "files": ["src", "README.md"],
   "peerDependencies": {

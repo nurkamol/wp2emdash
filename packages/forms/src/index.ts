@@ -8,7 +8,7 @@
  */
 import { FORMS_PLUGIN } from "./meta.js";
 
-export type { FormDefinition, FormField } from "./types.js";
+export type { ContentBlock, FormDefinition, FormField, FormFieldType, InlinePart } from "./types.js";
 export { FORMS_PLUGIN };
 
 /** The EmDash plugin descriptor for `emdash({ plugins: [formsPlugin()] })`: adds Plugins → Form messages and a dashboard widget. */

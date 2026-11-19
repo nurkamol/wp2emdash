@@ -1,0 +1,151 @@
+{
+  "id": "fluent-forms-7",
+  "title": "Example Studio Waiver",
+  "submitLabel": "Sign and Send",
+  "successMessage": "Thank you, your waiver is signed.",
+  "fields": [
+    {
+      "name": "first_name",
+      "label": "First Name",
+      "type": "text",
+      "required": true,
+      "autocomplete": "given-name"
+    },
+    {
+      "name": "last_name",
+      "label": "Last Name",
+      "type": "text",
+      "required": true,
+      "autocomplete": "family-name"
+    },
+    {
+      "name": "email",
+      "label": "Email",
+      "type": "email",
+      "required": true,
+      "autocomplete": "email"
+    },
+    {
+      "name": "content-1",
+      "label": "Text",
+      "type": "content",
+      "content": [
+        {
+          "kind": "p",
+          "parts": [
+            {
+              "text": "Release of liability.",
+              "strong": true
+            },
+            {
+              "text": " I take part in classes at Example Studio at my own risk & I understand the activity is physical."
+            }
+          ]
+        },
+        {
+          "kind": "hr"
+        },
+        {
+          "kind": "li",
+          "parts": [
+            {
+              "text": "I will tell the instructor about any injury."
+            }
+          ]
+        },
+        {
+          "kind": "li",
+          "parts": [
+            {
+              "text": "I have read the "
+            },
+            {
+              "text": "studio rules",
+              "href": "/studio-rules/"
+            },
+            {
+              "text": " and the fine print."
+            }
+          ]
+        },
+        {
+          "kind": "p",
+          "parts": [
+            {
+              "text": "Questions? See "
+            },
+            {
+              "text": "our FAQ",
+              "href": "https://example.com/faq"
+            },
+            {
+              "text": "."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "content-2",
+      "label": "Photos",
+      "type": "content",
+      "content": [
+        {
+          "kind": "h",
+          "parts": [
+            {
+              "text": "Photos"
+            }
+          ]
+        },
+        {
+          "kind": "p",
+          "parts": [
+            {
+              "text": "Tell us how we may use photos."
+            }
+          ]
+        },
+        {
+          "kind": "hr"
+        }
+      ]
+    },
+    {
+      "name": "input_radio",
+      "label": "Photo Consent (Optional)",
+      "type": "radio",
+      "options": [
+        "Yes, you may use photos of me in studio materials.",
+        "No, please do not use photos of me."
+      ]
+    },
+    {
+      "name": "terms-n-condition",
+      "label": "Terms and Conditions",
+      "type": "consent",
+      "required": true,
+      "labelParts": [
+        {
+          "text": "I have read and accept the terms above, as well as the "
+        },
+        {
+          "text": "Terms",
+          "href": "/terms/"
+        },
+        {
+          "text": " and Privacy Policy."
+        }
+      ]
+    },
+    {
+      "name": "signature",
+      "label": "Signature",
+      "type": "signature",
+      "required": true
+    }
+  ],
+  "notice": "When you submit this form, your answers and your signature are emailed to us as your signed copy, with the date and time and the terms shown above.",
+  "afterSubmit": "hide",
+  "warnings": []
+}
