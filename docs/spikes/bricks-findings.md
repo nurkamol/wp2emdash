@@ -44,7 +44,7 @@ Editor HTML (`text`, accordion/tab content, icon-box content, alert) goes throug
 | text-link | `text`, `link`, `icon` | link button |
 | button | `text`, `link`, `style` (primary, secondary, light, dark, muted, info, success, warning, danger), `size` (sm, md, lg, xl), `outline`, `circle`, `icon` | button (outline/secondary/light/muted/dark → secondary; lg/xl → large) |
 | link control | `{ type: internal\|external\|taxonomy\|media\|lightboxImage\|lightboxVideo\|meta, postId, url, newTab, rel, … }` | internal → migrated path |
-| icon | `icon` `{ library, icon }` or `{ library: svg, svg }`, `isAccordionIcon` | icon (accordion icons skipped) |
+| icon | `icon` `{ library, icon }` or `{ library: svg, svg }`, `isAccordionIcon`, `link` | icon (accordion icons skipped); with a link → a link named after the icon |
 | icon-box | `icon`, `content` (editor), `link` | feature card |
 | image | `image`, `altText`, `caption` (none\|attachment\|custom) + `captionCustom`, `link` (lightbox\|attachment\|media\|url) + `url` | media (+ link, custom caption) |
 | image-gallery | `items: { images: [image], size, useDynamicData }`, `layout` (grid, masonry, metro) | gallery |
@@ -78,7 +78,7 @@ Editor HTML (`text`, accordion/tab content, icon-box content, alert) goes throug
 | post-content | `dataSource` (templates only: `editor` default = the_content, `bricks` = the post's Bricks data) | on a page: the page's own post_content through the Gutenberg adapter (blocks, classic + wpautop, shortcodes → forms) at the element's place; in a template / `bricks` source: `dynamic` |
 | `{post_content}` tag (text-basic, text) | `includes/integrations/dynamic-data/providers/provider-wp.php` `get_the_content()`: `apply_filters('the_content', …)` | same as post-content when the text is only the tag |
 | logo | `logo` (image), `logoInverse`, `logoDark`, `logoText` (alt, or the text logo without an image; dynamic data allowed), `logoUrl` (default `home_url()`), `logoHeight`, `logoWidth` (`includes/elements/logo.php`) | picture linking home (reaches the header/footer partial; the starter's header still draws its logo from the design capture); text logo → link |
-| nav-menu, nav-nested, dropdown, offcanvas, toggle, search, breadcrumbs, sidebar, post-* (other), pagination, related-posts, back-to-top, filter-* | site chrome / query | reported `dynamic` |
+| nav-menu, nav-nested, dropdown, offcanvas, toggle, search, breadcrumbs, sidebar, post-* (other), pagination, related-posts, back-to-top, filter-* | site chrome / query | reported `dynamic`; the header's nav-menu / nav-nested → primary menu, a known nav-menu elsewhere → its links (see "Header menus" below) |
 | posts, `hasLoop` containers | `query` | reported `dynamic` (error when the site has entries) |
 | divider, lottie (2.5) | — | dropped (decorative), reported |
 | countdown, rating, pie-chart, audio, wordpress, … | — | `unmapped` |
@@ -136,3 +136,62 @@ Editor HTML (`text`, accordion/tab content, icon-box content, alert) goes throug
 | `spotlight` | nextbricks `elements/bc_spotlight.php` | nestable (`$nestable = true`), layout keys, `mode` | its children's content; cursor spotlight background |
 | `xfluentform` | bricksextras `components/classes/x-fluent-form.php` | `fluentFormSelect` (form id, control default `1`), or `formSource` + `fluentFormID` (may be dynamic data); the rest is styling | form section `fluent-forms#<id>`; dynamic id → error |
 | Placeholders | — | the NextBricks title/button elements render "Next Bricks" when `inner_title` is empty | reported, not migrated |
+
+## Verify on the first real Bricks site (old live site vs staging, 2026-11-20)
+
+### Header menus
+
+- Bricks themes register no menu locations: the exporter's `menus.json` lists every menu with `locations: []`. The
+  header template places a `nav-menu` element whose `menu` setting is the WordPress menu's term id (a string). On the
+  site, the desktop nav-menu named menu `18`, which is not among the site's menus (`id` 4 and 5 in menus.json), yet
+  the live header printed `<ul id="menu-main" class="bricks-nav-menu">` (the offcanvas nav-menu names `4` = "main").
+  WordPress prints a menu's slug as the list id (`menu-<slug>`, another copy on the page `menu-<slug>-1`), so the
+  saved live HTML (audit snapshot) is the reliable evidence of which menu a header shows; the element id comes second.
+- `nav-nested` (Bricks 1.8+) holds its own links: `text-link` items and `dropdown` items (`text`, optional `link`;
+  their content holds more text-links); toggles and logos inside are chrome.
+- Header calls to action are content elements of the header template (`button`, NextBricks `ripple_button_v3` with
+  `topRippleInnerTitle` / `bottomRippleInnerTitle`), often twice: once in the bar, once in the offcanvas panel. The
+  live panel's links read "Contact Us Reach Out" (both ripple labels are in the DOM).
+- EmDash 1.5.0 menu items (`node_modules/emdash/dist/menu-*.mjs` `rowToMenuItem`; seed `SeedMenuItem`) carry
+  `titleAttr` and `cssClasses`, and `getMenu()` returns both. The kit marks a header button with `cssClasses: "button"`
+  (the starter's header already drew those as buttons) and stores its hover label in `titleAttr`.
+- Kit: `src/adapters/bricks/menus.ts` (`headerMenu`, `nestedNavItems`, `headerButtons`); transform assigns the primary
+  menu (and a secondary menu from the buttons) when no menu has that role yet.
+
+### Footer
+
+- The footer template used no nav-menu: links were NextBricks `underlined-hover` elements, social links were single
+  `icon` elements with a `link` (`fab fa-instagram`, `fab fa-tiktok`), and the credit line was a `heading` (custom tag
+  `span`) holding two links. The icon handler now keeps a linked icon as a link named after the icon; a nav-menu whose
+  menu is known keeps its items as text links; a heading with links stays in the body (the section heading field is
+  plain text and lost the designer credit link).
+
+### Visual comparison
+
+- Bricks renders `main#brx-content` and `footer#brx-footer`; every top-level element of the page/template is one direct
+  child with a `brxe-<name>` class, in element-list order (sections, but also top-level blocks/containers and custom
+  tags: the header section uses `customTag: header`). The kit pairs a migrated section with the live box by that
+  index (`sourceRef.row`), hidden elements included (they are in the DOM with zero height).
+
+### Other findings
+
+- A Fluent date field with `is_time_enabled` (`date_format` `m/d/Y h:i K`) is a text input with `data-type-datepicker`
+  on the live page; a Fluent checkbox list is one input per option (`name="checkbox[]"`). The forms package drew a
+  single checkbox for a list (options lost) and a date-only input; Forms 1.5.0 draws a checkbox group and a
+  date-and-time input.
+- Rank Math custom titles may leave out the site name ("Member Login" on the Account page); the starter added
+  " – Site" to every title. Now an SEO title different from the page title is printed as written.
+- The design capture keeps the computed `font-family` with the browser's quotes (`"Pinyon Script"`): the token CSS
+  became `""Pinyon Script""` and the Google Fonts request asked for `family=%22Pinyon+Script%22` (HTTP 400), so the
+  site had no web font and a failing render-blocking stylesheet. Names are now unquoted. Google's css2 API answers 200
+  for a single-weight family asked for 300–700 + italics as long as one requested style exists.
+- Contact cards are `block`s with `tag: a` and a `link` (tel:, mailto:, a maps link) around an icon and a
+  text-basic: the adapter kept the text and dropped the link. A linked block/div/container now gives its text the
+  link (text that has no link of its own), reported `lossy` (the whole card is no longer one link).
+- The verify text check counted the live Bricks header (`#brx-header`, not in the chrome list) but not the starter's
+  header: every page "missed" the menu words. `#brx-header` and `.brx-popup` are chrome now, as for other themes;
+  menus are compared by the menu check.
+- The owner moved production to another domain mid-migration (the old domain redirects at go-live). Canonicals the
+  live site printed on the old domain are now written on the production domain at load (same path).
+- An SVG drawn to a PNG at 4× (capped at 3000px) made the footer logo a 574 KB PNG; the cap is now 1200px. The old
+  `/wp-content/uploads/…/logo.svg` address redirects to the drawn `logo.png`.

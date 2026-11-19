@@ -10,7 +10,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec200",
-        "rawHash": "a6f031351a"
+        "rawHash": "a6f031351a",
+        "row": 0
       },
       "fields": {
         "columns": [
@@ -88,7 +89,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec201",
-        "rawHash": "625c99a9e9"
+        "rawHash": "625c99a9e9",
+        "row": 1
       },
       "fields": {
         "heading": [
@@ -138,7 +140,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec202",
-        "rawHash": "aa6e735f9f"
+        "rawHash": "aa6e735f9f",
+        "row": 2
       },
       "fields": {
         "images": [
@@ -166,7 +169,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec203",
-        "rawHash": "ff92d8fc0b"
+        "rawHash": "ff92d8fc0b",
+        "row": 3
       },
       "fields": {
         "embedUrl": "https://www.youtube.com/watch?v=aBcDeFgHiJk",
@@ -186,7 +190,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec203",
-        "rawHash": "ff92d8fc0b"
+        "rawHash": "ff92d8fc0b",
+        "row": 3
       },
       "fields": {
         "embedUrl": "https://vimeo.com/76979871"
@@ -201,7 +206,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec203",
-        "rawHash": "ff92d8fc0b"
+        "rawHash": "ff92d8fc0b",
+        "row": 3
       },
       "fields": {
         "video": {
@@ -225,7 +231,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec204",
-        "rawHash": "546ca08684"
+        "rawHash": "546ca08684",
+        "row": 4
       },
       "fields": {
         "heading": [
@@ -257,7 +264,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec205",
-        "rawHash": "8196d5d5e9"
+        "rawHash": "8196d5d5e9",
+        "row": 5
       },
       "fields": {
         "embedUrl": "https://www.openstreetmap.org/export/embed.html?bbox=4.8852,52.3602,4.9052,52.380199999999995&layer=mapnik&marker=52.3702,4.8952",
@@ -273,7 +281,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec206",
-        "rawHash": "c47532142e"
+        "rawHash": "c47532142e",
+        "row": 6
       },
       "fields": {
         "body": [

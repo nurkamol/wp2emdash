@@ -1,0 +1,15 @@
+{
+  "id": "9",
+  "title": "Event request (synthetic)",
+  "form": {
+    "form_fields": {
+      "fields": [
+        { "element": "input_date", "attributes": { "name": "datetime", "type": "text" }, "settings": { "label": "Preferred date & time", "date_format": "m/d/Y h:i K", "is_time_enabled": true } },
+        { "element": "input_date", "attributes": { "name": "day", "type": "text" }, "settings": { "label": "Backup day", "date_format": "m/d/Y" } },
+        { "element": "input_checkbox", "attributes": { "name": "addons", "type": "checkbox" }, "settings": { "label": "Add-ons", "advanced_options": [{ "label": "Reformer access", "value": "Reformer access" }, { "label": "Instructor", "value": "Instructor" }, { "label": "Flower wall", "value": "Flower wall" }] } },
+        { "element": "input_email", "attributes": { "name": "email", "type": "email" }, "settings": { "label": "Email", "validation_rules": { "required": { "value": true } } } }
+      ],
+      "submitButton": { "settings": { "button_ui": { "text": "Send request" } } }
+    }
+  }
+}

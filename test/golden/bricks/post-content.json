@@ -9,7 +9,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec700",
-        "rawHash": "c716116567"
+        "rawHash": "c716116567",
+        "row": 0
       },
       "fields": {
         "body": [
@@ -42,7 +43,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec701",
-        "rawHash": "d32088687b"
+        "rawHash": "d32088687b",
+        "row": 1
       },
       "fields": {
         "body": [
@@ -83,7 +85,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec701",
-        "rawHash": "d32088687b"
+        "rawHash": "d32088687b",
+        "row": 1
       },
       "fields": {
         "heading": [

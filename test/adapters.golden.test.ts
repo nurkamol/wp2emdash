@@ -11,7 +11,7 @@ import { adaptBricks, type BricksElement, bricksSite } from "../src/adapters/bri
 import { adaptGutenberg } from "../src/adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../src/adapters/wpbakery/index.js";
 import { Keys } from "../src/ir/portable-text.js";
-import { section } from "../src/ir/schema.js";
+import { type IrMenuItem, section } from "../src/ir/schema.js";
 import { announcementDoc, describeBar, detectAnnouncement } from "../src/transform/announcement.js";
 
 const root = join(import.meta.dirname, "fixtures");
@@ -25,11 +25,11 @@ const adapters = {
 	wpbakery: (src: string) => adaptWpbakery(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0 }),
 	gutenberg: (src: string) => adaptGutenberg(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0, reusable }),
 	// Bricks fixtures: { elements, templates?: { [id]: elements }, options?: { bricks_* }, kind?, title?, postCount?,
-	// permalinks?: { [postId]: path }, popups?: { [templateId]: slug }, content?: post_content } — the post meta, the
+	// permalinks?: { [postId]: path }, popups?: { [templateId]: slug }, content?: post_content, menus?: { [menuId]: items } } — the post meta, the
 	// bricks_template posts, the Bricks options (palette, global classes, theme styles, components, breakpoints), the
 	// post's own content (post-content element, {post_content}) and what transform knows.
 	bricks: (src: string) => {
-		const f = JSON.parse(src) as { elements: BricksElement[]; templates?: Record<string, BricksElement[]>; options?: Record<string, unknown>; kind?: "page" | "partial"; title?: string; postCount?: number; permalinks?: Record<string, string>; popups?: Record<string, string>; content?: string };
+		const f = JSON.parse(src) as { elements: BricksElement[]; templates?: Record<string, BricksElement[]>; options?: Record<string, unknown>; kind?: "page" | "partial"; title?: string; postCount?: number; permalinks?: Record<string, string>; popups?: Record<string, string>; content?: string; menus?: Record<string, IrMenuItem[]> };
 		return adaptBricks(f.elements, {
 			kind: f.kind ?? "page",
 			keys: new Keys("t"),
@@ -44,6 +44,7 @@ const adapters = {
 			siteTitle: "Fixture Studio",
 			permalink: (id) => f.permalinks?.[String(id)],
 			popupSlug: (id) => f.popups?.[String(id)],
+			menuItems: (id) => f.menus?.[id],
 		});
 	},
 	// Announcement bars: one saved page of HTML → what detection found and the site part it becomes.

@@ -9,7 +9,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec740",
-        "rawHash": "c4178945ba"
+        "rawHash": "c4178945ba",
+        "row": 0
       },
       "fields": {
         "html": "<div data-booking-widget=\"/classes\"></div>",
@@ -25,7 +26,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec741",
-        "rawHash": "f9aedede92"
+        "rawHash": "f9aedede92",
+        "row": 1
       },
       "fields": {
         "html": "<style>.menu-columns ul { columns: 2; }</style>\n<p>Opening hours: 7–21</p>",
@@ -42,7 +44,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec742",
-        "rawHash": "38dbeeff84"
+        "rawHash": "38dbeeff84",
+        "row": 2
       },
       "fields": {
         "provider": "marianatek",

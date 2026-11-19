@@ -38,7 +38,7 @@ const style = [padTopT ? `--pad-top-t:${padTopT}` : "", padBottomT ? `--pad-bott
 	{
 		(v.bg_image || v.bg_video) && (
 			<div class="section__bg" aria-hidden="true" data-motion={v.bg_motion === "parallax" ? "parallax" : undefined}>
-				{v.bg_image && !videoSrc && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" priority={type === "hero"} />}
+				{v.bg_image && !videoSrc && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" priority={type === "hero" || v._lead === true} />}
 				{videoSrc && (
 					<video class="section__bg-media" src={videoSrc} poster={posterSrc} autoplay muted loop playsinline preload="auto" disablepictureinpicture data-bg-video />
 				)}

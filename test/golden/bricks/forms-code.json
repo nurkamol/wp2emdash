@@ -9,7 +9,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec500",
-        "rawHash": "e7b5abc835"
+        "rawHash": "e7b5abc835",
+        "row": 0
       },
       "fields": {
         "heading": [
@@ -60,7 +61,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec501",
-        "rawHash": "88485e9bb9"
+        "rawHash": "88485e9bb9",
+        "row": 1
       },
       "fields": {
         "intro": [],
@@ -80,7 +82,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec502",
-        "rawHash": "54e63fe151"
+        "rawHash": "54e63fe151",
+        "row": 2
       },
       "fields": {
         "intro": [],
@@ -100,7 +103,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec502",
-        "rawHash": "54e63fe151"
+        "rawHash": "54e63fe151",
+        "row": 2
       },
       "fields": {
         "intro": [
@@ -136,7 +140,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec503",
-        "rawHash": "22da65859a"
+        "rawHash": "22da65859a",
+        "row": 3
       },
       "fields": {
         "provider": "calendly",
@@ -152,7 +157,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec504",
-        "rawHash": "0d68615d1c"
+        "rawHash": "0d68615d1c",
+        "row": 4
       },
       "fields": {
         "html": "<div class=\"price-calc\"><?php echo do_shortcode('[calc]'); ?></div>",
@@ -168,7 +174,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec505",
-        "rawHash": "ec3409150a"
+        "rawHash": "ec3409150a",
+        "row": 5
       },
       "fields": {
         "html": "<div class=\"note\">Prices include VAT.</div>",

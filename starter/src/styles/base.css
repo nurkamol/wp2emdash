@@ -579,6 +579,7 @@ body.over-hero { padding-top: var(--announce-h, 0px); }
 .menu-panel.is-open .menu-panel__credit { opacity: 1; transform: none; transition-delay: calc(var(--menu-item-delay) + var(--i, 0) * var(--menu-item-stagger)); }
 .menu-panel__credit a { color: inherit; }
 .menu-panel__items ul a { color: inherit; opacity: 0.8; text-decoration: none; font-size: var(--font-size-lead); }
+.menu-panel__buttons { margin-top: 2rem !important; display: flex; flex-wrap: wrap; gap: 0.75rem; }
 .menu-panel__secondary { margin-top: 2rem !important; display: grid; gap: 0.5rem; }
 .menu-panel__secondary a { color: inherit; }
 @media (min-width: 900px) { .menu-panel--fullscreen-split { grid-template-columns: 1fr 1fr; padding-inline: calc(var(--gutter) * 3); } }

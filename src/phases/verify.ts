@@ -173,9 +173,14 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 								return false;
 							};
 							const withheld = sf.fields.filter(visible).filter((x) => !kept(x)).length;
-							const want2 = sf.fields.filter(visible).filter(kept).map((x) => (x.type === "textarea" ? "textarea" : x.type)).sort();
+							// A date picker is a text input on WordPress (a script draws the calendar) and a native date or
+							// date-and-time input on the new site: a source text field whose name is a date field there is a date.
+							const kind = (x: { type: string }) => (x.type === "datetime-local" ? "date" : x.type);
+							const dateNames = new Set(snap.forms.flatMap((f) => f.fields.filter((x) => kind(x) === "date").map((x) => x.name)));
+							const srcKind = (x: { type: string; name: string }) => (x.type === "text" && dateNames.has(x.name) ? "date" : kind(x));
+							const want2 = sf.fields.filter(visible).filter(kept).map(srcKind).sort();
 							const tf = snap.forms.find((f) => f.fields.filter(visible).length >= want2.length);
-							const have = (tf?.fields.filter(visible) ?? []).map((x) => (x.type === "textarea" ? "textarea" : x.type)).sort();
+							const have = (tf?.fields.filter(visible) ?? []).map(kind).sort();
 							const lacking = want2.filter((t, k) => want2.indexOf(t) === k && have.filter((h) => h === t).length < want2.filter((w) => w === t).length);
 							r.forms.push({ ok: !!tf && lacking.length === 0, detail: tf ? (lacking.length ? `missing field types: ${lacking.join(", ")}` : `${have.length} fields${withheld ? `, ${withheld} withheld by forms.sensitive` : ""}`) : "form missing" });
 						}
@@ -318,7 +323,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			const sourceShots = readJson<ScreenshotResult[]>(join(paths.snapshot, "screens.json")) ?? [];
 			const footerDoc = readJson<{ partials?: { role: string; file: string }[] }>(join(paths.ir, "site.json"))?.partials?.find((p) => p.role === "footer");
 			const footerIr = footerDoc ? readJson<IrPage>(join(paths.ir, footerDoc.file)) : undefined;
-			const footerGroups = groupSections((footerIr?.sections ?? []).map((x) => ({ type: x.type, path: x.sourceRef.path })), true);
+			const footerGroups = groupSections((footerIr?.sections ?? []).map((x) => ({ type: x.type, path: x.sourceRef.path, ...(x.sourceRef.row !== undefined ? { row: x.sourceRef.row } : {}) })), true);
 			for (const s of shots) if (s.overflowX && s.overflowX > 1) sideways.push(`${new URL(s.url).pathname} ${s.viewport} +${s.overflowX}px`);
 			for (const s of shots)
 				if (s.missingImages) {
@@ -333,7 +338,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 				const srcShot = sourceShots.find((x) => x.viewport === s.viewport && new URL(x.url).pathname === r.path);
 				const ir = irPages.find((p) => p.route?.path === r.path);
 				if (existsSync(src) && srcShot?.sections?.length && s.sections?.length && ir) {
-					const groups = [...groupSections(ir.sections.map((x) => ({ type: x.type, path: x.sourceRef.path })), false), ...footerGroups];
+					const groups = [...groupSections(ir.sections.map((x) => ({ type: x.type, path: x.sourceRef.path, ...(x.sourceRef.row !== undefined ? { row: x.sourceRef.row } : {}) })), false), ...footerGroups];
 					// Moving (parallax) photos on both sides: compare the still copies, photos greyed out.
 					const still = !!(srcShot.stillFile && s.stillFile && existsSync(srcShot.stillFile) && existsSync(s.stillFile));
 					r.sections[s.viewport] = diffSections(still ? (srcShot.stillFile as string) : src, still ? (s.stillFile as string) : s.file, srcShot.sections, s.sections, groups, (k, part) => join(outDir, "sections", s.viewport, r.name, `${String(k).padStart(2, "0")}-${part}.png`), still);

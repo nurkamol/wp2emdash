@@ -30,8 +30,8 @@ export interface AnalyzeInput {
 	siteName: string;
 	separator: string;
 	productionUrl: string;
-	/** Other pages' effective titles and descriptions (duplicate check). */
-	others: { title: string; description?: string | null }[];
+	/** Other pages' effective titles (and page titles) and descriptions (duplicate check). */
+	others: { title: string; pageTitle?: string; description?: string | null }[];
 	focusKeyword?: string;
 	/** Alt text from the media library, by media id. */
 	altOf?: (id: string) => string | undefined;
@@ -90,8 +90,12 @@ const words = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w
 const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 const norm = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
 
-/** The <title> the layout renders: the page title, plus " <sep> Site" unless it already names the site. */
-export function fullTitle(title: string, siteName: string, separator: string): string {
+/**
+ * The <title> the layout renders: the page title, plus " <sep> Site" unless it already names the site. An SEO title of
+ * its own (`pageTitle` given and different) is used as written.
+ */
+export function fullTitle(title: string, siteName: string, separator: string, pageTitle?: string): string {
+	if (pageTitle !== undefined && title.trim() !== pageTitle.trim()) return title;
 	return title.includes(siteName) ? title : `${title} ${separator} ${siteName}`;
 }
 
@@ -100,7 +104,7 @@ export function analyze(i: AnalyzeInput): Analysis {
 	const checks: Check[] = [];
 	const add = (id: string, label: string, status: Status, detail: string) => checks.push({ id, label, status, detail });
 	const seoTitle = i.seo?.title?.trim() || i.title.trim();
-	const title = fullTitle(seoTitle, i.siteName, i.separator);
+	const title = fullTitle(seoTitle, i.siteName, i.separator, i.title.trim());
 	const description = i.seo?.description?.trim() ?? "";
 	const host = URL.canParse(i.productionUrl) ? new URL(i.productionUrl).host : i.productionUrl;
 	const path = i.slug && i.slug !== "index" && i.slug !== "home" ? `/${i.slug}/` : "/";
@@ -123,7 +127,7 @@ export function analyze(i: AnalyzeInput): Analysis {
 	else add("description", "Meta description", "good", `${description.length} characters.`);
 
 	// Duplicates across the site
-	const sameTitle = i.others.filter((o) => norm(fullTitle(o.title, i.siteName, i.separator)) === norm(title)).length;
+	const sameTitle = i.others.filter((o) => norm(fullTitle(o.title, i.siteName, i.separator, o.pageTitle)) === norm(title)).length;
 	const sameDesc = description ? i.others.filter((o) => o.description && norm(o.description) === norm(description)).length : 0;
 	if (sameTitle || sameDesc) add("unique", "Unique title and description", "bad", [sameTitle ? `${sameTitle} other page${sameTitle > 1 ? "s have" : " has"} the same title` : "", sameDesc ? `${sameDesc} other page${sameDesc > 1 ? "s have" : " has"} the same description` : ""].filter(Boolean).join("; ") + ".");
 	else add("unique", "Unique title and description", "good", "No other page uses them.");

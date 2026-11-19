@@ -77,7 +77,7 @@ export interface PageReport {
 
 /** Analyse one entry against the rest of its collection. */
 export function analyseItem(o: SeoPanelOptions, siteName: string, item: Item, all: Item[], media: Map<string, { alt?: string }>, keyword: string | undefined, draft?: Record<string, unknown>): Analysis {
-	const others = all.filter((x) => x.id !== item.id).map((x) => ({ title: (x.seo?.title || String(x.data.title ?? "")).trim(), description: x.seo?.description ?? null }));
+	const others = all.filter((x) => x.id !== item.id).map((x) => ({ title: (x.seo?.title || String(x.data.title ?? "")).trim(), pageTitle: String(x.data.title ?? "").trim(), description: x.seo?.description ?? null }));
 	return analyze({
 		title: String(draft?.title ?? item.data.title ?? ""),
 		slug: item.slug,

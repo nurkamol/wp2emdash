@@ -23,7 +23,7 @@ const drift = typeof v.text_parallax === "number" && v.text_parallax > 0 && v.te
 <Section value={v} type="media_text" class={`media-${v.media_side ?? "left"} ratio-${ratio}${v.inner_gutters === true ? " has-inner-gutters" : ""}`}>
 	<div class="media-text" style={inset}>
 		<div class:list={["media-text__media", { "has-height": h1 && len(v.media_height) }]} style={h1} data-parallax={plx}>
-			{v.media && <Image image={v.media} sizes="(max-width: 900px) 100vw, 50vw" />}
+			{v.media && <Image image={v.media} sizes="(max-width: 900px) 100vw, 50vw" priority={v._lead === true && !v.bg_image} />}
 		</div>
 		<div class="media-text__text" data-drift={drift} style={textVars}>
 			<Heading value={v} />

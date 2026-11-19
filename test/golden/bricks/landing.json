@@ -17,7 +17,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec001",
-        "rawHash": "2d8390c663"
+        "rawHash": "2d8390c663",
+        "row": 1
       },
       "fields": {
         "heading": [
@@ -82,7 +83,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec002",
-        "rawHash": "99f0152159"
+        "rawHash": "99f0152159",
+        "row": 2
       },
       "fields": {
         "media": [
@@ -173,7 +175,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec003",
-        "rawHash": "2036b13766"
+        "rawHash": "2036b13766",
+        "row": 3
       },
       "fields": {
         "intro": [],
@@ -260,7 +263,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec004",
-        "rawHash": "df2239b0ff"
+        "rawHash": "df2239b0ff",
+        "row": 4
       },
       "fields": {
         "heading": [
@@ -332,7 +336,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec005",
-        "rawHash": "a665e3b42c"
+        "rawHash": "a665e3b42c",
+        "row": 5
       },
       "fields": {
         "items": [
@@ -357,7 +362,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "section#sec006",
-        "rawHash": "017e77f434"
+        "rawHash": "017e77f434",
+        "row": 6
       },
       "fields": {
         "embedUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
@@ -375,7 +381,8 @@
       "sourceRef": {
         "adapter": "bricks",
         "path": "template#tpl001/template#77/section#tpl001t77~tsc001",
-        "rawHash": "5a122b25a4"
+        "rawHash": "5a122b25a4",
+        "row": 7
       },
       "fields": {
         "body": [

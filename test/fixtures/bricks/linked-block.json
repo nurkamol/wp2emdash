@@ -1,0 +1,14 @@
+{
+  "elements": [
+    { "id": "lb00", "name": "section", "parent": 0, "children": ["lb01"], "settings": {} },
+    { "id": "lb01", "name": "container", "parent": "lb00", "children": ["lb10", "lb20", "lb30", "lb40"], "settings": {} },
+    { "id": "lb10", "name": "heading", "parent": "lb01", "children": [], "settings": { "text": "Call us", "tag": "h2" } },
+    { "id": "lb20", "name": "block", "parent": "lb01", "children": ["lb21", "lb22"], "settings": { "tag": "a", "link": { "type": "external", "url": "tel:+10000000000" } } },
+    { "id": "lb21", "name": "icon", "parent": "lb20", "children": [], "settings": { "icon": { "library": "fontawesomeSolid", "icon": "fas fa-phone" } } },
+    { "id": "lb22", "name": "text-basic", "parent": "lb20", "children": [], "settings": { "text": "+1 000 000 0000", "tag": "p" } },
+    { "id": "lb30", "name": "block", "parent": "lb01", "children": ["lb31"], "settings": { "tag": "a", "link": { "type": "external", "url": "https://maps.example/studio", "newTab": true } } },
+    { "id": "lb31", "name": "text-basic", "parent": "lb30", "children": [], "settings": { "text": "1 Example Street, Springfield", "tag": "p" } },
+    { "id": "lb40", "name": "div", "parent": "lb01", "children": ["lb41"], "settings": { "tag": "a", "link": { "type": "external", "url": "mailto:hello@example.com" } } },
+    { "id": "lb41", "name": "text", "parent": "lb40", "children": [], "settings": { "text": "<p>Write to <a href=\"mailto:team@example.com\">the team</a></p>" } }
+  ]
+}

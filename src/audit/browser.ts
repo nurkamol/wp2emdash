@@ -217,7 +217,8 @@ export async function sectionBoxes(page: Page): Promise<SectionBox[]> {
 			[".wpb_row", "wpbakery"],
 			[".et_pb_section", "divi"],
 			[".elementor-top-section, .e-con.e-parent", "elementor"],
-			["section.brxe-section", "bricks"],
+			// Bricks: every top-level element of the content area and of the footer (a section, or a container/block/div with any tag), so the index matches the element order the adapter records (sourceRef.row).
+			["#brx-content > [class*='brxe-'], #brx-footer > [class*='brxe-']", "bricks"],
 			[".entry-content > .alignfull, .entry-content > .wp-block-group, .entry-content > .wp-block-cover", "gutenberg"],
 		];
 		const all = kinds.flatMap(([sel, kind]) => Array.from(document.querySelectorAll<HTMLElement>(sel)).map((el) => ({ el, kind })));

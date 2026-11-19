@@ -35,7 +35,7 @@ const style = [above && `--actions-above:${above}`, gap && `--actions-gap:${gap}
 						rel={b.new_tab || isExternal(href) ? "noopener" : undefined}
 					>
 						{b.hover_label ? (
-							<span class="btn__labels"><span class="btn__label">{b.label}</span><span class="btn__hover" aria-hidden="true">{b.hover_label}</span></span>
+							<span class="btn__labels"><span class="btn__label">{b.label}</span> <span class="btn__hover" aria-hidden="true">{b.hover_label}</span></span>
 						) : (
 							<span>{b.label}</span>
 						)}

@@ -1,0 +1,152 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "stacked",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "block#lf00",
+        "rawHash": "c4d5c58206",
+        "row": 0
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 901,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/2025/01/studio-logo.svg"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "© 2025 ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Example Studio",
+                "marks": [
+                  "t2"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t4",
+                "text": " / Website by ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t6",
+                "text": "Example Agency",
+                "marks": [
+                  "t5"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t2",
+                "href": "/"
+              },
+              {
+                "_type": "link",
+                "_key": "t5",
+                "href": "https://agency.example",
+                "blank": true
+              }
+            ]
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Privacy",
+            "href": "/privacy/",
+            "style": "link"
+          },
+          {
+            "label": "Terms",
+            "href": "/terms/",
+            "style": "link"
+          },
+          {
+            "label": "Privacy",
+            "href": "/privacy/",
+            "style": "link"
+          },
+          {
+            "label": "Instagram",
+            "href": "https://instagram.com/example-studio",
+            "style": "link",
+            "newTab": true
+          },
+          {
+            "label": "TikTok",
+            "href": "https://tiktok.com/@example-studio",
+            "style": "link",
+            "newTab": true
+          }
+        ],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[nav-menu] menu 7: its 2 links kept as text links (edit them on the page, not under Menus)",
+      "path": "block#lf00/block#lf01/block#lf20/nav-menu#lf21",
+      "tag": "nav-menu"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[nav-menu] is rendered by the site (menu, logo, post data, filters), not migrated as content",
+      "path": "block#lf00/block#lf01/block#lf20/nav-menu#lf22",
+      "tag": "nav-menu"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[underlined-hover] animated underline on hover not reproduced; kept as a text link",
+      "path": "block#lf00/block#lf01/block#lf20/underlined-hover#lf23",
+      "tag": "underlined-hover"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[icon] linked icon kept as a \"Instagram\" link (the icon itself is not drawn)",
+      "path": "block#lf00/block#lf01/block#lf30/icon#lf31",
+      "tag": "icon"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[icon] linked icon kept as a \"TikTok\" link (the icon itself is not drawn)",
+      "path": "block#lf00/block#lf01/block#lf30/icon#lf32",
+      "tag": "icon"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Stacked image + text in one column converted to media_text",
+      "path": "block#lf00"
+    }
+  ],
+  "forms": []
+}

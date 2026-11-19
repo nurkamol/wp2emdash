@@ -1,6 +1,7 @@
 /**
  * EmDash's media library refuses SVG (a fixed upload allow-list: SVGs can carry scripts). An SVG used in content is
- * drawn to a PNG at load: 4× its natural size (capped), transparent background, rendered as an <img> in headless
+ * drawn to a PNG at load: 4× its natural size, at most 1200px on its long side (sharp for a logo up to 600 CSS px on
+ * 2× screens; 3000px made a 570 KB footer logo), transparent background, rendered as an <img> in headless
  * Chromium — where scripts inside the SVG never run — so a logo stays sharp on high-density screens.
  */
 import type { Browser } from "playwright";
@@ -15,7 +16,7 @@ export function svgSize(svg: string): { width: number; height: number } {
 	return { width: Math.max(1, w), height: Math.max(1, h) };
 }
 
-export async function svgToPng(svg: Buffer, browser: Browser, scale = 4, maxSide = 3000): Promise<Buffer> {
+export async function svgToPng(svg: Buffer, browser: Browser, scale = 4, maxSide = 1200): Promise<Buffer> {
 	const { width, height } = svgSize(svg.toString("utf8"));
 	const k = Math.min(scale, maxSide / Math.max(width, height));
 	const w = Math.max(1, Math.round(width * k));

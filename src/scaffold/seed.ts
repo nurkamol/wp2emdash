@@ -34,13 +34,38 @@ export function seedMediaResolver(library: Map<number, MediaInfo>, rewriteUrl: (
 let dropLog: (msg: string) => void = () => {};
 const blocksOf = (doc: IrPage, media: MediaResolver) => doc.sections.map((s, i) => sectionToBlock(s, blockKey(doc.source.slug, i, s.type), media, (d) => dropLog(`${doc.source.slug} ${s.type}#${i}: ${d.join(", ")}`)));
 
+/**
+ * What the starter's header reads from a menu item besides label and address: classes (`popup-<slug>` opens a popup,
+ * `button` draws a header button) and, for a button with a second label, the title attribute as its hover label.
+ */
+export function menuItemExtras(i: IrMenuItem): { cssClasses?: string; titleAttr?: string } {
+	const classes = [i.opensPopup ? `popup-${i.opensPopup}` : "", i.button ? "button" : ""].filter(Boolean).join(" ");
+	return { ...(classes ? { cssClasses: classes } : {}), ...(i.button && i.hoverLabel ? { titleAttr: i.hoverLabel } : {}) };
+}
+
+/**
+ * A canonical URL the old site printed, on the production address: when the new site goes live on another domain
+ * (the old domain then redirects), a canonical on a source host moves to the production host, same path. Canonicals
+ * pointing elsewhere (another site) stay as they are.
+ */
+export function productionCanonical(canonical: string, sourceHosts: Set<string>, productionUrl: string): string {
+	try {
+		const u = new URL(canonical);
+		const prod = new URL(productionUrl);
+		if (!sourceHosts.has(u.host.replace(/^www\./, "")) && u.host.replace(/^www\./, "") !== prod.host.replace(/^www\./, "")) return canonical;
+		return `${prod.origin}${u.pathname}${u.search}`;
+	} catch {
+		return canonical;
+	}
+}
+
 function menuItems(items: IrMenuItem[]): unknown[] {
 	return items.map((i) => ({
 		type: "custom",
 		label: i.label,
 		url: i.opensPopup ? `#${i.opensPopup}` : i.href,
 		...(i.newTab ? { target: "_blank" } : {}),
-		...(i.opensPopup ? { cssClasses: `popup-${i.opensPopup}` } : {}),
+		...menuItemExtras(i),
 		...(i.children.length ? { children: menuItems(i.children) } : {}),
 	}));
 }

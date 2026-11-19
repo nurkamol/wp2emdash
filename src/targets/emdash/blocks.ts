@@ -31,6 +31,10 @@ export function splitHeadingBlocks(blocks: RichText | undefined): { eyebrow?: st
 function headingFromBody(body: RichText): { head: ReturnType<typeof splitHeadingBlocks>; rest: RichText } {
 	const level = (b: PtBlock | undefined) => (b && isHeading(b) ? Number(b.style.slice(1)) : 7);
 	if (!body.length) return { head: {}, rest: body };
+	// The heading fields are plain text: a heading with a link (a footer's "© 2025 Studio / Website by Agency") stays
+	// in the body so the link is kept.
+	const linked = (b: PtBlock | undefined) => !!b && (b.markDefs ?? []).some((d) => d._type === "link" && b.children.some((c) => c.marks?.includes(d._key)));
+	if (linked(body[0]) || (body[1] && isHeading(body[1]) && linked(body[1]))) return { head: {}, rest: body };
 	let i = 0;
 	if (isHeading(body[0] as PtBlock)) {
 		// One heading; a smaller heading directly before a bigger one is an eyebrow (h5 "Excellence" + h3 title).

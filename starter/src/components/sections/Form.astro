@@ -49,6 +49,16 @@ const run = (p: InlinePart) => {
 									<span class="field__error" aria-live="polite" />
 								</fieldset>
 							);
+						if (f.type === "checkbox" && f.options?.length)
+							return (
+								<fieldset class="field field--checkbox-group" data-field={f.name}>
+									<legend class="field__label">{f.label}{req}</legend>
+									{f.options.map((o) => (
+										<label class="choice"><input type="checkbox" name={f.name} value={o} /> <span>{o}</span></label>
+									))}
+									<span class="field__error" aria-live="polite" />
+								</fieldset>
+							);
 						if (f.type === "consent")
 							return (
 								<div class="field field--consent" data-field={f.name}>
@@ -81,7 +91,7 @@ const run = (p: InlinePart) => {
 								) : f.type === "select" ? (
 									<select name={f.name} required={f.required}>{(f.options ?? []).map((o) => <option value={o}>{o}</option>)}</select>
 								) : (
-									<input type={f.type} name={f.name} required={f.required} placeholder={f.placeholder} autocomplete={f.autocomplete} />
+									<input type={f.type === "date" && f.time ? "datetime-local" : f.type} name={f.name} required={f.required} placeholder={f.placeholder} autocomplete={f.autocomplete} />
 								)}
 								<span class="field__error" aria-live="polite" />
 							</label>

@@ -5,7 +5,8 @@ export type { ContentBlock, InlinePart } from "./rich.js";
 
 /**
  * Field types:
- * - text, email, tel, number, url, date, textarea, select, checkbox — one input each;
+ * - text, email, tel, number, url, date, textarea, select, checkbox — one input each; a date with `time` asks for a
+ *   date and a time (datetime-local); a checkbox with `options` is a group of checkboxes (any number ticked);
  * - radio — one choice of `options`, rendered as a fieldset of radio buttons;
  * - consent — a checkbox whose label may carry links (`labelParts`; `label` is the short name used in errors and
  *   the email, e.g. "Terms and Conditions");
@@ -24,6 +25,8 @@ export interface FormField {
 	/** Visible lines of a message box (textarea), as the source form set them. */
 	rows?: number;
 	options?: string[];
+	/** date: also ask for the time of day (a date and time picker). */
+	time?: boolean;
 	half?: boolean;
 	autocomplete?: string;
 	/** consent: the label as text runs with safe links (rendered as elements, never as HTML). */

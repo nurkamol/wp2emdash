@@ -89,8 +89,10 @@ async function legacyUpload(name: string): Promise<string | undefined> {
 	if (!db) return undefined;
 	const file = decodeURIComponent(name);
 	const original = file.replace(/-(?:\d+x\d+|scaled)(?=\.[a-z0-9]+$)/i, "");
+	// The media library takes no SVG: the migration drew each one to a PNG of the same name (logo.svg → logo.png).
+	const drawn = /\.svg$/i.test(original) ? [original.replace(/\.svg$/i, ".png")] : [];
 	try {
-		for (const f of [...new Set([file, original])]) {
+		for (const f of [...new Set([file, original, ...drawn])]) {
 			const row = await db.prepare("SELECT storage_key FROM media WHERE filename = ? ORDER BY created_at LIMIT 1").bind(f).first<{ storage_key: string }>();
 			if (row?.storage_key) return `/_emdash/api/media/file/${encodeURIComponent(row.storage_key)}`;
 		}

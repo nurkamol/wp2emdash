@@ -141,6 +141,25 @@ function popupOf(e: BricksElement, href: string | undefined, env: Env): string |
 	return env.opts.popupFor({ ...(href ? { href } : {}), classes: classNames(e, env.site).join(" ") });
 }
 
+/** An icon name (`instagram`, `x-twitter`, `envelope`) → a link label ("Instagram", "X", "Email"). */
+export function iconLabel(name: string): string {
+	const n = name.toLowerCase().replace(/-(square|alt|circle|fill|outline|sharp|f)$/g, "");
+	const known: Record<string, string> = { "x-twitter": "X", twitter: "X", envelope: "Email", "envelope-open": "Email", phone: "Phone", "phone-alt": "Phone", "location-dot": "Map", "map-marker": "Map", "map-marker-alt": "Map", tiktok: "TikTok", youtube: "YouTube", linkedin: "LinkedIn", whatsapp: "WhatsApp" };
+	return known[n] ?? n.split(/[-_]/).filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+/**
+ * A nav-menu element whose WordPress menu transform knows (`opts.menuItems`): its links, as text links in place (a
+ * footer menu). The header's menu becomes the site's primary menu instead (transform; menus.ts).
+ */
+export function navMenuLinks(e: BricksElement, path: string, env: Env): Fragment[] | undefined {
+	const id = str(e.settings?.menu);
+	const list = id ? env.opts.menuItems?.(id) : undefined;
+	if (!list?.length) return undefined;
+	env.diag({ level: "info", code: "dynamic", message: `[nav-menu] menu ${id}: its ${list.length} links kept as text links (edit them on the page, not under Menus)`, path, tag: e.name });
+	return list.flatMap((i) => buttonOf(i.label, { href: i.href, ...(i.newTab ? { newTab: true } : {}) }, e, path, env, "link"));
+}
+
 /** A slide or card's fragments → one feature card (title, body, image, icon, link). */
 function cardOf(frags: Fragment[]): Fragment {
 	const blocks = blocksOf(frags);
@@ -378,9 +397,17 @@ export const HANDLERS: Record<string, Handler> = {
 	},
 
 	// Icons & cards
-	icon: (_e, s) => {
+	icon: (e, s, path, env) => {
 		if (s.isAccordionIcon) return [];
 		const icon = iconOf(s.icon);
+		// An icon with a link is a link (social icons placed one by one in a footer): kept as a text link named after
+		// the icon, like the social-icons element.
+		const link = linkOf(s.link, env);
+		if (link.href && icon && icon.library !== "svg") {
+			const label = str(s.ariaLabel) || iconLabel(icon.name);
+			env.diag({ level: "info", code: "lossy", message: `[icon] linked icon kept as a "${label}" link (the icon itself is not drawn)`, path, tag: e.name });
+			return buttonOf(label, { ...link, newTab: link.newTab ?? /^https?:/.test(link.href) }, e, path, env, "link");
+		}
 		return icon ? [{ kind: "icon", icon }] : [];
 	},
 	"icon-box": (e, s, path, env) => {
