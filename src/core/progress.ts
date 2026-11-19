@@ -25,13 +25,15 @@ export function newRunId(now = new Date()): string {
 	return now.toISOString().replace(/[:.]/g, "-");
 }
 
-export function createReporter(opts: { runsDir: string; runId: string; json: boolean }): Reporter {
+/** quiet: write the run log only (the MCP server, whose stdout is the protocol channel). */
+export function createReporter(opts: { runsDir: string; runId: string; json: boolean; quiet?: boolean }): Reporter {
 	mkdirSync(opts.runsDir, { recursive: true });
 	const logFile = join(opts.runsDir, `${opts.runId}.jsonl`);
 	return {
 		runId: opts.runId,
 		emit(event) {
 			appendFileSync(logFile, `${JSON.stringify({ at: new Date().toISOString(), ...event })}\n`);
+			if (opts.quiet) return;
 			if (opts.json) {
 				process.stdout.write(`${JSON.stringify(event)}\n`);
 			} else {

@@ -457,6 +457,8 @@ WooCommerce/shop, membership/LMS/paywalls, multisite, WPML/Polylang, user accoun
   - `wp2emdash-cutover` — walks preflight and cutover with explicit human confirmation at each irreversible step.
 - **CLAUDE.md rules:** never edit generated `ir/` or imported content by hand; never write to the WordPress site; never put secrets in prompts/logs; never change DNS/routes or production without explicit approval; always rerun the affected gate after a change.
 
+**Status (2026-11-19):** built. Kit skills `wp2emdash-run`, `wp2emdash-map`, `wp2emdash-visual-fix` and `wp2emdash-cutover` are in `skills/` (install: README → Claude Code). They drive the kit MCP server (§10b), and every change Claude wants in `overrides.ts` / `decisions.md` goes through the approval queue. Official EmDash skills in site projects: unchanged.
+
 Deterministic code does the bulk of the work; Claude handles the long tail (unknown elements, design tuning) and every decision ends up in versioned files, so reruns don't depend on the conversation.
 
 ---
@@ -495,7 +497,9 @@ Progress model: phases → steps → items (e.g. `audit › screenshots › 34/1
 | 9 | Run history | Every run's IR and reports kept; diff two runs; restore an earlier IR. | Pending |
 | 10 | Guided owner checklist | ACCESS.md as a step-by-step guide with screenshots; automatic checks where possible (exporter installed, key valid, backup file present, DNS export parsed). | Pending |
 
-Built in the order above; 1–3 with M7, 4 with M8, 5–10 after the pilot launch. **v1 (2026-11-19):** `wp2emdash ui` with the portfolio (8), launch readiness (3), live run progress over SSE and the visual diff viewer (1); `127.0.0.1` only, a per-run token exchanged for an HttpOnly SameSite=Strict cookie, Host and Origin checks, files only from `reports/` and `snapshot/screens/`. Approving a visual difference appends to `decisions.md` and never accepts a gate. Not built yet: section inspector (2), MCP server, approval queue, secrets form, features 4–7, 9, 10.
+Built in the order above; 1–3 with M7, 4 with M8, 5–10 after the pilot launch. **v1 (2026-11-19):** `wp2emdash ui` with the portfolio (8), launch readiness (3), live run progress over SSE and the visual diff viewer (1); `127.0.0.1` only, a per-run token exchanged for an HttpOnly SameSite=Strict cookie, Host and Origin checks, files only from `reports/` and `snapshot/screens/`. Approving a visual difference appends to `decisions.md` and never accepts a gate. Not built yet: section inspector (2), the approval queue in the browser, secrets form, features 4–7, 9, 10.
+
+**MCP server and approval queue (2026-11-19):** `wp2emdash mcp` (stdio, `@modelcontextprotocol/sdk`) with `status`, `run_phase`, `read_report`, `list_diagnostics`, `explain_gate` and `propose_override`. `run_phase` refuses production targets and non-preview cutover. Results are scrubbed of every kit/site `.env` value. Proposals live in `sites/<slug>/proposals/<id>.json` (contract and apply logic: `src/core/proposals.ts`, a strict dependency-free unified-diff applier in `src/core/diff.ts`). Approval CLI: `wp2emdash proposals <slug> [approve|reject <id> --by …]`. Approving applies the patch and prints the rerun command; it never reruns by itself. Browser approval queue: pending (built against the same module).
 
 ---
 

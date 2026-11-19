@@ -6,6 +6,7 @@ import { provision } from "../commands/provision.js";
 import { initSite, validateSlug, validateUrl } from "../commands/init.js";
 import { acceptPhase, runPhase } from "../commands/run.js";
 import { formatTimeline, listSites, statusJson } from "../commands/status.js";
+import { proposalsCommand } from "../commands/proposals.js";
 import { serveUi } from "../commands/ui.js";
 import { sitePaths } from "../core/paths.js";
 import { isPhaseId, PHASE_IDS, PHASES } from "../core/phases.js";
@@ -122,6 +123,32 @@ program
 		const port = o.port ? Number(o.port) : undefined;
 		if (port !== undefined && (!Number.isInteger(port) || port < 1024 || port > 65535)) fail("--port must be 1024–65535");
 		await serveUi({ open: o.open, ...(port ? { port } : {}) });
+	});
+
+program
+	.command("proposals")
+	.description("Approval queue: list proposed overrides.ts/decisions.md changes, or approve (applies the patch) / reject one")
+	.argument("<slug>")
+	.argument("[action]", "approve | reject")
+	.argument("[id]", "proposal id (p-yyyymmdd-xxxxxx)")
+	.option("--by <name>", "who decided (required for approve/reject)")
+	.option("--note <text>", "note recorded with the decision")
+	.option("--all", "list decided proposals too")
+	.option("--json")
+	.action((slug: string, action: string | undefined, id: string | undefined, o) => {
+		try {
+			process.exitCode = proposalsCommand(slug, action, id, o);
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
+	.command("mcp")
+	.description("MCP server on stdio for Claude Code: status, run_phase, read_report, list_diagnostics, explain_gate, propose_override")
+	.action(async () => {
+		const { serveMcp } = await import("../mcp/server.js");
+		await serveMcp();
 	});
 
 program
