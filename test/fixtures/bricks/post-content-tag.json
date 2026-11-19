@@ -1,0 +1,11 @@
+{
+  "title": "Membership waiver",
+  "content": "Please read before your first class.\n\nBy signing you confirm that you are fit to exercise.\n\n[fluentform id=\"8\"]",
+  "elements": [
+    { "id": "orp710", "name": "text-basic", "parent": "gone710", "children": [], "settings": { "tag": "p", "text": "{post_content}" } },
+    { "id": "sec710", "name": "section", "parent": 0, "children": ["con710"], "settings": {} },
+    { "id": "con710", "name": "container", "parent": "sec710", "children": ["hd710", "tb710"], "settings": {} },
+    { "id": "hd710", "name": "heading", "parent": "con710", "children": [], "settings": { "text": "{post_title}" } },
+    { "id": "tb710", "name": "text-basic", "parent": "con710", "children": [], "settings": { "tag": "p", "text": "{post_content}" } }
+  ]
+}

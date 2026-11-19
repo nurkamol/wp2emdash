@@ -1,0 +1,277 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec720",
+        "rawHash": "d1acadf0ec"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Move with intent",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Small classes, patient coaching and a calm room to train in.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Book a class",
+            "href": "/classes/",
+            "style": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "type": "media_text",
+      "variant": "inline",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec721",
+        "rawHash": "00a70744e8"
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 931,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/studio.webp",
+            "alt": "The studio floor"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Still unsure?",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "We reply the same day.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Contact",
+            "href": "/contact/",
+            "style": "primary"
+          }
+        ],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec723",
+        "rawHash": "7a1fe5b0a0"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Page not found",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Back home",
+            "href": "/",
+            "style": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec724",
+        "rawHash": "986f2da2b9"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "Open every day",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Privacy",
+            "href": "/privacy/",
+            "style": "link"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[blade-title] blade (sliced) reveal animation not reproduced; text kept",
+      "path": "section#sec720/container#con720/blade-title#bt720",
+      "tag": "blade-title"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[next_blur_reveal] blur reveal animation not reproduced; text kept",
+      "path": "section#sec720/container#con720/next_blur_reveal#br720",
+      "tag": "next_blur_reveal"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[ripple_button_v3] ripple hover effect not reproduced; the button shows \"Book a class\", not the hover label \"Pick a time\"",
+      "path": "section#sec720/container#con720/ripple_button_v3#rb720",
+      "tag": "ripple_button_v3"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[imagereveal] reveal animation not reproduced; image kept",
+      "path": "section#sec721/container#con721/block#blk721/imagereveal#ir721",
+      "tag": "imagereveal"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[swap-hover] text swap on hover not reproduced; the title shows \"Still unsure?\", not the swapped text \"Just ask us\"",
+      "path": "section#sec721/container#con721/block#blk722/swap-hover#sw722",
+      "tag": "swap-hover"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[ripple_button_v2] ripple hover effect not reproduced",
+      "path": "section#sec721/container#con721/block#blk722/ripple_button_v2#rp722",
+      "tag": "ripple_button_v2"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[spotlight] cursor spotlight background effect not reproduced; its content kept",
+      "path": "section#sec723/spotlight#sp723",
+      "tag": "spotlight"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[neumorphicbutton] neumorphic (soft shadow) style and hover animation not reproduced",
+      "path": "section#sec723/spotlight#sp723/neumorphicbutton#nb723",
+      "tag": "neumorphicbutton"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[underlined-hover] animated underline on hover not reproduced; kept as a text link",
+      "path": "section#sec724/container#con724/underlined-hover#uh724",
+      "tag": "underlined-hover"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[underlined-hover] animated underline on hover not reproduced; text kept",
+      "path": "section#sec724/container#con724/underlined-hover#uh725",
+      "tag": "underlined-hover"
+    },
+    {
+      "level": "warn",
+      "code": "unmapped",
+      "message": "[next_blur_reveal] without a title (NextBricks shows its placeholder \"Next Bricks\")",
+      "path": "section#sec724/container#con724/next_blur_reveal#ue726",
+      "tag": "next_blur_reveal"
+    }
+  ],
+  "forms": []
+}

@@ -24,10 +24,11 @@ const adapters = {
 	wpbakery: (src: string) => adaptWpbakery(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0 }),
 	gutenberg: (src: string) => adaptGutenberg(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0, reusable }),
 	// Bricks fixtures: { elements, templates?: { [id]: elements }, options?: { bricks_* }, kind?, title?, postCount?,
-	// permalinks?: { [postId]: path }, popups?: { [templateId]: slug } } — the post meta, the bricks_template posts,
-	// the Bricks options (palette, global classes, theme styles, components, breakpoints) and what transform knows.
+	// permalinks?: { [postId]: path }, popups?: { [templateId]: slug }, content?: post_content } — the post meta, the
+	// bricks_template posts, the Bricks options (palette, global classes, theme styles, components, breakpoints), the
+	// post's own content (post-content element, {post_content}) and what transform knows.
 	bricks: (src: string) => {
-		const f = JSON.parse(src) as { elements: BricksElement[]; templates?: Record<string, BricksElement[]>; options?: Record<string, unknown>; kind?: "page" | "partial"; title?: string; postCount?: number; permalinks?: Record<string, string>; popups?: Record<string, string> };
+		const f = JSON.parse(src) as { elements: BricksElement[]; templates?: Record<string, BricksElement[]>; options?: Record<string, unknown>; kind?: "page" | "partial"; title?: string; postCount?: number; permalinks?: Record<string, string>; popups?: Record<string, string>; content?: string };
 		return adaptBricks(f.elements, {
 			kind: f.kind ?? "page",
 			keys: new Keys("t"),
@@ -36,6 +37,8 @@ const adapters = {
 			template: (id) => f.templates?.[String(id)],
 			site: bricksSite(f.options ?? {}),
 			postId: 10,
+			...(f.content !== undefined ? { content: f.content } : {}),
+			reusable,
 			title: f.title ?? "Fixture page",
 			siteTitle: "Fixture Studio",
 			permalink: (id) => f.permalinks?.[String(id)],

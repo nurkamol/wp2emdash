@@ -1,0 +1,13 @@
+{
+  "kind": "partial",
+  "elements": [
+    { "id": "sec750", "name": "section", "parent": 0, "children": ["con750"], "settings": {} },
+    { "id": "con750", "name": "container", "parent": "sec750", "children": ["blk750", "nav750", "blk751"], "settings": { "_direction": "row" } },
+    { "id": "blk750", "name": "block", "parent": "con750", "children": ["lg750"], "settings": {} },
+    { "id": "lg750", "name": "logo", "parent": "blk750", "children": [], "settings": { "logoText": "{site_title}", "logo": { "id": 941, "filename": "mark.png", "size": "full", "url": "https://example.com/wp-content/uploads/mark.png" }, "logoHeight": "100px" } },
+    { "id": "nav750", "name": "nav-menu", "parent": "con750", "children": [], "settings": { "menu": "3" } },
+    { "id": "blk751", "name": "block", "parent": "con750", "children": ["rb751", "lg752"], "settings": {} },
+    { "id": "rb751", "name": "ripple_button_v3", "parent": "blk751", "children": [], "settings": { "tag": "div", "topRippleInnerTitle": "Book now", "bottomRippleInnerTitle": "Join today", "link": { "type": "external", "url": "/book/" } } },
+    { "id": "lg752", "name": "logo", "parent": "blk751", "children": [], "settings": { "logoText": "Fixture & Co", "logoUrl": { "type": "external", "url": "/about/" } } }
+  ]
+}

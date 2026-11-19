@@ -13,6 +13,7 @@ import { loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import { Keys } from "../ir/portable-text.js";
 import { businessFromJsonLd } from "../transform/business.js";
+import { completeMarianaEmbeds, marianaTenant } from "../transform/embeds.js";
 import { type Diagnostic, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
 import { conservation, irText, missingContext, sourceText } from "../transform/coverage.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
@@ -158,6 +159,16 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const p = byId.get(id) ?? posts.find((x) => x.id === id);
 		return p ? routeOf(p) : pathById.get(id);
 	};
+	/** Mariana Tek tenant: kit.config.ts, else the loader snippet in the live pages (audit HTML snapshots). */
+	let marianaTenantCache: string | null | undefined;
+	const marianaTenantOfSite = (): string | undefined => {
+		if (marianaTenantCache === undefined) {
+			marianaTenantCache = config.embeds.marianatekTenant ?? null;
+			const dir = join(paths.snapshot, "html");
+			if (!marianaTenantCache && existsSync(dir)) for (const f of readdirSync(dir).filter((x) => x.endsWith(".html"))) if ((marianaTenantCache = marianaTenant(readFileSync(join(dir, f), "utf8")) ?? null)) break;
+		}
+		return marianaTenantCache ?? undefined;
+	};
 	/** `elements`: a Bricks template's element list (its meta key depends on the template type). */
 	const adapt = (p: ExporterPost, kind: IrPage["kind"], elements?: BricksElement[]) => {
 		const builder: Builder = elements ? "bricks" : detectBuilder(p.content ?? "", p.meta);
@@ -172,6 +183,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		} catch (e) {
 			diagnostics.push({ level: "error", code: "parse", message: `Adapter crashed: ${(e as Error).message}`, carriesContent: true });
 		}
+		diagnostics.push(...completeMarianaEmbeds(sections, sections.some((s) => s.type === "embed" && s.fields.provider === "marianatek") ? marianaTenantOfSite() : undefined));
 		// legacy_html approved by overrides is downgraded to info.
 		for (const s of sections) {
 			if (s.type === "legacy_html" && overrides.approvedLegacy.includes(`${p.slug}:${s.sourceRef.path}`)) {
@@ -181,7 +193,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		return { builder, sections, diagnostics };
 	};
 	function adaptBricksPost(p: ExporterPost, common: { kind: IrPage["kind"]; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, elements?: BricksElement[]) {
-		const r = adaptBricks(elements ?? bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id), site: bricks, postId: p.id, title: p.title, siteTitle, permalink, popupSlug: (id) => bricksPopups.get(id) });
+		const r = adaptBricks(elements ?? bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id), site: bricks, postId: p.id, content: p.content ?? "", reusable: (id) => reusable.get(id), title: p.title, siteTitle, permalink, popupSlug: (id) => bricksPopups.get(id) });
 		for (const f of r.forms) bricksForms.set(f.id, f);
 		return r;
 	}

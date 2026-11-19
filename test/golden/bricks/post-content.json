@@ -1,0 +1,199 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec700",
+        "rawHash": "c716116567"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Studio rules",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec701",
+        "rawHash": "d32088687b"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Last updated:",
+                "marks": [
+                  "strong"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t4",
+                "text": " January 1, 2026. These rules apply to every visit.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec701",
+        "rawHash": "d32088687b"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t5",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t6",
+                "text": "1. Booking",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [
+          {
+            "_type": "block",
+            "_key": "t7",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t8",
+                "text": "Book a class at least an hour ahead.",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "t9",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "ta",
+                "text": "Cancel up to twelve hours before.",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tb",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tc",
+                "text": "Shared notice from a reusable block.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "formRef": {
+          "provider": "fluent-forms",
+          "id": "7"
+        },
+        "aside": [
+          {
+            "_type": "block",
+            "_key": "td",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "te",
+                "text": "Questions? Ask at the desk.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[post-title] filled with the page title",
+      "path": "section#sec700/container#con700/post-title#pt700",
+      "tag": "post-title"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Reusable block #99 inlined",
+      "path": "section#sec701/container#con701/post-content#pc701/post_content/blocks[3]"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[post-content] filled with the page's own content (WordPress editor), adapted as Gutenberg/classic content",
+      "path": "section#sec701/container#con701/post-content#pc701",
+      "tag": "post-content"
+    }
+  ],
+  "forms": []
+}

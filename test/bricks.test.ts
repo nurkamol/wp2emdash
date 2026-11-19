@@ -8,7 +8,8 @@ import { kitConfigSchema } from "../src/config/schema.js";
 import { sitePaths } from "../src/core/paths.js";
 import { bricksMediaRefs, bricksOptionsNote, readBricksOptions } from "../src/extract/bricks.js";
 import { Keys } from "../src/ir/portable-text.js";
-import type { IrPage, IrSite } from "../src/ir/schema.js";
+import type { IrPage, IrSite, Section } from "../src/ir/schema.js";
+import { completeMarianaEmbeds, marianaTenant, withMarianaLoader } from "../src/transform/embeds.js";
 import { detectBuilder, runTransform } from "../src/phases/transform.js";
 
 const els: BricksElement[] = [
@@ -177,5 +178,22 @@ describe("Bricks in the transform phase", () => {
 		const coverage = JSON.parse(readFileSync(join(paths.reports, "transform", "coverage.json"), "utf8")) as { notTransformed: string[] };
 		expect(coverage.notTransformed.some((n) => /blog-footer \(footer, publish\): applies to postType:post/.test(n))).toBe(true);
 		expect(JSON.parse(readFileSync(join(paths.reports, "transform", "bricks-design.json"), "utf8")).palette).toEqual({ ink: "#14181c" });
+	});
+});
+
+describe("Mariana Tek embeds", () => {
+	const embed = (html: string) => ({ type: "embed", variant: "default", theme: { tone: "light" }, spacing: "normal", sourceRef: { adapter: "bricks", path: "section#s", rawHash: "x" }, fields: { provider: "marianatek", html } }) as unknown as Section;
+	it("reads the tenant from a script src or the loader snippet", () => {
+		expect(marianaTenant('<script src="https://fixturestudio.marianaiframes.com/js"></script>')).toBe("fixturestudio");
+		expect(marianaTenant("<script>var TENANT_NAME = 'fixturestudio'; s.src = 'https://' + TENANT_NAME + '.marianaiframes.com/' + x;</script>")).toBe("fixturestudio");
+		expect(marianaTenant('<div data-mariana-integrations="/buy"></div>')).toBeUndefined();
+	});
+	it("adds the tenant's loader scripts to mount-point markup, once; reports a missing tenant", () => {
+		const s = embed('<div data-mariana-integrations="/buy"></div>');
+		expect(completeMarianaEmbeds([s], "fixturestudio")).toEqual([]);
+		const html = s.type === "embed" ? s.fields.html : "";
+		expect(html).toContain('<script src="https://fixturestudio.marianaiframes.com/polyfills"></script>');
+		expect(withMarianaLoader(html, "other")).toBe(html);
+		expect(completeMarianaEmbeds([embed('<div data-mariana-integrations="/buy"></div>')], undefined)[0]?.message).toMatch(/embeds\.marianatekTenant/);
 	});
 });

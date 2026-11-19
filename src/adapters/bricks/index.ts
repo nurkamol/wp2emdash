@@ -47,6 +47,10 @@ export interface BricksOptions {
 	site?: BricksSite;
 	/** The post the elements belong to (form ids are `<post>-<element>`). */
 	postId?: number;
+	/** The post's own post_content (Gutenberg/classic): what a post-content element or `{post_content}` shows. */
+	content?: string;
+	/** Reusable block / synced pattern by id (inside the post content). */
+	reusable?: (id: number) => string | undefined;
 	/** Page title and site title, for `{post_title}` / `{site_title}` and the post-title element. */
 	title?: string;
 	siteTitle?: string;
@@ -473,7 +477,10 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		rows.push({ attrs: {}, columns: [{ fragments: mergeRich(loose.flatMap((x) => fragments(x.e, x.path))) }], path: loose.map((x) => x.path).join("+"), raw: JSON.stringify(loose.map((x) => x.e)), adapter: "bricks" });
 		loose = [];
 	};
-	const roots = all.filter((e) => isRoot(e.parent) || !byId.has(String(e.parent)));
+	// Bricks renders from the top-level elements down (includes/frontend.php render_data): an element whose parent is
+	// not in the list is never shown on the live page.
+	for (const e of all.filter((x) => !isRoot(x.parent) && !byId.has(String(x.parent)))) diag({ level: "info", code: "flagged", message: `[${e.name}] its parent element ${e.parent} is not on the page, so Bricks does not render it; not migrated`, path: pathOf(e), tag: e.name });
+	const roots = all.filter((e) => isRoot(e.parent));
 	for (const { e: r, path } of expandRoots(roots)) {
 		if (r.name !== "section" && r.name !== "container") {
 			loose.push({ e: r, path });

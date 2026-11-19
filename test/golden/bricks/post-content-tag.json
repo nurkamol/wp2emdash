@@ -1,0 +1,86 @@
+{
+  "sections": [
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec710",
+        "rawHash": "a13fd28ee4"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Membership waiver",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Please read before your first class.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "By signing you confirm that you are fit to exercise.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "formRef": {
+          "provider": "fluent-forms",
+          "id": "8"
+        },
+        "aside": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "flagged",
+      "message": "[text-basic] its parent element gone710 is not on the page, so Bricks does not render it; not migrated",
+      "path": "text-basic#orp710",
+      "tag": "text-basic"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[text-basic] filled with the page's own content (WordPress editor), adapted as Gutenberg/classic content",
+      "path": "section#sec710/container#con710/text-basic#tb710",
+      "tag": "text-basic"
+    }
+  ],
+  "forms": []
+}

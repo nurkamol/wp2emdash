@@ -1,0 +1,79 @@
+{
+  "sections": [
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec740",
+        "rawHash": "c4178945ba"
+      },
+      "fields": {
+        "html": "<div data-booking-widget=\"/classes\"></div>",
+        "reason": "Bricks code element (Execute code on, no PHP)"
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec741",
+        "rawHash": "f9aedede92"
+      },
+      "fields": {
+        "html": "<style>.menu-columns ul { columns: 2; }</style>\n<p>Opening hours: 7–21</p>",
+        "reason": "Bricks code element (Execute code on, no PHP)"
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "marianatek",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec742",
+        "rawHash": "38dbeeff84"
+      },
+      "fields": {
+        "provider": "marianatek",
+        "html": "<div data-mariana-integrations=\"/schedule/daily\"></div>"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "[code] has \"Execute code\" on but contains no PHP tags; it outputs an empty HTML element with data-booking-widget=\"/classes\" (a mount point that a third-party script fills in the browser): <div data-booking-widget=\"/classes\"></div> — never copied automatically; rebuild it, or approve the legacy_html in decisions.md if it is safe",
+      "path": "section#sec740/container#con740/code#cd740",
+      "carriesContent": true,
+      "tag": "code"
+    },
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "[code] has \"Execute code\" on but contains no PHP tags; it outputs CSS (a <style> block) and static HTML with the text \"Opening hours: 7–21\": <style>.menu-columns ul { columns: 2; }</style> <p>Opening hours: 7–21</p> — never copied automatically; rebuild it, or approve the legacy_html in decisions.md if it is safe",
+      "path": "section#sec741/container#con741/code#cd741",
+      "carriesContent": true,
+      "tag": "code"
+    },
+    {
+      "level": "info",
+      "code": "flagged",
+      "message": "[code] has \"Execute code\" on but contains no PHP tags; it outputs an empty HTML element with data-mariana-integrations=\"/schedule/daily\" (a mount point that a third-party script fills in the browser); kept as a marianatek embed",
+      "path": "section#sec742/container#con742/code#cd742",
+      "tag": "code"
+    }
+  ],
+  "forms": []
+}

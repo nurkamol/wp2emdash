@@ -66,7 +66,7 @@ Editor HTML (`text`, accordion/tab content, icon-box content, alert) goes throug
 | map | `addresses[{ address, latitude, longitude, info* }]`, legacy `address` | map (Google embed, first address) |
 | map-leaflet | `markers[{ coordinates "lat, lng", label, popupText }]`, `center` | map (OpenStreetMap embed, first marker) |
 | form | `fields[{ id, type (email, text, textarea, richtext, tel, number, url, image, gallery, checkbox, select, radio, file, datepicker, password, rememberme, html, hidden), label, placeholder, value, name, required, options (one per line), valueLabelOptions, width (%), isHoneypot, autocomplete }]`, `submitButtonText` (default "Send"), `actions` (default `[email]`; also redirect, mailchimp, sendgrid, webhook, login, registration, lost-password, reset-password, create-post, update-post, save-submission, custom), `successMessage` (default "Message successfully sent. We will get back to you as soon as possible."), `emailTo` (admin_email\|custom) + `emailToCustom`, `emailBcc`, `fromEmail`, `replyToEmail`. Field input name: `name` or `form-field-<id>`. 2.5 adds field `description`, `time24hr`, `noCalendar`. | form section + definition; recipients never copied |
-| code | `code`, `executeCode`, `cssCode`, `javascriptCode`, `parseDynamicData` | embed / legacy (PHP, JS flagged) |
+| code | `code`, `executeCode`, `cssCode`, `javascriptCode`, `parseDynamicData`. With `executeCode` Bricks evaluates `code` as a PHP template (editor mode `application/x-httpd-php-open`: HTML outside `<?php ?>` is output as is; `includes/elements/code.php`) | known widget markup without PHP (e.g. Mariana Tek `data-mariana-integrations`) → embed; anything else with `executeCode` → legacy, blocked, the diagnostic says whether it is real PHP or what static HTML/CSS/JS it outputs; JS flagged |
 | html | `html` | embed / legacy |
 | shortcode | `shortcode` | form plugin shortcode → form; else embed / legacy |
 | template | `template` (post id) | inlined |
@@ -75,7 +75,10 @@ Editor HTML (`text`, accordion/tab content, icon-box content, alert) goes throug
 | svg | `source` (file\|code\|iconSet\|dynamicData), `file`, `iconSet`, `code` | file → media, icon set → icon, inline → decorative |
 | file | `file`, `external`, `downloadButtonText` | download link |
 | post-title | — | the page title |
-| nav-menu, nav-nested, dropdown, offcanvas, toggle, logo, search, breadcrumbs, sidebar, post-* , pagination, related-posts, back-to-top, filter-* | site chrome / query | reported `dynamic` |
+| post-content | `dataSource` (templates only: `editor` default = the_content, `bricks` = the post's Bricks data) | on a page: the page's own post_content through the Gutenberg adapter (blocks, classic + wpautop, shortcodes → forms) at the element's place; in a template / `bricks` source: `dynamic` |
+| `{post_content}` tag (text-basic, text) | `includes/integrations/dynamic-data/providers/provider-wp.php` `get_the_content()`: `apply_filters('the_content', …)` | same as post-content when the text is only the tag |
+| logo | `logo` (image), `logoInverse`, `logoDark`, `logoText` (alt, or the text logo without an image; dynamic data allowed), `logoUrl` (default `home_url()`), `logoHeight`, `logoWidth` (`includes/elements/logo.php`) | picture linking home (reaches the header/footer partial; the starter's header still draws its logo from the design capture); text logo → link |
+| nav-menu, nav-nested, dropdown, offcanvas, toggle, search, breadcrumbs, sidebar, post-* (other), pagination, related-posts, back-to-top, filter-* | site chrome / query | reported `dynamic` |
 | posts, `hasLoop` containers | `query` | reported `dynamic` (error when the site has entries) |
 | divider, lottie (2.5) | — | dropped (decorative), reported |
 | countdown, rating, pie-chart, audio, wordpress, … | — | `unmapped` |
@@ -107,3 +110,29 @@ Editor HTML (`text`, accordion/tab content, icon-box content, alert) goes throug
   with this exporter version.
 - Typical stack seen on a client Bricks site: Bricks + BricksExtras + NextBricks (third-party element packs, mapped
   per element as they come up) + Automatic.css (design variables; not read by the kit yet) + Fluent Forms + Rank Math.
+- **Legal pages written in the WordPress editor:** a Bricks layout (post-title + container) shows the page's
+  Gutenberg content through a `text-basic` whose text is `{post_content}` (not a post-content element). The waiver
+  page's content is a `wp:shortcode` block `[fluentform id="…"]`. Both are now adapted in place.
+- **Orphan elements:** an element whose `parent` id is not in the list is never rendered — `includes/frontend.php`
+  `render_data()` only starts from elements with an empty `parent`. Seen on a real page (a stale `{post_content}`
+  copy); the adapter skips orphans with an info diagnostic instead of treating them as top level (which duplicated text).
+- **Code elements used for a booking widget:** `executeCode` on, content only `<div data-mariana-integrations="/…">`
+  (Mariana Tek web integrations). The loader is a site-wide snippet (Header Footer Code Manager) that adds
+  `https://<tenant>.marianaiframes.com/polyfills` and `/js`. Kept as an `embed` (provider `marianatek`); transform
+  appends the two scripts with the tenant from the markup, `embeds.marianatekTenant` in kit.config.ts, or the loader
+  in the live HTML snapshots. Starter allowlist: `*.marianaiframes.com`.
+
+### Third-party elements (settings keys from each plugin's `set_controls()`; NextBricks 3.0.1, BricksExtras)
+
+| Element (`name`) | Plugin file | Content keys | IR (effect not reproduced → `lossy`) |
+|---|---|---|---|
+| `blade-title` | nextbricks `elements/bc_blade_title.php` | `inner_title` (textarea), `tag` (h1–h6, p, span, custom + `customTag`; default h3), `link` | heading/paragraph; sliced reveal animation |
+| `next_blur_reveal` | nextbricks `elements/next_blur_reveal.php` | same as blade-title | heading/paragraph; blur reveal |
+| `swap-hover` | nextbricks `elements/bc_swap_title.php` | `inner_title`, `swap_title` (shown on hover), `tag`, `link` | heading with `inner_title`; warns with the swap text |
+| `underlined-hover` | nextbricks `elements/bc_underline_title.php` | `inner_title`, `tag`, `link`, optional left/right icons | with a link → text link; else text; underline animation |
+| `ripple_button_v2`, `ripple_button_v3` | nextbricks `elements/next_ripple_button_v2.php`, `…_v3.php` | `topRippleInnerTitle` (shown), `bottomRippleInnerTitle` (slides in on hover), `link`, `tag` (div/span/button) | button with the top label; warns with the hover label when it differs |
+| `neumorphicbutton` | nextbricks `elements/bc_neumorphic_button.php` | `inner_title`, `link`, `tag`, icons | button; soft-shadow style |
+| `imagereveal` | nextbricks `elements/bc_image_reveal.php` | `image` (image control, `useDynamicData`), `alt`, `height`, animation keys | image; reveal animation |
+| `spotlight` | nextbricks `elements/bc_spotlight.php` | nestable (`$nestable = true`), layout keys, `mode` | its children's content; cursor spotlight background |
+| `xfluentform` | bricksextras `components/classes/x-fluent-form.php` | `fluentFormSelect` (form id, control default `1`), or `formSource` + `fluentFormID` (may be dynamic data); the rest is styling | form section `fluent-forms#<id>`; dynamic id → error |
+| Placeholders | — | the NextBricks title/button elements render "Next Bricks" when `inner_title` is empty | reported, not migrated |

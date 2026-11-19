@@ -137,6 +137,8 @@ export function richFromHtml(html: string, ctx: HandlerCtx, style?: PtBlock["sty
 
 /** Known widget providers kept as an `embed` section; anything else is legacy HTML (gate-blocking). */
 const EMBED_PROVIDERS: [RegExp, string][] = [
+	// Mariana Tek web integrations: `data-mariana-integrations="/path"` mount points, filled by <tenant>.marianaiframes.com scripts.
+	[/marianaiframes\.com|marianatek\.com|\sdata-mariana-[\w-]+/i, "marianatek"],
 	[/momence\.com/i, "momence"],
 	[/janeapp\.com/i, "janeapp"],
 	[/calendly\.com/i, "calendly"],
@@ -156,10 +158,13 @@ const EMBED_PROVIDERS: [RegExp, string][] = [
 	[/soundcloud\.com/i, "soundcloud"],
 ];
 
+/** The known widget provider of a piece of HTML (kept as an embed section), if any. */
+export const embedProvider = (html: string) => EMBED_PROVIDERS.find(([re]) => re.test(html))?.[1];
+
 export function embedOrLegacy(html: string, ctx: HandlerCtx, reason: string): Fragment[] {
 	const trimmed = html.trim();
 	if (!trimmed) return [];
-	const provider = EMBED_PROVIDERS.find(([re]) => re.test(trimmed))?.[1];
+	const provider = embedProvider(trimmed);
 	if (provider) {
 		if (provider === "google-maps") {
 			const src = /src=["']([^"']+)/i.exec(trimmed)?.[1];

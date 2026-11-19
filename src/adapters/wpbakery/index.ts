@@ -18,11 +18,15 @@ export interface AdaptOptions {
 	postCount: number;
 	/** overrides.ts → elements: `vc_row[3]` → forced section type or "drop". */
 	rowOverrides?: Record<string, SectionType | "drop">;
+	/** Return the content as fragments (no sections): shortcode content shown inside another builder's column. */
+	asFragments?: boolean;
 }
 
 export interface AdaptResult {
 	sections: Section[];
 	diagnostics: Diagnostic[];
+	/** With `asFragments`: the rows' fragments in order (a row with several columns is one subrow). */
+	fragments?: Fragment[];
 }
 
 export interface Row {
@@ -190,6 +194,11 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 	function looseRow(nodes: AstNode[], path: string): Row {
 		// Content outside vc_row (classic text before the builder was used, or plain shortcodes).
 		return { attrs: {}, columns: [{ fragments: processChildren(nodes, path) }], path, raw: nodes.map((n) => (n.type === "text" ? n.text : serialise(n))).join("") };
+	}
+
+	if (opts.asFragments) {
+		const fragments = mergeRich(rows.flatMap((r): Fragment[] => (r.columns.filter((c) => c.fragments.length).length > 1 ? [{ kind: "subrow", columns: r.columns }] : r.columns.flatMap((c) => c.fragments))));
+		return { sections: [], diagnostics, fragments };
 	}
 
 	// ── Sections ──────────────────────────────────────────────────────────────

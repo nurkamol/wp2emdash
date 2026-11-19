@@ -1,0 +1,30 @@
+{
+  "permalinks": { "12": "/classes/" },
+  "elements": [
+    { "id": "sec720", "name": "section", "parent": 0, "children": ["con720"], "settings": {} },
+    { "id": "con720", "name": "container", "parent": "sec720", "children": ["bt720", "br720", "rb720"], "settings": {} },
+    { "id": "bt720", "name": "blade-title", "parent": "con720", "children": [], "settings": { "inner_title": "Move with intent", "tag": "h1", "type": "words", "disablebuilder": false } },
+    { "id": "br720", "name": "next_blur_reveal", "parent": "con720", "children": [], "settings": { "inner_title": "Small classes, patient coaching and a calm room to train in.", "tag": "p", "type": "words" } },
+    { "id": "rb720", "name": "ripple_button_v3", "parent": "con720", "children": [], "settings": { "tag": "div", "topRippleInnerTitle": "Book a class", "bottomRippleInnerTitle": "Pick a time", "link": { "type": "internal", "postId": "12" } } },
+
+    { "id": "sec721", "name": "section", "parent": 0, "children": ["con721"], "settings": {} },
+    { "id": "con721", "name": "container", "parent": "sec721", "children": ["blk721", "blk722"], "settings": { "_direction": "row" } },
+    { "id": "blk721", "name": "block", "parent": "con721", "children": ["ir721"], "settings": {} },
+    { "id": "ir721", "name": "imagereveal", "parent": "blk721", "children": [], "settings": { "image": { "id": 931, "filename": "studio.webp", "size": "full", "url": "https://example.com/wp-content/uploads/studio.webp" }, "alt": "The studio floor", "height": "480" } },
+    { "id": "blk722", "name": "block", "parent": "con721", "children": ["sw722", "tx722", "rp722"], "settings": {} },
+    { "id": "sw722", "name": "swap-hover", "parent": "blk722", "children": [], "settings": { "inner_title": "Still unsure?", "tag": "h3", "type": "line", "swap_title": "Just ask us" } },
+    { "id": "tx722", "name": "text-basic", "parent": "blk722", "children": [], "settings": { "text": "We reply the same day." } },
+    { "id": "rp722", "name": "ripple_button_v2", "parent": "blk722", "children": [], "settings": { "topRippleInnerTitle": "Contact", "bottomRippleInnerTitle": "Contact", "link": { "type": "external", "url": "/contact/" } } },
+
+    { "id": "sec723", "name": "section", "parent": 0, "children": ["sp723"], "settings": {} },
+    { "id": "sp723", "name": "spotlight", "parent": "sec723", "children": ["hd723", "nb723"], "settings": { "mode": "light" } },
+    { "id": "hd723", "name": "heading", "parent": "sp723", "children": [], "settings": { "text": "Page not found", "tag": "h2" } },
+    { "id": "nb723", "name": "neumorphicbutton", "parent": "sp723", "children": [], "settings": { "inner_title": "Back home", "link": { "type": "external", "url": "/" } } },
+
+    { "id": "sec724", "name": "section", "parent": 0, "children": ["con724"], "settings": {} },
+    { "id": "con724", "name": "container", "parent": "sec724", "children": ["uh724", "uh725", "ue726"], "settings": {} },
+    { "id": "uh724", "name": "underlined-hover", "parent": "con724", "children": [], "settings": { "tag": "span", "inner_title": "Privacy", "link": { "type": "external", "url": "/privacy/" } } },
+    { "id": "uh725", "name": "underlined-hover", "parent": "con724", "children": [], "settings": { "tag": "span", "inner_title": "Open every day" } },
+    { "id": "ue726", "name": "next_blur_reveal", "parent": "con724", "children": [], "settings": { "tag": "p" } }
+  ]
+}

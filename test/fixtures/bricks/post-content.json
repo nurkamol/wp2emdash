@@ -1,0 +1,13 @@
+{
+  "title": "Studio rules",
+  "content": "<!-- wp:paragraph -->\n<p><strong>Last updated:</strong> January 1, 2026. These rules apply to every visit.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">1. Booking</h3>\n<!-- /wp:heading -->\n\n<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>Book a class at least an hour ahead.</li>\n<!-- /wp:list-item -->\n\n<!-- wp:list-item -->\n<li>Cancel up to twelve hours before.</li>\n<!-- /wp:list-item --></ul>\n<!-- /wp:list -->\n\n<!-- wp:block {\"ref\":99} /-->\n\n<!-- wp:shortcode -->\n[fluentform id=\"7\"]\n<!-- /wp:shortcode -->\n\n<!-- wp:paragraph -->\n<p>Questions? Ask at the desk.</p>\n<!-- /wp:paragraph -->",
+  "elements": [
+    { "id": "sec700", "name": "section", "parent": 0, "children": ["con700"], "settings": {} },
+    { "id": "con700", "name": "container", "parent": "sec700", "children": ["pt700"], "settings": {} },
+    { "id": "pt700", "name": "post-title", "parent": "con700", "children": [], "settings": { "tag": "h1" } },
+
+    { "id": "sec701", "name": "section", "parent": 0, "children": ["con701"], "settings": {} },
+    { "id": "con701", "name": "container", "parent": "sec701", "children": ["pc701"], "settings": {} },
+    { "id": "pc701", "name": "post-content", "parent": "con701", "children": [], "settings": {} }
+  ]
+}

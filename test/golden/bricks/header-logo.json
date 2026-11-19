@@ -1,0 +1,97 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "stacked",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec750",
+        "rawHash": "7ed290ae73"
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 941,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/mark.png",
+            "alt": "Fixture Studio"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t2",
+                "text": "Fixture & Co",
+                "marks": [
+                  "t1"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t1",
+                "href": "/about/"
+              }
+            ]
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book now",
+            "href": "/book/",
+            "style": "primary"
+          }
+        ],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[logo] kept as a picture linking to / (the starter's header draws its own logo from the design capture)",
+      "path": "section#sec750/container#con750/block#blk750/logo#lg750",
+      "tag": "logo"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[nav-menu] is rendered by the site (menu, logo, post data, filters), not migrated as content",
+      "path": "section#sec750/container#con750/nav-menu#nav750",
+      "tag": "nav-menu"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[ripple_button_v3] ripple hover effect not reproduced; the button shows \"Book now\", not the hover label \"Join today\"",
+      "path": "section#sec750/container#con750/block#blk751/ripple_button_v3#rb751",
+      "tag": "ripple_button_v3"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[logo] text logo kept as a link",
+      "path": "section#sec750/container#con750/block#blk751/logo#lg752",
+      "tag": "logo"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Stacked image + text in one column converted to media_text",
+      "path": "section#sec750"
+    }
+  ],
+  "forms": []
+}

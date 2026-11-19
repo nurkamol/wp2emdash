@@ -1,6 +1,31 @@
 {
   "sections": [
     {
+      "type": "gallery",
+      "variant": "stack",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec600",
+        "rawHash": "d9d517c3e7"
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 901,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/logo.svg",
+            "alt": "Fixture Studio"
+          }
+        ],
+        "layout": "stack",
+        "lightbox": false
+      }
+    },
+    {
       "type": "rich_text",
       "theme": {
         "tone": "light"
@@ -85,7 +110,7 @@
     {
       "level": "info",
       "code": "dynamic",
-      "message": "[logo] is rendered by the site (menu, logo, post data, filters), not migrated as content",
+      "message": "[logo] kept as a picture linking to / (the starter's header draws its own logo from the design capture)",
       "path": "section#sec600/container#con600/logo#lg600",
       "tag": "logo"
     },

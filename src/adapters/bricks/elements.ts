@@ -2,12 +2,16 @@
  * Bricks element handlers: one per content element → the shared fragments (src/adapters/wpbakery/elements.ts),
  * which the shared row recognisers turn into sections. Settings keys are each element's `set_controls()` in
  * includes/elements/<name>.php (Bricks 2.4.6 and 2.5-beta; docs/spikes/bricks-findings.md).
+ * Third-party elements (NextBricks, BricksExtras) map to the closest IR with a `lossy` diagnostic naming the effect that
+ * is not reproduced; their settings keys are verified in docs/spikes/bricks-findings.md.
  * Adding a handler: add it to HANDLERS, add a fixture in test/fixtures/bricks and its golden IR.
  */
 import type { Button, Diagnostic, MediaRef, PtBlock, RichText } from "../../ir/schema.js";
 import { autop } from "../../ir/portable-text.js";
 import type { FormDefinitionOut } from "../../scaffold/forms.js";
-import { type Col, embedOrLegacy, type Fragment, type HandlerCtx, richFromHtml } from "../wpbakery/elements.js";
+import { gutenbergFragments } from "../gutenberg/index.js";
+import { type Col, embedOrLegacy, embedProvider, type Fragment, type HandlerCtx, richFromHtml } from "../wpbakery/elements.js";
+import { mergeRich } from "../wpbakery/index.js";
 import { bricksFormToDefinition } from "./forms.js";
 import type { BricksElement, BricksOptions } from "./index.js";
 import { type BricksSite, classNames, obj, str } from "./site.js";
@@ -36,6 +40,7 @@ const blocksOf = (frags: Fragment[]): RichText => frags.flatMap((f) => (f.kind =
 export const plain = (b: PtBlock) => b.children.map((c) => c.text).join("");
 const isHeading = (b: PtBlock) => /^h[1-6]$/.test(b.style);
 const stripTags = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+const unescape = (s: string) => s.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
 // ── shared value readers ─────────────────────────────────────────────────────
 
@@ -169,6 +174,74 @@ export function dynamicListing(e: BricksElement, query: unknown, path: string, e
 	return [];
 }
 
+/**
+ * The page's own post_content where a post-content element or a `{post_content}` tag shows it (Bricks runs the_content:
+ * blocks, classic text with wpautop, shortcodes such as forms), through the Gutenberg adapter. Undefined when the
+ * element is in a template rendered for many posts, or the content is not in the extract.
+ */
+function postContent(e: BricksElement, path: string, env: Env): Fragment[] | undefined {
+	const { kind, content } = env.opts;
+	if ((kind !== "page" && kind !== "post") || content === undefined) return undefined;
+	if (!content.trim()) {
+		env.diag({ level: "info", code: "dynamic", message: `[${e.name}] shows the page's own content, which is empty`, path, tag: e.name });
+		return [];
+	}
+	const r = gutenbergFragments(content, { kind, keys: env.opts.keys, popupFor: env.opts.popupFor, postCount: env.opts.postCount, ...(env.opts.reusable ? { reusable: env.opts.reusable } : {}) });
+	for (const d of r.diagnostics) env.diag({ ...d, path: `${path}/post_content${d.path ? `/${d.path}` : ""}` });
+	env.diag({ level: "info", code: "dynamic", message: `[${e.name}] filled with the page's own content (WordPress editor), adapted as Gutenberg/classic content`, path, tag: e.name });
+	return r.fragments;
+}
+const isPostContentTag = (text: string | undefined) => text?.trim() === "{post_content}";
+
+/** Text in an HTML tag (h1–h6 kept, anything else a paragraph), linked when the element has a link. */
+function taggedText(text: string, tag: string | undefined, link: { href?: string; newTab?: boolean }, path: string, env: Env): Fragment[] {
+	const t = /^h[1-6]$/.test(tag ?? "") ? (tag as string) : "p";
+	const inner = link.href ? `<a href="${esc(link.href)}"${link.newTab ? ' target="_blank"' : ""}>${text}</a>` : text;
+	return richFromHtml(`<${t}>${inner.replace(/\r?\n/g, "<br>")}</${t}>`, env.ctx(path));
+}
+
+/** NextBricks animated titles (`inner_title`, `tag` h1–h6/p/span/custom default h3, `link`): the text, without the effect. */
+function effectTitle(effect: string): Handler {
+	return (e, s, path, env) => {
+		const text = dynamicText(str(s.inner_title) ?? "", path, e, env);
+		if (!stripTags(text)) {
+			env.diag({ level: "warn", code: "unmapped", message: `[${e.name}] without a title (NextBricks shows its placeholder "Next Bricks")`, path, tag: e.name });
+			return [];
+		}
+		const swap = e.name === "swap-hover" ? stripTags(str(s.swap_title) ?? "") : "";
+		env.diag(swap ? { level: "warn", code: "lossy", message: `[${e.name}] ${effect} not reproduced; the title shows "${stripTags(text)}", not the swapped text "${swap}"`, path, tag: e.name } : { level: "info", code: "lossy", message: `[${e.name}] ${effect} not reproduced; text kept`, path, tag: e.name });
+		const tag = str(s.tag) === "custom" ? str(s.customTag) : (str(s.tag) ?? "h3");
+		return taggedText(text, tag, linkOf(s.link, env), path, env);
+	};
+}
+
+/** NextBricks ripple buttons (`topRippleInnerTitle` shown, `bottomRippleInnerTitle` slides in on hover, `link`). */
+const rippleButton: Handler = (e, s, path, env) => {
+	const top = dynamicText(str(s.topRippleInnerTitle) ?? "", path, e, env);
+	const bottom = stripTags(str(s.bottomRippleInnerTitle) ?? "");
+	const out = buttonOf(top, linkOf(s.link, env), e, path, env, "primary");
+	if (!out.length) env.diag({ level: "warn", code: "unmapped", message: `[${e.name}] without a label`, path, tag: e.name });
+	else if (bottom && bottom !== stripTags(top)) env.diag({ level: "warn", code: "lossy", message: `[${e.name}] ripple hover effect not reproduced; the button shows "${stripTags(top)}", not the hover label "${bottom}"`, path, tag: e.name });
+	else env.diag({ level: "info", code: "lossy", message: `[${e.name}] ripple hover effect not reproduced`, path, tag: e.name });
+	return out;
+};
+
+/** What a code element outputs, for the owner to decide (it is never copied automatically). */
+export function describeCode(code: string): { php: boolean; summary: string } {
+	const t = code.trim();
+	if (/<\?(?:php\b|=)/i.test(t)) return { php: true, summary: "real PHP (<?php … ?> tags) that runs on the server" };
+	const parts: string[] = [];
+	if (/<style\b/i.test(t)) parts.push("CSS (a <style> block)");
+	if (/<script\b/i.test(t)) parts.push("JavaScript (a <script> block)");
+	const html = t.replace(/<style\b[\s\S]*?<\/style>/gi, "").replace(/<script\b[\s\S]*?<\/script>/gi, "").trim();
+	if (html) {
+		const text = stripTags(html);
+		const data = /<[a-z][\w-]*\b[^>]*\s(data-[\w-]+)(?:=("[^"]*"|'[^']*'))?/i.exec(html);
+		parts.push(text ? `static HTML with the text "${text.length > 80 ? `${text.slice(0, 80)}…` : text}"` : data ? `an empty HTML element with ${data[1]}${data[2] ? `=${data[2]}` : ""} (a mount point that a third-party script fills in the browser)` : "static HTML without text");
+	}
+	return { php: false, summary: parts.length ? `no PHP tags; it outputs ${parts.join(" and ")}` : "no PHP tags and outputs nothing" };
+}
+
 // ── handlers ─────────────────────────────────────────────────────────────────
 export const HANDLERS: Record<string, Handler> = {
 	heading: (e, s, path, env) => {
@@ -180,6 +253,10 @@ export const HANDLERS: Record<string, Handler> = {
 		return richFromHtml(`<${tag}>${inner}</${tag}>`, env.ctx(path));
 	},
 	"text-basic": (e, s, path, env) => {
+		if (isPostContentTag(str(s.text))) {
+			const pc = postContent(e, path, env);
+			if (pc) return pc;
+		}
 		const text = dynamicText(str(s.text) ?? "", path, e, env);
 		if (!stripTags(text)) return [];
 		const tag = /^h[1-6]$/.test(str(s.tag) ?? "") ? (s.tag as string) : "p";
@@ -187,7 +264,14 @@ export const HANDLERS: Record<string, Handler> = {
 		const inner = link.href ? `<a href="${esc(link.href)}"${link.newTab ? ' target="_blank"' : ""}>${text}</a>` : text;
 		return richFromHtml(`<${tag}>${inner.replace(/\r?\n/g, "<br>")}</${tag}>`, env.ctx(path));
 	},
-	text: (e, s, path, env) => editorHtml(str(s.text) ?? "", path, e, env),
+	text: (e, s, path, env) => (isPostContentTag(stripTags(str(s.text) ?? "")) ? postContent(e, path, env) : undefined) ?? editorHtml(str(s.text) ?? "", path, e, env),
+	"post-content": (e, s, path, env) => {
+		// dataSource "bricks" (templates only): the post's Bricks layout, rendered by the template per post.
+		const pc = str(s.dataSource) === "bricks" ? undefined : postContent(e, path, env);
+		if (pc) return pc;
+		env.diag({ level: "info", code: "dynamic", message: "[post-content] is rendered by the site template (each post's own content)", path, tag: e.name });
+		return [];
+	},
 	alert: (e, s, path, env) => {
 		env.diag({ level: "info", code: "lossy", message: "[alert] notice box styling not reproduced; text kept", path, tag: e.name });
 		return editorHtml(str(s.content) ?? "", path, e, env);
@@ -446,14 +530,85 @@ export const HANDLERS: Record<string, Handler> = {
 	code: (e, s, path, env) => {
 		const code = str(s.code) ?? "";
 		if (s.executeCode || /<\?php/.test(code)) {
-			env.diag({ level: "error", code: "flagged", message: "[code] executes PHP on the server; never copied automatically — review and rebuild", path, carriesContent: true, tag: e.name });
-			return code.trim() ? [{ kind: "legacy", html: code, reason: "Bricks code element (PHP)" }] : [];
+			// Execute code: Bricks evaluates the code as a PHP template (HTML outside <?php ?> tags is output as is).
+			const d = describeCode(code);
+			// No PHP: the output is the markup itself. A known widget (booking…) is kept as an embed like any HTML element.
+			const provider = d.php ? undefined : embedProvider(code);
+			if (provider) {
+				env.diag({ level: "info", code: "flagged", message: `[code] has "Execute code" on but contains ${d.summary}; kept as a ${provider} embed`, path, tag: e.name });
+				return embedOrLegacy(code, env.ctx(path), "Bricks code element");
+			}
+			const snippet = code.trim().replace(/\s+/g, " ");
+			const shown = snippet.length > 120 ? `${snippet.slice(0, 120)}…` : snippet;
+			env.diag({ level: "error", code: "flagged", message: d.php ? `[code] executes real PHP on the server (<?php … ?> tags); never copied automatically — review and rebuild` : `[code] has "Execute code" on but contains ${d.summary}: ${shown} — never copied automatically; rebuild it, or approve the legacy_html in decisions.md if it is safe`, path, carriesContent: true, tag: e.name });
+			return code.trim() ? [{ kind: "legacy", html: code, reason: d.php ? "Bricks code element (PHP)" : "Bricks code element (Execute code on, no PHP)" }] : [];
 		}
 		const js = str(s.javascriptCode)?.trim();
 		if (js) env.diag({ level: "error", code: "flagged", message: "[code] JavaScript is never copied automatically; review and rebuild", path, carriesContent: true, tag: e.name });
 		return [...embedOrLegacy(code, env.ctx(path), "Bricks code element"), ...(js ? [{ kind: "legacy" as const, html: `<script>${js}</script>`, reason: "Bricks code element (JavaScript)" }] : [])];
 	},
 	html: (_e, s, path, env) => embedOrLegacy(str(s.html) ?? "", env.ctx(path), "Bricks HTML element"),
+
+	// Logo (includes/elements/logo.php: logo, logoText = the image alt or a text logo, logoUrl, default link home)
+	logo: (e, s, path, env) => {
+		const text = unescape(stripTags(dynamicText(str(s.logoText) ?? "", path, e, env))) || env.opts.siteTitle;
+		const href = linkOf(s.logoUrl, env).href ?? "/";
+		const media = str(obj(s.logo)?.useDynamicData) ? undefined : mediaOf(s.logo, text);
+		if (media) {
+			env.diag({ level: "info", code: "dynamic", message: `[logo] kept as a picture linking to ${href} (the starter's header draws its own logo from the design capture)`, path, tag: e.name });
+			return [{ kind: "media", media, role: "content", link: href }];
+		}
+		env.diag({ level: "info", code: "dynamic", message: "[logo] text logo kept as a link", path, tag: e.name });
+		return text ? richFromHtml(`<p><a href="${esc(href)}">${esc(text)}</a></p>`, env.ctx(path)) : [];
+	},
+
+	// NextBricks (plugin nextbricks/elements/<file>.php; docs/spikes/bricks-findings.md)
+	"blade-title": effectTitle("blade (sliced) reveal animation"),
+	next_blur_reveal: effectTitle("blur reveal animation"),
+	"swap-hover": effectTitle("text swap on hover"),
+	"underlined-hover": (e, s, path, env) => {
+		const link = linkOf(s.link, env);
+		if (!link.href) return effectTitle("animated underline on hover")(e, s, path, env);
+		env.diag({ level: "info", code: "lossy", message: `[${e.name}] animated underline on hover not reproduced; kept as a text link`, path, tag: e.name });
+		return buttonOf(dynamicText(str(s.inner_title) ?? "", path, e, env), link, e, path, env, "link");
+	},
+	ripple_button_v2: rippleButton,
+	ripple_button_v3: rippleButton,
+	neumorphicbutton: (e, s, path, env) => {
+		const out = buttonOf(dynamicText(str(s.inner_title) ?? "", path, e, env), linkOf(s.link, env), e, path, env, "primary");
+		env.diag(out.length ? { level: "info", code: "lossy", message: `[${e.name}] neumorphic (soft shadow) style and hover animation not reproduced`, path, tag: e.name } : { level: "warn", code: "unmapped", message: `[${e.name}] without a label`, path, tag: e.name });
+		return out;
+	},
+	imagereveal: (e, s, path, env) => {
+		const img = obj(s.image);
+		if (str(img?.useDynamicData)) {
+			env.diag({ level: "warn", code: "dynamic", message: `[imagereveal] uses dynamic data (${str(img?.useDynamicData)}); not migrated`, path, tag: e.name });
+			return [];
+		}
+		const media = mediaOf(img, str(s.alt));
+		if (!media) {
+			env.diag({ level: "warn", code: "media-missing", message: "[imagereveal] without an image", path, tag: e.name });
+			return [];
+		}
+		env.diag({ level: "info", code: "lossy", message: "[imagereveal] reveal animation not reproduced; image kept", path, tag: e.name });
+		return [{ kind: "media", media, role: "content" }];
+	},
+	spotlight: (e, _s, path, env) => {
+		// A nestable box with a cursor-following light on its background.
+		env.diag({ level: "info", code: "lossy", message: "[spotlight] cursor spotlight background effect not reproduced; its content kept", path, tag: e.name });
+		return mergeRich(env.childrenOf(e).flatMap((c) => env.fragments(c, `${path}/${c.name}#${c.id}`)));
+	},
+
+	// BricksExtras Fluent Form (bricksextras/components/classes/x-fluent-form.php: fluentFormSelect, or formSource + fluentFormID)
+	xfluentform: (e, s, path, env) => {
+		const id = (s.formSource ? str(s.fluentFormID) : (str(s.fluentFormSelect) ?? "1"))?.trim();
+		if (!id || !/^\d+$/.test(id)) {
+			env.diag({ level: "error", code: "unmapped", message: `[xfluentform] form id ${id ? `"${id}" is dynamic` : "is not set"}; choose the form in overrides.ts`, path, carriesContent: true, tag: e.name });
+			return [];
+		}
+		env.diag({ level: "info", code: "lossy", message: `[xfluentform] Fluent Forms #${id} as a form section; BricksExtras form styling not reproduced`, path, tag: e.name });
+		return [{ kind: "form", provider: "fluent-forms", id }];
+	},
 	shortcode: (_e, s, path, env) => {
 		const sc = (str(s.shortcode) ?? "").trim();
 		const form = new RegExp(`^${FORM_SHORTCODE.source}$`).test(sc) ? formShortcode(sc) : [];
@@ -462,7 +617,7 @@ export const HANDLERS: Record<string, Handler> = {
 };
 
 /** Elements that are site chrome or query-driven: rendered by the site itself, not migrated as page content. */
-export const DYNAMIC = new Set(["nav-menu", "nav-nested", "dropdown", "offcanvas", "toggle", "toggle-mode", "logo", "search", "post-content", "post-excerpt", "post-meta", "post-navigation", "post-comments", "post-author", "post-taxonomy", "post-sharing", "post-reading-time", "post-reading-progress-bar", "post-toc", "pagination", "breadcrumbs", "sidebar", "related-posts", "query-results-summary", "back-to-top", "language-switcher", "instagram-feed", "facebook-page", "map-connector"]);
+export const DYNAMIC = new Set(["nav-menu", "nav-nested", "dropdown", "offcanvas", "toggle", "toggle-mode", "search", "post-excerpt", "post-meta", "post-navigation", "post-comments", "post-author", "post-taxonomy", "post-sharing", "post-reading-time", "post-reading-progress-bar", "post-toc", "pagination", "breadcrumbs", "sidebar", "related-posts", "query-results-summary", "back-to-top", "language-switcher", "instagram-feed", "facebook-page", "map-connector"]);
 /** Query filter elements (filter-*): they act on a query loop. */
 export const isFilter = (name: string) => name.startsWith("filter-");
 export const DECORATIVE = new Set(["divider", "spacer", "lottie"]);

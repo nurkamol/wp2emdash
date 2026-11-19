@@ -196,6 +196,17 @@ export const kitConfigSchema = z.object({
 
 	/** Site handles sensitive data (health, legal, finance): forms never store or email field values that look sensitive. */
 	sensitiveData: z.boolean().default(false),
+
+	/** Third-party widget settings the page markup does not carry (public values, no secrets). */
+	embeds: z
+		.object({
+			/** Mariana Tek web integrations tenant (`<tenant>.marianaiframes.com`); else read from the markup or the live pages. */
+			marianatekTenant: z
+				.string()
+				.regex(/^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/)
+				.optional(),
+		})
+		.prefault({}),
 });
 
 export type KitConfigInput = z.input<typeof kitConfigSchema>;
