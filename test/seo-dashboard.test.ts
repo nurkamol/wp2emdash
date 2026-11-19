@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { parseRobots, siteChecks, sitemapLocs } from "../packages/seo/src/site-checks.js";
 import { createPlugin } from "../packages/seo/src/plugin/index.js";
 
-const ULID = (n: number) => `01M7S3NYK8BXZBBHPHJXC4Z6S${n}`;
+const ULID = (n: number) => `01ARZ3NDEKTSV4RRFFQ69G5FA${n}`;
 const pt = (style: string, text: string) => ({ _type: "block", style, children: [{ _type: "span", text }], markDefs: [] });
 const page = (id: string, slug: string, title: string, img: string, h1 = true) => ({ id, slug, status: "published", data: { title, content: [{ _type: "section_hero", heading: title, heading_level: h1 ? "h1" : "h2", body: [pt("normal", "word ".repeat(320))], media: { id: img, provider: "local", mimeType: "image/webp", filename: `${slug}.webp` }, buttons: [{ label: "Go", url: "/x/" }] }] }, seo: { title: null, description: "d".repeat(140), image: "/img.webp", canonical: null, noIndex: false } });
 
