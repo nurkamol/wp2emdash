@@ -34,7 +34,8 @@
           "provider": "fluent-forms",
           "id": "4"
         },
-        "aside": []
+        "aside": [],
+        "stacked": true
       }
     }
   ],

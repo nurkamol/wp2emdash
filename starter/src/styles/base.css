@@ -439,6 +439,10 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 /* forms */
 .form-layout { display: grid; gap: clamp(1.5rem, 5vw, 4rem); }
 @media (min-width: 900px) /* stack */ { .form-layout { grid-template-columns: 1fr 1fr; align-items: start; } }
+/* Form under its heading (field "stacked", set when the source stacks them): one column, the form at its own width. */
+.form-layout.form-layout--stacked { grid-template-columns: minmax(0, 1fr); gap: var(--form-gap, clamp(1.5rem, 5vw, 4rem)); }
+.form-layout--stacked > .form { width: 100%; max-width: var(--form-w, none); margin-inline: auto; }
+.form-layout--stacked .section__head { margin-bottom: 0; }
 /* minmax(0, …): inputs have an intrinsic width (~20 characters) that would otherwise push the grid past a phone screen. */
 .form { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .field { display: grid; gap: 0.4rem; grid-column: span 2; min-width: 0; }
@@ -537,6 +541,28 @@ body.over-hero { padding-top: var(--announce-h, 0px); }
 .header-link.btn--primary, .over-hero .site-header .header-link.btn--primary { color: var(--color-accent-contrast); white-space: nowrap; line-height: 1; padding: clamp(11px, 0.7rem + 0.4vw, 16px) clamp(16px, 0.9rem + 0.8vw, 24px); }
 .header-link:not(.btn) { display: none; }
 @media (min-width: 900px) { .header-link:not(.btn) { display: inline-flex; } }
+
+/* Bricks header (site.config header.bricks; other builders never set it): the bar in the content width, the toggle
+   only below the inline-menu breakpoint, bar buttons off on phones, button colours/corners from the header template. */
+.has-bar-container .site-header__bar { max-width: var(--container); }
+.has-bar-container .site-header__nav ul { gap: var(--hnav-gap, 2rem); }
+@media (min-width: 1051px) { .toggle-small-only .menu-toggle { display: none; } }
+@media (max-width: 767.98px) { .hb-hide-phone .site-header__actions .header-link.btn { display: none; } }
+.site-header .header-link.btn.has-look, .menu-panel .btn.has-look { background: var(--hb-bg, var(--color-accent)); color: var(--hb-color, var(--color-accent-contrast)); border: 0; border-radius: var(--hb-radius, var(--radius-button)); padding: var(--hb-pad, 0.85em 1.8em); font-size: var(--font-size-body); font-weight: var(--body-weight, 400); letter-spacing: normal; text-transform: none; line-height: inherit; }
+/* Bricks offcanvas menu: a sheet that slides in over everything, its own logo and close, the menu in the body font, buttons pinned to the bottom. */
+.menu-panel.menu-panel--sheet { inset: 0 auto 0 0; z-index: 1000; width: min(var(--sheet-w, 100%), 100%); display: flex; flex-direction: column; align-content: normal; gap: var(--sheet-logo-gap, 2rem); padding: var(--sheet-pad, 24px); background: var(--sheet-bg, #fff); color: var(--sheet-color, #000); transform: translateX(-100%); transition: transform var(--sheet-ms, 200ms) var(--sheet-ease, ease); }
+.menu-panel.menu-panel--sheet.from-right { inset: 0 0 0 auto; transform: translateX(100%); }
+.menu-panel.menu-panel--sheet.is-open { transform: none; }
+@media (max-width: 767.98px) { .menu-panel.menu-panel--sheet { width: 100%; } }
+.menu-panel--sheet > nav { flex: 1; display: flex; flex-direction: column; }
+.menu-panel--sheet .menu-panel__items { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sheet-item-gap, 1.5rem); }
+.menu-panel--sheet .menu-panel__items > li > a { display: block; font-family: var(--sheet-font, var(--font-display)); font-weight: var(--sheet-weight, 500); line-height: var(--sheet-lh, 1.3); }
+.menu-panel.menu-panel--sheet li { opacity: 1; transform: none; transition: none; }
+.menu-panel--sheet .menu-panel__buttons { margin-top: auto !important; flex-wrap: nowrap; gap: var(--sheet-buttons-gap, 18px); }
+.menu-panel__top { line-height: 0; }
+.menu-panel__logo img { height: var(--sheet-logo-h, 100px); width: auto; }
+.menu-panel__close { position: absolute; top: var(--sheet-close-inset, 32px); right: var(--sheet-close-inset, 32px); width: calc(var(--sheet-close-size, 42px) * 0.57); height: var(--sheet-close-size, 42px); padding: 0; border: 0; background: none; color: inherit; cursor: pointer; display: grid; place-items: center; }
+.menu-panel__close svg { width: 100%; height: auto; }
 
 /* toggle: lines → X (duration/easing from motion.css), optional label ("MENU") */
 .menu-toggle { position: relative; z-index: 102; min-width: 44px; height: 44px; display: inline-flex; align-items: center; gap: 14px; padding: 0; background: none; border: 0; color: inherit; cursor: pointer; font: inherit; }
@@ -660,6 +686,26 @@ body.over-hero { padding-top: var(--announce-h, 0px); }
 .has-hero-look .hero__body { font-size: var(--hero-body, var(--font-size-body)); }
 .has-hero-look .section__head[style*="--heading-size"] .heading { font-size: var(--heading-size); }
 @media (max-width: 690px) { .has-hero-look .hero__content[style*="--hero-heading-p"] .heading { font-size: var(--hero-heading-p); } }
+.has-hero-look .hero__content .section__head .heading { margin: 0; }
+/* Space above the buttons per screen (the builder box's row gap, fluid); the content gap is already between them. */
+.has-hero-look .hero__content[style*="--hero-above"] > .actions { margin-top: calc(var(--hero-above) - var(--hero-gap, 0px)); }
+/* Bricks text whose blocks are items of a builder box (rich_text fields text_block_gap / text_head_gap / head_center; other builders never set them). */
+.section--rich_text[style*="--rt-block-gap"] .prose > * { margin-block: 0; }
+.section--rich_text[style*="--rt-block-gap"] .prose > * + * { margin-top: var(--rt-block-gap); }
+.section--rich_text[style*="--rt-block-gap"] .prose :is(ul, ol) { padding-left: 40px; }
+.section--rich_text[style*="--rt-head-gap"] .section__head { margin-bottom: var(--rt-head-gap); }
+.section--rich_text[style*="--rt-head-gap"] .section__head .heading { margin: 0; }
+.section--rich_text.rt-head-center .section__head { text-align: center; margin-inline: auto; }
+/* A stack's text element: its own weight, and its paragraphs closer than the stack's items (column fields text_weight / para_gap). */
+.columns__col[style*="--col-text-weight"] .prose :is(p, li) { font-weight: var(--col-text-weight); }
+.columns__col[style*="--col-text-tracking"] .prose :is(p, li) { letter-spacing: var(--col-text-tracking); }
+.columns__col[style*="--col-text-leading"] .prose :is(p, li) { line-height: var(--col-text-leading); }
+.columns__col.has-link-rows[style*="--col-link-weight"] .prose ul:not(:has(> li > :not(a))) > li { font-weight: var(--col-link-weight); }
+.columns__col.has-link-rows[style*="--col-link-tracking"] .prose ul:not(:has(> li > :not(a))) > li { letter-spacing: var(--col-link-tracking); }
+.columns__col.has-link-rows[style*="--col-link-leading"] .prose ul:not(:has(> li > :not(a))) > li { line-height: var(--col-link-leading); }
+.columns__col.is-stack[style*="--col-para-gap"] > .prose > p + p { margin-top: calc(var(--col-para-gap) - var(--col-item-gap, 0px)); }
+/* Bricks' default button (.bricks-button, no framework class; field "plain"): square, no border, the surrounding text, centred label. */
+.btn.btn--plain { justify-content: center; padding: 0.5em 1em; border: 0; border-radius: 0; font-size: inherit; font-weight: inherit; line-height: inherit; letter-spacing: 0.5px; }
 
 /* Last on purpose: padding measured on the source page wins over spacing tokens and layout defaults. */
 .section.has-pad-top { padding-top: var(--pad-top); }

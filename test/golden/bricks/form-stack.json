@@ -1,0 +1,71 @@
+{
+  "sections": [
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "anchorId": "request",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#fk10",
+        "rawHash": "283e543068",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Request a visit",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "formRef": {
+          "provider": "bricks",
+          "id": "10-fk21"
+        },
+        "aside": [],
+        "stacked": true,
+        "formWidth": 800,
+        "formGap": "64px"
+      },
+      "headAlign": "center"
+    }
+  ],
+  "diagnostics": [],
+  "forms": [
+    {
+      "id": "bricks-10-fk21",
+      "title": "Form fk21",
+      "submitLabel": "Send",
+      "successMessage": "Message successfully sent. We will get back to you as soon as possible.",
+      "fields": [
+        {
+          "name": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "autocomplete": "email"
+        }
+      ],
+      "warnings": []
+    }
+  ]
+}

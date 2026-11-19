@@ -543,7 +543,8 @@
           {
             "label": "Start",
             "href": "/trial/",
-            "style": "primary"
+            "style": "primary",
+            "plain": true
           }
         ]
       },

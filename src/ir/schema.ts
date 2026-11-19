@@ -62,6 +62,8 @@ export const button = z.object({
 	spaceAbove: z.number().int().min(0).max(200).optional(),
 	/** Light button: white background, accent text (Bricks button style "light"). */
 	light: z.boolean().optional(),
+	/** The builder's default button (Bricks `.bricks-button`, no framework class): square, no border, body text, padding 0.5em 1em, 0.5px tracking. */
+	plain: z.boolean().optional(),
 	/** The button's minimum width (px), when the source sets one. */
 	minWidth: z.number().int().min(40).max(600).optional(),
 	/** A second label the button swaps to on hover / keyboard focus (NextBricks ripple buttons, swap effects). */
@@ -141,6 +143,8 @@ const base = {
 	headGap: z.string().regex(/^\d+(?:\.\d+)?(?:px|%|vw|rem)$/).optional(),
 	/** A builder spacer (px) above the row's first content; added to the measured top padding. */
 	spaceBefore: z.number().int().min(0).max(400).optional(),
+	/** The button group: every button as wide as the longest (`equal`; stacked on phones, as the source does). */
+	buttonsWidth: z.enum(["auto", "equal", "full"]).optional(),
 	/** Padding measured on the source page (px, or fluid clamp between phone and desktop); wins over spacing. */
 	pad: z.object({ top: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), bottom: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), /** Tablet (691–999px) value where the source's tablet padding is off the phone→desktop line. */ topTablet: z.number().min(0).max(600).optional(), bottomTablet: z.number().min(0).max(600).optional() }).optional(),
 	sourceRef,
@@ -149,6 +153,8 @@ const base = {
 const heading = richText.optional();
 
 // ── Section library (PLAN §5) ────────────────────────────────────────────────
+/** px, or a fluid value between the phone and desktop measurements (scaffold `fluid()`). */
+const fluidLength = z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/);
 const column = z.object({
 	width: z.string().optional(),
 	body: richText.default([]),
@@ -189,11 +195,23 @@ const column = z.object({
 	imageSpace: z.number().int().min(0).max(200).optional(),
 	/** Space between the column's items (picture, each paragraph, buttons), px: a builder flex stack's row gap. */
 	itemGap: z.number().int().min(0).max(200).optional(),
+	/** …per screen, when measured on the live page (fluid between phone and desktop); wins over itemGap. */
+	itemGapFluid: fluidLength.optional(),
 	/** A list made only of links is a row of links this far apart (px), without bullets or underlines (builder link rows). */
 	linkGap: z.number().int().min(0).max(100).optional(),
 	/** Text size of those link rows, and of the column's other text (px), when the builder sets one. */
 	linkSize: z.number().int().min(10).max(40).optional(),
 	textSize: z.number().int().min(10).max(40).optional(),
+	/** The column's text weight, when the builder text element sets its own (Bricks `_typography` font-weight). */
+	textWeight: z.number().int().min(100).max(900).optional(),
+	/** …and its letter spacing (px) and line height; the same three for the column's link rows. */
+	textTracking: z.number().min(0).max(5).optional(),
+	textLeading: z.number().min(1).max(3).optional(),
+	linkWeight: z.number().int().min(100).max(900).optional(),
+	linkTracking: z.number().min(0).max(5).optional(),
+	linkLeading: z.number().min(1).max(3).optional(),
+	/** Space between the paragraphs of one text element inside a stack (em; the stack's item gap is between elements). */
+	paraGap: z.number().min(0).max(4).optional(),
 	/** Links to social networks in a link row are drawn as round icons this far apart (px; the source placed icon links). */
 	socialIcons: z.number().int().min(0).max(100).optional(),
 });
@@ -257,7 +275,7 @@ export const section = z.discriminatedUnion("type", [
 			media: mediaRef.optional(),
 			align: z.enum(["left", "center", "right"]).default("center"),
 			/** Builder look (Bricks): the content's width, the text size, the heading size on phones, the space between items. */
-			look: z.object({ width: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(), bodySize: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(), headingSizePhone: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(), gap: z.number().int().min(0).max(200).optional(), buttonsGap: z.number().int().min(0).max(100).optional() }).optional(),
+			look: z.object({ width: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(), bodySize: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(), headingSizePhone: z.string().regex(/^\d+(?:\.\d+)?px$/).optional(), gap: z.number().int().min(0).max(200).optional(), buttonsGap: z.number().int().min(0).max(100).optional(), /** Space above the buttons per screen (Bricks: the outer box's row gap). */ buttonsAbove: fluidLength.optional() }).optional(),
 		}),
 	}),
 	z.object({
@@ -279,6 +297,10 @@ export const section = z.discriminatedUnion("type", [
 					bodySizeSmall: cssLength.optional(),
 					bodyLeading: z.number().min(1).max(3).optional(),
 					bodyWidth: z.string().regex(/^\d{2,3}%$/).optional(),
+					/** Bricks: every block of the text is an item of the builder box, this far apart (its row gap); the heading on its own above, centred and this far from the text. */
+					blockGap: fluidLength.optional(),
+					headGap: fluidLength.optional(),
+					headCenter: z.boolean().optional(),
 				})
 				.optional(),
 		}),
@@ -370,7 +392,7 @@ export const section = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("steps"), ...base, fields: z.object({ heading, items: z.array(z.object({ title: z.string(), body: richText.default([]), icon: icon.optional() })).min(1) }) }),
 	z.object({ type: z.literal("tabs"), ...base, fields: z.object({ heading, tabs: z.array(z.object({ label: z.string(), body: richText })).min(1) }) }),
 	z.object({ type: z.literal("video"), ...base, fields: z.object({ heading, video: mediaRef.optional(), embedUrl: z.string().optional(), poster: mediaRef.optional(), caption: z.string().optional() }) }),
-	z.object({ type: z.literal("form"), ...base, fields: z.object({ heading, intro: richText.default([]), formRef: z.object({ provider: z.string(), id: z.string() }), aside: richText.default([]) }) }),
+	z.object({ type: z.literal("form"), ...base, fields: z.object({ heading, intro: richText.default([]), formRef: z.object({ provider: z.string(), id: z.string() }), aside: richText.default([]), /** The form under the heading, not beside it (a builder column stacks them), at most this wide (px), this far below (px or fluid). */ stacked: z.boolean().optional(), formWidth: z.number().int().min(200).max(2000).optional(), formGap: fluidLength.optional() }) }),
 	z.object({ type: z.literal("map"), ...base, fields: z.object({ heading, embedUrl: z.string().optional(), address: z.string().optional(), height: z.string().optional() }) }),
 	z.object({ type: z.literal("embed"), ...base, fields: z.object({ heading, provider: z.string(), html: z.string(), height: z.string().optional() }) }),
 	z.object({ type: z.literal("legacy_html"), ...base, fields: z.object({ html: z.string(), reason: z.string() }) }),

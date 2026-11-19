@@ -17,7 +17,7 @@ const run = (p: InlinePart) => {
 ---
 
 <Section value={v} type="form">
-	<div class="form-layout">
+	<div class:list={["form-layout", { "form-layout--stacked": v.stacked === true }]} style={[typeof v.form_width === "number" && v.form_width >= 200 && v.form_width <= 2000 ? `--form-w:${v.form_width}px` : "", /^(?:\d+(?:\.\d+)?px|clamp\([\d.]+px, -?[\d.]+px \+ -?[\d.]+vw, [\d.]+px\))$/.test(v.form_gap ?? "") ? `--form-gap:${v.form_gap}` : ""].filter(Boolean).join(";") || undefined}>
 		<div class="form-layout__text">
 			<Heading value={v} />
 			<Rich value={v.intro} />

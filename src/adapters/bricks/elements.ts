@@ -324,7 +324,10 @@ export const HANDLERS: Record<string, Handler> = {
 		const light = style === "light" && s.outline !== true;
 		const min = str(s._widthMin)?.trim();
 		const minWidth = min && /^\d+(?:px)?$/.test(min) && Number.parseInt(min, 10) >= 40 && Number.parseInt(min, 10) <= 600 ? Number.parseInt(min, 10) : undefined;
-		return buttonOf(dynamicText(str(s.text) ?? "", path, e, env), linkOf(s.link, env), e, path, env, kind, /^(lg|xl)$/.test(str(s.size) ?? "")).map((f) => (f.kind === "button" && (light || minWidth) ? { ...f, button: { ...f.button, ...(light ? { light: true } : {}), ...(minWidth ? { minWidth } : {}) } } : f));
+		// No framework class (Automatic.css `btn--*`), no size, no outline and no theme-style button settings: Bricks' own
+		// `.bricks-button` look (square, no border, inherited text, padding 0.5em 1em, 0.5px letter spacing).
+		const plain = !classNames(e, env.site).some((c) => /^btn--/.test(c)) && !str(s.size) && s.outline !== true && !obj(env.site.themeStyle?.button);
+		return buttonOf(dynamicText(str(s.text) ?? "", path, e, env), linkOf(s.link, env), e, path, env, kind, /^(lg|xl)$/.test(str(s.size) ?? "")).map((f) => (f.kind === "button" && (light || minWidth || plain) ? { ...f, button: { ...f.button, ...(light ? { light: true } : {}), ...(plain ? { plain: true } : {}), ...(minWidth ? { minWidth } : {}) } } : f));
 	},
 	"text-link": (e, s, path, env) => buttonOf(dynamicText(str(s.text) ?? "", path, e, env), linkOf(s.link, env), e, path, env, "link"),
 	"social-icons": (e, s, path, env) =>

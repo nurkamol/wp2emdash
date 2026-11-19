@@ -9,10 +9,13 @@ const { value: v } = Astro.props as { value: Record<string, any> };
 const LENGTH = /^\d+(?:\.\d+)?(?:px|vh|svh|vw|rem|em|%)$/;
 const num = (x: unknown) => (typeof x === "number" && x >= 1 && x <= 3 ? String(x) : undefined);
 const pairs: [string, unknown][] = [["--rt-h", v.text_heading_size], ["--rt-h-t", v.text_heading_size_tablet], ["--rt-h-p", v.text_heading_size_phone], ["--rt-h-lh", num(v.text_heading_leading)], ["--rt-p", v.body_size], ["--rt-p-s", v.body_size_small], ["--rt-p-lh", num(v.body_leading)], ["--rt-p-w", v.body_width]];
-const style = pairs.flatMap(([k, x]) => (typeof x === "string" && (LENGTH.test(x) || /^\d(?:\.\d+)?$/.test(x)) ? [`${k}:${x}`] : [])).join(";") || undefined;
+// Bricks: blocks spaced by the builder box's gap, the heading's own space under it (px or fluid clamp).
+const FLUID = /^(?:\d+(?:\.\d+)?px|clamp\([\d.]+px, -?[\d.]+px \+ -?[\d.]+vw, [\d.]+px\))$/;
+const fluid = ([["--rt-block-gap", v.text_block_gap], ["--rt-head-gap", v.text_head_gap]] as [string, unknown][]).flatMap(([k, x]) => (typeof x === "string" && FLUID.test(x) ? [`${k}:${x}`] : []));
+const style = [...pairs.flatMap(([k, x]) => (typeof x === "string" && (LENGTH.test(x) || /^\d(?:\.\d+)?$/.test(x)) ? [`${k}:${x}`] : [])), ...fluid].join(";") || undefined;
 ---
 
-<Section value={v} type="rich_text" class={`width-${v.width ?? "normal"} align-${v.align ?? "left"}`} vars={style}>
+<Section value={v} type="rich_text" class={`width-${v.width ?? "normal"} align-${v.align ?? "left"}${v.head_center === true ? " rt-head-center" : ""}`} vars={style}>
 	<Heading value={v} />
 	<Rich value={v.body} />
 	<Buttons items={v.buttons} layout={v} />

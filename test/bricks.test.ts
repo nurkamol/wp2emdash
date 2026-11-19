@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { adaptBricks, type BricksElement, bricksElements, bricksFormToDefinition, bricksSite, gridTracks, isBricks, siteTemplates, templateElements } from "../src/adapters/bricks/index.js";
 import { atBreakpoint, cssPx, effectiveSettings, liveVariables, resolveColour, resolveLength } from "../src/adapters/bricks/site.js";
+import type { BricksBox } from "../src/audit/browser.js";
 import { kitConfigSchema } from "../src/config/schema.js";
 import { sitePaths } from "../src/core/paths.js";
 import { bricksMediaRefs, bricksOptionsNote, readBricksOptions } from "../src/extract/bricks.js";
@@ -59,6 +60,144 @@ describe("Bricks body weight token", () => {
 		expect(bricksBodyWeight({ typography: { typographyBody: { "font-weight": "300" } } })).toContain("--body-weight: 300;");
 		expect(bricksBodyWeight({ typography: { typographyBody: { "font-weight": "400" } } })).toBe("");
 		expect(bricksBodyWeight(undefined)).toBe("");
+	});
+});
+
+describe("Bricks layout tokens", () => {
+	const live = liveVariables(
+		[390, 768, 1440].map((width) => ({
+			width,
+			rootFontSize: 16,
+			variables: { "--content-width": "85.375rem", "--text-line-height": "calc(6px + 2ex)", "--text-text-wrap": "pretty", "--heading-text-wrap": "pretty", "--radius": "5px", "--text-m": "clamp(1rem, calc(0.1988071571vw + 0.9552683897rem), 1.125rem)", "--btn-line-height": "1", "--btn-border-width": "2px", "--paragraph-spacing": "1em" },
+		})),
+	);
+	const site = bricksSite({ bricks_theme_styles: { acss: { label: "ACSS", settings: { conditions: { conditions: [{ main: "any" }] }, container: { width: "var(--content-width)" } } } } }, live);
+	const section = (pad: number) => ({ name: "section", w: 0, h: 0, pad: [40, pad, 40, pad] as [number, number, number, number] });
+	const shots: { viewport: string; bricks: Record<string, BricksBox> }[] = [
+		{ viewport: "mobile", bricks: { "c:0": section(21.2), "c:1": section(21.2), "c:1/0": { name: "container", w: 0, h: 0 } } },
+		{ viewport: "tablet", bricks: { "c:0": section(36.2) } },
+		{ viewport: "desktop", bricks: { "c:0": section(60), "c:1": section(60), "c:2": section(0) } },
+	];
+	it("reads the content width from the theme style, the gutter from the measured section padding, and Automatic.css rules", async () => {
+		const { bricksLayout } = await import("../src/adapters/bricks/layout.js");
+		const layout = bricksLayout(site, shots, { "auto-radius-selectors": '":where(img):not(header img)", ":where(figure)"' });
+		expect(layout).toEqual({ container: 1366, gutter: { mobile: 21.2, tablet: 36.2, desktop: 60 }, textLeading: "calc(6px + 2ex)", textWrap: "pretty", headingWrap: "pretty", paragraphSpacing: 1, imageRadius: 5, button: { size: { mobile: 16.06, desktop: 18 }, leading: 1, border: 2 } });
+		// Without the automatic image radius in the Automatic.css settings, images keep the starter's corners.
+		expect(bricksLayout(site, shots, {}).imageRadius).toBeUndefined();
+		const { bricksLayoutTokens } = await import("../src/phases/scaffold.js");
+		const css = bricksLayoutTokens(layout);
+		expect(css).toContain("--container: 1366px;");
+		expect(css).toContain("--gutter: clamp(21.2px, 6.79px + 3.695vw, 60px);");
+		expect(css).toContain("--btn-size: clamp(16.06px, 15.34px + 0.185vw, 18px);");
+		expect(css).toContain(":where(p, li) { line-height: calc(6px + 2ex); }");
+		expect(css).toContain("body { text-wrap: pretty; }");
+		expect(css).toContain("--para-gap: 1em;");
+		expect(css).toContain(".section .btn:not(.btn--link, .btn--plain) { line-height: 1; border-width: 2px; }");
+		expect(css).not.toContain("@media"); // 36.2px at 768 is on the phone→desktop line
+		expect(bricksLayoutTokens(undefined)).toBe("");
+		expect(bricksLayoutTokens({})).toBe("");
+		expect(bricksLayoutTokens({ link: { color: "#1F442C", underline: false } })).toContain(".section .prose a:not(.btn) { color: #1F442C; }");
+	});
+	it("uses the measured gaps per screen for a title box over a post-content box", () => {
+		const page: BricksElement[] = [
+			{ id: "s", name: "section", parent: 0, children: ["t", "c"], settings: {} },
+			{ id: "t", name: "container", parent: "s", children: ["h"], settings: { _width: "auto" } },
+			{ id: "h", name: "heading", parent: "t", children: [], settings: { tag: "h1", text: "Terms" } },
+			{ id: "c", name: "container", parent: "s", children: ["p"], settings: {} },
+			{ id: "p", name: "text-basic", parent: "c", children: [], settings: { tag: "p", text: "<p>One.</p><ul><li>Two</li></ul>" } },
+		];
+		const box = (name: string, d: number, m: number) => ({ desktop: { name, w: 0, h: 0, rowGap: d }, mobile: { name, w: 0, h: 0, rowGap: m } });
+		const boxes: Record<string, ReturnType<typeof box>> = { "c:0": box("section", 67.5, 43.4), "c:0/1": box("container", 30, 24.2) };
+		const r = adaptBricks(page, { ...opts, measured: (k) => boxes[k] });
+		const rt = r.sections[0] as Extract<Section, { type: "rich_text" }>;
+		expect(rt.fields.width).toBe("wide");
+		expect(rt.fields.look).toEqual({ headCenter: true, headGap: "clamp(43.4px, 34.45px + 2.295vw, 67.5px)", blockGap: "clamp(24.2px, 22.05px + 0.552vw, 30px)" });
+	});
+	it("gives the hero the measured space above its buttons per screen", () => {
+		const f = JSON.parse(readFileSync(join(import.meta.dirname, "fixtures", "bricks", "hero-look.json"), "utf8")) as { elements: BricksElement[]; options: Record<string, unknown>; live: Parameters<typeof liveVariables>[0] };
+		const boxes: Record<string, Partial<Record<"desktop" | "mobile", BricksBox>>> = { "c:0/1": { desktop: { name: "container", w: 0, h: 0, rowGap: 48 }, mobile: { name: "container", w: 0, h: 0, rowGap: 32 } } };
+		const r = adaptBricks(f.elements, { ...opts, site: bricksSite(f.options, liveVariables(f.live)), measured: (k) => boxes[k] });
+		const hero = r.sections[0] as Extract<Section, { type: "hero" }>;
+		expect(hero.fields.look?.buttonsAbove).toBe("clamp(32px, 26.06px + 1.524vw, 48px)");
+		expect(hero.fields.buttons.every((b) => b.plain && b.light)).toBe(true);
+	});
+	it("stacks a button row on phones when the live row is twice as tall there with buttons of one width", () => {
+		const page: BricksElement[] = [
+			{ id: "s", name: "section", parent: 0, children: ["c"], settings: {} },
+			{ id: "c", name: "container", parent: "s", children: ["h", "r"], settings: {} },
+			{ id: "h", name: "heading", parent: "c", children: [], settings: { tag: "h1", text: "Rentals" } },
+			{ id: "r", name: "div", parent: "c", children: ["b1", "b2"], settings: { _direction: "row" } },
+			{ id: "b1", name: "button", parent: "r", children: [], settings: { text: "Options", link: { type: "external", url: "#o" } } },
+			{ id: "b2", name: "button", parent: "r", children: [], settings: { text: "Request a rental", link: { type: "external", url: "#r" } } },
+		];
+		const b = (name: string, dw: number, dh: number, mw: number, mh: number) => ({ desktop: { name, w: dw, h: dh }, mobile: { name, w: mw, h: mh } });
+		const boxes: Record<string, ReturnType<typeof b>> = { "c:0/0/1": b("div", 389, 67, 209, 113), "c:0/0/1/0": b("button", 167, 40, 182, 36), "c:0/0/1/1": b("button", 182, 40, 182, 36) };
+		expect(adaptBricks(page, { ...opts, measured: (k) => boxes[k] }).sections[0]?.buttonsWidth).toBe("equal");
+		boxes["c:0/0/1"] = b("div", 389, 67, 389, 67);
+		expect(adaptBricks(page, { ...opts, measured: (k) => boxes[k] }).sections[0]?.buttonsWidth).toBeUndefined();
+	});
+});
+
+describe("Announcement bars in the text comparison", () => {
+	it("leaves the Announcer plugin's bar and the starter's bar out of the page text (their schedules decide)", async () => {
+		const { sourceText } = await import("../src/transform/coverage.js");
+		const live = '<body><div class="ancr-group ancr-pos-top"><div class="ancr-inner"><p>NOW AVAILABLE</p></div></div><main><p>Welcome in</p></main></body>';
+		const staging = '<body><section class="announcement" data-announcement><p>NOW AVAILABLE</p></section><main><p>Welcome in</p></main></body>';
+		expect(sourceText(live).trim()).toBe("Welcome in");
+		expect(sourceText(staging).trim()).toBe("Welcome in");
+	});
+});
+
+describe("Bricks header look", () => {
+	const site = bricksSite(
+		{
+			bricks_global_classes: [
+				{ id: "hp", name: "header", settings: { _padding: { left: "var(--space-s)", right: "var(--space-s)" } } },
+				{ id: "tg", name: "menu-toggle", settings: { _display: "none", "_display:tablet_portrait": "flex" } },
+				{ id: "cta", name: "cta", settings: { padding: { top: "12", bottom: "12" } } },
+				{ id: "oc", name: "offcanvas-inner", settings: { _padding: { left: "var(--space-m)" }, _rowGap: "var(--space-xl)" } },
+				{ id: "cl", name: "close", settings: { _top: "var(--space-l)", iconSize: "42" } },
+			],
+			bricks_color_palette: [{ id: "p", colors: [{ id: "green", hex: "#1f442c" }, { id: "light", hex: "#4b8352" }, { id: "white", hex: "#ffffff" }] }],
+		},
+		liveVariables([390, 1440].map((width) => ({ width, rootFontSize: 16, variables: { "--space-s": "clamp(1.125rem, calc(0.1vw + 1.1rem), 1.25rem)", "--space-m": "clamp(1.5rem, calc(0.5964vw + 1.3658rem), 1.875rem)", "--space-l": "2rem", "--space-xl": "clamp(2.7rem, calc(2.3vw + 2.15rem), 4.2rem)" } }))),
+	);
+	const ripple = (id: string, parent: string, label: string, colour: string, extra: Record<string, unknown> = {}) => ({ id, name: "ripple_button_v3", parent, children: [], settings: { topRippleInnerTitle: label, topRippleBackground: { color: { id: colour } }, topRippleColor: { id: "white" }, link: { type: "external", url: "/x/" }, ...extra } });
+	const els = [
+		{ id: "h", name: "section", parent: 0, children: ["c"], settings: { _cssGlobalClasses: ["hp"] } },
+		{ id: "c", name: "container", parent: "h", children: ["nm", "b1", "t", "o", "b2"], settings: {} },
+		{ id: "nm", name: "nav-menu", parent: "c", children: [], settings: { menu: "4", menuGap: "var(--space-l)" } },
+		ripple("b1", "c", "Contact Us", "green", { _cssGlobalClasses: ["cta"], "_display:mobile_landscape": "none" }),
+		{ id: "t", name: "toggle", parent: "c", children: [], settings: { _cssGlobalClasses: ["tg"] } },
+		{ id: "o", name: "offcanvas", parent: "c", children: ["in"], settings: { width: "756" } },
+		{ id: "in", name: "block", parent: "o", children: ["x", "lg", "bb"], settings: { _cssGlobalClasses: ["oc"], _hidden: { _cssClasses: "brx-offcanvas-inner" } } },
+		{ id: "x", name: "toggle", parent: "in", children: [], settings: { _cssGlobalClasses: ["cl"] } },
+		{ id: "lg", name: "logo", parent: "in", children: [], settings: { logoHeight: "100px" } },
+		{ id: "bb", name: "div", parent: "in", children: ["p1", "p2"], settings: { _columnGap: "18" } },
+		ripple("p1", "bb", "Contact Us", "green"),
+		ripple("p2", "bb", "Book Now", "light"),
+		ripple("b2", "c", "Book Now", "light", { _cssGlobalClasses: ["cta"], "_display:mobile_landscape": "none" }),
+	];
+	it("reads the header gutter, a desktop-hidden toggle, pill buttons and the offcanvas sheet from the template", async () => {
+		const { bricksHeaderLook } = await import("../src/adapters/bricks/layout.js");
+		const look = bricksHeaderLook(els, site);
+		expect(look.gutter).toEqual({ mobile: 18, desktop: 19.04 });
+		expect(look.toggleSmallOnly).toBe(true);
+		expect(look.navGap).toBe("32px");
+		expect(look.buttonsHidePhone).toBe(true);
+		expect(look.buttons).toEqual([
+			{ label: "Contact Us", bg: "#1f442c", color: "#ffffff", radius: 100, padY: 12, padX: 30 },
+			{ label: "Book Now", bg: "#4b8352", color: "#ffffff", radius: 100, padY: 12, padX: 30 },
+		]);
+		expect(look.panel).toMatchObject({ pad: "clamp(24.18px, 22.02px + 0.554vw, 30px)", closeInset: "32px", closeSize: 42, logoHeight: 100, width: 756, buttonsGap: "18px" });
+		expect(look.panel?.buttons?.map((b) => [b.label, b.padY])).toEqual([
+			["Contact Us", 15],
+			["Book Now", 15],
+		]);
+		const { bricksHeaderConfig } = await import("../src/phases/scaffold.js");
+		const menu = { panel: { background: "rgb(255, 255, 255)" }, overlay: { background: "rgba(0, 0, 0, 0.3)" }, itemStyle: { fontFamily: "Outfit", fontWeight: "500", color: "rgb(0, 0, 0)", lineHeight: "21.087px" }, animations: [{ target: "div.brx-offcanvas-inner", name: "transform", durationMs: 200, easing: "cubic-bezier(0.25, 0, 0.25, 1)", keyframes: [{ transform: "translate(-100%)" }, { transform: "translate(0px)" }] }] };
+		expect(bricksHeaderConfig(look, menu as never, '"Outfit", system-ui')?.panelStyle).toEqual({ bg: "rgb(255, 255, 255)", color: "rgb(0, 0, 0)", weight: 500, lineHeight: "21.087px", font: "body", overlay: "rgba(0, 0, 0, 0.3)", from: "left", ms: 200, ease: "cubic-bezier(0.25, 0, 0.25, 1)" });
+		expect(bricksHeaderConfig(undefined, menu as never, "Outfit")).toBeUndefined();
 	});
 });
 

@@ -1,0 +1,180 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#tbs1",
+        "rawHash": "76c865c142",
+        "row": 0
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "House rules",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Updated:",
+                "marks": [
+                  "strong"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t4",
+                "text": " January 2026",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t5",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t6",
+                "text": "1. Arriving",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t7",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t8",
+                "text": "Arrive ten minutes early.",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "t9",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "ta",
+                "text": "Bring grip socks.",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          }
+        ],
+        "width": "wide",
+        "align": "left",
+        "buttons": [],
+        "look": {
+          "headCenter": true,
+          "headGap": "67px",
+          "blockGap": "30px"
+        }
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#tbs2",
+        "rawHash": "32e520033e",
+        "row": 1
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tb",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tc",
+                "text": "Visit us",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "td",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "te",
+                "text": "Two minutes from the station.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "center",
+        "buttons": [],
+        "look": {
+          "headCenter": true,
+          "headGap": "24px"
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[post-title] filled with the page title",
+      "path": "section#tbs1/container#tbt1/post-title#tbh1",
+      "tag": "post-title"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[text-basic] filled with the page's own content (WordPress editor), adapted as Gutenberg/classic content",
+      "path": "section#tbs1/container#tbc1/text-basic#tbp1",
+      "tag": "text-basic"
+    }
+  ],
+  "forms": []
+}

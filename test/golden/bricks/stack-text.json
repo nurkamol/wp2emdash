@@ -1,0 +1,94 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#st10",
+        "rawHash": "fa52293c90",
+        "row": 0
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "At the studio, the most important commitment is to ",
+                    "marks": []
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t2",
+                    "text": "yourself",
+                    "marks": [
+                      "em"
+                    ]
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": ".",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Reformer sessions on demand, or classes with an instructor.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [
+              {
+                "wpId": 950,
+                "kind": "image",
+                "url": "https://example.com/wp-content/uploads/2025/01/reformers.webp"
+              }
+            ],
+            "buttons": [],
+            "imageWidth": "800px",
+            "imageHeight": "480px",
+            "itemsCenter": true,
+            "textWidth": 800,
+            "itemGap": 30,
+            "textSize": 20,
+            "textWeight": 400,
+            "paraGap": 1
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[imagereveal] reveal animation not reproduced; image kept",
+      "path": "section#st10/container#st20/imagereveal#st30",
+      "tag": "imagereveal"
+    }
+  ],
+  "forms": []
+}

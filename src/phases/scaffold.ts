@@ -11,6 +11,7 @@ import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { MenuCapture } from "../audit/interactions.js";
+import type { BricksHeaderLook, BricksLayout } from "../adapters/bricks/layout.js";
 import { KIT_ROOT } from "../core/paths.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
@@ -64,7 +65,67 @@ const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.p
  */
 export function bricksBodyWeight(design: { typography?: Record<string, Record<string, unknown>> } | undefined): string {
 	const w = Number(design?.typography?.typographyBody?.["font-weight"]);
-	return Number.isInteger(w) && w >= 100 && w <= 900 && w !== 400 ? `:root { --body-weight: ${w}; --strong-weight: 700; } /* Bricks theme style body weight; bold stays bold (bolder than ${w} would be ${w < 400 ? 400 : 700}) */\n` : "";
+	return Number.isInteger(w) && w >= 100 && w <= 900 && w !== 400 ? `:root { --body-weight: ${w}; } /* Bricks theme style body weight; bold text is "bolder" than the text around it, as on the live site (${w} → ${w < 400 ? 400 : 700}; a 400 text element → 700) */\n` : "";
+}
+
+/**
+ * Bricks sites: the header template's look (bricks-design.json `header`) plus how the live menu panel looked when open
+ * (audit capture: panel background, item font, overlay, slide direction and timing). Undefined for other builders.
+ */
+export function bricksHeaderConfig(look: BricksHeaderLook | undefined, menu: MenuCapture | undefined, bodyFont: string): (BricksHeaderLook & { panelStyle?: Record<string, string | number> }) | undefined {
+	if (!look || !Object.keys(look).length) return undefined;
+	const m = menu as unknown as { panel?: { background?: string; rect?: { width: number } }; overlay?: { background?: string }; itemStyle?: Record<string, string>; animations?: { target: string; name: string; durationMs: number; easing: string; keyframes: Record<string, string>[] }[] } | undefined;
+	const slide = m?.animations?.find((a) => a.name === "transform" && /offcanvas|panel|menu/i.test(a.target) && /translate/.test(a.keyframes[0]?.transform ?? ""));
+	const from = /translate(?:X)?\(-100%/.test(slide?.keyframes[0]?.transform ?? "") ? "left" : /translate(?:X)?\(100%/.test(slide?.keyframes[0]?.transform ?? "") ? "right" : undefined;
+	const it = m?.itemStyle ?? {};
+	const COLOR = /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
+	const style: Record<string, string | number> = {
+		...(COLOR.test(m?.panel?.background ?? "") ? { bg: m?.panel?.background as string } : {}),
+		...(COLOR.test(it.color ?? "") ? { color: it.color as string } : {}),
+		...(/^\d{3}$/.test(it.fontWeight ?? "") ? { weight: Number(it.fontWeight) } : {}),
+		...(/^\d+(?:\.\d+)?px$/.test(it.lineHeight ?? "") ? { lineHeight: it.lineHeight as string } : {}),
+		...(it.fontFamily && bodyFont.replace(/"/g, "").toLowerCase().includes(it.fontFamily.replace(/"/g, "").toLowerCase()) ? { font: "body" } : {}),
+		...(COLOR.test(m?.overlay?.background ?? "") ? { overlay: m?.overlay?.background as string } : {}),
+		...(from ? { from } : {}),
+		...(slide ? { ms: Math.round(slide.durationMs), ease: slide.easing } : {}),
+	};
+	return { ...look, ...(Object.keys(style).length ? { panelStyle: style } : {}) };
+}
+
+/**
+ * Bricks sites: the layout the live site draws (bricks-design.json `layout`, src/adapters/bricks/layout.ts) — content
+ * width and page gutter (section side padding), and Automatic.css text rules, image radius and button geometry. Other
+ * builders do not write bricks-design.json, so nothing is added for them.
+ */
+export function bricksLayoutTokens(layout: BricksLayout | undefined): string {
+	if (!layout) return "";
+	const r2 = (n: number) => Math.round(n * 100) / 100;
+	const root: string[] = [];
+	const rules: string[] = [];
+	if (layout.container) root.push(`--container: ${layout.container}px;`);
+	const g = layout.gutter;
+	if (g?.mobile !== undefined && g.desktop !== undefined) {
+		root.push(`--gutter: ${fluid(g.mobile, g.desktop)};`);
+		const line = g.mobile + ((g.desktop - g.mobile) * (768 - 390)) / (1440 - 390);
+		if (g.tablet !== undefined && Math.abs(g.tablet - line) > 2) rules.push(`@media (min-width: 691px) and (max-width: 999.98px) { :root { --gutter: ${r2(g.tablet)}px; } }`);
+	}
+	if (layout.imageRadius !== undefined) root.push(`--radius-media: ${r2(layout.imageRadius)}px;`);
+	if (layout.paragraphSpacing !== undefined) root.push(`--para-gap: ${r2(layout.paragraphSpacing)}em;`);
+	if (layout.button?.size) root.push(`--btn-size: ${fluid(layout.button.size.mobile, layout.button.size.desktop)};`);
+	if (/^calc\(\d+(?:\.\d+)?px \+ \d+(?:\.\d+)?ex\)$/.test(layout.textLeading ?? "")) rules.push(`:where(p, li) { line-height: ${layout.textLeading}; }`);
+	const WRAP = /^(?:pretty|balance|wrap|stable)$/;
+	if (WRAP.test(layout.textWrap ?? "")) rules.push(`body { text-wrap: ${layout.textWrap}; }`);
+	if (WRAP.test(layout.headingWrap ?? "")) rules.push(`:where(h1, h2, h3, h4, h5, h6) { text-wrap: ${layout.headingWrap}; }`);
+	// Automatic.css rounds every image outside the header; section and column backgrounds are pictures here, not there.
+	// Automatic.css links in text: its link colour. The underline stays even where the source has none: a link in a
+	// paragraph must be told apart from the text without colour alone (WCAG 1.4.1; verify's axe check gates on it).
+	if (layout.link?.color && /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(layout.link.color)) rules.push(`.section .prose a:not(.btn) { color: ${layout.link.color}; }`);
+	if (layout.imageRadius !== undefined) rules.push(`:where(.section__inner, .site-footer) img:not(.columns__bg) { border-radius: var(--radius-media); }`);
+	const b = layout.button;
+	const btn = [b?.leading !== undefined ? `line-height: ${b.leading};` : "", b?.border !== undefined ? `border-width: ${r2(b.border)}px;` : ""].filter(Boolean).join(" ");
+	if (btn) rules.push(`.section .btn:not(.btn--link, .btn--plain) { ${btn} }`);
+	if (!root.length && !rules.length) return "";
+	return `/* Bricks layout (theme style container, measured section side padding) and Automatic.css text, image and button rules. */\n${root.length ? `:root { ${root.join(" ")} }\n` : ""}${rules.join("\n")}${rules.length ? "\n" : ""}`;
 }
 const write = (file: string, data: string | object) => {
 	mkdirSync(dirname(file), { recursive: true });
@@ -192,9 +253,12 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const analytics = config.analytics === false ? undefined : (config.analytics ?? { google: audited.filter((id) => /^(?:GT|G|AW)-/.test(id)).sort(), ...(audited.find((id) => id.startsWith("GTM-")) ? { gtm: audited.find((id) => id.startsWith("GTM-")) } : {}) });
 	const hasAnalytics = !!analytics && (analytics.google.length > 0 || !!analytics.gtm || !!analytics.cloudflareToken);
 	if (hasAnalytics) reporter.emit({ type: "log", level: "info", message: `analytics on the production domain: ${[...(analytics?.google ?? []), analytics?.gtm, analytics?.cloudflareToken ? "Cloudflare beacon" : ""].filter(Boolean).join(", ")}` });
+	// Bricks: the header template's own look (container, toggle, buttons, offcanvas panel) with the captured panel style.
+	const bricksDesignOut = readJson<{ typography?: Record<string, Record<string, unknown>>; layout?: BricksLayout; header?: BricksHeaderLook }>(join(paths.reports, "transform", "bricks-design.json"));
+	const bricksHeader = bricksHeaderConfig(bricksDesignOut?.header, mobileMenu, tokens.fonts.body);
 	const siteConfig = {
 		...baseConfig,
-		header: { ...baseConfig.header, panelExtras: panelExtras(interactions.menus, primaryLabels, (site.menus.find((mm) => mm.role === "secondary")?.items ?? []).filter((i) => i.button).map((i) => i.label)), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
+		header: { ...baseConfig.header, ...(bricksHeader ? { bricks: bricksHeader } : {}), panelExtras: panelExtras(interactions.menus, primaryLabels, (site.menus.find((mm) => mm.role === "secondary")?.items ?? []).filter((i) => i.button).map((i) => i.label)), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
 		trailingSlash: trailing,
 		...(hasAnalytics ? { analytics } : {}),
 		...(ogLocale ? { ogLocale } : {}),
@@ -264,7 +328,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: ["pages"], ...(og ? { ogCards: true } : {}), indexNow: { key: indexNowKey, live: !!readJson<CloudflareResources>(join(paths.root, "cloudflare.json"))?.production?.live } } : undefined;
 	if (seoPanel) cpSync(join(KIT_ROOT, "packages", "seo"), join(project, "packages", "seo"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
 	write(join(project, "src", "site.config.json"), siteConfig);
-	write(join(project, "src", "styles", "tokens.css"), tokens.css + bricksBodyWeight(readJson<{ typography?: Record<string, Record<string, unknown>> }>(join(paths.reports, "transform", "bricks-design.json"))) + headerTokens(interactions.headers, siteConfig.header.breakpoint));
+	write(join(project, "src", "styles", "tokens.css"), tokens.css + bricksBodyWeight(bricksDesignOut) + bricksLayoutTokens(bricksDesignOut?.layout) + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);
 	const basePath = join(project, "src", "styles", "base.css");
 	write(basePath, applyStackBreakpoint(readFileSync(basePath, "utf8"), stackBreakpoint(designs)));

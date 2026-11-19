@@ -177,6 +177,12 @@
             "linkGap": 18,
             "linkSize": 15,
             "textSize": 13,
+            "textWeight": 400,
+            "textTracking": 0.5,
+            "textLeading": 1.4,
+            "linkWeight": 400,
+            "linkTracking": 0.5,
+            "linkLeading": 1.4,
             "socialIcons": 8
           }
         ]

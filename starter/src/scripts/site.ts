@@ -95,7 +95,8 @@ function setMenu(open: boolean) {
 toggle?.addEventListener("click", () => setMenu(toggle.getAttribute("aria-expanded") !== "true"));
 overlay?.addEventListener("click", () => setMenu(false));
 panel?.addEventListener("click", (e) => {
-	if ((e.target as HTMLElement).closest("a")) setMenu(false);
+	// A link, or the panel's own close button (Bricks offcanvas sheet), closes the menu.
+	if ((e.target as HTMLElement).closest("a, [data-menu-close]")) setMenu(false);
 });
 document.addEventListener("keydown", (e) => {
 	if (!document.body.classList.contains("menu-open")) return;

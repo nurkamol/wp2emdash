@@ -91,7 +91,7 @@ export interface Col {
 	/** Lifted out of an inner row with Salient's default gutters (30px padding each side, row widened by 30px). */
 	innerGutters?: boolean;
 	/** Builder flex-stack look (set by the Bricks adapter only): picture width cap, item gap, link rows, text sizes. */
-	stack?: { textWidth?: number; textGap?: number; itemsCenter?: boolean; imageWidth?: string; imageHeight?: string; imageHeightPhone?: string; imageAfter?: boolean; imageSpace?: number; itemGap?: number; linkGap?: number; linkSize?: number; textSize?: number; socialIcons?: number };
+	stack?: { textWidth?: number; textGap?: number; itemsCenter?: boolean; imageWidth?: string; imageHeight?: string; imageHeightPhone?: string; imageAfter?: boolean; imageSpace?: number; itemGap?: number; linkGap?: number; linkSize?: number; textSize?: number; itemGapFluid?: string; textWeight?: number; textTracking?: number; textLeading?: number; linkWeight?: number; linkTracking?: number; linkLeading?: number; paraGap?: number; socialIcons?: number };
 }
 
 export interface HandlerCtx {

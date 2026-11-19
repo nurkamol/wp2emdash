@@ -1,0 +1,9 @@
+{
+  "live": [{ "width": 1440, "rootFontSize": 16, "variables": { "--width-l": "50rem", "--container-gap": "4rem" } }],
+  "elements": [
+    { "id": "fk10", "name": "section", "parent": 0, "children": ["fk11", "fk20"], "settings": { "_cssId": "request", "_rowGap": "var(--container-gap)" } },
+    { "id": "fk11", "name": "heading", "parent": "fk10", "children": [], "settings": { "tag": "h2", "text": "Request a visit" } },
+    { "id": "fk20", "name": "container", "parent": "fk10", "children": ["fk21"], "settings": { "_width": "var(--width-l)" } },
+    { "id": "fk21", "name": "form", "parent": "fk20", "children": [], "settings": { "fields": [{ "id": "n1", "type": "text", "label": "Name", "required": true }, { "id": "e1", "type": "email", "label": "Email", "required": true }], "submitButtonText": "Send" } }
+  ]
+}

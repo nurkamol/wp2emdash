@@ -357,6 +357,29 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 	const textPx = (x: BricksElement) => fontPx(eff(x)) ?? measuredBox(x)?.font;
 	const PICTURE = new Set(["image", "logo", "imagereveal"]);
 	/**
+	 * The weight, letter spacing (px) and line height (unitless) that every one of these elements sets the same way in
+	 * its typography (`_typography`, or a NextBricks title's `titleTypography`); a value only when they all agree.
+	 */
+	function typeOf(list: BricksElement[]): { weight?: number; tracking?: number; leading?: number } {
+		if (!list.length) return {};
+		const t = (x: BricksElement) => ({ ...(obj(atBreakpoint(eff(x), "_typography", desktop, site)) ?? {}), ...(obj(atBreakpoint(eff(x), "titleTypography", desktop, site)) ?? {}) });
+		const same = (read: (o: Record<string, unknown>) => number | undefined) => {
+			const v = new Set(list.map((x) => read(t(x))));
+			return v.size === 1 ? [...v][0] : undefined;
+		};
+		const weight = same((o) => Number(str(o["font-weight"]) ?? Number.NaN));
+		const tracking = same((o) => (str(o["letter-spacing"]) !== undefined ? lenPx(o["letter-spacing"]) : undefined));
+		const leading = same((o) => {
+			const v = str(o["line-height"])?.trim();
+			return v && /^\d*\.?\d+$/.test(v) ? Number(v) : undefined;
+		});
+		return {
+			...(weight !== undefined && Number.isInteger(weight) && weight >= 100 && weight <= 900 ? { weight } : {}),
+			...(tracking !== undefined && tracking >= 0 && tracking <= 5 ? { tracking } : {}),
+			...(leading !== undefined && leading >= 1 && leading <= 3 ? { leading } : {}),
+		};
+	}
+	/**
 	 * Bricks blocks are flex columns: the look of a stacked column (a centred footer: logo, a row of links, social icons,
 	 * the credit line) — the picture's width cap, the gap between items, link rows and their gap, text sizes.
 	 */
@@ -410,6 +433,10 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 			const sizes = new Set(childrenOf(row).map((k) => textPx(k)));
 			const size = sizes.size === 1 ? [...sizes][0] : undefined;
 			if (size && size >= 10 && size <= 40) out.linkSize = Math.round(size);
+			const lt = typeOf(childrenOf(row));
+			if (lt.weight) out.linkWeight = lt.weight;
+			if (lt.tracking !== undefined) out.linkTracking = lt.tracking;
+			if (lt.leading) out.linkLeading = lt.leading;
 			const icons = rows.find((r) => childrenOf(r).some((k) => k.name === "icon"));
 			if (icons) out.socialIcons = gapOf(icons, "column") ?? 0;
 		}
@@ -418,10 +445,32 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		const tsizes = new Set(texts.map((x) => textPx(x)));
 		const tsize = texts.length && tsizes.size === 1 ? [...tsizes][0] : undefined;
 		if (tsize && tsize >= 10 && tsize <= 40) out.textSize = Math.round(tsize);
+		// The text elements' own weight, letter spacing and line height (a 400 text in a site whose body is 300; a credit
+		// line in 14px with 0.5px tracking). Headings printed as a paragraph or span (custom tag) count as text.
+		const body = texts.filter((x) => x.name !== "heading" || (str(x.settings?.tag) === "custom" && /^(?:span|p|div)$/.test(str(x.settings?.customTag) ?? "")));
+		const tt = typeOf(body);
+		if (tt.weight) out.textWeight = tt.weight;
+		if (tt.tracking !== undefined) out.textTracking = tt.tracking;
+		if (tt.leading) out.textLeading = tt.leading;
+		// A rich text element with several paragraphs: they keep the paragraph spacing between them (Automatic.css
+		// `--paragraph-spacing`, else the browser's 1em margins), not the stack's gap between elements.
+		if (out.itemGap !== undefined && texts.some((x) => x.name === "text" && ((str(x.settings?.text) ?? "").match(/<(?:p|ul|ol|h[1-6]|blockquote)[\s>]/gi)?.length ?? 0) >= 2)) {
+			const ps = site.live?.widths.at(-1)?.vars["paragraph-spacing"]?.trim();
+			const em = ps && /^\d*\.?\d+em$/.test(ps) ? Number.parseFloat(ps) : 1;
+			if (em >= 0 && em <= 4) out.paraGap = em;
+		}
 		// A paragraph with its own width (`_width: var(--width-m)`): the column's paragraphs keep that measure.
 		const narrow = texts.find((x) => x.name !== "heading" && str(eff(x)._width) && !/%$|^auto$/.test((str(eff(x)._width) as string).trim()));
 		const tw = narrow ? (measuredBox(narrow)?.w ?? lenPx(eff(narrow)._width)) : undefined;
 		if (out.itemGap !== undefined && tw && tw >= 120 && tw <= 2000) out.textWidth = Math.round(tw);
+		// Else the stack box's own width (`_width: var(--width-l)`): its texts are no wider (centred items shrink to their
+		// text, so a long paragraph would otherwise run the full section width).
+		const boxW = str(atBreakpoint(s, "_width", desktop, site))?.trim();
+		const bw = out.textWidth === undefined && boxW && !/%$|^auto$|^fit-content$/.test(boxW) ? (measuredBox(e)?.w ?? lenPx(boxW)) : undefined;
+		if (out.itemGap !== undefined && bw && bw >= 120 && bw <= 2000) out.textWidth = Math.round(bw);
+		// The gap per screen when the live boxes were measured (a fluid design variable): phone to desktop.
+		const fg = out.itemGap !== undefined ? fluidGap(e, "row") : undefined;
+		if (fg?.startsWith("clamp(")) out.itemGapFluid = fg;
 		// Texts grouped in their own box inside the stack (heading + description): that box's row gap between them.
 		const group = texts[0] ? all.find((x) => STRUCTURE.has(x.name) && childrenOf(e).includes(x) && childrenOf(x).filter((k) => texts.includes(k)).length >= 2) : undefined;
 		const tg = group ? gapOf(group, "row") : undefined;
@@ -482,11 +531,103 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 			const above = lenPx(atBreakpoint(eff(outer), "_rowGap", desktop, site) ?? atBreakpoint(eff(outer), "_gap", desktop, site));
 			const first = sec.fields.buttons[0];
 			if (first && above !== undefined && above >= 0 && above <= 200) first.spaceAbove = Math.round(above);
+			// Measured per screen (a fluid design variable such as --space-l): phone to desktop.
+			const fa = first ? fluidGap(outer, "row") : undefined;
+			if (fa?.startsWith("clamp(")) look.buttonsAbove = fa;
 		}
 		const btnRow = all.find((x) => STRUCTURE.has(x.name) && childrenOf(x).length >= 2 && childrenOf(x).every((k) => k.name === "button" || k.name.startsWith("ripple_button")));
 		const bg = btnRow ? lenPx(atBreakpoint(eff(btnRow), "_columnGap", desktop, site) ?? atBreakpoint(eff(btnRow), "_gap", desktop, site)) : undefined;
 		if (bg !== undefined && bg >= 0 && bg <= 100) look.buttonsGap = Math.round(bg);
 		if (Object.keys(look).length) sec.fields.look = look;
+	}
+
+	/** A spacing per screen: the live boxes' measurement (phone → desktop, fluid), else the setting at desktop. */
+	const fluidGap = (x: BricksElement, axis: "row" | "column"): string | undefined => {
+		const d = measuredBox(x)?.[axis === "row" ? "rowGap" : "colGap"];
+		const m = measuredBox(x, "mobile")?.[axis === "row" ? "rowGap" : "colGap"];
+		if (d !== undefined && m !== undefined && d >= 0 && d <= 200 && m >= 0 && m <= 200) return fluid(m, d);
+		const g = gapOf(x, axis);
+		return g !== undefined && g >= 0 && g <= 200 ? `${g}px` : undefined;
+	};
+	const AUTO_WIDTH = /^(?:auto|fit-content|max-content)$/;
+	/** HTML a `p` tag cannot hold: the browser closes the paragraph, so each block becomes an item of the box around it. */
+	const BLOCK_HTML = /<(?:p|ul|ol|h[1-6]|blockquote|figure|table|div)[\s>]/i;
+	/**
+	 * A Bricks text section laid out by its boxes (a page title box, then the content box): Bricks sections centre their
+	 * boxes, so a box with an automatic width is centred (the title); a `text-basic` (tag `p`) showing the post content
+	 * or block HTML puts every block straight into its box, spaced by the box's row gap, not by paragraph margins.
+	 */
+	function textBoxes(root: BricksElement, sec: Section): void {
+		if (sec.type !== "rich_text") return;
+		const kids = childrenOf(root).filter((k) => !hidden(k, "", false));
+		if (!kids.length || !kids.every((k) => STRUCTURE.has(k.name))) return;
+		const sectionAlign = str(atBreakpoint(eff(root), "_alignItems", desktop, site));
+		const centred = (x: BricksElement) => (!sectionAlign || sectionAlign === "center") && AUTO_WIDTH.test(str(atBreakpoint(eff(x), "_width", desktop, site))?.trim() ?? "");
+		const titleOnly = (x: BricksElement) => childrenOf(x).every((k) => hidden(k, "", false) || ["post-title", "heading", "blade-title", "next_blur_reveal", "text-basic"].includes(k.name));
+		const look: NonNullable<Extract<Section, { type: "rich_text" }>["fields"]["look"]> = { ...(sec.fields.look ?? {}) };
+		const first = kids[0] as BricksElement;
+		if (kids.every(centred) && kids.every(titleOnly)) {
+			sec.fields.align = "center";
+			look.headCenter = true;
+			const g = fluidGap(first, "row");
+			if (g) look.headGap = g;
+		} else if (kids.length >= 2 && centred(first) && titleOnly(first)) {
+			look.headCenter = true;
+			const g = fluidGap(root, "row");
+			if (g) look.headGap = g;
+		}
+		const flow = kids.find((k) => childrenOf(k).some((x) => x.name === "text-basic" && (str(x.settings?.tag) ?? "p") === "p" && (isPostContent(str(x.settings?.text)) || BLOCK_HTML.test(str(x.settings?.text) ?? ""))));
+		if (flow) {
+			const g = fluidGap(flow, "row");
+			if (g) look.blockGap = g;
+			if (!str(eff(flow)._width) && !str(eff(flow)._widthMax)) sec.fields.width = "wide";
+		}
+		if (Object.keys(look).length) sec.fields.look = look;
+	}
+	const isPostContent = (t: string | undefined) => t?.trim() === "{post_content}";
+	/**
+	 * A form in a Bricks flex column sits under its heading (not beside it): stacked, as wide as its own box (a container
+	 * with `_width`), as far below as the shared box's row gap; a heading straight in the section is centred (Bricks
+	 * sections centre their children).
+	 */
+	function formStack(root: BricksElement, sec: Section): void {
+		if (sec.type !== "form") return;
+		const parentOf = new Map<BricksElement, BricksElement>();
+		const walk = (x: BricksElement): BricksElement[] => childrenOf(x).flatMap((k) => (hidden(k, "", false) ? [] : (parentOf.set(k, x), [k, ...walk(k)])));
+		const all = walk(root);
+		const form = all.find((x) => /form/i.test(x.name) || (x.name === "text-basic" && isPostContent(str(x.settings?.text))));
+		if (!form) return;
+		const chain: BricksElement[] = [];
+		for (let p = parentOf.get(form); p; p = parentOf.get(p)) chain.push(p);
+		if ([root, ...chain].some((x) => isRowBox(x))) return;
+		sec.fields.stacked = true;
+		const holder = parentOf.get(form);
+		const hw = holder && holder !== root ? str(atBreakpoint(eff(holder), "_width", desktop, site))?.trim() : undefined;
+		const w = hw && !/%$|^auto$/.test(hw) ? (measuredBox(holder as BricksElement)?.w ?? lenPx(hw)) : undefined;
+		if (w && w >= 200 && w <= 2000) sec.fields.formWidth = Math.round(w);
+		const heading = all.find((x) => ["heading", "post-title"].includes(x.name) && all.indexOf(x) < all.indexOf(form));
+		if (heading) {
+			const shared = [root, ...[...chain].reverse()].reverse().find((p) => walk(p).includes(heading));
+			const g = shared ? fluidGap(shared, "row") : undefined;
+			if (g) sec.fields.formGap = g;
+			if (parentOf.get(heading) === root && root.name === "section") sec.headAlign = "center";
+		}
+	}
+	/**
+	 * A row of buttons the live page stacks on phones with every button as wide as the longest (measured: the row box is
+	 * about twice as tall on phones as on desktop, and the buttons there are of one width): the section's buttons are
+	 * of equal width, which the starter stacks on phones.
+	 */
+	function buttonRows(root: BricksElement, sec: Section): void {
+		const walk = (x: BricksElement): BricksElement[] => childrenOf(x).flatMap((k) => (hidden(k, "", false) ? [] : [k, ...walk(k)]));
+		const row = walk(root).find((x) => STRUCTURE.has(x.name) && childrenOf(x).length >= 2 && childrenOf(x).every((k) => k.name === "button"));
+		if (!row) return;
+		const d = measuredBox(row);
+		const m = measuredBox(row, "mobile");
+		const widths = childrenOf(row).map((k) => measuredBox(k, "mobile")?.w);
+		if (!d || !m || widths.some((w) => w === undefined)) return;
+		const ws = widths as number[];
+		if (m.h >= d.h * 1.5 && Math.max(...ws) - Math.min(...ws) <= 1) sec.buttonsWidth = "equal";
 	}
 
 	/**
@@ -790,6 +931,9 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 				if (row.valign && !s.valign) s.valign = row.valign;
 			}
 			if (s.type === "hero" && row.el) heroLook(row.el, s);
+			if (s.type === "rich_text" && row.el && out.length === 1) textBoxes(row.el, s);
+			if (row.el && out.length === 1) buttonRows(row.el, s);
+			if (s.type === "form" && row.el && out.length === 1) formStack(row.el, s);
 			// A grid with more cards than tracks keeps its tracks per row.
 			if (row.tracks && (s.type === "feature_grid" || s.type === "team") && (s.fields.columns ?? 0) > row.tracks) s.fields.columns = Math.min(6, row.tracks);
 		}

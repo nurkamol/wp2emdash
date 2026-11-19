@@ -62,7 +62,8 @@
               {
                 "label": "Ask us",
                 "href": "/contact/",
-                "style": "primary"
+                "style": "primary",
+                "plain": true
               }
             ],
             "align": "center",
