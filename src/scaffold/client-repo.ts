@@ -31,6 +31,8 @@ export interface ClientRepoInput {
 	outbox?: { days: number; hold: boolean };
 	/** Tracking carried over from the old site (Google tag ids, Tag Manager container, Cloudflare beacon token). */
 	analytics?: { google: string[]; gtm?: string; cloudflareToken?: string };
+	/** Branded sharing cards (@wp2emdash/og) are on. */
+	ogCards?: boolean;
 	sensitiveData: boolean;
 	stack: Record<string, string>;
 }
@@ -198,7 +200,17 @@ site defaults. Buttons can link to a page, an outside address, or open a popup (
 - **Links** inside text open in the same tab; buttons have an "Open in new tab" switch.
 - **Preview** a draft before publishing with the preview button in the editor.
 - **Addresses** of pages are kept from the old site. Changing a page's slug creates a redirect from the old address.
-`);
+${i.ogCards ? `
+## Sharing images
+
+When a page is shared (Facebook, LinkedIn, X, WhatsApp, Telegram, iMessage…), the preview shows a card made for that
+page: the logo, the page's title and the site's colours and fonts. Admins set it up under **Plugins → Sharing
+images**: on or off, every page or only pages without their own social image, an optional line above the title, the
+domain, a live preview, and **Redraw all cards** after a design change. A card follows the page's SEO title; edit the
+title and the next share shows the new card. Networks keep a preview for a while — refresh it with their tools
+(Facebook Sharing Debugger, LinkedIn Post Inspector) or the Telegram @WebpageBot. The cards are made by the
+\`@wp2emdash/og\` package in \`packages/og\` (its README explains how); updates come from the migration kit.
+` : ""}`);
 
 	const formRows = i.forms.map((f) => `| ${f.title} (\`${f.id}\`) | ${f.fields.join(", ") || "—"} | ${f.withheld.length ? f.withheld.join(", ") : "—"} |`).join("\n");
 	files["docs/forms-and-integrations.md"] = md(`

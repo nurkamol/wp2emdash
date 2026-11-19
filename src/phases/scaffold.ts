@@ -374,6 +374,7 @@ export default defineConfig({
 			turnstileProduction: !!config.forms.turnstileSiteKey,
 			...(config.forms.outbox ? { outbox: { days: config.forms.outbox.days, hold: config.forms.outbox.hold } } : {}),
 			...(hasAnalytics && analytics ? { analytics } : {}),
+			...(og ? { ogCards: true } : {}),
 			sensitiveData: config.sensitiveData,
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
 		}),

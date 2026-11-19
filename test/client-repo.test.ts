@@ -49,4 +49,11 @@ describe("client repo files", () => {
 		expect(writeClientRepo(dir, files)).toEqual(["README.md"]);
 		expect(readFileSync(join(dir, "README.md"), "utf8")).toBe("# Our own README\n");
 	});
+	it("explains sharing cards in the editor guide only when they are on", () => {
+		expect(clientRepoFiles(input())["docs/editor-guide.md"]).not.toContain("## Sharing images");
+		const on = clientRepoFiles(input({ ogCards: true }))["docs/editor-guide.md"] as string;
+		expect(on).toContain("## Sharing images");
+		expect(on).toContain("Plugins → Sharing");
+		expect(on).toContain("`@wp2emdash/og`");
+	});
 });

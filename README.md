@@ -39,6 +39,23 @@ pnpm wp2emdash status
 
 Each phase ends in a gate; the next phase won't run until it passes or is accepted with a recorded reason.
 
+## Sharing cards (opt-in)
+
+Every page can get its own branded sharing image (og:image): the site's logo, the page title and the site's colours
+and fonts on a 1200×630 card, drawn in the Worker the first time it is asked for and stored in R2. Turn it on per site:
+
+```ts
+// sites/<slug>/kit.config.ts
+og: { cards: true },
+```
+
+The next `scaffold` downloads TrueType copies of the site's fonts, takes the colours from the generated design tokens
+and the logo from the brand files, adds the `@wp2emdash/og` package and its two renderer libraries (+1.1 MB gzip to
+the Worker), and registers the plugin. After deploying, an admin chooses under **Plugins → Sharing images** whether
+cards replace every page's image or only fill in where a page has none (the default), and can preview and redraw
+them. Verify downloads every og:image and fails on any that does not load. Details:
+[packages/og/README.md](packages/og/README.md).
+
 ## Docs
 
 - [Plan](docs/PLAN.md)
@@ -47,6 +64,7 @@ Each phase ends in a gate; the next phase won't run until it passes or is accept
 - [Staging and production setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, production on `workers.dev`, troubleshooting
 - [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token
 - [`@wp2emdash/forms`](packages/forms/README.md) — the forms package every migrated site uses (endpoint, email, KV outbox, Form messages admin page); usable in any EmDash project
+- [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; opt in with `og: { cards: true }` in a site's `kit.config.ts` (below)
 - [Agent rules](CLAUDE.md)
 
 Full GitHub docs (configuration reference, adapters, troubleshooting, …) are produced in milestone M8a.
