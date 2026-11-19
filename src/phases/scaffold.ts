@@ -342,7 +342,10 @@ export default defineConfig({
 	"r2_buckets": [${r2("production", `${workerName}-media`)}],
 	"vars": ${JSON.stringify(prodVars)},
 	"ratelimits": ${limiter(ns)}${outboxKv("production")},
-	"triggers": { "crons": ["*/5 * * * *"] },
+	"triggers": { "crons": ["*/5 * * * *"] },${seoPanel ? `
+	// The SEO dashboard reads this site's robots.txt, sitemap and home page through itself (a fetch to its own
+	// address would skip the Worker: on workers.dev nothing answers, on the domain the old origin would).
+	"services": [${JSON.stringify({ binding: "SELF", service: workerName })}],` : ""}
 	"observability": { "enabled": true },
 	"env": {
 		"staging": {
@@ -350,7 +353,8 @@ export default defineConfig({
 			"vars": ${JSON.stringify(stagingVars)},
 			"ratelimits": ${limiter(ns + 1)}${outboxKv("staging").replace(/\n\t/g, "\n\t\t\t")},
 			"d1_databases": [${d1("staging", `${workerName}-staging-db`)}],
-			"r2_buckets": [${r2("staging", `${workerName}-staging-media`)}]
+			"r2_buckets": [${r2("staging", `${workerName}-staging-media`)}]${seoPanel ? `,
+			"services": [${JSON.stringify({ binding: "SELF", service: `${workerName}-staging` })}]` : ""}
 		}
 	}
 }

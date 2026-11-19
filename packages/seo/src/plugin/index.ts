@@ -83,7 +83,12 @@ export function createPlugin(options: SeoPanelOptions) {
 					if (ctx.ui?.surface === "dashboard-widget") return { blocks: widget(report.pages, missingAlt.length) };
 					const origin = ctx.request && URL.canParse(ctx.request.url) ? new URL(ctx.request.url).origin : o.productionUrl;
 					const paths = report.pages.map((p) => (p.item.slug && p.item.slug !== "home" && p.item.slug !== "index" ? `/${p.item.slug}/` : "/"));
-					const site = await siteChecks(origin, o.productionUrl, paths).catch((e: Error) => [{ id: "site", label: "Site checks", status: "warn" as const, detail: `Could not run: ${e.message}` }]);
+					// Through the Worker's binding to itself: a fetch to its own address skips the Worker (workers.dev: nothing
+					// answers; the domain: the old origin would). Local dev has no such routing, so plain fetch works there.
+					const { env } = (await import("cloudflare:workers")) as unknown as { env: { SELF?: { fetch(r: Request): Promise<Response> } } };
+					const self = env.SELF;
+					const fetcher = (self ? (input: RequestInfo | URL, init?: RequestInit) => self.fetch(new Request(String(input), init)) : fetch) as typeof fetch;
+					const site = await siteChecks(origin, o.productionUrl, paths, fetcher).catch((e: Error) => [{ id: "site", label: "Site checks", status: "warn" as const, detail: `Could not run: ${e.message}` }]);
 					return {
 						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}) }, i.action_id === "save-alt" ? 2 : i.action_id === "refresh" ? 3 : 0),
 						...(altSaved ? { toast: { message: `${altSaved} image description${altSaved === 1 ? "" : "s"} saved.`, type: "success" } } : {}),
