@@ -32,6 +32,23 @@ export function readableText(fill: string | undefined, wanted: string | undefine
 	return contrast(f, "#ffffff") >= contrast(f, "#000000") ? "#ffffff" : "#000000";
 }
 
+/**
+ * A button fill that keeps its text readable (WCAG AA 4.5:1): the fill as it is when it does, else the same colour
+ * darkened (light text) or lightened (dark text) in small steps until it does. Non-hex colours are left as they are.
+ */
+export function readableFill(fill: string | undefined, text: string | undefined): string | undefined {
+	const f = hex(fill);
+	const t = hex(text);
+	if (!f || !t || contrast(f, t) >= 4.5) return fill;
+	const dark = luminance(t) > luminance(f);
+	const ch = [1, 3, 5].map((i) => Number.parseInt(f.slice(i, i + 2), 16));
+	for (let k = 1; k <= 40; k++) {
+		const c = `#${ch.map((v) => Math.round(dark ? v * (1 - k * 0.01) : v + (255 - v) * k * 0.01).toString(16).padStart(2, "0")).join("")}`;
+		if (contrast(c, t) >= 4.5) return c;
+	}
+	return fill;
+}
+
 /** Short hash of what the bar says: a new message (or button) shows again to visitors who closed the old one. */
 export function announcementVersion(b: { message?: unknown; buttons?: unknown }): string {
 	const s = JSON.stringify([b.message ?? [], b.buttons ?? []], (k, v) => (k === "_key" ? undefined : v));

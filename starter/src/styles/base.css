@@ -547,7 +547,7 @@ body.over-hero { padding-top: var(--announce-h, 0px); }
 .has-bar-container .site-header__bar { max-width: var(--container); }
 @media (min-width: 1051px) { .toggle-small-only .menu-toggle { display: none; } }
 @media (max-width: 767.98px) { .hb-hide-phone .site-header__actions .header-link.btn { display: none; } }
-.site-header .header-link.btn.has-look, .menu-panel .btn.has-look { background: var(--hb-bg, var(--color-accent)); color: var(--hb-color, var(--color-accent-contrast)); border-color: transparent; border-radius: var(--hb-radius, var(--radius-button)); padding: var(--hb-pad, 0.85em 1.8em); font-size: var(--font-size-body); font-weight: var(--body-weight, 400); letter-spacing: normal; text-transform: none; line-height: inherit; }
+.site-header .header-link.btn.has-look, .menu-panel .btn.has-look { background: var(--hb-bg, var(--color-accent)); color: var(--hb-color, var(--color-accent-contrast)); border: 0; border-radius: var(--hb-radius, var(--radius-button)); padding: var(--hb-pad, 0.85em 1.8em); font-size: var(--font-size-body); font-weight: var(--body-weight, 400); letter-spacing: normal; text-transform: none; line-height: inherit; }
 /* Bricks offcanvas menu: a sheet that slides in over everything, its own logo and close, the menu in the body font, buttons pinned to the bottom. */
 .menu-panel.menu-panel--sheet { inset: 0 auto 0 0; z-index: 1000; width: min(var(--sheet-w, 100%), 100%); display: flex; flex-direction: column; align-content: normal; gap: var(--sheet-logo-gap, 2rem); padding: var(--sheet-pad, 24px); background: var(--sheet-bg, #fff); color: var(--sheet-color, #000); transform: translateX(-100%); transition: transform var(--sheet-ms, 200ms) var(--sheet-ease, ease); }
 .menu-panel.menu-panel--sheet.from-right { inset: 0 0 0 auto; transform: translateX(100%); }
@@ -555,13 +555,13 @@ body.over-hero { padding-top: var(--announce-h, 0px); }
 @media (max-width: 767.98px) { .menu-panel.menu-panel--sheet { width: 100%; } }
 .menu-panel--sheet > nav { flex: 1; display: flex; flex-direction: column; }
 .menu-panel--sheet .menu-panel__items { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sheet-item-gap, 1.5rem); }
-.menu-panel--sheet .menu-panel__items > li > a { font-family: var(--sheet-font, var(--font-display)); font-weight: var(--sheet-weight, 500); line-height: var(--sheet-lh, 1.3); }
+.menu-panel--sheet .menu-panel__items > li > a { display: block; font-family: var(--sheet-font, var(--font-display)); font-weight: var(--sheet-weight, 500); line-height: var(--sheet-lh, 1.3); }
 .menu-panel.menu-panel--sheet li { opacity: 1; transform: none; transition: none; }
 .menu-panel--sheet .menu-panel__buttons { margin-top: auto !important; flex-wrap: nowrap; gap: var(--sheet-buttons-gap, 18px); }
 .menu-panel__top { line-height: 0; }
 .menu-panel__logo img { height: var(--sheet-logo-h, 100px); width: auto; }
-.menu-panel__close { position: absolute; top: var(--sheet-close-inset, 32px); right: var(--sheet-close-inset, 32px); width: var(--sheet-close-size, 42px); height: var(--sheet-close-size, 42px); padding: 0; border: 0; background: none; color: inherit; cursor: pointer; display: grid; place-items: center; }
-.menu-panel__close svg { width: 57%; height: 57%; }
+.menu-panel__close { position: absolute; top: var(--sheet-close-inset, 32px); right: var(--sheet-close-inset, 32px); width: calc(var(--sheet-close-size, 42px) * 0.57); height: var(--sheet-close-size, 42px); padding: 0; border: 0; background: none; color: inherit; cursor: pointer; display: grid; place-items: center; }
+.menu-panel__close svg { width: 100%; height: auto; }
 
 /* toggle: lines → X (duration/easing from motion.css), optional label ("MENU") */
 .menu-toggle { position: relative; z-index: 102; min-width: 44px; height: 44px; display: inline-flex; align-items: center; gap: 14px; padding: 0; background: none; border: 0; color: inherit; cursor: pointer; font: inherit; }

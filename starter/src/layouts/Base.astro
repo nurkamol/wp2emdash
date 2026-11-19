@@ -41,7 +41,10 @@ if (Astro.cache?.enabled) {
 }
 // Announcement bar: the first enabled bar block of the "announcement" site part (schedule checked in the browser too,
 // since cached pages outlive the request that rendered them).
-const announcement = ((announcementPart.entry?.data as { content?: any[] } | undefined)?.content ?? []).find((b) => b?._type === "section_announcement" && b.enabled !== false && Array.isArray(b.message) && b.message.length);
+// A bar whose schedule has ended is not rendered at all: the browser check is an inline script, which the public
+// Content-Security-Policy (no 'unsafe-inline') does not run, so an ended bar stayed on screen.
+const ended = (b: { ends_at?: string }) => !!b.ends_at && !Number.isNaN(Date.parse(b.ends_at)) && Date.parse(b.ends_at) < Date.now();
+const announcement = ((announcementPart.entry?.data as { content?: any[] } | undefined)?.content ?? []).find((b) => b?._type === "section_announcement" && b.enabled !== false && Array.isArray(b.message) && b.message.length && !ended(b));
 
 const siteTitle = settings.data?.title?.trim() || site.name;
 // Sharing image on the host serving this page: before go-live the production domain still serves WordPress, which has

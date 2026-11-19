@@ -9,6 +9,7 @@
  */
 import site from "../site.config.json";
 import { safeHref } from "../utils/links";
+import { readableFill } from "../utils/announcement";
 
 interface Item {
 	label: string;
@@ -57,7 +58,9 @@ const lookOf = (i: Item, list: HB[] | undefined) => {
 	const r = num(b.radius, 0, 200);
 	const y = num(b.padY, 0, 60);
 	const x = num(b.padX, 0, 80);
-	return [COLOR.test(b.bg ?? "") && `--hb-bg:${b.bg}`, COLOR.test(b.color ?? "") && `--hb-color:${b.color}`, r !== undefined && `--hb-radius:${r}px`, y !== undefined && x !== undefined && `--hb-pad:${y}px ${x}px`].filter(Boolean).join(";");
+	// The source's colours, the fill a shade darker only where white text would miss WCAG AA (verify gates on it).
+	const bg = readableFill(b.bg, b.color);
+	return [COLOR.test(bg ?? "") && `--hb-bg:${bg}`, COLOR.test(b.color ?? "") && `--hb-color:${b.color}`, r !== undefined && `--hb-radius:${r}px`, y !== undefined && x !== undefined && `--hb-pad:${y}px ${x}px`].filter(Boolean).join(";");
 };
 const bxPanel = bx?.panel;
 const ps = bx?.panelStyle ?? {};
@@ -179,7 +182,7 @@ const ICONS: Record<string, string> = {
 					{h.logo ? <img src={h.logo} alt="" /> : <span class="wordmark">{siteTitle}</span>}
 				</a>
 				<button type="button" class="menu-panel__close" data-menu-close>
-					<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13" /></svg>
+					<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13" /></svg>
 					<span class="visually-hidden">Close menu</span>
 				</button>
 			</div>

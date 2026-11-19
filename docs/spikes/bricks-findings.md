@@ -278,3 +278,67 @@ defines, and many global classes imported from ACSS (`btn--outline`, `btn--black
   spacing and wrapping), the grey rounded call-to-action panel (no inner card in the library), tablet gutters on
   stacked intro rows (the live container is 100% minus the section's side padding at 768px), hero buttons on phones
   (Bricks button radius / font), mobile footer at 3.0–3.7% (text rendering at 14–16px).
+
+## Visual parity, second round (2026-11-20)
+
+Measured again on the live site (headless Chromium, computed styles of the live elements at 390 / 768 / 1440) and on
+staging; Automatic.css (ACSS) rules read from the live `automatic.css` / `automatic-bricks.css` and `raw/acss-settings.json`.
+
+### What the live site does
+
+- **Layout.** Bricks sections are full width with side padding (ACSS `--section-padding-x`: 21.2 / 36.2 / 60px) and their
+  containers take the theme style's `container.width` (`var(--content-width)` = 1366px): content width =
+  `min(1366px, 100% − 2 × padding)` (696px at 768). The starter's gutter came from the "most common left edge of text",
+  which on this site is a narrow centred container (76px at 768).
+- **Text.** `automatic-bricks.css`: `body { line-height: var(--text-line-height) }` and
+  `p, li { line-height: var(--text-line-height, calc(6px + 2ex)) }` (an `ex` length: 21.09px at 16.06px, 25px at 20px),
+  `text-wrap: pretty` on text and headings. A Bricks `text` element spaces its paragraphs by `--paragraph-spacing`
+  (1em, ACSS "smart spacing" on `.brxe-text > * + p`), not by its box's gap.
+- **Post content in a `text-basic` with tag `p`** (the legal pages' `{post_content}`): the browser closes the `<p>` at the
+  first block, so every Gutenberg block is a flex item of the container, spaced by the container's row gap
+  (24.2 / 26.4 / 30px); lists keep the browser's 40px indent and no item gap. The title box (`_width: auto`, class
+  `single-title-container`) is centred by the section (Bricks `.brxe-section { align-items: center }`), and the section's
+  row gap (43.4 / 52.7 / 67.5px) separates it from the content.
+- **Buttons.** A Bricks `button` with no framework class keeps `.bricks-button` (frontend CSS, verified): no border, square,
+  `padding: .5em 1em`, `letter-spacing: .5px`, the surrounding text (16.06px / 300 / 21.09px on phones). ACSS `btn--*`
+  buttons: `line-height: 1`, 2px border, `--btn-font-size` else `--text-m` (16.06 → 18px).
+- **Images.** ACSS `auto-radius-selectors` lists `:where(img):not(header img)` → every content image has `--radius` (5px).
+- **Footer.** NextBricks underlined-hover links set 16px / 400 / 0.5px tracking / line height 1.4 on an inner node; the
+  credit heading (custom tag `span`) 14px / 400 / 0.5px / 1.4. The starter drew both at the body weight (300).
+- **Header** (template `header-main`): section padding `var(--space-s)` around a container of the theme width (logo at
+  x=37 at 1440); the toggle has `_display: none` and `_display:tablet_portrait: flex` (no burger above 991px); the bar's
+  NextBricks ripple v3 buttons are pills (plugin CSS `--border-radius: 100px`, padding 15px 30px, here 12px top/bottom
+  from a class), `topRippleBackground` primary / secondary, white text, title case, body font; hidden at
+  `mobile_landscape`. The offcanvas: white sheet sliding in from the left (`translate(-100%)` → 0, 200ms
+  `cubic-bezier(.25,0,.25,1)`, backdrop `rgba(0,0,0,.3)`), 756px wide on tablets, 100% on phones, padding `--space-m`,
+  its own logo (100px) and close toggle (42px icon at `--space-l`), the menu in the body font (23.3px / 500 at 390,
+  `menuGap: var(--space-m)`), two ripple buttons pinned to the bottom (`margin-top: auto`).
+- **Forms in a flex column** are under their heading (waiver: heading then the form at full width; events: the heading
+  straight in the section, centred, the form in a `var(--width-l)` container).
+- **Button rows stacked on phones** (events intro): the row box is ~1.7× taller at 390 than at 1440 and both buttons are
+  182px (equal width) — from the template's custom CSS, visible only in the measured boxes.
+
+### Rules added (all Bricks-scoped)
+
+- `bricks-design.json` → `layout` (src/adapters/bricks/layout.ts `bricksLayout`): container (theme style), gutter (mode of
+  the measured section side padding per viewport), ACSS text line height / text-wrap / paragraph spacing / image radius /
+  button size, leading and border. Scaffold appends them to tokens.css (`bricksLayoutTokens`) for Bricks sites only.
+- Rich text from Bricks boxes (`textBoxes`): `look.blockGap` (the content box's measured gap, fluid), `look.headGap` and
+  `look.headCenter` (centred title box), `align: center` when every box is a centred title box, width `wide` when the
+  content box sets no width.
+- Stack columns: `textWeight`, `textTracking`, `textLeading`, `linkWeight`, `linkTracking`, `linkLeading` (typography all
+  the elements share), `paraGap` (em, a multi-paragraph `text` element), `textWidth` from the stack box's own width,
+  `itemGapFluid` (measured per viewport).
+- Buttons: `plain` (Bricks default button). Sections: `buttonsWidth: "equal"` from the measured phone row.
+- Hero: `look.buttonsAbove` (outer box gap per viewport); hero heading margin 0 inside the look.
+- Forms: `stacked`, `formWidth`, `formGap`; a heading straight in the section is centred (`headAlign`).
+- Header (`bricksHeaderLook` → bricks-design.json `header`, merged with the menu capture by `bricksHeaderConfig` into
+  site.config `header.bricks`): bar in the content width with the template's side padding, toggle only below the
+  inline-menu breakpoint, bar buttons off on phones, per-button colours / radius / padding, and the offcanvas sheet.
+- Toggle labels "Open" / "Close" (Bricks toggles' aria-label) are not printed as a visible label.
+
+### Starter notes
+
+- The public CSP (`script-src` without `'unsafe-inline'`) blocks the announcement bar's inline script, so an ended bar
+  stayed on screen (staging showed a bar that ended 2026-08-16). An ended bar is now not rendered on the server.
+  The inline script still does not run for visitors (first-paint dismissal and `--announce-h`): needs a hash in the CSP.
