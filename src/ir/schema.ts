@@ -116,6 +116,10 @@ const base = {
 	/** The heading's own size on desktop (builder override of the type scale), and its line height. */
 	headingSize: z.string().regex(/^\d+(?:\.\d+)?(?:px|vw|rem|em)$/).optional(),
 	headingLeading: z.number().min(0.5).max(3).optional(),
+	/** The heading's measure, a share of its column (Salient split heading max_width). */
+	headingWidth: z.string().regex(/^\d+(?:\.\d+)?%$/).optional(),
+	/** Space under the eyebrow, px (the inner-row padding under it in the builder). */
+	eyebrowGap: z.number().min(0).max(100).optional(),
 	/** The section heading centred over left-aligned content, and the space under it (% = of the content width, as builder padding). */
 	headAlign: z.enum(["center"]).optional(),
 	headGap: z.string().regex(/^\d+(?:\.\d+)?(?:px|%|vw|rem)$/).optional(),
@@ -194,6 +198,19 @@ export const section = z.discriminatedUnion("type", [
 			textTop: cssLength.optional(),
 			/** The text column drifts with scroll: offset = this × (column centre − viewport centre) (Salient column parallax). */
 			textParallax: z.number().min(0).max(1).optional(),
+			/** Space under the first picture once the columns stack (% of the column width, or px). */
+			stackSpace: cssLength.optional(),
+			/** Space above a centred quote and above the second picture (% of the text column width, or px). */
+			quoteGap: cssLength.optional(),
+			media2Gap: cssLength.optional(),
+			/** Paragraph size on desktop and below it, and its line height (the builder set them on the paragraph). */
+			bodySize: cssLength.optional(),
+			bodySizeSmall: cssLength.optional(),
+			bodyLeading: z.number().min(1).max(3).optional(),
+			/** Centred quote size on desktop and below it, and its width (share of the column). */
+			quoteSize: cssLength.optional(),
+			quoteSizeSmall: cssLength.optional(),
+			quoteWidth: cssLength.optional(),
 		}),
 	}),
 	z.object({ type: z.literal("columns"), ...base, fields: z.object({ heading, columns: z.array(column).min(1).max(6) }) }),

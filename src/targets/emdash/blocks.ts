@@ -164,6 +164,8 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		...(s.quoteStyle ? { quote_style: s.quoteStyle } : {}),
 		...(s.headingSize ? { heading_size: s.headingSize } : {}),
 		...(s.headingLeading ? { heading_leading: s.headingLeading } : {}),
+		...(s.headingWidth ? { heading_width: s.headingWidth } : {}),
+		...(s.eyebrowGap !== undefined ? { eyebrow_gap: s.eyebrowGap } : {}),
 		...(s.headAlign ? { head_align: s.headAlign } : {}),
 		...(s.headGap ? { head_gap: s.headGap } : {}),
 		...(s.pad?.top ? { pad_top: s.pad.top } : {}),
@@ -187,7 +189,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		case "media_text": {
 			const { head: h, rest } = headingFromBody(s.fields.body);
 			const ratio = ["1/3", "1/2", "2/3"].includes(s.fields.ratio) ? s.fields.ratio : "1/2";
-			return base("media_text", { ...h, body: pt(rest), buttons: buttons(s.fields.buttons), media: media(s.fields.media[0]), media_2: s.fields.media[1] ? media(s.fields.media[1]) : undefined, media_side: s.fields.mediaSide, ratio, ...heightFields(s.fields.mediaHeight), ...(s.fields.textInset ? { text_inset: s.fields.textInset } : {}), ...(s.fields.textTop ? { text_top: s.fields.textTop } : {}), ...(s.fields.textParallax ? { text_parallax: s.fields.textParallax } : {}), ...(s.fields.mediaParallax ? { media_parallax: s.fields.mediaParallax } : {}), ...(s.fields.mediaRadius ? { media_radius: s.fields.mediaRadius } : {}), ...(s.fields.headingGap ? { heading_gap: `${s.fields.headingGap}px` } : {}) });
+			return base("media_text", { ...h, body: pt(rest), buttons: buttons(s.fields.buttons), media: media(s.fields.media[0]), media_2: s.fields.media[1] ? media(s.fields.media[1]) : undefined, media_side: s.fields.mediaSide, ratio, ...heightFields(s.fields.mediaHeight), ...(s.fields.textInset ? { text_inset: s.fields.textInset } : {}), ...(s.fields.textTop ? { text_top: s.fields.textTop } : {}), ...(s.fields.textParallax ? { text_parallax: s.fields.textParallax } : {}), ...(s.fields.mediaParallax ? { media_parallax: s.fields.mediaParallax } : {}), ...(s.fields.mediaRadius ? { media_radius: s.fields.mediaRadius } : {}), ...(s.fields.headingGap ? { heading_gap: `${s.fields.headingGap}px` } : {}), ...mediaTextLookFields(s.fields) });
 		}
 		case "columns": {
 			const cols: Record<string, unknown> = {};
@@ -279,4 +281,10 @@ function heightFields(h: ({ desktop: string; small?: string; phone?: string } | 
 		if (x.phone) out[`${k}_height_phone`] = x.phone;
 	});
 	return out;
+}
+
+/** IR media-text spacing and type → block fields (lengths kept as given). */
+function mediaTextLookFields(f: { stackSpace?: string; quoteGap?: string; media2Gap?: string; bodySize?: string; bodySizeSmall?: string; bodyLeading?: number; quoteSize?: string; quoteSizeSmall?: string; quoteWidth?: string }): Record<string, unknown> {
+	const map = { stack_space: f.stackSpace, quote_gap: f.quoteGap, media_2_gap: f.media2Gap, body_size: f.bodySize, body_size_small: f.bodySizeSmall, body_leading: f.bodyLeading, quote_size: f.quoteSize, quote_size_small: f.quoteSizeSmall, quote_width: f.quoteWidth };
+	return Object.fromEntries(Object.entries(map).filter(([, v]) => v !== undefined));
 }

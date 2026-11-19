@@ -248,6 +248,126 @@
         "mediaSide": "left",
         "ratio": "1/2"
       }
+    },
+    {
+      "type": "media_text",
+      "variant": "cover",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "width": "full",
+      "gap": "none",
+      "quoteStyle": "centered",
+      "headingSize": "4vw",
+      "headingLeading": 0.9,
+      "headingWidth": "85%",
+      "headGap": "4%",
+      "eyebrowGap": 15,
+      "inset": {
+        "desktop": "8%"
+      },
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[5]",
+        "rawHash": "3037b0c7e7"
+      },
+      "valign": "top",
+      "fields": {
+        "mediaHeight": [
+          {
+            "desktop": "90vh",
+            "small": "450px"
+          },
+          {
+            "desktop": "65vh",
+            "small": "350px"
+          }
+        ],
+        "textTop": "10vh",
+        "stackSpace": "8%",
+        "quoteGap": "4%",
+        "media2Gap": "8%",
+        "bodySize": "1.05vw",
+        "bodySizeSmall": "16px",
+        "bodyLeading": 1.6,
+        "quoteSize": "1.45vw",
+        "quoteSizeSmall": "22px",
+        "quoteWidth": "70%",
+        "media": [
+          {
+            "wpId": 581,
+            "kind": "image"
+          },
+          {
+            "wpId": 655,
+            "kind": "image"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tg",
+            "style": "h5",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "th",
+                "text": "Calm",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ti",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tj",
+                "text": "Quiet rooms for careful work",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tk",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tl",
+                "text": "Sample paragraph set with its own size and line height.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tm",
+            "style": "blockquote",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tn",
+                "text": "A short centred line.",
+                "marks": [
+                  "em"
+                ]
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
     }
   ],
   "diagnostics": [
@@ -288,6 +408,27 @@
     },
     {
       "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[5]/vc_column[0]/vc_row_inner[0]/vc_column_inner[0]/divider[0]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[5]/vc_column[1]/vc_row_inner[3]/vc_column_inner[0]/divider[0]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[5]/vc_column[1]/vc_row_inner[4]/vc_column_inner[0]/divider[0]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
       "code": "lossy",
       "message": "1 image(s) from the text column moved into the section's media list",
       "path": "vc_row[0]"
@@ -297,6 +438,12 @@
       "code": "lossy",
       "message": "1 image(s) from the text column moved into the section's media list",
       "path": "vc_row[2]"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "1 image(s) from the text column moved into the section's media list",
+      "path": "vc_row[5]"
     }
   ]
 }

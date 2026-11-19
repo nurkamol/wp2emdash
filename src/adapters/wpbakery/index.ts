@@ -543,6 +543,7 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 				...(lead.parallax && lead.height ? { mediaParallax: lead.parallax } : {}),
 				...(lead.radius ? { mediaRadius: lead.radius } : {}),
 				...(textCol.headingGap ? { headingGap: textCol.headingGap } : {}),
+				...mediaTextLook(row.raw, row.columns.indexOf(mediaCol)),
 				media: [...mediaCol.fragments.map((f) => (f as Extract<Fragment, { kind: "media" }>).media), ...extra], body: textRich, buttons: textCol.fragments.flatMap((f) => (f.kind === "button" ? [f.button] : [])), mediaSide: cols[0] === mediaCol ? "left" : "right", ratio: mediaCol.width ?? "1/2" },
 		});
 		return sections;
@@ -672,33 +673,94 @@ export type { Button };
 export { CONTAINERS };
 
 /** The row's first heading set with its own size in the builder (Salient split heading font_size): desktop size and leading. */
-export function headingLook(raw: string): { headingSize?: string; headingLeading?: number } {
+export function headingLook(raw: string): { headingSize?: string; headingLeading?: number; headingWidth?: string } {
 	const tag = /\[split_line_heading(?=[^\]]*\bfont_style="h[1-6]")[^\]]*\]/.exec(raw)?.[0];
 	if (!tag) return {};
+	// max_width caps the heading's measure (a share of its column) at every width.
+	const mw = /\bmax_width="\s*(\d+(?:\.\d+)?)\s*%\s*"/.exec(tag)?.[1];
+	const width = mw && Number(mw) >= 20 && Number(mw) < 100 ? { headingWidth: `${mw}%` } : {};
 	const size = /\bfont_size="\s*(\d+(?:\.\d+)?)\s*(px|vw|rem|em)?\s*"/.exec(tag);
-	if (!size || Number(size[1]) <= 0) return {};
+	if (!size || Number(size[1]) <= 0) return width;
 	const lh = Number(/\bfont_line_height="\s*([\d.]+)\s*"/.exec(tag)?.[1]);
-	return { headingSize: `${size[1]}${size[2] ?? "px"}`, ...(lh > 0.5 && lh < 3 ? { headingLeading: lh } : {}) };
+	return { headingSize: `${size[1]}${size[2] ?? "px"}`, ...(lh > 0.5 && lh < 3 ? { headingLeading: lh } : {}), ...width };
 }
 
 /**
  * A section heading set centred in the builder, and the inner row's bottom padding under it
  * (Salient: % of the content width, which CSS margin % reproduces exactly).
  */
-export function headLook(raw: string): { headAlign?: "center"; headGap?: string } {
+export function headLook(raw: string): { headAlign?: "center"; headGap?: string; eyebrowGap?: number } {
 	const centred = /\[split_line_heading(?=[^\]]*\bfont_style="h[1-6]")(?=[^\]]*\bcontent_alignment="center")[^\]]*\]/.test(raw);
-	// An inner row holding just the heading: its bottom padding is the gap to what follows.
-	const inner = /\[vc_row_inner\b([^\]]*)\]((?:(?!\[\/?vc_row_inner\b)[\s\S])*?)\[\/vc_row_inner\]/g;
+	// An inner row holding just the heading: its bottom padding is the gap to what follows; without one, the next
+	// inner row's top padding is.
+	const rows = innerRows(raw);
 	let gap: string | undefined;
-	for (const m of raw.matchAll(inner)) {
-		const body = m[2] ?? "";
-		const shortcodes = [...body.matchAll(/\[(\w+)/g)].map((x) => x[1]);
-		if (!shortcodes.includes("split_line_heading") || shortcodes.some((t) => !["vc_column_inner", "split_line_heading", "divider", "vc_empty_space"].includes(t as string))) continue;
-		const pct = /\bbottom_padding="\s*(\d+(?:\.\d+)?)\s*(%|px)?\s*"/.exec(m[1] ?? "");
-		if (pct && Number(pct[1]) > 0) gap = `${pct[1]}${pct[2] ?? "px"}`;
+	let eyebrowGap: number | undefined;
+	for (const [i, r] of rows.entries()) {
+		const shortcodes = [...r.body.matchAll(/\[(\w+)/g)].map((x) => x[1]);
+		if (!shortcodes.some((t) => t === "split_line_heading") || shortcodes.some((t) => !["vc_column_inner", "split_line_heading", "divider", "vc_empty_space"].includes(t as string))) continue;
+		gap = padLen(r.attrs, "bottom_padding") ?? (rows[i + 1]?.col === r.col ? padLen(rows[i + 1]?.attrs ?? "", "top_padding", "%") : undefined);
+		// An eyebrow (a lone small heading) in the inner row just above: that row's bottom padding sits under it.
+		const prev = rows[i - 1];
+		if (prev && prev.col === r.col && /^\s*(?:\[vc_column_inner\b[^\]]*\]\s*)?\[vc_column_text\b[^\]]*\](?:\s|<\/?p>)*<h[4-6][^>]*>[^<]{1,40}<\/h[4-6]>(?:\s|<\/?p>)*\[\/vc_column_text\]\s*(?:\[\/vc_column_inner\]\s*)?$/.test(prev.body)) {
+			const px = padLen(prev.attrs, "bottom_padding", "px");
+			if (px && Number.parseFloat(px) <= 100) eyebrowGap = Number.parseFloat(px);
+		}
 		break;
 	}
-	return { ...(centred ? { headAlign: "center" as const } : {}), ...(gap ? { headGap: gap } : {}) };
+	return { ...(centred ? { headAlign: "center" as const } : {}), ...(gap ? { headGap: gap } : {}), ...(eyebrowGap ? { eyebrowGap } : {}) };
+}
+
+/** The row's inner rows in order, with the index of the builder column each sits in. */
+function innerRows(raw: string): { col: number; attrs: string; body: string }[] {
+	const inner = /\[vc_row_inner\b([^\]]*)\]((?:(?!\[\/?vc_row_inner\b)[\s\S])*?)\[\/vc_row_inner\]/g;
+	return raw.split(/\[vc_column(?=[\s\]])/).flatMap((c, col) => [...c.matchAll(inner)].map((m) => ({ col, attrs: m[1] ?? "", body: m[2] ?? "" })));
+}
+
+/** A padding attribute (Salient: bare numbers are px) → a CSS length, if positive and in an allowed unit. */
+function padLen(attrs: string, name: string, only?: "%" | "px"): string | undefined {
+	const m = new RegExp(`\\b${name}="\\s*(\\d+(?:\\.\\d+)?)\\s*(%|px)?\\s*"`).exec(attrs);
+	if (!m || Number(m[1]) <= 0) return undefined;
+	const unit = m[2] ?? "px";
+	return !only || only === unit ? `${m[1]}${unit}` : undefined;
+}
+
+/**
+ * Spacing and type inside a Salient image + text row (measured at 390/768/1440, docs/spikes/M7-findings.md):
+ * the picture column's inner-row bottom padding once columns stack, the top padding of the inner rows holding the
+ * centred quote and the second picture, and the size and leading of split-heading paragraphs and quotes.
+ * Percentages are of the column's content width, which CSS margins reproduce.
+ */
+export function mediaTextLook(raw: string, mediaCol: number): { stackSpace?: string; quoteGap?: string; media2Gap?: string; bodySize?: string; bodySizeSmall?: string; bodyLeading?: number; quoteSize?: string; quoteSizeSmall?: string; quoteWidth?: string } {
+	const rows = innerRows(raw);
+	const mine = rows.filter((r) => r.col === mediaCol + 1);
+	const text = rows.filter((r) => r.col !== mediaCol + 1);
+	const last = mine.at(-1);
+	const stackSpace = last ? (padLen(last.attrs, "bottom_padding_tablet") ?? padLen(last.attrs, "bottom_padding")) : undefined;
+	const quoteRow = text.find((r) => CENTRED_QUOTE.test(r.body));
+	const quoteGap = quoteRow ? padLen(quoteRow.attrs, "top_padding") : undefined;
+	const media2Row = text.find((r) => /\[vc_column_inner\b[^\]]*\bbackground_image="\d+"/.test(r.body));
+	const media2Gap = media2Row ? padLen(media2Row.attrs, "top_padding") : undefined;
+	const size = (tag: string | undefined, name: string) => {
+		const m = new RegExp(`\\b${name}="\\s*(\\d+(?:\\.\\d+)?)\\s*(px|vw)?\\s*"`).exec(tag ?? "");
+		return m && Number(m[1]) > 0 && (m[2] === "vw" ? Number(m[1]) <= 5 : Number(m[1]) >= 10 && Number(m[1]) <= 40) ? `${m[1]}${m[2] ?? "px"}` : undefined;
+	};
+	const para = /\[split_line_heading(?=[^\]]*\bfont_style="p")[^\]]*\]/.exec(raw)?.[0];
+	const lh = Number(/\bfont_line_height="\s*([\d.]+)\s*"/.exec(para ?? "")?.[1]);
+	const quote = CENTRED_QUOTE.exec(raw)?.[0];
+	const qw = /\bmax_width="\s*(\d+(?:\.\d+)?)\s*%\s*"/.exec(quote ?? "")?.[1];
+	const look = {
+		stackSpace,
+		quoteGap,
+		media2Gap,
+		bodySize: size(para, "font_size"),
+		bodySizeSmall: size(para, "font_size_tablet"),
+		bodyLeading: lh >= 1 && lh <= 3 ? lh : undefined,
+		quoteSize: size(quote, "font_size"),
+		quoteSizeSmall: size(quote, "font_size_tablet"),
+		quoteWidth: qw && Number(qw) >= 20 && Number(qw) <= 100 ? `${qw}%` : undefined,
+	};
+	return Object.fromEntries(Object.entries(look).filter(([, v]) => v !== undefined));
 }
 
 /**

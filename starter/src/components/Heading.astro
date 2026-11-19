@@ -8,7 +8,9 @@ const { value: v, class: extra } = Astro.props;
 const size = /^\d+(?:\.\d+)?(?:px|vw|rem|em)$/.test(v.heading_size ?? "") ? v.heading_size : undefined;
 const leading = typeof v.heading_leading === "number" && v.heading_leading >= 0.5 && v.heading_leading <= 3 ? v.heading_leading : undefined;
 const gap = /^\d+(?:\.\d+)?(?:px|%|vw|rem)$/.test(v.head_gap ?? "") ? v.head_gap : undefined;
-const look = [size && `--heading-size:${size}`, leading && `--heading-leading:${leading}`, gap && `--head-gap:${gap}`].filter(Boolean).join(";") || undefined;
+const width = /^\d+(?:\.\d+)?%$/.test(v.heading_width ?? "") ? v.heading_width : undefined;
+const eyebrowGap = typeof v.eyebrow_gap === "number" && v.eyebrow_gap >= 0 && v.eyebrow_gap <= 100 ? `${v.eyebrow_gap}px` : undefined;
+const look = [size && `--heading-size:${size}`, leading && `--heading-leading:${leading}`, gap && `--head-gap:${gap}`, width && `--heading-width:${width}`, eyebrowGap && `--eyebrow-gap:${eyebrowGap}`].filter(Boolean).join(";") || undefined;
 const Tag = (/^h[1-6]$/.test(v.heading_level ?? "") ? v.heading_level : "h2") as "h2";
 ---
 
