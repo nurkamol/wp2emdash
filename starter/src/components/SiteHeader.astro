@@ -46,6 +46,7 @@ const panelButtons = extras.buttons ? secondary.filter(isButton) : [];
 const hoverOf = (i: Item) => (isButton(i) && i.titleAttr?.trim() && i.titleAttr.trim() !== i.label.trim() ? i.titleAttr.trim() : undefined);
 // Bricks header look (site.config header.bricks; other builders never set it): the bar in the content width, the toggle
 // and the buttons per screen, button colours and corners, and an offcanvas sheet with its own logo, close and buttons.
+type HN = { navGap?: string };
 type HB = { label: string; bg?: string; color?: string; radius?: number; padY?: number; padX?: number };
 const bx = (h as { bricks?: { gutter?: { mobile: number; desktop: number }; toggleSmallOnly?: boolean; buttonsHidePhone?: boolean; buttons?: HB[]; panel?: { pad?: string; logoGap?: string; itemGap?: string; buttonsGap?: string; closeInset?: string; closeSize?: number; logoHeight?: number; width?: number; buttons?: HB[] }; panelStyle?: Record<string, string | number> } }).bricks;
 const COLOR = /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
@@ -86,7 +87,8 @@ const sheetStyle = bxPanel
 			.join(";")
 	: undefined;
 const overlayStyle = bxPanel && COLOR.test(String(ps.overlay ?? "")) ? `--menu-overlay-bg:${ps.overlay};--menu-overlay-opacity:1` : undefined;
-const headerStyle = bx?.gutter && num(bx.gutter.mobile, 0, 200) !== undefined && num(bx.gutter.desktop, 0, 200) !== undefined ? `--gutter-header:${fluidPx(bx.gutter.mobile, bx.gutter.desktop)}` : undefined;
+const navGap = (bx as HN | undefined)?.navGap;
+const headerStyle = [bx?.gutter && num(bx.gutter.mobile, 0, 200) !== undefined && num(bx.gutter.desktop, 0, 200) !== undefined ? `--gutter-header:${fluidPx(bx.gutter.mobile, bx.gutter.desktop)}` : "", LEN.test(navGap ?? "") ? `--hnav-gap:${navGap}` : ""].filter(Boolean).join(";") || undefined;
 const ICONS: Record<string, string> = {
 	phone: "M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z",
 	email: "M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5-8-5V6l8 5 8-5z",

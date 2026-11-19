@@ -545,6 +545,7 @@ body.over-hero { padding-top: var(--announce-h, 0px); }
 /* Bricks header (site.config header.bricks; other builders never set it): the bar in the content width, the toggle
    only below the inline-menu breakpoint, bar buttons off on phones, button colours/corners from the header template. */
 .has-bar-container .site-header__bar { max-width: var(--container); }
+.has-bar-container .site-header__nav ul { gap: var(--hnav-gap, 2rem); }
 @media (min-width: 1051px) { .toggle-small-only .menu-toggle { display: none; } }
 @media (max-width: 767.98px) { .hb-hide-phone .site-header__actions .header-link.btn { display: none; } }
 .site-header .header-link.btn.has-look, .menu-panel .btn.has-look { background: var(--hb-bg, var(--color-accent)); color: var(--hb-color, var(--color-accent-contrast)); border: 0; border-radius: var(--hb-radius, var(--radius-button)); padding: var(--hb-pad, 0.85em 1.8em); font-size: var(--font-size-body); font-weight: var(--body-weight, 400); letter-spacing: normal; text-transform: none; line-height: inherit; }

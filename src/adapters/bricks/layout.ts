@@ -113,6 +113,8 @@ export interface BricksHeaderButton {
 export interface BricksHeaderLook {
 	/** Side padding of the header section per viewport (px); the bar sits in the content width inside it. */
 	gutter?: { mobile: number; desktop: number };
+	/** Space between the bar's menu links (the nav-menu's `menuGap`, px or fluid). */
+	navGap?: string;
 	/** The menu toggle is hidden at desktop width (`_display: none`, shown from a smaller breakpoint). */
 	toggleSmallOnly?: boolean;
 	/** The bar's buttons are hidden on phones (`_display:mobile_landscape: none`): they show in the menu panel only. */
@@ -167,6 +169,9 @@ export function bricksHeaderLook(elements: { id: string; name: string; parent: s
 	}
 	const bar = ordered.filter((e) => !insideOffcanvas(e) && e.name !== "offcanvas");
 	if (bar.some((e) => e.name === "toggle" && str(at(e, "_display", desktop)) === "none")) out.toggleSmallOnly = true;
+	const barMenu = bar.find((e) => e.name === "nav-menu");
+	const ng = barMenu ? fluidOf(at(barMenu, "menuGap", desktop)) : undefined;
+	if (ng) out.navGap = ng;
 	const look = (e: (typeof elements)[number]): BricksHeaderButton | undefined => {
 		const s = eff(e);
 		if (RIPPLE.test(e.name)) {

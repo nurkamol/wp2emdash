@@ -165,7 +165,8 @@ describe("Bricks header look", () => {
 	const ripple = (id: string, parent: string, label: string, colour: string, extra: Record<string, unknown> = {}) => ({ id, name: "ripple_button_v3", parent, children: [], settings: { topRippleInnerTitle: label, topRippleBackground: { color: { id: colour } }, topRippleColor: { id: "white" }, link: { type: "external", url: "/x/" }, ...extra } });
 	const els = [
 		{ id: "h", name: "section", parent: 0, children: ["c"], settings: { _cssGlobalClasses: ["hp"] } },
-		{ id: "c", name: "container", parent: "h", children: ["b1", "t", "o", "b2"], settings: {} },
+		{ id: "c", name: "container", parent: "h", children: ["nm", "b1", "t", "o", "b2"], settings: {} },
+		{ id: "nm", name: "nav-menu", parent: "c", children: [], settings: { menu: "4", menuGap: "var(--space-l)" } },
 		ripple("b1", "c", "Contact Us", "green", { _cssGlobalClasses: ["cta"], "_display:mobile_landscape": "none" }),
 		{ id: "t", name: "toggle", parent: "c", children: [], settings: { _cssGlobalClasses: ["tg"] } },
 		{ id: "o", name: "offcanvas", parent: "c", children: ["in"], settings: { width: "756" } },
@@ -182,6 +183,7 @@ describe("Bricks header look", () => {
 		const look = bricksHeaderLook(els, site);
 		expect(look.gutter).toEqual({ mobile: 18, desktop: 19.04 });
 		expect(look.toggleSmallOnly).toBe(true);
+		expect(look.navGap).toBe("32px");
 		expect(look.buttonsHidePhone).toBe(true);
 		expect(look.buttons).toEqual([
 			{ label: "Contact Us", bg: "#1f442c", color: "#ffffff", radius: 100, padY: 12, padX: 30 },
