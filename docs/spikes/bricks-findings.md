@@ -233,6 +233,9 @@ defines, and many global classes imported from ACSS (`btn--outline`, `btn--black
   reveal `height` / `_height`, phone value too), the picture before or after the text as in the builder, the stack's
   row gap between items, `align-items: center` (each item centred as a box; the text keeps its own alignment, centred
   only when every text element sets `text-align: center`), the picture's own bottom margin.
+- **Stack text.** A paragraph with its own width (`_width: var(--width-m)`) gives the column's paragraphs that measure;
+  texts grouped in their own box inside the stack (heading + description) keep that box's row gap between them
+  (`--space-xs`, 13.5px measured) instead of the stack's gap (30px).
 - **Link rows.** A row box whose children are only text links (NextBricks underlined-hover, text-link, linked icons)
   is one list of links (one item per link), drawn as a row with the box's column gap and the items' text size, no
   bullets or underlines. A row of social links (Instagram, TikTok, Facebook, YouTube, LinkedIn, X, Pinterest) is one
@@ -257,3 +260,12 @@ defines, and many global classes imported from ACSS (`btn--outline`, `btn--black
 - **Header over the hero.** The starter put the header over any hero with a background picture; on this site the
   header is solid (audit: `transparentOnTop: false`) and the hero starts below it. The header now sits over the hero
   only when it is transparent at the top.
+
+### Notes from the round
+
+- CSS `:has()` cannot be nested (`ul:not(:has(> li:not(:has(> a))))` is invalid and the whole rule is dropped); the
+  link-list rule uses `ul:not(:has(> li > :not(a)))`.
+- EmDash 1.5 refuses to change a deployed block field's type (`BLOCK_TYPE_BREAKING_CHANGE` at load: a boolean column
+  field turned integer). New look values get new fields (`col_N_icon_gap` next to the boolean `col_N_social_icons`).
+- NextBricks title elements set their font size on an inner node: the measured outer box shows the inherited body
+  size, so text sizes come from the settings first and from the measurement only when no setting exists.

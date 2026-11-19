@@ -64,7 +64,7 @@ const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.p
  */
 export function bricksBodyWeight(design: { typography?: Record<string, Record<string, unknown>> } | undefined): string {
 	const w = Number(design?.typography?.typographyBody?.["font-weight"]);
-	return Number.isInteger(w) && w >= 100 && w <= 900 && w !== 400 ? `:root { --body-weight: ${w}; } /* Bricks theme style body weight */\n` : "";
+	return Number.isInteger(w) && w >= 100 && w <= 900 && w !== 400 ? `:root { --body-weight: ${w}; --strong-weight: 700; } /* Bricks theme style body weight; bold stays bold (bolder than ${w} would be ${w < 400 ? 400 : 700}) */\n` : "";
 }
 const write = (file: string, data: string | object) => {
 	mkdirSync(dirname(file), { recursive: true });
