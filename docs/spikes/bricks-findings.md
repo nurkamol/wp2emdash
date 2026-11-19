@@ -348,3 +348,23 @@ staging; Automatic.css (ACSS) rules read from the live `automatic.css` / `automa
 - **Links in text**: ACSS `--link-color` (primary) and an empty `--link-decoration` → accent colour, no underline on the
   live site. The starter takes the colour but keeps the underline: without it axe reports `link-in-text-block` (green on
   black text is under 3:1), which the verify gate fails.
+
+### Results of the second round
+
+- Sections over 3% (84 compared): 40 → 35 (layout tokens, text boxes, plain buttons, hero spacing) → 24 (footer
+  typography, stack text width and fluid gaps, stacked forms, equal-width button rows) → 24 (header, a11y/text gates
+  fixed: button fill kept AA, announcement text left out of the comparison). The home hero and every footer now pass
+  on all viewports; the menu panel at 390px matches the live one (0.02% of the screenshot differs when open; both slide
+  in from the left over 200ms).
+- Still over: Mariana Tek embeds (/buy/, /schedule/, /account/ iframe height — third party); Fluent form look
+  (/contact-us/, /waiver/, /events/ form: two-column name rows, Fluent field sizes, signature pad — forms package);
+  /events/ intro and call-to-action rows (the grey rounded inner card around the buttons and the CTA panel — needs a
+  library decision); legal pages on phones/tablets 3.9–7.2% (title-area spacing and remaining wraps: the live first block
+  sits under a 25px Pinyon title line box, the starter's section head is taller); /about-us/ image–text row 7.3–7.7%
+  (the image reveal's live crop/scale differs from the starter's `object-fit: cover`, and paragraph wraps differ by a
+  word); /faq/ phones (accordion look); /events/ "Rental Options" text on phones.
+- Header at 1440: bar in the 1366px container (logo x=37 as live), no burger, pill buttons in the template colours; the
+  menu starts 61px further right than live (the live brand block is a 30%-wide flex item that shrinks; not derivable
+  from the settings alone).
+- The waiver's section top margin (`_margin.top: var(--space-l)`, phones `--section-space-l`) is not carried: the live
+  title sits ~45px lower.
