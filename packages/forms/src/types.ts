@@ -21,6 +21,8 @@ export interface FormField {
 	type: FormFieldType;
 	required?: boolean;
 	placeholder?: string;
+	/** Visible lines of a message box (textarea), as the source form set them. */
+	rows?: number;
 	options?: string[];
 	half?: boolean;
 	autocomplete?: string;
