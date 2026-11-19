@@ -269,3 +269,12 @@ defines, and many global classes imported from ACSS (`btn--outline`, `btn--black
   field turned integer). New look values get new fields (`col_N_icon_gap` next to the boolean `col_N_social_icons`).
 - NextBricks title elements set their font size on an inner node: the measured outer box shows the inherited body
   size, so text sizes come from the settings first and from the measurement only when no setting exists.
+- Result on the first site (84 sections × viewports, threshold 3%): 64 over → 55 (stacked footer) → 40 (hero look,
+  live variables, measured boxes, stack columns, body weight). Footer 45–49% → 0.3–3.7% (desktop/tablet pass); home
+  hero 80–89% → 1–7% (same video frame both sides once the overlay and the solid header were right); About and
+  Private Events intro rows 26–43% → 3–23%.
+- Remaining: Mariana Tek booking embeds (third-party iframe content and height), the contact/waiver forms (Fluent
+  Forms look: hidden labels, two-column grid with the contact list), legal pages on phones (Gutenberg text: list
+  spacing and wrapping), the grey rounded call-to-action panel (no inner card in the library), tablet gutters on
+  stacked intro rows (the live container is 100% minus the section's side padding at 768px), hero buttons on phones
+  (Bricks button radius / font), mobile footer at 3.0–3.7% (text rendering at 14–16px).
