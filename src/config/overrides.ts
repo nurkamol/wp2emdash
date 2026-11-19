@@ -34,6 +34,8 @@ export const overridesSchema = z.object({
 	 * most pages, report an uncertain match as a warning; keep = also rebuild the uncertain match; drop = do not rebuild.
 	 */
 	announcement: z.enum(["auto", "keep", "drop"]).default("auto"),
+	/** Footer copyright year: keep = as written; current = a single year after © shows the current year (`{year}`). */
+	copyrightYear: z.enum(["keep", "current"]).default("keep"),
 	/** legacy_html sections approved to ship as-is: `<slug>:<row path>`. */
 	approvedLegacy: z.array(z.string()).default([]),
 });

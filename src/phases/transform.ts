@@ -11,6 +11,7 @@ import type { FormDefinitionOut } from "../scaffold/forms.js";
 import { adaptGutenberg } from "../adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../adapters/wpbakery/index.js";
 import { loadOverrides } from "../config/overrides.js";
+import { currentYear } from "../transform/year.js";
 import type { GateCheck } from "../core/state.js";
 import { Keys } from "../ir/portable-text.js";
 import { businessFromJsonLd } from "../transform/business.js";
@@ -259,6 +260,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const { builder, sections, diagnostics } = adapt(p, "partial");
 		const role = /footer/i.test(p.slug + p.title) ? "footer" : /header/i.test(p.slug + p.title) ? "header" : "other";
 		if (role === "footer") paddedEdges += applyMeasuredPadding(sections, boxesFor("/"), true);
+		if (role === "footer" && overrides.copyrightYear === "current") currentYear(sections);
 		emit({ version: IR_VERSION, kind: "partial", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder, modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics }, `partials/${p.slug}.json`, p.status === "publish");
 		partials.push({ role, file: `partials/${p.slug}.json` });
 	}
@@ -272,6 +274,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const { sections, diagnostics } = adapt(p, "partial", bricksTemplates.get(p.id) ?? []);
 		if (role === "header") bricksHeaderSections = sections;
 		if (role === "footer") paddedEdges += applyMeasuredPadding(sections, boxesFor("/"), true);
+		if (role === "footer" && overrides.copyrightYear === "current") currentYear(sections);
 		emit({ version: IR_VERSION, kind: "partial", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder: "bricks", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics }, `partials/${p.slug}.json`, true);
 		partials.push({ role, file: `partials/${p.slug}.json` });
 	}
