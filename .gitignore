@@ -14,3 +14,4 @@ sites/*
 
 # Claude Code agent worktrees and local settings
 .claude/worktrees/
+.wp2emdash.local.json

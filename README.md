@@ -12,8 +12,14 @@
 pnpm install
 cp .env.example .env       # Cloudflare token: see docs/cloudflare-api-token.md
 pnpm wp2emdash doctor      # check prerequisites (verifies the token)
-pnpm wp2emdash             # interactive wizard: create a site, run phases
+pnpm wp2emdash             # asks how you want to work: Terminal or Web dashboard
 ```
+
+**Terminal or web.** The first question is how you want to work: **Terminal** (guided steps: create a site, run
+each phase, accept gates) or **Web dashboard** (opens in the browser: every site, launch readiness, live runs and
+the visual review). The choice is remembered on this machine (`.wp2emdash.local.json`, not committed);
+`WP2EMDASH_MODE=terminal` or `WP2EMDASH_MODE=web` skips the question. In v1 the dashboard reads and reviews;
+creating a site and running phases are done in the terminal.
 
 Or without the wizard:
 

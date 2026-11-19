@@ -3,6 +3,7 @@ import pc from "picocolors";
 import { initSite, validateSlug, validateUrl } from "../commands/init.js";
 import { acceptPhase, runPhase } from "../commands/run.js";
 import { formatTimeline, listSites } from "../commands/status.js";
+import { preferredMode, rememberMode, serveUi, type WorkMode } from "../commands/ui.js";
 import { sitePaths } from "../core/paths.js";
 import { getPhase } from "../core/phases.js";
 import { nextPhase, readState } from "../core/state.js";
@@ -12,6 +13,27 @@ const cancelled = (v: unknown): v is symbol => p.isCancel(v);
 /** Interactive multi-step flow: pick or create a site, see the timeline, run the next phase. */
 export async function wizard(): Promise<void> {
 	p.intro(pc.bgCyan(pc.black(" wp2emdash ")));
+
+	// Terminal-friendly or web-friendly: asked once, remembered locally; WP2EMDASH_MODE skips the question.
+	const pref = preferredMode();
+	let mode: WorkMode | undefined = pref.fromEnv ? pref.mode : undefined;
+	if (!mode) {
+		const picked = await p.select({
+			message: "How do you want to work?",
+			initialValue: pref.mode ?? "terminal",
+			options: [
+				{ value: "terminal", label: "Terminal", hint: "guided steps here: create a site, run each phase, accept gates" },
+				{ value: "web", label: "Web dashboard", hint: "opens in your browser: sites, launch readiness, live runs, visual review (phases still run from the terminal)" },
+			],
+		});
+		if (cancelled(picked)) return p.cancel("Bye.");
+		mode = picked as WorkMode;
+		rememberMode(mode);
+	}
+	if (mode === "web") {
+		p.outro(`Starting the dashboard ${pc.dim("(WP2EMDASH_MODE=terminal skips this choice next time)")}`);
+		return serveUi();
+	}
 
 	const sites = listSites();
 	const choice = await p.select({
