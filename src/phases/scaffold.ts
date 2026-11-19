@@ -24,6 +24,15 @@ import { BLOCK_TYPES } from "../starter/library.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
 
+/**
+ * Worker vars for the form outbox (kit.config forms.outbox), the same in both environments — staging adds its own hold
+ * when it has no test inbox. keepSent → FORM_OUTBOX_KEEP_SENT="1": every message is kept, also once emailed.
+ */
+export function outboxVars(outbox: { days: number; hold: boolean; keepSent?: boolean } | undefined): Record<string, string> {
+	if (!outbox) return {};
+	return { FORM_OUTBOX_DAYS: String(outbox.days), ...(outbox.hold ? { FORM_OUTBOX_HOLD: "1" } : {}), ...(outbox.keepSent ? { FORM_OUTBOX_KEEP_SENT: "1" } : {}) };
+}
+
 /** Versions verified together in docs/spikes (M0 + M5). Upgrades are deliberate: bump here, rerun verify. */
 export const STACK = {
 	node: ">=24",
@@ -361,7 +370,7 @@ export default defineConfig({
 	const r2 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "MEDIA", bucket_name: cf[env]?.r2?.bucket ?? fallback });
 	// Forms: provider and addresses are config (not secrets); the API key and Turnstile secret are Wrangler secrets.
 	// Staging uses Cloudflare's always-pass Turnstile test keys (public test values, developers.cloudflare.com/turnstile/troubleshooting/testing).
-	const outboxDays = config.forms.outbox ? { FORM_OUTBOX_DAYS: String(config.forms.outbox.days), ...(config.forms.outbox.hold ? { FORM_OUTBOX_HOLD: "1" } : {}) } : {};
+	const outboxDays = outboxVars(config.forms.outbox);
 	const outboxKv = (e: "staging" | "production") => (config.forms.outbox && cf[e]?.outbox?.id ? `,\n\t"kv_namespaces": [${JSON.stringify({ binding: "FORM_OUTBOX", id: cf[e]?.outbox?.id })}]` : "");
 	const formVars = { ...outboxDays, EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
 	const prodVars = { ...formVars, ...(config.forms.turnstileSiteKey ? { TURNSTILE_SITE_KEY: config.forms.turnstileSiteKey } : {}) };
@@ -428,7 +437,7 @@ export default defineConfig({
 			forms: forms.map((f) => ({ id: f.id, title: f.title, fields: f.fields.map((x) => x.label), withheld: f.withheld ?? [] })),
 			email: { provider: config.email.provider, ...(config.email.from ? { from: config.email.from } : {}), to: config.email.to },
 			turnstileProduction: !!config.forms.turnstileSiteKey,
-			...(config.forms.outbox ? { outbox: { days: config.forms.outbox.days, hold: config.forms.outbox.hold } } : {}),
+			...(config.forms.outbox ? { outbox: { days: config.forms.outbox.days, hold: config.forms.outbox.hold, keepSent: config.forms.outbox.keepSent } } : {}),
 			...(hasAnalytics && analytics ? { analytics } : {}),
 			...(og ? { ogCards: true } : {}),
 			...(seoPanel ? { seoPanel: true } : {}),

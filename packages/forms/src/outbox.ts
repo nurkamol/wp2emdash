@@ -2,7 +2,16 @@
  * Form outbox: when email cannot be sent (provider not configured, or it refuses), the message is kept in Workers KV
  * (binding FORM_OUTBOX) instead of being lost, and the Worker's cron retries it every few minutes; a message is
  * deleted as soon as it is emailed, or expires after the site's retention period. Only enabled when the owner chose it
- * (kit.config forms.outbox). Nothing here logs field values. Site admins manage the queue in the EmDash admin
+ * (kit.config forms.outbox). Nothing here logs field values.
+ *
+ * Keep sent (FORM_OUTBOX_KEEP_SENT="1", kit.config forms.outbox.keepSent, an owner decision): every accepted message is
+ * stored, also once emailed, so Form messages is a full inbox. Each record has a delivery status:
+ *   waiting — not sent yet (email not set up, or on hold)  → the cron sends it
+ *   failed  — the provider refused it (attempts counted)    → the cron keeps retrying
+ *   emailed — the provider accepted it (emailedAt, emailedTo, messageId when the provider returns one) → never resent
+ *             by the cron; an admin can "Email again"
+ * Without keep sent a message is deleted once emailed (as before). Either way the retention period ends every record.
+ * Site admins manage the queue in the EmDash admin
  * (Plugins → Form messages, src/plugins/forms/); with Cloudflare access: `wrangler kv key list/get --binding FORM_OUTBOX`.
  *
  * Keys: `msg:<received ISO>:<8 hex>` (message; a short summary rides in the key's metadata so lists need no reads),
@@ -25,6 +34,8 @@ export interface OutboxEnv {
 	FORM_OUTBOX_DAYS?: string;
 	/** "1": keep every message, send none (the provider accepts mail but does not deliver it). */
 	FORM_OUTBOX_HOLD?: string;
+	/** "1": keep every message, also once emailed (marked emailed), until the retention period ends — a full inbox. */
+	FORM_OUTBOX_KEEP_SENT?: string;
 	EMAIL_PROVIDER?: string;
 	EMAIL_API_KEY?: string;
 	FORM_FROM?: string;
@@ -32,7 +43,10 @@ export interface OutboxEnv {
 	MAILGUN_REGION?: string;
 }
 
-/** What is stored: the message without sender and recipients (those come from settings when it is sent). */
+/** Where a stored message is on its way to the recipients' mailboxes. */
+export type Delivery = "waiting" | "emailed" | "failed";
+
+/** What is stored: the message without sender (it comes from settings when it is sent). */
 export interface Queued {
 	form: string;
 	/** When the visitor sent it. */
@@ -51,6 +65,14 @@ export interface Queued {
 	/** When it was stored, if not when it was sent (imports): the retention period counts from here. */
 	storedAt?: string;
 	source?: "form" | "import";
+	/** Delivery status (records written before forms 1.4 have none: waiting, or failed once an attempt failed). */
+	status?: Delivery;
+	/** When the provider accepted it (the last time, when an admin emailed it again). */
+	emailedAt?: string;
+	/** Who it was emailed to then (shown to admins on the message page only; logs carry a count). */
+	emailedTo?: string[];
+	/** The provider's message id, when its API returns one (Brevo, Resend, Postmark, SendGrid, Mailgun). */
+	messageId?: string;
 }
 
 /** The summary kept in each message key's metadata (KV allows 1024 bytes). */
@@ -64,6 +86,9 @@ export interface Summary {
 	noEmail?: boolean;
 	/** How many files are attached (a signature). */
 	files?: number;
+	status?: Delivery;
+	/** Imports only: when it was stored (the retention period counts from here). */
+	storedAt?: string;
 }
 
 const PREFIX = "msg:";
@@ -73,6 +98,18 @@ const KEY = /^msg:[0-9TZ:.-]+:[0-9a-f]{8}$/;
 const DAY = 86_400;
 
 export const retentionDays = (env: OutboxEnv) => Math.min(90, Math.max(1, Number(env.FORM_OUTBOX_DAYS) || 30));
+
+/** Keep sent: every message stays (marked emailed) until the retention period ends. Needs the outbox binding. */
+export const keepsSent = (env: OutboxEnv) => env.FORM_OUTBOX_KEEP_SENT === "1" && !!env.FORM_OUTBOX;
+
+/** A record's delivery status; records from before forms 1.4 have none. */
+export const deliveryOf = (q: { status?: Delivery; attempts?: number }): Delivery => q.status ?? ((q.attempts ?? 0) > 0 ? "failed" : "waiting");
+
+/** Whether the retention period of a message received `at` (stored `storedAt`, for imports) has ended. */
+export function expired(env: OutboxEnv, m: { at?: string; storedAt?: string }, now = Date.now()): boolean {
+	const start = Date.parse(m.storedAt ?? m.at ?? "");
+	return !Number.isNaN(start) && now >= start + retentionDays(env) * DAY * 1000;
+}
 
 const clip = (s: string | undefined, n: number) => (s && s.length > n ? `${s.slice(0, n - 1)}…` : s);
 export function summaryOf(q: Queued): Summary {
@@ -85,6 +122,8 @@ export function summaryOf(q: Queued): Summary {
 		...(q.readAt ? { read: true } : {}),
 		...(q.noEmail ? { noEmail: true } : {}),
 		...(q.attachments?.length ? { files: q.attachments.length } : {}),
+		status: deliveryOf(q),
+		...(q.storedAt ? { storedAt: q.storedAt } : {}),
 	};
 }
 
@@ -99,11 +138,19 @@ async function store(env: OutboxEnv, key: string, q: Queued): Promise<void> {
 	await env.FORM_OUTBOX?.put(key, JSON.stringify(q), { expirationTtl: ttlLeft(env, q), metadata: summaryOf(q) });
 }
 
-export async function enqueue(env: OutboxEnv, q: Omit<Queued, "at" | "attempts">): Promise<boolean> {
+/** Store a new message from the form; `status` defaults to waiting (failed when an attempt already failed). */
+export async function enqueue(env: OutboxEnv, q: Omit<Queued, "at" | "attempts"> & { attempts?: number }): Promise<boolean> {
 	if (!env.FORM_OUTBOX) return false;
 	const at = new Date().toISOString();
-	await store(env, `${PREFIX}${at}:${crypto.randomUUID().slice(0, 8)}`, { ...q, at, attempts: 0, source: "form" });
+	const attempts = q.attempts ?? 0;
+	await store(env, `${PREFIX}${at}:${crypto.randomUUID().slice(0, 8)}`, { ...q, at, attempts, status: q.status ?? (attempts > 0 ? "failed" : "waiting"), source: "form" });
 	return true;
+}
+
+/** The record once the provider accepted it: emailed, when, to whom and the provider's id (if it gave one). */
+export function markEmailed(q: Queued, to: string[], id?: string, at = new Date().toISOString()): Queued {
+	const { messageId: _old, ...rest } = q;
+	return { ...rest, status: "emailed", emailedAt: at, emailedTo: to.slice(0, MAX_RECIPIENTS), ...(id ? { messageId: id } : {}) };
 }
 
 /** Store a message from an import under a key derived from its content, so importing the same file twice adds nothing. */
@@ -186,27 +233,40 @@ export async function outboxStatus(env: OutboxEnv): Promise<OutboxStatus> {
 /** A key the outbox wrote (anything else is refused, so the admin page cannot reach other keys). */
 export const isOutboxKey = (key: unknown): key is string => typeof key === "string" && KEY.test(key);
 
-/** Every waiting message's key and summary, oldest first, without reading the messages (older entries are read once). */
-export async function listSummaries(env: OutboxEnv, limit = 1000): Promise<{ items: { key: string; s: Summary }[]; more: boolean }> {
+/**
+ * Stored messages' keys and summaries, oldest first, without reading the messages (entries without a summary are read
+ * once). Up to `limit`: the oldest (default — the outbox drains oldest first) or, with `newest`, the most recent (keep
+ * sent: an inbox shows what came in last); `more` when others were left out.
+ */
+export async function listSummaries(env: OutboxEnv, limit = 1000, opts: { newest?: boolean } = {}): Promise<{ items: { key: string; s: Summary }[]; more: boolean }> {
 	const kv = env.FORM_OUTBOX;
 	if (!kv) return { items: [], more: false };
-	const items: { key: string; s: Summary }[] = [];
+	let found: { name: string; metadata?: unknown }[] = [];
+	let more = false;
 	let cursor: string | undefined;
 	do {
 		const page = await kv.list({ prefix: PREFIX, limit: 1000, ...(cursor ? { cursor } : {}) });
-		for (const { name, metadata } of page.keys) {
-			if (!isOutboxKey(name)) continue;
-			if (items.length === limit) return { items, more: true };
-			const m = metadata as Summary | undefined;
-			if (m?.subject !== undefined) items.push({ key: name, s: m });
-			else {
-				const q = await readQueued(env, name);
-				if (q) items.push({ key: name, s: summaryOf(q) });
+		found.push(...page.keys.filter((k) => isOutboxKey(k.name)));
+		if (found.length > limit) {
+			more = true;
+			if (!opts.newest) {
+				found = found.slice(0, limit);
+				break;
 			}
+			found = found.slice(-limit);
 		}
 		cursor = page.list_complete ? undefined : page.cursor;
 	} while (cursor);
-	return { items, more: false };
+	const items: { key: string; s: Summary }[] = [];
+	for (const { name, metadata } of found) {
+		const m = metadata as Summary | undefined;
+		if (m?.subject !== undefined) items.push({ key: name, s: m });
+		else {
+			const q = await readQueued(env, name);
+			if (q) items.push({ key: name, s: summaryOf(q) });
+		}
+	}
+	return { items, more };
 }
 
 /** The queued messages in full, oldest first, up to `limit`; `more` when there are others. */
@@ -252,65 +312,90 @@ export async function deleteQueued(env: OutboxEnv, key: string): Promise<boolean
 	return true;
 }
 
-/** Email one queued message now and delete it once the provider accepts it. */
+/**
+ * Email one stored message now (an admin's "Email it now" / "Email again"). Once the provider accepts it, it is marked
+ * emailed (keep sent) or deleted. A refusal counts an attempt: a message not emailed yet becomes failed, one emailed
+ * before stays emailed.
+ */
 export async function sendQueued(env: OutboxEnv, key: string): Promise<"sent" | "failed" | "held" | "no-email" | "missing"> {
 	const status = await outboxStatus(env);
 	if (status !== "ready") return status;
 	const q = await readQueued(env, key);
 	if (!q) return "missing";
-	if (!(await sendOne(env, q, (await resolveRecipients(env)).to))) {
-		await store(env, key, { ...q, attempts: q.attempts + 1 });
+	const to = (await resolveRecipients(env)).to;
+	const again = deliveryOf(q) === "emailed";
+	const r = await sendOne(env, q, to, again ? "again" : "late");
+	if (!r.ok) {
+		await store(env, key, { ...q, attempts: q.attempts + 1, status: again ? "emailed" : "failed" });
 		return "failed";
 	}
-	await env.FORM_OUTBOX?.delete(key);
+	if (keepsSent(env)) await store(env, key, markEmailed(q, to, r.id));
+	else await env.FORM_OUTBOX?.delete(key);
 	return "sent";
 }
 
-async function sendOne(env: OutboxEnv, q: Queued, to: string[]): Promise<boolean> {
-	const text = `${q.text}\n\n(Received ${q.at}; delivered late from the website's outbox.)`;
-	const html = `${q.html}<p style="font:12px sans-serif;color:#666">Received ${q.at}; delivered late from the website's outbox.</p>`;
+async function sendOne(env: OutboxEnv, q: Queued, to: string[], why: "late" | "again"): Promise<{ ok: boolean; id?: string }> {
+	const note = why === "again" ? `Received ${q.at}; sent again from the website's form messages.` : `Received ${q.at}; delivered late from the website's outbox.`;
+	const text = `${q.text}\n\n(${note})`;
+	const html = `${q.html}<p style="font:12px sans-serif;color:#666">${note}</p>`;
 	const files = q.attachments?.length ? { attachments: q.attachments } : {};
-	if (usesEmDashEmail(env)) return (await sendViaEmDash(to, { ...(q.replyTo ? { replyTo: q.replyTo.email } : {}), subject: q.subject, text, html, ...files })).ok;
+	if (usesEmDashEmail(env)) return { ok: (await sendViaEmDash(to, { ...(q.replyTo ? { replyTo: q.replyTo.email } : {}), subject: q.subject, text, html, ...files })).ok };
 	const from = parseAddress(env.FORM_FROM);
-	if (!from || !env.EMAIL_API_KEY) return false;
+	if (!from || !env.EMAIL_API_KEY) return { ok: false };
 	const m: Message = { from, to, ...(q.replyTo ? { replyTo: q.replyTo } : {}), subject: q.subject, text, html, ...files };
 	const r = await deliver(env.EMAIL_PROVIDER ?? "brevo", env.EMAIL_API_KEY, m, { ...(env.MAILGUN_REGION ? { region: env.MAILGUN_REGION } : {}) });
-	return r.ok;
+	return r.ok ? { ok: true, ...(r.id ? { id: r.id } : {}) } : { ok: false };
 }
 
-/** Cron: try to email every queued message (except those imported without email); returns counts only. */
-export async function flushOutbox(env: OutboxEnv): Promise<{ sent: number; left: number }> {
+/**
+ * Cron: delete messages whose retention period has ended (KV's own expiry does this too; this also applies a shortened
+ * FORM_OUTBOX_DAYS to messages stored earlier), then email every waiting or failed message — never an emailed one, nor
+ * one imported without email. Once emailed: marked emailed with keep sent, else deleted. Returns counts only.
+ */
+export async function flushOutbox(env: OutboxEnv): Promise<{ sent: number; left: number; expired?: number }> {
 	const kv = env.FORM_OUTBOX;
 	if (!kv) return { sent: 0, left: 0 };
 	const ready = (await outboxStatus(env)) === "ready";
 	const to = ready ? (await resolveRecipients(env)).to : [];
+	const keep = keepsSent(env);
 	let sent = 0;
 	let left = 0;
+	let gone = 0;
 	let cursor: string | undefined;
 	do {
 		const page = await kv.list({ prefix: PREFIX, limit: 100, ...(cursor ? { cursor } : {}) });
 		for (const { name, metadata } of page.keys) {
-			if ((metadata as Summary | undefined)?.noEmail) continue;
+			if (!isOutboxKey(name)) continue;
+			const m = metadata as Summary | undefined;
+			// The summary (metadata) answers without a read; records without one are read once.
+			let q = m?.at ? undefined : await readQueued(env, name);
+			if (!m?.at && !q) continue;
+			if (expired(env, m?.at ? m : (q as Queued))) {
+				await kv.delete(name);
+				gone++;
+				continue;
+			}
+			if ((m ?? q)?.noEmail || deliveryOf(m ?? (q as Queued)) === "emailed") continue;
 			if (!ready) {
 				left++;
 				continue;
 			}
-			const raw = await kv.get(name);
-			if (!raw) continue;
-			const q = JSON.parse(raw) as Queued;
-			if (q.noEmail) continue;
-			if (await sendOne(env, q, to)) {
-				await kv.delete(name);
+			q ??= await readQueued(env, name);
+			if (!q || q.noEmail || deliveryOf(q) === "emailed") continue;
+			const r = await sendOne(env, q, to, "late");
+			if (r.ok) {
+				if (keep) await store(env, name, markEmailed(q, to, r.id));
+				else await kv.delete(name);
 				sent++;
 			} else {
-				await store(env, name, { ...q, attempts: q.attempts + 1 });
+				await store(env, name, { ...q, attempts: q.attempts + 1, status: "failed" });
 				left++;
 			}
 		}
 		cursor = page.list_complete ? undefined : page.cursor;
 	} while (cursor);
-	if (sent || left) console.log(JSON.stringify({ outbox: { sent, left } }));
-	return { sent, left };
+	if (sent || left || gone) console.log(JSON.stringify({ outbox: { sent, left, ...(gone ? { expired: gone } : {}), ...(sent ? { recipients: to.length } : {}) } }));
+	return { sent, left, ...(gone ? { expired: gone } : {}) };
 }
 
 /**

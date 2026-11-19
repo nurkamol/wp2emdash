@@ -22,7 +22,18 @@ export interface Message {
 	attachments?: Attachment[];
 }
 
-export type DeliveryResult = { ok: true } | { ok: false; status: number; reason: string };
+/** `id`: the provider's message id, when its API returns one (kept with a stored message; never logged). */
+export type DeliveryResult = { ok: true; id?: string } | { ok: false; status: number; reason: string };
+
+/** The provider's message id from its JSON answer (`field`) or a response header; best effort, never throws. */
+async function messageId(res: Response, from: { field?: string; header?: string }): Promise<{ id?: string }> {
+	let v: unknown;
+	try {
+		if (from.header) v = res.headers.get(from.header);
+		else if (from.field) v = ((await res.json()) as Record<string, unknown> | null)?.[from.field];
+	} catch {}
+	return typeof v === "string" && v.trim() ? { id: v.trim().slice(0, 200) } : {};
+}
 
 /** "Website <noreply@client.com>" or "noreply@client.com" → { email, name }. */
 export function parseAddress(value: string | undefined): { email: string; name?: string } | undefined {
@@ -39,12 +50,12 @@ async function brevo(apiKey: string, m: Message): Promise<DeliveryResult> {
 		headers: { "api-key": apiKey, "content-type": "application/json", accept: "application/json" },
 		body: JSON.stringify({ sender: m.from, to: m.to.map((email) => ({ email })), ...(m.replyTo ? { replyTo: m.replyTo } : {}), subject: m.subject, htmlContent: m.html, textContent: m.text, ...(m.attachments?.length ? { attachment: m.attachments.map((a) => ({ name: a.filename, content: a.content })) } : {}) }),
 	});
-	if (res.status === 201 || res.status === 202) return { ok: true };
+	if (res.status === 201 || res.status === 202) return { ok: true, ...(await messageId(res, { field: "messageId" })) };
 	return { ok: false, status: res.status, reason: `brevo HTTP ${res.status}` };
 }
 
 const named = (a: { email: string; name?: string }) => (a.name ? `${a.name.replace(/[<>"]/g, "")} <${a.email}>` : a.email);
-const result = (name: string, res: Response, okStatuses: number[]): DeliveryResult => (okStatuses.includes(res.status) ? { ok: true } : { ok: false, status: res.status, reason: `${name} HTTP ${res.status}` });
+const result = async (name: string, res: Response, okStatuses: number[], id: { field?: string; header?: string }): Promise<DeliveryResult> => (okStatuses.includes(res.status) ? { ok: true, ...(await messageId(res, id)) } : { ok: false, status: res.status, reason: `${name} HTTP ${res.status}` });
 
 async function resend(apiKey: string, m: Message): Promise<DeliveryResult> {
 	// POST /emails, Bearer key → 200 { id } (resend.com/docs/api-reference/emails/send-email).
@@ -53,31 +64,31 @@ async function resend(apiKey: string, m: Message): Promise<DeliveryResult> {
 		headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
 		body: JSON.stringify({ from: named(m.from), to: m.to, ...(m.replyTo ? { reply_to: named(m.replyTo) } : {}), subject: m.subject, html: m.html, text: m.text, ...(m.attachments?.length ? { attachments: m.attachments.map((a) => ({ filename: a.filename, content: a.content })) } : {}) }),
 	});
-	return result("resend", res, [200]);
+	return result("resend", res, [200], { field: "id" });
 }
 
 async function postmark(apiKey: string, m: Message): Promise<DeliveryResult> {
-	// POST /email, X-Postmark-Server-Token → 200 (postmarkapp.com/developer/api/email-api).
+	// POST /email, X-Postmark-Server-Token → 200 { MessageID } (postmarkapp.com/developer/api/email-api).
 	const res = await fetch("https://api.postmarkapp.com/email", {
 		method: "POST",
 		headers: { "x-postmark-server-token": apiKey, "content-type": "application/json", accept: "application/json" },
 		body: JSON.stringify({ From: named(m.from), To: m.to.join(","), ...(m.replyTo ? { ReplyTo: named(m.replyTo) } : {}), Subject: m.subject, HtmlBody: m.html, TextBody: m.text, MessageStream: "outbound", ...(m.attachments?.length ? { Attachments: m.attachments.map((a) => ({ Name: a.filename, Content: a.content, ContentType: a.contentType })) } : {}) }),
 	});
-	return result("postmark", res, [200]);
+	return result("postmark", res, [200], { field: "MessageID" });
 }
 
 async function sendgrid(apiKey: string, m: Message): Promise<DeliveryResult> {
-	// POST /v3/mail/send, Bearer key → 202 (docs.sendgrid.com/api-reference/mail-send).
+	// POST /v3/mail/send, Bearer key → 202, X-Message-Id header (docs.sendgrid.com/api-reference/mail-send).
 	const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
 		method: "POST",
 		headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
 		body: JSON.stringify({ personalizations: [{ to: m.to.map((email) => ({ email })) }], from: m.from, ...(m.replyTo ? { reply_to: m.replyTo } : {}), subject: m.subject, content: [{ type: "text/plain", value: m.text }, { type: "text/html", value: m.html }], ...(m.attachments?.length ? { attachments: m.attachments.map((a) => ({ content: a.content, filename: a.filename, type: a.contentType, disposition: "attachment" })) } : {}) }),
 	});
-	return result("sendgrid", res, [202]);
+	return result("sendgrid", res, [202], { header: "x-message-id" });
 }
 
 async function mailgun(apiKey: string, m: Message, region?: string): Promise<DeliveryResult> {
-	// POST /v3/<sending domain>/messages, basic auth api:<key>, form fields → 200 (documentation.mailgun.com). EU accounts: MAILGUN_REGION=eu.
+	// POST /v3/<sending domain>/messages, basic auth api:<key>, form fields → 200 { id } (documentation.mailgun.com). EU accounts: MAILGUN_REGION=eu.
 	const domain = m.from.email.split("@")[1] as string;
 	const fields: Record<string, string> = { from: named(m.from), to: m.to.join(","), subject: m.subject, text: m.text, html: m.html, ...(m.replyTo ? { "h:Reply-To": named(m.replyTo) } : {}) };
 	let body: URLSearchParams | FormData = new URLSearchParams(fields);
@@ -89,7 +100,7 @@ async function mailgun(apiKey: string, m: Message, region?: string): Promise<Del
 		body = form;
 	}
 	const res = await fetch(`https://api${region === "eu" ? ".eu" : ""}.mailgun.net/v3/${encodeURIComponent(domain)}/messages`, { method: "POST", headers: { authorization: `Basic ${btoa(`api:${apiKey}`)}` }, body });
-	return result("mailgun", res, [200]);
+	return result("mailgun", res, [200], { field: "id" });
 }
 
 export async function deliver(provider: string, apiKey: string, m: Message, opts: { region?: string } = {}): Promise<DeliveryResult> {

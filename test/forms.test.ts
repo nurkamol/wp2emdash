@@ -53,7 +53,7 @@ describe("email delivery", () => {
 		const fetch = vi.fn(async () => new Response(JSON.stringify({ messageId: "<x@relay>" }), { status: 201 }));
 		vi.stubGlobal("fetch", fetch);
 		const r = await deliver("brevo", "key-123", { from: { email: "noreply@example.com", name: "Site" }, to: ["owner@example.com"], replyTo: { email: "visitor@example.com" }, subject: "S", text: "T", html: "<p>H</p>" });
-		expect(r).toEqual({ ok: true });
+		expect(r).toEqual({ ok: true, id: "<x@relay>" }); // Brevo answers 201 { messageId }
 		const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
 		expect(url).toBe("https://api.brevo.com/v3/smtp/email");
 		expect((init.headers as Record<string, string>)["api-key"]).toBe("key-123");
