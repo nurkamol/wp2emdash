@@ -152,7 +152,7 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 			const frags = (nonEmpty[0]?.fragments ?? []).map((f) => (inset && f.kind === "faq" ? { ...f, look: { ...f.look, inset } } : f));
 			return [...frags, ...strayFrags];
 		}
-		return [{ kind: "subrow", columns: cols }, ...strayFrags];
+		return [{ kind: "subrow", columns: cols, ...(!n.attrs.column_margin || n.attrs.column_margin === "default" ? { defaultMargin: true } : {}) }, ...strayFrags];
 	}
 
 	// ── Rows ──────────────────────────────────────────────────────────────────
@@ -253,7 +253,7 @@ export function splitRow(row: Row): Row[] {
 	for (const f of col.fragments) {
 		if (f.kind === "subrow") {
 			flushRun();
-			out.push({ ...row, columns: f.columns.filter((c) => c.fragments.length).map((c) => ({ ...c, fragments: flattenSubrows(c.fragments) })), path: `${row.path}#${out.length}` });
+			out.push({ ...row, columns: f.columns.filter((c) => c.fragments.length).map((c) => ({ ...c, ...(f.defaultMargin ? { innerGutters: true } : {}), fragments: flattenSubrows(c.fragments) })), path: `${row.path}#${out.length}` });
 		} else run.push(f);
 	}
 	flushRun();
@@ -298,7 +298,7 @@ function expandColumns(cols: Col[]): Col[] {
 				const w = toWidth(outer * (frac(ic.width) ?? 1 / sub.columns.length));
 				// Text alignment set on the outer column carries into its inner columns (CSS inheritance in the source).
 				const inherit = { ...(c.phoneCenter ? { phoneCenter: true } : {}), ...(c.tabletCenter ? { tabletCenter: true } : {}), ...(c.centered ? { centered: true } : {}) };
-				out.push({ ...inherit, ...ic, ...(w ? { width: w } : {}), fragments: flattenSubrows(ic.fragments) });
+				out.push({ ...inherit, ...ic, ...(w ? { width: w } : {}), ...(sub.defaultMargin ? { innerGutters: true } : {}), fragments: flattenSubrows(ic.fragments) });
 			}
 		} else out.push({ ...c, fragments: flattenSubrows(c.fragments) });
 	}
@@ -558,6 +558,8 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 				// Salient: padding-N-percent is N% of the row; the text keeps the rest of its column (no measure cap).
 				...(textCol.insetEndPct ? { textEnd: `${textCol.insetEndPct}%` } : {}),
 				...(/^\d{1,3}px$/.test(row.attrs.column_margin ?? "") ? { columnGap: row.attrs.column_margin } : row.attrs.column_margin === "none" ? { columnGap: "0px" } : {}),
+				// Columns of a default-margin inner row: Salient's 30px gutters (60px gap, widths from the widened row).
+				...(mediaCol.innerGutters && textCol.innerGutters && !/^\d{1,3}px$|^none$/.test(row.attrs.column_margin ?? "") ? { innerGutters: true } : {}),
 				...(textCol.leadTop ? { textTop: textCol.leadTop } : {}),
 				...(textCol.motion ? { textParallax: textCol.motion } : {}),
 				...(lead.parallax && lead.height ? { mediaParallax: lead.parallax } : {}),

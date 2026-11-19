@@ -35,7 +35,7 @@ export type Fragment =
 	| { kind: "map"; embedUrl?: string; address?: string }
 	| { kind: "marquee"; blocks: RichText; media?: MediaRef; link?: Button }
 	| { kind: "legacy"; html: string; reason: string }
-	| { kind: "subrow"; columns: Col[] };
+	| { kind: "subrow"; columns: Col[]; defaultMargin?: boolean };
 
 /** Card look of a team style (theme CSS defaults, not shortcode attributes). */
 export interface TeamLook {
@@ -83,6 +83,8 @@ export interface Col {
 	insetStart?: string;
 	/** Right-side column padding, % of the row (Salient padding-N-percent with position right). */
 	insetEndPct?: number;
+	/** Lifted out of an inner row with Salient's default gutters (30px padding each side, row widened by 30px). */
+	innerGutters?: boolean;
 }
 
 export interface HandlerCtx {

@@ -1,0 +1,64 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "inline",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4ece2"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]#0",
+        "rawHash": "b22175dfdd"
+      },
+      "valign": "top",
+      "fields": {
+        "innerGutters": true,
+        "media": [
+          {
+            "wpId": 303,
+            "kind": "image"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Welcome to the sample studio, a place for strength and calm.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "A short paragraph about the sample studio, written for this fixture only.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [],
+        "mediaSide": "left",
+        "ratio": "1/3"
+      }
+    }
+  ],
+  "diagnostics": []
+}

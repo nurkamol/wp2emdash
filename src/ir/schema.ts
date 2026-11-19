@@ -222,6 +222,8 @@ export const section = z.discriminatedUnion("type", [
 			textInset: cssLength.optional(),
 			/** Space after the text column on desktop, % of the row (Salient right column padding, e.g. 4%). */
 			textEnd: z.string().regex(/^\d+(?:\.\d+)?%$/).optional(),
+			/** Columns of a default-margin Salient inner row: 30px gutters, widths from the row widened by 60px. */
+			innerGutters: z.boolean().optional(),
 			/** Space between the image and the text on desktop (the builder row's column margin, px). */
 			columnGap: z.string().regex(/^\d{1,3}px$/).optional(),
 			/** Space above the text on desktop (Salient inner-row top padding reset to 0 below desktop). */
