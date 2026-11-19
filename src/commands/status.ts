@@ -43,6 +43,7 @@ export function formatTimeline(state: SiteState): string {
 }
 
 export function statusJson(slug: string, sitesDir?: string) {
-	const state = readState(sitePaths(slug, sitesDir).state);
-	return { ...state, next: nextPhase(state) ?? null };
+	const paths = sitePaths(slug, sitesDir);
+	const state = readState(paths.state);
+	return { ...state, next: nextPhase(state) ?? null, project: paths.project };
 }

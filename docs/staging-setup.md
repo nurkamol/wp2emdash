@@ -55,6 +55,9 @@ cd sites/<slug>/project
 3. `wrangler deploy` — on the first deploy Wrangler also creates the session store (`<worker>-session`).
 4. `emdash migrate --check` — must report nothing pending.
 
+With `projectDir` set (the project lives outside the kit), `cd` there and load the kit's file by its full path
+instead: `( set -a && . ~/path/to/wp-to-emdash-kit/.env && set +a && pnpm deploy:staging )`.
+
 The subshell `( set -a && . ../../../.env … )` hands the Cloudflare token to these commands only;
 `emdash migrate` does not read `.env` files itself.
 

@@ -65,6 +65,20 @@ never writes `.env`.
 
 Each phase ends in a gate; the next phase won't run until it passes or is accepted with a recorded reason.
 
+## Where each site lives
+
+`sites/<slug>/` holds the kit's working data for a client: config, `.env`, raw exports, audit snapshots, IR, reports
+(all gitignored). The deployable project — the client's own repository — is generated in `sites/<slug>/project` by
+default. To keep it with the client's other files instead, set `projectDir` in `sites/<slug>/kit.config.ts`:
+
+```ts
+projectDir: "~/Projects/Acme/emdash", // a plain string: ~ = home, relative = from sites/<slug>
+```
+
+Every phase then reads and writes the project there; `pnpm wp2emdash status` shows the path. Scaffold refuses to
+write into a folder that already holds something other than this kit's project. To move an existing project: move
+the folder, set `projectDir`, run `pnpm install` in it once (pnpm's helper scripts keep absolute paths).
+
 ## Plugin data (forms and redirects)
 
 The REST API does not expose most plugins' settings. After the audit, `ACCESS.md` gets a **Plugin data** section

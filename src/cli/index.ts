@@ -84,7 +84,10 @@ program
 		const slugs = slug ? [slug] : listSites();
 		if (o.json) return console.log(JSON.stringify(slugs.map((s) => statusJson(s)), null, 2));
 		if (!slugs.length) return console.log("No sites yet. Run `wp2emdash` or `wp2emdash init`.");
-		for (const s of slugs) console.log(`${formatTimeline(readState(sitePaths(s).state))}\n`);
+		for (const s of slugs) {
+			const p = sitePaths(s);
+			console.log(`${formatTimeline(readState(p.state))}\n  ${pc.dim(`project: ${p.project}${p.project.startsWith(p.root) ? "" : " (projectDir)"}`)}\n`);
+		}
 	});
 
 program

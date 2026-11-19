@@ -204,3 +204,15 @@ describe("encryption key check", () => {
 		rmSync(dir, { recursive: true, force: true });
 	});
 });
+
+describe("projectDir", () => {
+	it("reads projectDir from kit.config.ts text: ~, absolute and relative paths; default otherwise", async () => {
+		const { projectDirFrom } = await import("../src/core/paths.js");
+		const { homedir } = await import("node:os");
+		expect(projectDirFrom(`export default defineConfig({\n\tslug: "acme",\n\tprojectDir: "~/Projects/Acme Co/emdash",\n});`, "/kit/sites/acme")).toBe(join(homedir(), "Projects/Acme Co/emdash"));
+		expect(projectDirFrom(`  projectDir: '/srv/acme',`, "/kit/sites/acme")).toBe("/srv/acme");
+		expect(projectDirFrom(`  projectDir: "../acme-site",`, "/kit/sites/acme")).toBe("/kit/sites/acme-site");
+		expect(projectDirFrom(`  // projectDir: "x"\n  slug: "acme",`, "/kit/sites/acme")).toBeUndefined();
+		expect(projectDirFrom(`  slug: "acme",`, "/kit/sites/acme")).toBeUndefined();
+	});
+});

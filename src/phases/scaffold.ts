@@ -104,6 +104,10 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const fingerprint = readJson<{ uploadsBase?: string; restUploadsBase?: string; hiddenWpPaths?: boolean }>(join(paths.snapshot, "fingerprint.json")) ?? {};
 	const manifest = readJson<MediaEntry[]>(join(paths.raw, "media-manifest.json")) ?? [];
 	const project = paths.project;
+	// A projectDir outside the kit must be empty or a project this kit generated: never write into some other folder.
+	if (!project.startsWith(paths.root) && existsSync(project) && readdirSync(project).filter((f) => f !== ".DS_Store").length > 0 && !existsSync(join(project, "wrangler.jsonc")) && !existsSync(join(project, "seed", "seed.json"))) {
+		return [{ id: "project-dir", label: "projectDir is empty or a project made by this kit", ok: false, detail: `${project} has other files: point projectDir at an empty folder or at this site's project` }];
+	}
 
 	reporter.emit({ type: "step:start", step: "Generate project" });
 	const tokens = buildTokens(designs);

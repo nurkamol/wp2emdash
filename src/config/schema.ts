@@ -43,6 +43,8 @@ const emailConfig = z.object({
 export const kitConfigSchema = z.object({
 	/** Short identifier, also the folder name under sites/. */
 	slug: z.string().regex(/^[a-z0-9-]+$/, "lowercase letters, digits and hyphens"),
+	/** Where the deployable project (the client repository) lives, if not sites/<slug>/project. A plain string: "~/Projects/Acme/emdash". */
+	projectDir: z.string().min(1).optional(),
 	name: z.string(),
 
 	source: z.object({
