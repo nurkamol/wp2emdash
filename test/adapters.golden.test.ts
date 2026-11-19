@@ -7,6 +7,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { adaptBricks, type BricksElement } from "../src/adapters/bricks/index.js";
 import { adaptGutenberg } from "../src/adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../src/adapters/wpbakery/index.js";
 import { Keys } from "../src/ir/portable-text.js";
@@ -22,6 +23,11 @@ const reusable = (id: number) => (id === 99 ? `<!-- wp:paragraph --><p>Shared no
 const adapters = {
 	wpbakery: (src: string) => adaptWpbakery(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0 }),
 	gutenberg: (src: string) => adaptGutenberg(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0, reusable }),
+	// Bricks fixtures: { elements, templates?: { [id]: elements } } — the post meta and the bricks_template posts.
+	bricks: (src: string) => {
+		const f = JSON.parse(src) as { elements: BricksElement[]; templates?: Record<string, BricksElement[]> };
+		return adaptBricks(f.elements, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0, template: (id) => f.templates?.[String(id)] });
+	},
 };
 
 for (const [name, adapt] of Object.entries(adapters)) {

@@ -1,0 +1,30 @@
+{
+  "elements": [
+    { "id": "s1", "name": "section", "parent": 0, "children": ["c1"], "settings": {} },
+    { "id": "c1", "name": "container", "parent": "s1", "children": ["h1", "an1"], "settings": {} },
+    { "id": "h1", "name": "heading", "parent": "c1", "children": [], "settings": { "text": "Common questions", "tag": "h2" } },
+    { "id": "an1", "name": "accordion-nested", "parent": "c1", "children": ["ai1", "ai2"], "settings": {} },
+    { "id": "ai1", "name": "block", "parent": "an1", "children": ["at1", "ab1"], "settings": {} },
+    { "id": "at1", "name": "heading", "parent": "ai1", "children": [], "settings": { "text": "How long is a class?", "tag": "h3" } },
+    { "id": "ab1", "name": "text", "parent": "ai1", "children": [], "settings": { "text": "<p>Fifty minutes.</p>" } },
+    { "id": "ai2", "name": "block", "parent": "an1", "children": ["at2", "ab2"], "settings": {} },
+    { "id": "at2", "name": "heading", "parent": "ai2", "children": [], "settings": { "text": "Can I cancel?", "tag": "h3" } },
+    { "id": "ab2", "name": "text", "parent": "ai2", "children": [], "settings": { "text": "<p>Up to 12 hours before.</p>" } },
+    { "id": "s2", "name": "section", "parent": 0, "children": ["c2"], "settings": {} },
+    { "id": "c2", "name": "container", "parent": "s2", "children": ["tn1"], "settings": {} },
+    { "id": "tn1", "name": "tabs-nested", "parent": "c2", "children": ["tm1", "tp1"], "settings": {} },
+    { "id": "tm1", "name": "block", "parent": "tn1", "children": ["tt1", "tt2"], "settings": {} },
+    { "id": "tt1", "name": "text-basic", "parent": "tm1", "children": [], "settings": { "text": "Mornings" } },
+    { "id": "tt2", "name": "text-basic", "parent": "tm1", "children": [], "settings": { "text": "Evenings" } },
+    { "id": "tp1", "name": "block", "parent": "tn1", "children": ["pp1", "pp2"], "settings": {} },
+    { "id": "pp1", "name": "block", "parent": "tp1", "children": ["px1"], "settings": {} },
+    { "id": "px1", "name": "text", "parent": "pp1", "children": [], "settings": { "text": "<p>Classes from 7am.</p>" } },
+    { "id": "pp2", "name": "block", "parent": "tp1", "children": ["px2"], "settings": {} },
+    { "id": "px2", "name": "text", "parent": "pp2", "children": [], "settings": { "text": "<p>Classes until 8pm.</p>" } },
+    { "id": "s3", "name": "section", "parent": 0, "children": ["c3"], "settings": {} },
+    { "id": "c3", "name": "container", "parent": "s3", "children": ["l1", "g1", "cd1"], "settings": {} },
+    { "id": "l1", "name": "list", "parent": "c3", "children": [], "settings": { "items": [ { "title": "Mat", "meta": "$20" }, { "title": "Reformer", "meta": "$35" } ] } },
+    { "id": "g1", "name": "image-gallery", "parent": "c3", "children": [], "settings": { "items": { "images": [ { "id": 601, "url": "https://example.com/a.jpg" }, { "id": 602, "url": "https://example.com/b.jpg" } ] } } },
+    { "id": "cd1", "name": "code", "parent": "c3", "children": [], "settings": { "code": "<div class=\"custom-widget\">Opening soon</div>" } }
+  ]
+}

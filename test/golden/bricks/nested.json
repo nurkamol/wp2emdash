@@ -1,0 +1,241 @@
+{
+  "sections": [
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#s1",
+        "rawHash": "648adc7e3f"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Common questions",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "How long is a class?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Fifty minutes.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Can I cancel?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Up to 12 hours before.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "tabs",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#s2",
+        "rawHash": "8ec9b03353"
+      },
+      "fields": {
+        "tabs": [
+          {
+            "label": "Mornings",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Classes from 7am.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "label": "Evenings",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Classes until 8pm.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#s3",
+        "rawHash": "af87bb614a"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "ti",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tj",
+                "text": "Mat — $20",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tk",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tl",
+                "text": "Reformer — $35",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#s3",
+        "rawHash": "af87bb614a"
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 601,
+            "kind": "image",
+            "url": "https://example.com/a.jpg"
+          },
+          {
+            "wpId": 602,
+            "kind": "image",
+            "url": "https://example.com/b.jpg"
+          }
+        ],
+        "layout": "grid",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#s3",
+        "rawHash": "af87bb614a"
+      },
+      "fields": {
+        "html": "<div class=\"custom-widget\">Opening soon</div>",
+        "reason": "Bricks code element"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (Bricks code element); replace with a section or approve in decisions.md",
+      "path": "section#s3/container#c3/code#cd1",
+      "carriesContent": true
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "Row mixes gallery + legacy; secondary items emitted as separate sections",
+      "path": "section#s3"
+    }
+  ]
+}

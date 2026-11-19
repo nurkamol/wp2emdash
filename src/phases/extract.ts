@@ -22,7 +22,7 @@ export const MIN_EXPORTER = "1.2.0";
 /** Post types that are WordPress internals or rebuilt from other sources. */
 const SKIP_TYPES = new Set(["attachment", "nav_menu_item", "wp_template", "wp_template_part", "wp_global_styles", "wp_font_family", "wp_font_face", "revision", "customize_changeset", "oembed_cache", "user_request", "custom_css"]);
 /** Types worth asking for even when no listing advertises them. */
-const EXTRA_TYPES = ["salient_g_sections", "wp_block", "wp_navigation", "nectar_slider", "home_slider", "portfolio", "popup", "popup_theme", "pum_cta", "rank_math_schema"];
+const EXTRA_TYPES = ["salient_g_sections", "bricks_template", "wp_block", "wp_navigation", "nectar_slider", "home_slider", "portfolio", "popup", "popup_theme", "pum_cta", "rank_math_schema"];
 
 export interface ExporterPost {
 	id: number;

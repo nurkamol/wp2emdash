@@ -1,0 +1,445 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "image",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "image": {
+            "wpId": 501,
+            "kind": "image"
+          }
+        }
+      },
+      "spacing": "spacious",
+      "anchorId": "intro",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec001",
+        "rawHash": "2d8390c663"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Strength for every day",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Small classes and expert coaching.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book a class",
+            "href": "#book-now",
+            "style": "primary",
+            "size": "large",
+            "opensPopup": "book-now"
+          },
+          {
+            "label": "Our studio",
+            "href": "/studio/",
+            "style": "secondary"
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "media_text",
+      "variant": "inline",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4ece2"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec002",
+        "rawHash": "99f0152159"
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 502,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/studio.jpg",
+            "alt": "The studio"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "About the studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Bright rooms, ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t8",
+                "text": "calm",
+                "marks": [
+                  "strong"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": " pace.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "Welcome to {post_title}.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Visit us",
+            "href": "https://maps.example.com/",
+            "style": "primary",
+            "newTab": true
+          }
+        ],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec003",
+        "rawHash": "2036b13766"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Care",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Every session starts with you.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "heart"
+            }
+          },
+          {
+            "title": "Craft",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "Coaches with years of practice.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "star"
+            }
+          },
+          {
+            "title": "Calm",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tm",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tn",
+                    "text": "Quiet rooms, no rush.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "leaf"
+            }
+          }
+        ],
+        "columns": 3
+      }
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec004",
+        "rawHash": "df2239b0ff"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "to",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tp",
+                "text": "Questions",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "Do I need experience?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "tq",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tr",
+                    "text": "No, beginners are welcome.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "What should I bring?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "ts",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tt",
+                    "text": "Grip socks and water.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "stats",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec005",
+        "rawHash": "a665e3b42c"
+      },
+      "fields": {
+        "items": [
+          {
+            "value": "12",
+            "label": "Years open",
+            "suffix": "+"
+          },
+          {
+            "value": "900",
+            "label": "Clients"
+          }
+        ]
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec006",
+        "rawHash": "017e77f434"
+      },
+      "fields": {
+        "embedUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "template#tpl001",
+        "rawHash": "6a1973344b"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tu",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tv",
+                "text": "Ready to start?",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tw",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tx",
+                "text": "Your first class is on us.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[nav-menu] is rendered by the site (menu, logo, post data), not migrated as content",
+      "path": "nav-menu#nav001",
+      "tag": "nav-menu"
+    },
+    {
+      "level": "warn",
+      "code": "dynamic",
+      "message": "[text] uses Bricks dynamic data ({post_title}); the text is kept as written",
+      "path": "section#sec002/block#blk002/text#txt002",
+      "tag": "text"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "[divider] dropped (decorative)",
+      "path": "section#sec005/container#con005/divider#dvd001",
+      "tag": "divider"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "No handler for Bricks [slider-nested] (carries content)",
+      "path": "section#sec007/slider-nested#sld001",
+      "carriesContent": true,
+      "tag": "slider-nested"
+    }
+  ]
+}

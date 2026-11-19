@@ -31,7 +31,7 @@ export interface Row {
 	columns: Col[];
 	path: string;
 	raw: string;
-	adapter?: "wpbakery" | "gutenberg" | "classic";
+	adapter?: "wpbakery" | "gutenberg" | "classic" | "bricks";
 }
 
 /** Shortcodes that render inline text inside a paragraph; kept as a token the starter fills in. */
@@ -339,6 +339,8 @@ export interface RecogniseCtx {
 	diag: (d: Diagnostic) => void;
 }
 
+/** Collection sections that carry an intro (the text between their heading and their items). */
+const INTRO_COLLECTIONS = new Set<string>(["faq", "team", "price", "form", "feature"]);
 const COLLECTIONS = ["faq", "tab", "team", "testimonial", "gallery", "price", "stat", "form", "embed", "video", "map", "marquee", "legacy", "feature"] as const;
 type CollectionKind = (typeof COLLECTIONS)[number];
 
@@ -503,7 +505,12 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					break;
 			}
 		};
-		build(mainCollection, heading, intro, true);
+		// Section types without an intro field (gallery, tabs, testimonials, …): the row's text goes into a text section
+		// just before the collection rather than being lost.
+		if (intro.length && !INTRO_COLLECTIONS.has(mainCollection)) {
+			push({ ...base("rich_text"), fields: { body: [...(heading ?? []), ...intro], width: "normal", align: "left", buttons: [] } });
+			build(mainCollection, undefined, [], true);
+		} else build(mainCollection, heading, intro, true);
 		if (after.length && mainCollection !== "marquee" && mainCollection !== "form") push({ ...base("rich_text"), fields: { body: after, width: "normal", align: "left", buttons: mainCollection === "price" ? [] : buttons } });
 		for (const k of extraCollections) build(k, undefined, [], false);
 		return sections;

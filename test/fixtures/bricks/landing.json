@@ -1,0 +1,49 @@
+{
+  "elements": [
+    { "id": "nav001", "name": "nav-menu", "parent": 0, "children": [], "settings": { "menu": "2" } },
+    { "id": "sec001", "name": "section", "parent": 0, "children": ["con001"], "settings": { "_background": { "image": { "id": 501, "url": "https://example.com/wp-content/uploads/hero.jpg" } }, "_padding": { "top": "160", "bottom": "160" }, "_typography": { "color": { "hex": "#ffffff" } }, "_cssId": "intro" } },
+    { "id": "con001", "name": "container", "parent": "sec001", "children": ["hed001", "txt001", "btn001", "btn002"], "settings": {} },
+    { "id": "hed001", "name": "heading", "parent": "con001", "children": [], "settings": { "text": "Strength for every day", "tag": "h1" } },
+    { "id": "txt001", "name": "text-basic", "parent": "con001", "children": [], "settings": { "text": "Small classes and expert coaching." } },
+    { "id": "btn001", "name": "button", "parent": "con001", "children": [], "settings": { "text": "Book a class", "link": { "type": "external", "url": "#book-now" }, "style": "primary", "size": "lg", "_cssClasses": "book-now" } },
+    { "id": "btn002", "name": "button", "parent": "con001", "children": [], "settings": { "text": "Our studio", "link": { "type": "internal", "postId": 12, "url": "/studio/" }, "style": "outline" } },
+    { "id": "sec002", "name": "section", "parent": 0, "children": ["con002"], "settings": { "_background": { "color": { "hex": "#f4ece2" } } } },
+    { "id": "con002", "name": "container", "parent": "sec002", "children": ["blk001", "blk002"], "settings": { "_direction": "row" } },
+    { "id": "blk001", "name": "block", "parent": "con002", "children": ["img001"], "settings": { "_width": "50%" } },
+    { "id": "img001", "name": "image", "parent": "blk001", "children": [], "settings": { "image": { "id": 502, "url": "https://example.com/wp-content/uploads/studio.jpg" }, "altText": "The studio" } },
+    { "id": "blk002", "name": "block", "parent": "con002", "children": ["hed002", "txt002", "btn003"], "settings": { "_width": "50%" } },
+    { "id": "hed002", "name": "heading", "parent": "blk002", "children": [], "settings": { "text": "About the studio", "tag": "h2" } },
+    { "id": "txt002", "name": "text", "parent": "blk002", "children": [], "settings": { "text": "<p>Bright rooms, <strong>calm</strong> pace.</p><p>Welcome to {post_title}.</p>" } },
+    { "id": "btn003", "name": "button", "parent": "blk002", "children": [], "settings": { "text": "Visit us", "link": { "type": "external", "url": "https://maps.example.com/", "newTab": true } } },
+    { "id": "sec003", "name": "section", "parent": 0, "children": ["con003"], "settings": {} },
+    { "id": "con003", "name": "container", "parent": "sec003", "children": ["blk003", "blk004", "blk005"], "settings": { "_direction": "row" } },
+    { "id": "blk003", "name": "block", "parent": "con003", "children": ["ibx001"], "settings": { "_width": "33.33%" } },
+    { "id": "ibx001", "name": "icon-box", "parent": "blk003", "children": [], "settings": { "icon": { "library": "fontawesomeSolid", "icon": "fas fa-heart" }, "content": "<h4>Care</h4><p>Every session starts with you.</p>" } },
+    { "id": "blk004", "name": "block", "parent": "con003", "children": ["ibx002"], "settings": { "_width": "33.33%" } },
+    { "id": "ibx002", "name": "icon-box", "parent": "blk004", "children": [], "settings": { "icon": { "library": "fontawesomeSolid", "icon": "fas fa-star" }, "content": "<h4>Craft</h4><p>Coaches with years of practice.</p>" } },
+    { "id": "blk005", "name": "block", "parent": "con003", "children": ["ibx003"], "settings": { "_width": "33.33%" } },
+    { "id": "ibx003", "name": "icon-box", "parent": "blk005", "children": [], "settings": { "icon": { "library": "fontawesomeSolid", "icon": "fas fa-leaf" }, "content": "<h4>Calm</h4><p>Quiet rooms, no rush.</p>" } },
+    { "id": "sec004", "name": "section", "parent": 0, "children": ["con004"], "settings": {} },
+    { "id": "con004", "name": "container", "parent": "sec004", "children": ["hed003", "acc001"], "settings": {} },
+    { "id": "hed003", "name": "heading", "parent": "con004", "children": [], "settings": { "text": "Questions", "tag": "h2" } },
+    { "id": "acc001", "name": "accordion", "parent": "con004", "children": [], "settings": { "items": [ { "title": "Do I need experience?", "content": "<p>No, beginners are welcome.</p>" }, { "title": "What should I bring?", "content": "<p>Grip socks and water.</p>" } ] } },
+    { "id": "sec005", "name": "section", "parent": 0, "children": ["con005"], "settings": {} },
+    { "id": "con005", "name": "container", "parent": "sec005", "children": ["cnt001", "cnt002", "dvd001"], "settings": {} },
+    { "id": "cnt001", "name": "counter", "parent": "con005", "children": [], "settings": { "countTo": "12", "title": "Years open", "suffix": "+" } },
+    { "id": "cnt002", "name": "counter", "parent": "con005", "children": [], "settings": { "countTo": "900", "title": "Clients" } },
+    { "id": "dvd001", "name": "divider", "parent": "con005", "children": [], "settings": {} },
+    { "id": "sec006", "name": "section", "parent": 0, "children": ["con006"], "settings": {} },
+    { "id": "con006", "name": "container", "parent": "sec006", "children": ["vid001"], "settings": {} },
+    { "id": "vid001", "name": "video", "parent": "con006", "children": [], "settings": { "videoType": "youtube", "youTubeId": "dQw4w9WgXcQ" } },
+    { "id": "tpl001", "name": "template", "parent": 0, "children": [], "settings": { "template": 77 } },
+    { "id": "sec007", "name": "section", "parent": 0, "children": ["sld001"], "settings": {} },
+    { "id": "sld001", "name": "slider-nested", "parent": "sec007", "children": [], "settings": { "title": "Slide content that has no handler" } }
+  ],
+  "templates": {
+    "77": [
+      { "id": "tsc001", "name": "section", "parent": 0, "children": ["thd001", "ttx001"], "settings": { "_background": { "color": { "hex": "#1b1b1b" } }, "_typography": { "color": { "hex": "#ffffff" } } } },
+      { "id": "thd001", "name": "heading", "parent": "tsc001", "children": [], "settings": { "text": "Ready to start?", "tag": "h2" } },
+      { "id": "ttx001", "name": "text-basic", "parent": "tsc001", "children": [], "settings": { "text": "Your first class is on us." } }
+    ]
+  }
+}

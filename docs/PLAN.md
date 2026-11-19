@@ -374,6 +374,12 @@ Output: `snapshot/interactions.json`, `snapshot/interactions/<viewport>/…`, `r
 
 ---
 
+## 7b. Bricks adapter (started 2026-11-19)
+`src/adapters/bricks/`. Bricks keeps a page in post meta `_bricks_page_content_2` (a flat element list: `id`, `name`, `parent`, `children`, `settings`), so detection reads the meta (`_bricks_editor_mode` ≠ `wordpress`), not post_content. Elements → tree → rows (a top-level `section`; a row-direction container's structural children are the columns) → the shared section recognisers. Section styling maps onto the row attributes the recognisers read (`_background` colour/image, `_padding`, `_typography.color`, `_cssId`, 100vh height).
+- **Mapped:** heading, text-basic, text/rich-text, button (link types, popup class, size, outline), image (+ link, caption), video (YouTube, Vimeo, file), icon, icon-box → feature, list, accordion and accordion-nested → FAQ, tabs and tabs-nested, counter → stats, image-gallery, code/shortcode/html → embed or legacy_html, template (from exported `bricks_template` posts; self-embedding guarded), divider (decorative).
+- **Reported, not migrated:** site chrome and query elements (nav-menu, logo, search, post-*, posts, pagination, …) as `dynamic`; Bricks dynamic data tags (`{post_title}`) as a warning with the text kept; any other element as `unmapped` (error when it carries text).
+- **Needs the first real Bricks site:** the exact meta shape the exporter returns, the element settings that site uses, header/footer templates as site parts, Bricks forms (definitions live in element settings), popups, global classes and theme styles in the audit, and spacing measured against the live site (as for Salient).
+
 ## 8. Everything else a migration touches
 
 | Area | Plan |

@@ -4,6 +4,7 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { adaptBricks, bricksElements, isBricks } from "../adapters/bricks/index.js";
 import { adaptGutenberg } from "../adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../adapters/wpbakery/index.js";
 import { loadOverrides } from "../config/overrides.js";
@@ -25,7 +26,9 @@ const write = (file: string, data: unknown) => {
 };
 
 export type Builder = IrPage["source"]["builder"];
-export function detectBuilder(content: string): Builder {
+export function detectBuilder(content: string, meta?: Record<string, unknown>): Builder {
+	// Bricks keeps the page in post meta; post_content holds at most a fallback copy.
+	if (isBricks(meta)) return "bricks";
 	if (!content.trim()) return "empty";
 	if (/\[vc_(row|column|section)\b/.test(content)) return "wpbakery";
 	if (/<!--\s+wp:/.test(content)) return "gutenberg";
@@ -70,6 +73,8 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const popupsRaw = content("popup");
 	const partialsRaw = content("salient_g_sections");
 	const reusable = new Map(content("wp_block").map((b) => [b.id, b.content]));
+	// Bricks templates (sections, headers, footers) embedded by the [template] element.
+	const bricksTemplates = new Map(content("bricks_template").map((t) => [t.id, bricksElements(t.meta?._bricks_page_content_2)]));
 	const siteUrl = config.source.url.replace(/\/$/, "");
 	const siteHosts = new Set([new URL(siteUrl).host, ...config.source.alternateHosts].map((h) => h.replace(/^www\./, "")));
 
@@ -143,13 +148,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const rowOverridesFor = (slug: string) => Object.fromEntries(Object.entries(overrides.elements).filter(([k]) => k.startsWith(`${slug}:`)).map(([k, v]) => [k.slice(slug.length + 1), v as SectionType | "drop"]));
 
 	const adapt = (p: ExporterPost, kind: IrPage["kind"]) => {
-		const builder = detectBuilder(p.content ?? "");
+		const builder = detectBuilder(p.content ?? "", p.meta);
 		const keys = new Keys(`${p.id.toString(36)}_`);
 		const common = { kind, keys, popupFor, postCount: posts.filter((x) => x.status === "publish").length, rowOverrides: rowOverridesFor(p.slug) };
 		let sections: Section[] = [];
 		let diagnostics: Diagnostic[] = [];
 		try {
-			const r = builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id) });
+			const r = builder === "bricks" ? adaptBricks(bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id) }) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id) });
 			sections = r.sections;
 			diagnostics = r.diagnostics;
 		} catch (e) {
@@ -186,8 +191,8 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		);
 	}
 	for (const p of posts) {
-		const builder = detectBuilder(p.content ?? "");
-		if (builder !== "wpbakery") {
+		const builder = detectBuilder(p.content ?? "", p.meta);
+		if (builder !== "wpbakery" && builder !== "bricks") {
 			notTransformed.push(`post ${p.slug}: ${builder} content imported as Portable Text by the EmDash importer`);
 			continue;
 		}

@@ -84,7 +84,7 @@ export const sectionTheme = z.object({
 });
 
 export const sourceRef = z.object({
-	adapter: z.enum(["wpbakery", "gutenberg", "classic"]),
+	adapter: z.enum(["wpbakery", "gutenberg", "classic", "bricks"]),
 	/** Path inside the source tree, e.g. `vc_row[2]` or `blocks[4]`. */
 	path: z.string(),
 	/** Short hash of the raw source of this section, to detect changes in the cutover delta. */
@@ -273,7 +273,7 @@ export type Diagnostic = z.infer<typeof diagnostic>;
 export const irPage = z.object({
 	version: z.literal(IR_VERSION),
 	kind: z.enum(["page", "post", "partial", "popup"]),
-	source: z.object({ wpId: z.number().int(), type: z.string(), status: z.string(), slug: z.string(), builder: z.enum(["wpbakery", "gutenberg", "classic", "empty"]), modifiedGmt: z.string().optional() }),
+	source: z.object({ wpId: z.number().int(), type: z.string(), status: z.string(), slug: z.string(), builder: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "empty"]), modifiedGmt: z.string().optional() }),
 	route: z.object({ path: z.string(), parentPath: z.string().optional(), template: z.string().optional(), isFrontPage: z.boolean().optional() }).optional(),
 	title: z.string(),
 	seo: z
