@@ -74,10 +74,12 @@ describe("measured padding", () => {
 		const box = (index: number, padTop: number, padBottom: number) => ({ index, y: 0, height: 100, footer: false, kind: "wpbakery", padTop, padBottom });
 		const n = applyMeasuredPadding(sections, { desktop: [box(0, 200, 0), box(1, 50, 0)], mobile: [box(0, 50, 0), box(1, 50, 0)] }, false);
 		const pads = (sections as { pad?: { top?: string; bottom?: string } }[]).map((s) => s.pad);
-		expect(n).toBe(2);
+		expect(n).toBe(4);
 		expect(pads[0]).toBeUndefined();
-		expect(pads[1]).toEqual({ top: "50px" });
-		expect(pads[2]).toEqual({ bottom: "0px" });
+		// One source row split in two (form, then cards): one inner gap between them, not two section paddings.
+		expect(pads[1]).toEqual({ top: "50px", bottom: "0px" });
+		expect(pads[2]?.bottom).toBe("0px");
+		expect(pads[2]?.top).toMatch(/^clamp\(56px, .* 92px\)$/);
 	});
 
 	it("adds the height of a source row that produced no section (a spacer row) to the next section's top", () => {

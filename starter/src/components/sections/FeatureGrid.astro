@@ -16,7 +16,7 @@ const space = [LENGTH.test(v.card_space ?? "") && `--card-space:${v.card_space}`
 // Boxed cards (the builder's white "card" columns): background, radius, shadow, padding as a share of the row.
 const COLOR = /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
 const boxed = COLOR.test(v.card_bg ?? "");
-const boxVars = boxed ? [`--card-bg:${v.card_bg}`, LENGTH.test(v.card_radius ?? "") && `--card-radius:${v.card_radius}`, typeof v.card_padding === "number" && v.card_padding >= 0 && v.card_padding <= 20 && `--card-pad:${v.card_padding}cqi`].filter(Boolean).join(";") : "";
+const boxVars = boxed ? [`--card-bg:${v.card_bg}`, LENGTH.test(v.card_radius ?? "") && `--card-radius:${v.card_radius}`, typeof v.card_padding === "number" && v.card_padding >= 0 && v.card_padding <= 20 && `--card-pad:${v.card_padding}`].filter(Boolean).join(";") : "";
 const shadow = ["small", "medium", "large"].includes(v.card_shadow) ? v.card_shadow : undefined;
 const TitleTag = (["h4", "h5", "h6"].includes(v.title_level) ? v.title_level : "h3") as "h3";
 ---

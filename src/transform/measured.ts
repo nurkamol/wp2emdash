@@ -18,6 +18,9 @@ function offLine(phone: number, tablet: number | undefined, desktop: number): nu
 	return Math.abs(tablet - line) > 4 ? Math.round(tablet) : undefined;
 }
 
+/** Space between the parts of one builder row once it is split into sections (Salient inner rows, measured ≈ 92px). */
+const INNER_GAP = { phone: 56, desktop: 92 };
+
 export function applyMeasuredPadding(sections: Section[], boxes: { desktop?: SectionBox[]; tablet?: SectionBox[]; mobile?: SectionBox[] }, footer: boolean): number {
 	if (!boxes.desktop?.length) return 0;
 	let applied = 0;
@@ -44,6 +47,16 @@ export function applyMeasuredPadding(sections: Section[], boxes: { desktop?: Sec
 			const tab = offLine(m.padBottom, t?.padBottom, d.padBottom);
 			last.pad = { ...last.pad, bottom: fluid(m.padBottom, d.padBottom), ...(tab !== undefined ? { bottomTablet: tab } : {}) };
 			applied++;
+		}
+		// One source row split into several sections (a form, then contact cards): inside the row there is one gap
+		// between its parts, not two full section paddings.
+		for (let k = 1; k < g.targetIndexes.length; k++) {
+			const before = sections[g.targetIndexes[k - 1] as number];
+			const after = sections[g.targetIndexes[k] as number];
+			if (!before || !after || SKIP.has(before.type) || SKIP.has(after.type) || before.fullHeight || after.fullHeight) continue;
+			before.pad = { ...before.pad, bottom: "0px" };
+			after.pad = { ...after.pad, top: fluid(INNER_GAP.phone, INNER_GAP.desktop) };
+			applied += 2;
 		}
 	}
 	return applied;
