@@ -3,7 +3,7 @@
 import { isExternal, safeHref } from "../utils/links";
 
 interface Props {
-	items?: Array<{ label?: string; url?: string; style?: string; size?: string; space_above?: string; new_tab?: boolean; popup?: string }> | null;
+	items?: Array<{ label?: string; url?: string; style?: string; size?: string; text_size?: string; space_above?: string; new_tab?: boolean; popup?: string }> | null;
 	class?: string;
 }
 const { items, class: extra } = Astro.props;
@@ -21,6 +21,7 @@ const above = list.map((b) => b.space_above).find((x) => /^\d{1,3}px$/.test(x ??
 					<a
 						href={href}
 						class:list={["btn", `btn--${b.style ?? "primary"}`, b.size === "large" && "btn--lg"]}
+						style={/^\d{2}px$/.test(b.text_size ?? "") ? `--btn-text:${b.text_size}` : undefined}
 						data-popup={b.popup || undefined}
 						target={b.new_tab ? "_blank" : undefined}
 						rel={b.new_tab || isExternal(href) ? "noopener" : undefined}

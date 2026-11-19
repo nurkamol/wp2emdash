@@ -48,7 +48,9 @@
           {
             "label": "Book a class",
             "href": "/book/",
-            "style": "primary"
+            "style": "primary",
+            "size": "large",
+            "textSize": 14
           }
         ],
         "align": "center"

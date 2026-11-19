@@ -19,7 +19,7 @@ const look = [`--cols:${v.columns ?? 3}`, LENGTH.test(v.photo_height ?? "") && `
 			members.map((m, i) => {
 				const id = `person-${String(v._key ?? "team").replace(/[^\w-]/g, "")}-${i}`;
 				return (
-					<li class:list={["person", { "has-bio": !!m.bio }]}>
+					<li class:list={["person", { "has-bio": !!m.bio, "person--row-end": (i + 1) % (Number(v.columns) || 3) === 0 }]}>
 						{m.photo && (
 							<div class="person__media">
 								<Image image={m.photo} class="person__photo" sizes="(max-width: 1000px) 100vw, 33vw" />

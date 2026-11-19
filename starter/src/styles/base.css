@@ -68,7 +68,8 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .section__bg-media, .section__bg img.section__bg-media { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; }
 .section__overlay { position: absolute; inset: 0; background: #000; opacity: var(--section-overlay, 0); }
 .section__head { margin-bottom: 1.5rem; max-width: 52rem; }
-.section__head[style*="--head-gap"] { margin-bottom: var(--head-gap); }
+/* The builder's padding under the heading, plus the heading's own 7px bottom margin kept inside it (Salient, measured). */
+.section__head[style*="--head-gap"] { margin-bottom: calc(var(--head-gap) + 7px); }
 .head-center .section__head { text-align: center; margin-inline: auto; }
 @media (min-width: 900px) /* stack */ {
 	.section__head[style*="--heading-size"] .heading { font-size: var(--heading-size); }
@@ -118,7 +119,7 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .is-full-width.gap-none .media-text { column-gap: 0; }
 .section--media_text .media-text__media-2-box.has-height { margin-top: 2.5rem; }
 @media (max-width: 899.98px) /* stack-below */ { .media-text__text { max-width: none; } }
-.media-text__text[style*="--heading-gap"] .prose > :is(h1, h2, h3, h4, h5, h6):first-child { margin-bottom: var(--heading-gap); }
+:is(.media-text__text, .columns__col)[style*="--heading-gap"] .prose > :is(h1, h2, h3, h4, h5, h6):first-child { margin-bottom: var(--heading-gap); }
 .section--media_text .has-height { --box-h: var(--media-h-small, var(--media-h)); }
 @media (max-width: 690px) { .section--media_text .has-height { --box-h: var(--media-h-phone, var(--media-h-small, var(--media-h))); } }
 .section--media_text .has-height img { width: 100%; max-width: none; margin: 0; aspect-ratio: auto; height: var(--box-h); object-fit: cover; }
@@ -219,6 +220,12 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 @media (max-width: 690px) { .columns__col { padding-inline: var(--col-inset-p, 0); padding-block-end: var(--col-gap-p, var(--col-gap-t, 0)); } }
 /* Large call-to-action (its own padding in the source). */
 .btn--lg { padding: 15px 35px; }
+.btn[style*="--btn-text"] { font-size: var(--btn-text); line-height: calc(var(--btn-text) + 6px); letter-spacing: 0.1em; }
+/* Dotted list (Salient fancy-ul standard_dot, measured): 4px dots, 30px text indent, 30px under the list. */
+.list-dots .prose ul { list-style: none; padding-left: 0; }
+.list-dots .prose ul:not(:last-child) { margin-bottom: 30px; }
+.list-dots .prose ul > li { position: relative; padding-left: 30px; }
+.list-dots .prose ul > li::before { content: ""; position: absolute; left: 2px; top: calc(0.5em * var(--leading-body, 1.75) - 2px); width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
 @media (min-width: 900px) { .columns__col.align-right { text-align: right; } .columns__col.align-right .actions { justify-content: flex-end; } }
 /* edge-to-edge row with the builder's side padding (% of the row width), desktop value unless tablet/phone override it */
 .section.has-inset > .section__inner, .section.is-full-width.has-inset:not(.x) > .section__inner { width: 100%; max-width: none; padding-inline: var(--row-inset); }
@@ -283,8 +290,10 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .quote__photo { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
 @media (min-width: 700px) { .gallery--grid { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); } }
 .team--grid { row-gap: var(--team-gap, 2rem); } /* stacked: the builder's column margin separates members */
-@media (min-width: 900px) /* stack */ { .team--grid { grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); column-gap: var(--team-gap, clamp(1.5rem, 3vw, 3rem)); row-gap: 2rem; } }
-.person { position: relative; }
+/* Salient (measured): each builder row of members has a 24px bottom margin; stacked, the 80px column margin only separates members within a row. */
+@media (max-width: 899.98px) { .team--grid[style*="--team-gap"] { row-gap: 0; } .team--grid[style*="--team-gap"] > .person:not(:last-child) { margin-bottom: var(--team-gap); } .team--grid[style*="--team-gap"] > .person.person--row-end:not(:last-child) { margin-bottom: 24px; } }
+@media (min-width: 900px) /* stack */ { .team--grid { grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); column-gap: var(--team-gap, clamp(1.5rem, 3vw, 3rem)); row-gap: 2rem; } .team--grid[style*="--team-gap"] { row-gap: 24px; } }
+.person { position: relative; margin-top: 7px; } /* Salient team member top margin (measured 7px) */
 .person__media { overflow: hidden; border-radius: var(--radius-media); margin-bottom: 1.875rem; transition: transform 0.6s var(--ease-out); }
 .person__photo { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; transition: transform 0.6s var(--ease-out); }
 [style*="--photo-h"] .person__photo { aspect-ratio: auto; height: var(--photo-h); }
@@ -326,11 +335,11 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 	.person-cursor::after { transform: translate(-50%, -50%) rotate(-45deg); }
 	.person-cursor.is-on { opacity: 1; transform: translate3d(var(--cx), var(--cy), 0) scale(1); transition: opacity 0.25s, transform 0.08s linear; }
 }
-.person__role { margin: 0 0 0.35rem; }
+.person__role { margin: 0 0 5px; line-height: 1; }
 .person__name { font-size: var(--name-size, var(--font-size-h3)); line-height: 1.1; margin: 0 0 0.625rem; }
 .person__summary { font-size: var(--font-size-body); line-height: 1.75; }
-.person__summary { margin: 0 0 0.75rem; }
-.person__more { display: block; margin-block: 9px; transition: transform 0.3s var(--ease-out); }
+.person__summary { margin: 0 0 15px; } /* Salient: 10px under the mini bio, then the arrow */
+.person__more { display: block; margin-block: 9px 11px; transition: transform 0.3s var(--ease-out); }
 .person.has-bio:hover .person__more { transform: translateX(4px); }
 .gallery--carousel { grid-auto-flow: column; grid-auto-columns: min(85%, 42rem); overflow-x: auto; scroll-snap-type: x mandatory; }
 .gallery__item { scroll-snap-align: start; }

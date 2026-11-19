@@ -110,6 +110,12 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 			fragments.forEach((f, i) => {
 				if (i > 0 && f.kind === "button" && f.inline && f.button.spaceAbove) f.button = { ...f.button, spaceAbove: f.button.spaceAbove + Number(spacing) };
 			});
+		// A button right under a dotted list (Salient fancy-ul): the list's 30px bottom margin is the space above it
+		// (it collapses with the element spacing).
+		fragments.forEach((f, i) => {
+			const prev = fragments[i - 1];
+			if (f.kind === "button" && !f.button.spaceAbove && prev?.kind === "rich" && prev.list === "dots" && prev.blocks.at(-1)?.listItem) f.button = { ...f.button, spaceAbove: FANCY_LIST_GAP };
+		});
 		const color = colourValue(n.attrs.background_color);
 		const spacer = columnSpacer(n);
 		const overlay = columnOverlay(n.attrs);
@@ -315,8 +321,10 @@ export function mergeRich(frags: Fragment[]): Fragment[] {
 			lineBlock.markDefs.push(...next.markDefs);
 			continue;
 		}
-		if (f.kind === "rich" && last?.kind === "rich") last.blocks.push(...f.blocks);
-		else out.push(f.kind === "rich" ? { kind: "rich", blocks: [...f.blocks] } : f);
+		if (f.kind === "rich" && last?.kind === "rich") {
+			last.blocks.push(...f.blocks);
+			if (f.list) last.list = f.list;
+		} else out.push(f.kind === "rich" ? { kind: "rich", blocks: [...f.blocks], ...(f.list ? { list: f.list } : {}) } : f);
 		lineBlock = f.kind === "rich" && f.line ? (out.at(-1) as { blocks: RichText }).blocks.at(-1) : undefined;
 	}
 	return out;
@@ -614,6 +622,8 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 						return leading ? { leading } : {};
 					})(),
 					...(c.gapPhone ? { gapPhone: c.gapPhone } : {}),
+					...(c.headingGap ? { headingGap: c.headingGap } : {}),
+					...(c.fragments.some((f) => f.kind === "rich" && f.list === "dots") ? { list: "dots" as const } : {}),
 					...(c.textInset?.end ? { insetEnd: c.textInset.end } : {}),
 					...(c.textInset?.phone ? { insetPhone: c.textInset.phone } : {}),
 					...(c.textInset?.below ? { gapStacked: c.textInset.below } : {}),
@@ -754,6 +764,9 @@ const cssLen = (v: string | undefined): string | undefined => {
 	const m = /^\s*(\d+(?:\.\d+)?)\s*(px|vh|svh|vw|rem|em|%)?\s*$/.exec(v ?? "");
 	return m && Number(m[1]) > 0 ? `${m[1]}${m[2] ?? "px"}` : undefined;
 };
+
+/** Space under a Salient fancy-ul list (measured: ul margin-bottom 30px at every width). */
+const FANCY_LIST_GAP = 30;
 
 /** Gap between inner rows in a Salient column (measured: every inner row but the last has a 10px bottom margin). */
 const INNER_ROW_GAP = 10;

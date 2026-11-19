@@ -17,7 +17,7 @@ export interface BoxHeight {
 }
 
 export type Fragment =
-	| { kind: "rich"; blocks: RichText; /** One line of text (Salient split-line in paragraph style): consecutive lines join into one paragraph. */ line?: boolean }
+	| { kind: "rich"; blocks: RichText; /** One line of text (Salient split-line in paragraph style): consecutive lines join into one paragraph. */ line?: boolean; /** Lists drawn with small dots and a wider indent (Salient fancy-ul standard_dot). */ list?: "dots" }
 	| { kind: "button"; button: Button; /** Inline-block in the source (nectar_btn): its top margin adds to the column's element spacing instead of collapsing into it. */ inline?: boolean }
 	| { kind: "media"; media: MediaRef; role: "content" | "background"; link?: string; /** Height of a background-image box sized by builder spacers. */ height?: BoxHeight; /** Drawn as a circle of this diameter (Salient circle images). */ circle?: string; /** Background picture moves with scroll: layer offset = this × scroll (Salient parallax_bg speed). */ parallax?: number; /** Rounded corners of the picture box (Salient column_border_radius). */ radius?: string }
 	| { kind: "icon"; icon: { library: string; name: string } }
@@ -173,14 +173,14 @@ export function embedOrLegacy(html: string, ctx: HandlerCtx, reason: string): Fr
 
 const inlineButtons = (frags: Fragment[]): Fragment[] => frags.map((f) => (f.kind === "button" ? { ...f, inline: true } : f));
 
-function buttonFrom(label: string | undefined, href: string | undefined, ctx: HandlerCtx, o: { style?: Button["style"]; newTab?: boolean; classes?: string; size?: "large"; spaceAbove?: string } = {}): Fragment[] {
+function buttonFrom(label: string | undefined, href: string | undefined, ctx: HandlerCtx, o: { style?: Button["style"]; newTab?: boolean; classes?: string; size?: "large"; textSize?: number; spaceAbove?: string } = {}): Fragment[] {
 	const text = (label ?? "").trim();
 	const popup = ctx.popupFor({ ...(href ? { href } : {}), ...(o.classes ? { classes: o.classes } : {}) });
 	if (!text) return [];
 	if (!href && !popup) {
 		ctx.diag({ level: "warn", code: "link-unknown", message: `Button "${text}" has no link`, path: ctx.path });
 	}
-	return [{ kind: "button", button: { label: text, href: href || (popup ? `#${popup}` : "#"), style: o.style ?? "primary", ...(o.size ? { size: o.size } : {}), ...(spaceAbove(o.spaceAbove) ? { spaceAbove: spaceAbove(o.spaceAbove) } : {}), ...(o.newTab ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}) } }];
+	return [{ kind: "button", button: { label: text, href: href || (popup ? `#${popup}` : "#"), style: o.style ?? "primary", ...(o.size ? { size: o.size } : {}), ...(o.textSize ? { textSize: o.textSize } : {}), ...(spaceAbove(o.spaceAbove) ? { spaceAbove: spaceAbove(o.spaceAbove) } : {}), ...(o.newTab ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}) } }];
 }
 
 /** Salient button margin_top (px): the space above the button. */
@@ -209,7 +209,8 @@ export const HANDLERS: Record<string, Handler> = {
 		ctx.diag({ level: "info", code: "lossy", message: "Highlight/scribble animation not reproduced; text kept", path: ctx.path });
 		return ctx.children(n, ctx.path);
 	},
-	"fancy-ul": (n, ctx) => ctx.children(n, ctx.path),
+	// Salient fancy list: standard dots → small dots, 30px indent, 30px under the list (measured); icon lists keep plain bullets.
+	"fancy-ul": (n, ctx) => (/^(?:standard_dot)?$/.test(n.attrs.icon_type ?? "") ? ctx.children(n, ctx.path).map((f) => (f.kind === "rich" ? { ...f, list: "dots" as const } : f)) : ctx.children(n, ctx.path)),
 	vc_message: (n, ctx) => ctx.children(n, ctx.path),
 
 	split_line_heading: (n, ctx) => {
@@ -244,7 +245,7 @@ export const HANDLERS: Record<string, Handler> = {
 	heading: (n, ctx) => richFromHtml(innerSource(n), ctx, "h2"),
 
 	// Buttons & links
-	nectar_btn: (n, ctx) => inlineButtons(buttonFrom(n.attrs.text, n.attrs.url, ctx, { style: /see-through|transparent|underline/i.test(n.attrs.button_style ?? "") ? "secondary" : "primary", newTab: n.attrs.open_new_tab === "true", ...(n.attrs.margin_top ? { spaceAbove: n.attrs.margin_top } : {}), ...(n.attrs.class || n.attrs.el_class ? { classes: `${n.attrs.class ?? ""} ${n.attrs.el_class ?? ""}` } : {}) })),
+	nectar_btn: (n, ctx) => inlineButtons(buttonFrom(n.attrs.text, n.attrs.url, ctx, { ...(n.attrs.size === "large" ? { size: "large" as const, textSize: 14 } : {}), style: /see-through|transparent|underline/i.test(n.attrs.button_style ?? "") ? "secondary" : "primary", newTab: n.attrs.open_new_tab === "true", ...(n.attrs.margin_top ? { spaceAbove: n.attrs.margin_top } : {}), ...(n.attrs.class || n.attrs.el_class ? { classes: `${n.attrs.class ?? ""} ${n.attrs.el_class ?? ""}` } : {}) })),
 	nectar_cta: (n, ctx) => {
 		const out: Fragment[] = [];
 		if (n.attrs.text?.trim()) out.push({ kind: "rich", blocks: [textBlock(n.attrs.text, ctx.keys, headingStyle(n.attrs.heading_tag))] });

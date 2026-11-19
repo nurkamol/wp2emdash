@@ -118,6 +118,129 @@
           }
         ]
       }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[1]",
+        "rawHash": "ce0763ae69"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Services offered",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Dry needling",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [],
+                "listItem": "bullet",
+                "level": 1
+              },
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Cupping",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [],
+                "listItem": "bullet",
+                "level": 1
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Book an appointment",
+                "href": "/book/",
+                "style": "primary",
+                "size": "large",
+                "textSize": 14,
+                "spaceAbove": 30
+              }
+            ],
+            "headingGap": 30,
+            "list": "dots"
+          },
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Dr. Sample Person",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "PT, DPT",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [
+              {
+                "wpId": 734,
+                "kind": "image"
+              }
+            ],
+            "buttons": [],
+            "imageCircle": "320px",
+            "align": "center"
+          }
+        ]
+      }
     }
   ],
   "diagnostics": []

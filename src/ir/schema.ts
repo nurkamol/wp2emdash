@@ -56,6 +56,8 @@ export const button = z.object({
 	opensPopup: z.string().optional(),
 	/** Larger padding and more space above (Salient call-to-action with its own padding). */
 	size: z.literal("large").optional(),
+	/** The button's own text size (px), when the source's button size sets one (Salient nectar_btn large: 14px). */
+	textSize: z.number().int().min(10).max(32).optional(),
 	/** Space above the button (px), when the source sets its own. */
 	spaceAbove: z.number().int().min(0).max(200).optional(),
 });
@@ -138,6 +140,10 @@ const column = z.object({
 	align: z.enum(["center", "right"]).optional(),
 	/** Line height of the column's paragraphs, when the source sets one for them. */
 	leading: z.number().min(1).max(3).optional(),
+	/** Space under a heading that sits alone above the column's text (px). */
+	headingGap: z.number().min(0).max(200).optional(),
+	/** Lists drawn with small dots and a 30px indent (Salient fancy-ul). */
+	list: z.enum(["dots"]).optional(),
 	/** Space below the column once columns stack (tablets and phones; % of the column or px). */
 	gapStacked: z.string().regex(/^\d+(?:\.\d+)?(?:%|px)$/).optional(),
 	/** Space below the column once stacked on phones (px). */
