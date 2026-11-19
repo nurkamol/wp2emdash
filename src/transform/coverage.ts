@@ -71,7 +71,7 @@ export function sectionText(s: Section): string {
 			return;
 		}
 		if (typeof v === "object") {
-			for (const [k, x] of Object.entries(v)) if (!["href", "url", "html", "provider", "embedUrl", "wpId", "kind", "sourceRef", "id", "formRef", "theme", "width", "ratio", "layout", "align", "mediaSide", "style", "opensPopup", "library"].includes(k)) visit(x, k);
+			for (const [k, x] of Object.entries(v)) if (!["href", "url", "html", "provider", "embedUrl", "wpId", "kind", "sourceRef", "id", "formRef", "theme", "width", "ratio", "layout", "align", "mediaSide", "style", "opensPopup", "library", "colors", "schedule", "detected"].includes(k)) visit(x, k);
 			return;
 		}
 		if (typeof v === "string" && key !== "variant" && key !== "type") parts.push(v);

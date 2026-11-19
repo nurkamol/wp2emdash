@@ -1,0 +1,82 @@
+{
+  "confident": true,
+  "found": [
+    "salient `#header-secondary-outer .nectar-center-text` on 1/1 pages: “Gift cards are back — order by Friday”"
+  ],
+  "scriptOnly": [],
+  "sections": [
+    {
+      "type": "announcement",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "none",
+      "sourceRef": {
+        "adapter": "html",
+        "path": "#header-secondary-outer .nectar-center-text",
+        "rawHash": "8960c8b04c"
+      },
+      "fields": {
+        "message": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t2",
+                "text": "Gift cards are back",
+                "marks": [
+                  "t1"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": " — order by Friday",
+                "marks": []
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t1",
+                "href": "/gift-cards/"
+              }
+            ]
+          }
+        ],
+        "buttons": [],
+        "colors": {
+          "background": "#0a0a0a",
+          "text": "#cccccc"
+        },
+        "dismissible": false,
+        "sticky": false,
+        "enabled": true,
+        "detected": {
+          "plugin": "salient",
+          "selector": "#header-secondary-outer .nectar-center-text",
+          "pages": 1,
+          "of": 1,
+          "position": "top"
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "flagged",
+      "message": "Announcement bar rebuilt from salient (#header-secondary-outer .nectar-center-text) on 1 of 1 saved pages",
+      "path": "#header-secondary-outer .nectar-center-text"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Announcement bar: the secondary header's menu links are migrated with the secondary menu",
+      "path": "#header-secondary-outer .nectar-center-text"
+    }
+  ]
+}

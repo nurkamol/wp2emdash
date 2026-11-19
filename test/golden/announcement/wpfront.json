@@ -1,0 +1,94 @@
+{
+  "confident": true,
+  "found": [
+    "wpfront `#wpfront-notification-bar` on 1/1 pages: “Spring sale: 20% off all memberships this week.” · buttons: See memberships → https://fixture.example/memberships/"
+  ],
+  "scriptOnly": [],
+  "sections": [
+    {
+      "type": "announcement",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "none",
+      "sourceRef": {
+        "adapter": "html",
+        "path": "#wpfront-notification-bar",
+        "rawHash": "2df1cbb8e5"
+      },
+      "fields": {
+        "message": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Spring sale: ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t2",
+                "text": "20% off",
+                "marks": [
+                  "em"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": " all memberships this week.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "See memberships",
+            "href": "/memberships/",
+            "style": "primary",
+            "newTab": true
+          }
+        ],
+        "colors": {
+          "background": "#1d3557",
+          "text": "#ffffff",
+          "buttonBackground": "#e63946",
+          "buttonText": "#000000"
+        },
+        "dismissible": true,
+        "sticky": true,
+        "enabled": true,
+        "detected": {
+          "plugin": "wpfront",
+          "selector": "#wpfront-notification-bar",
+          "pages": 1,
+          "of": 1,
+          "position": "top",
+          "sourceColors": {
+            "buttonText": "#ffffff"
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Announcement colours: button text #ffffff on #e63946 is 4.17:1; changed to #000000 (5.04:1, WCAG AA)",
+      "path": "#wpfront-notification-bar"
+    },
+    {
+      "level": "info",
+      "code": "flagged",
+      "message": "Announcement bar rebuilt from wpfront (#wpfront-notification-bar) on 1 of 1 saved pages",
+      "path": "#wpfront-notification-bar"
+    }
+  ]
+}

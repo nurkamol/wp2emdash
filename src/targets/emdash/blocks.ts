@@ -264,6 +264,28 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 			return base("embed", { ...head, provider: s.fields.provider, html: s.fields.html, height: s.fields.height });
 		case "legacy_html":
 			return base("legacy_html", { html: s.fields.html, reason: s.fields.reason });
+		case "announcement": {
+			// A site part, not a page section: no appearance fields.
+			const a = s.fields;
+			return {
+				_type: "section_announcement",
+				_version: 1,
+				_key: key,
+				...stripUndefined({
+					enabled: a.enabled,
+					message: pt(a.message),
+					buttons: a.buttons.slice(0, 2).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style === "secondary" ? "secondary" : "primary", new_tab: !!b.newTab })),
+					bg_color: a.colors.background,
+					text_color: a.colors.text,
+					button_bg: a.colors.buttonBackground,
+					button_color: a.colors.buttonText,
+					dismissible: a.dismissible,
+					sticky: a.sticky,
+					starts_at: a.schedule?.from,
+					ends_at: a.schedule?.to,
+				}),
+			};
+		}
 	}
 }
 

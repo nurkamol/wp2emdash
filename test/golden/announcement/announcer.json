@@ -1,0 +1,112 @@
+{
+  "confident": true,
+  "found": [
+    "announcer `#ancr-42` on 1/1 pages: “New: evening workshops start in March” · buttons: Book a seat → https://fixture.example/book/, Details → https://partner.example/info"
+  ],
+  "scriptOnly": [],
+  "sections": [
+    {
+      "type": "announcement",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "none",
+      "sourceRef": {
+        "adapter": "html",
+        "path": "#ancr-42",
+        "rawHash": "59dfade35f"
+      },
+      "fields": {
+        "message": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "New:",
+                "marks": [
+                  "strong"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t2",
+                "text": " evening workshops start in ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t4",
+                "text": "March",
+                "marks": [
+                  "t3"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t3",
+                "href": "/workshops/"
+              }
+            ]
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book a seat",
+            "href": "/book/",
+            "style": "primary"
+          },
+          {
+            "label": "Details",
+            "href": "https://partner.example/info",
+            "style": "secondary",
+            "newTab": true
+          }
+        ],
+        "colors": {
+          "background": "#f0c400",
+          "text": "#000000",
+          "buttonBackground": "#14181c",
+          "buttonText": "#ffffff"
+        },
+        "dismissible": true,
+        "sticky": true,
+        "enabled": true,
+        "schedule": {
+          "from": "2026-01-01T00:00:00.000Z",
+          "to": "2027-01-01T00:00:00.000Z"
+        },
+        "detected": {
+          "plugin": "announcer",
+          "selector": "#ancr-42",
+          "pages": 1,
+          "of": 1,
+          "position": "top",
+          "reshowsAfterClose": true,
+          "sourceColors": {
+            "text": "#ffffff"
+          }
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Announcement colours: text #ffffff on #f0c400 is 1.67:1; changed to #000000 (12.60:1, WCAG AA)",
+      "path": "#ancr-42"
+    },
+    {
+      "level": "info",
+      "code": "flagged",
+      "message": "Announcement bar rebuilt from announcer (#ancr-42) on 1 of 1 saved pages",
+      "path": "#ancr-42"
+    }
+  ]
+}

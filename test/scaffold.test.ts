@@ -14,7 +14,7 @@ const media = (m: { wpId?: number; url?: string } | undefined) => (m ? { $media:
 
 describe("section library", () => {
 	it("has one block type per IR section type, all prefixed section_", () => {
-		expect(BLOCK_TYPES).toHaveLength(20);
+		expect(BLOCK_TYPES).toHaveLength(21);
 		expect(BLOCK_TYPES.every((b) => b.slug.startsWith("section_") && b.versions[0]?.fields.length)).toBe(true);
 	});
 

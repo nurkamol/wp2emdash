@@ -1,0 +1,84 @@
+{
+  "confident": false,
+  "found": [
+    "generic `div.site-topbar` on 1/1 pages: “Free parking for members after 6pm. Read more” · buttons: Join now → /join/"
+  ],
+  "scriptOnly": [
+    "Hello Bar"
+  ],
+  "sections": [
+    {
+      "type": "announcement",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "none",
+      "sourceRef": {
+        "adapter": "html",
+        "path": "div.site-topbar",
+        "rawHash": "517d239f5f"
+      },
+      "fields": {
+        "message": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Free parking for members after 6pm. ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Read more",
+                "marks": [
+                  "t2"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t2",
+                "href": "/parking/"
+              }
+            ]
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Join now",
+            "href": "/join/",
+            "style": "primary"
+          }
+        ],
+        "colors": {
+          "background": "#14181c",
+          "text": "#9aa0a6"
+        },
+        "dismissible": true,
+        "sticky": true,
+        "enabled": true,
+        "detected": {
+          "plugin": "generic",
+          "selector": "div.site-topbar",
+          "pages": 1,
+          "of": 1,
+          "position": "top"
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "flagged",
+      "message": "Announcement bar rebuilt from generic (div.site-topbar) on 1 of 1 saved pages",
+      "path": "div.site-topbar"
+    }
+  ]
+}

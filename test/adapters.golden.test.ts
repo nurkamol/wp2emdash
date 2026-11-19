@@ -12,6 +12,7 @@ import { adaptGutenberg } from "../src/adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../src/adapters/wpbakery/index.js";
 import { Keys } from "../src/ir/portable-text.js";
 import { section } from "../src/ir/schema.js";
+import { announcementDoc, describeBar, detectAnnouncement } from "../src/transform/announcement.js";
 
 const root = join(import.meta.dirname, "fixtures");
 const golden = join(import.meta.dirname, "golden");
@@ -44,6 +45,13 @@ const adapters = {
 			permalink: (id) => f.permalinks?.[String(id)],
 			popupSlug: (id) => f.popups?.[String(id)],
 		});
+	},
+	// Announcement bars: one saved page of HTML → what detection found and the site part it becomes.
+	announcement: (src: string) => {
+		const d = detectAnnouncement([{ name: "page", html: src }]);
+		if (!d.best) throw new Error("no bar detected");
+		const doc = announcementDoc(d.best, new Keys("t"), (h) => h.replace(/^https:\/\/fixture\.example/, "") || "/");
+		return { confident: d.best.confident, found: d.all.map(describeBar), scriptOnly: d.scriptOnly, sections: doc.sections, diagnostics: doc.diagnostics };
 	},
 };
 
