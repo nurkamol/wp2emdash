@@ -8,10 +8,10 @@
  *
  *
  * Order: known form → honeypot → rate limit → Turnstile (fails closed) → validation against the form
- * definition (only its fields are read; anything else in the request is ignored) → email through the
- * site's provider: the provider API key from Wrangler secrets (Brevo, Resend, Postmark, SendGrid or Mailgun). EmDash's own pipeline (Settings → Email)
- * is used if EmDash exposes it to this route — in EmDash 1.5 it does not for anonymous requests (see docs/spikes/M7-findings.md);
- * a later version of the forms plugin will send through it. Nothing is stored unless the owner enabled the outbox (then only
+ * definition (only its fields are read; anything else in the request is ignored) → email to the recipients (set by an
+ * admin on the Form messages page, else FORM_TO) through the site's provider: an API key from Wrangler secrets (Brevo,
+ * Resend, Postmark, SendGrid or Mailgun), or EMAIL_PROVIDER=emdash for EmDash's own pipeline (Settings → Email, reached
+ * through `withEmDashRuntime`; see emdash-email.ts). Nothing is stored unless the owner enabled the outbox (then only
  * until it is emailed or the retention period ends); with the outbox, a count per day and form is kept for the admin's charts.
  * Field values never reach logs. A form generated for a site with
  * sensitive data only has the fields the owner approved (e.g. contact details), so that is all this can send.
@@ -19,7 +19,8 @@
 import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { deliver, parseAddress } from "./deliver.js";
-import { countMessage, enqueue, type OutboxEnv } from "./outbox.js";
+import { sendViaEmDash } from "./emdash-email.js";
+import { countMessage, emailConfigured, enqueue, type OutboxEnv, resolveRecipients, usesEmDashEmail } from "./outbox.js";
 import type { FormDefinition, FormField } from "./types.js";
 
 interface Env extends OutboxEnv {
@@ -58,18 +59,12 @@ async function turnstileOk(secret: string, token: string, ip: string | null): Pr
 	return out.success === true;
 }
 
-/** EmDash's email pipeline (Settings → Email), when a provider is configured there. */
-interface EmDashEmail {
-	isAvailable(): boolean;
-	send(message: { to: string; cc?: string[]; replyTo?: string; subject: string; text: string; html?: string }, source: string): Promise<void>;
-}
-
 export interface FormEndpointOptions {
 	/** Look up a form by the id in the URL (`/api/forms/<id>`); unknown ids answer 404. */
 	getForm(id: string | undefined): FormDefinition | undefined;
 }
 
-export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute => async ({ params, request, locals }) => {
+export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute => async ({ params, request }) => {
 	const e = env as unknown as Env;
 	const form = getForm(params.id);
 	if (!form) return reply(request, 404, { ok: false, message: "This form does not exist." });
@@ -113,11 +108,10 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	}
 	if (Object.keys(errors).length) return fail(422, "Please check the highlighted fields.", "invalid", errors);
 
-	const from = parseAddress(e.FORM_FROM);
-	const to = (e.FORM_TO ?? "").split(",").map((x) => x.trim()).filter((x) => EMAIL.test(x));
-	const pipeline = (locals as { emdash?: { email?: EmDashEmail | null } }).emdash?.email;
-	const viaEmDash = !!pipeline?.isAvailable();
-	const emailReady = to.length > 0 && (viaEmDash || (!!e.EMAIL_API_KEY && !!from));
+	const viaEmDash = usesEmDashEmail(e);
+	const provider = viaEmDash ? "emdash" : (e.EMAIL_PROVIDER ?? "brevo");
+	const { to } = await resolveRecipients(e);
+	const emailReady = await emailConfigured(e, to);
 	if (!emailReady && !e.FORM_OUTBOX) return fail(503, "The form is not available right now. Please call or email us instead.", "email not configured");
 
 	const replyEmail = values.find((v) => v.field.type === "email")?.value;
@@ -142,18 +136,12 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	};
 	if (e.FORM_OUTBOX_HOLD === "1" && e.FORM_OUTBOX) return (await keep("held")) ?? fail(502, "Your message could not be sent. Please call or email us instead.", "outbox unavailable");
 	if (!emailReady) return (await keep("email not configured")) ?? fail(503, "The form is not available right now. Please call or email us instead.", "email not configured");
-	if (viaEmDash && pipeline) {
-		try {
-			// Sender, host and credentials come from Settings → Email (or EMAIL_SMTP_*); recipients from FORM_TO.
-			await pipeline.send({ to: to[0] as string, ...(to.length > 1 ? { cc: to.slice(1) } : {}), ...(replyEmail ? { replyTo: replyEmail } : {}), subject, text, html }, `form:${form.id}`);
-		} catch (err) {
-			return fail(502, "Your message could not be sent. Please call or email us instead.", `emdash email: ${(err as Error).name}`);
-		}
-	} else {
-		const result = await deliver(e.EMAIL_PROVIDER ?? "brevo", e.EMAIL_API_KEY as string, { from: from as { email: string; name?: string }, to, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html }, { ...(e.MAILGUN_REGION ? { region: e.MAILGUN_REGION } : {}) });
-		if (!result.ok) return (await keep(result.reason)) ?? fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
-	}
-	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: viaEmDash ? "emdash" : (e.EMAIL_PROVIDER ?? "brevo") }));
+	// Sender: FORM_FROM for an API provider; EmDash's Settings → Email for the emdash pipeline (it has its own sender).
+	const result = viaEmDash
+		? await sendViaEmDash(to, { ...(replyEmail ? { replyTo: replyEmail } : {}), subject, text, html })
+		: await deliver(provider, e.EMAIL_API_KEY as string, { from: parseAddress(e.FORM_FROM) as { email: string; name?: string }, to, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html }, { ...(e.MAILGUN_REGION ? { region: e.MAILGUN_REGION } : {}) });
+	if (!result.ok) return (await keep(result.reason)) ?? fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
+	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: provider }));
 	await countMessage(e, form.id, "emailed").catch(() => {});
 	return reply(request, 200, { ok: true, message: form.successMessage });
 };

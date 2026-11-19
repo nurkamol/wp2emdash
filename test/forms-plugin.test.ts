@@ -162,6 +162,51 @@ describe("form messages plugin: export and import", () => {
 	});
 });
 
+describe("form messages plugin: recipients", () => {
+	const settings = (r: Res) => tab(r, 4);
+	it("shows the site default until an admin sets recipients", async () => {
+		Object.assign(env, { FORM_TO: "default@example.com" });
+		const r = await call({ type: "page_load" });
+		expect(settings(r).find((b) => b.type === "fields")?.fields[0]).toEqual({ label: "Now sending to", value: "default@example.com" });
+		expect(settings(r).find((b) => b.type === "form")?.fields[0].initial_value).toBeUndefined();
+	});
+	it("saves valid recipients, logs who and how many but never the addresses, and the outbox uses them", async () => {
+		Object.assign(env, { FORM_TO: "default@example.com" });
+		const r = await call({ type: "form_submit", action_id: "recipients", values: { to: "office@example.com\nboss@example.com" } });
+		expect(r.toast).toEqual({ message: "Form messages now go to 2 recipients.", type: "success" });
+		expect(settings(r).find((b) => b.type === "form")?.fields[0].initial_value).toBe("office@example.com\nboss@example.com");
+		const activity = [...kv.store.entries()].filter(([k]) => k.startsWith("act:")).map(([, e]) => JSON.parse(e.v));
+		expect(activity).toEqual([expect.objectContaining({ who: "Owner", action: "Changed the form recipients", count: 2 })]);
+		expect(JSON.stringify([logs, activity])).not.toMatch(/office@|boss@/);
+		Object.assign(env, { FORM_OUTBOX_HOLD: undefined, EMAIL_API_KEY: "k", FORM_FROM: "noreply@example.com" });
+		const fetch = vi.fn(async () => new Response("{}", { status: 201 }));
+		vi.stubGlobal("fetch", fetch);
+		await flushOutbox(env);
+		expect(JSON.parse(String((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body)).to).toEqual([{ email: "office@example.com" }, { email: "boss@example.com" }]);
+	});
+	it("refuses invalid addresses and more than 10, keeping the previous setting", async () => {
+		await call({ type: "form_submit", action_id: "recipients", values: { to: "office@example.com" } });
+		const bad = await call({ type: "form_submit", action_id: "recipients", values: { to: "office@example.com, nope" } });
+		expect(bad.toast?.type).toBe("error");
+		expect(settings(bad).find((b) => b.type === "banner" && b.title === "Not saved")?.description).toMatch(/"nope" is not an email address/);
+		const many = await call({ type: "form_submit", action_id: "recipients", values: { to: Array.from({ length: 11 }, (_, i) => `p${i}@example.com`).join("\n") } });
+		expect(many.toast?.type).toBe("error");
+		expect(settings(many).find((b) => b.type === "fields")?.fields[0].value).toBe("office@example.com");
+	});
+	it("an empty list goes back to FORM_TO", async () => {
+		Object.assign(env, { FORM_TO: "default@example.com" });
+		await call({ type: "form_submit", action_id: "recipients", values: { to: "office@example.com" } });
+		const r = await call({ type: "form_submit", action_id: "recipients", values: { to: "  " } });
+		expect(r.toast?.message).toBe("Recipients reset to the site default.");
+		expect(settings(r).find((b) => b.type === "fields")?.fields[0].value).toBe("default@example.com");
+	});
+	it("non-admins cannot change recipients", async () => {
+		const r = await call({ type: "form_submit", action_id: "recipients", values: { to: "attacker@example.com" } }, 40);
+		expect(r.blocks[0]).toMatchObject({ title: "Admins only" });
+		expect([...kv.store.keys()].some((k) => k.startsWith("cfg:"))).toBe(false);
+	});
+});
+
 describe("form messages plugin: insights and widget", () => {
 	it("charts per-day counts and fills the widget", async () => {
 		await countMessage(env, "contact", "emailed");

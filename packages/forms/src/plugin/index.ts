@@ -1,7 +1,8 @@
 /**
  * Form messages — an EmDash native plugin (Block Kit admin, no React bundle) for the form outbox (Workers KV, binding
  * FORM_OUTBOX): an inbox with search, filters, read state and bulk actions; insights from per-day counts; CSV/JSON
- * export through one-time download links; import of exported files; an activity log; and a dashboard widget.
+ * export through one-time download links; import of exported files; an activity log; a dashboard widget; and the
+ * recipients setting (stored in the same KV, so the form endpoint reads it per request; it overrides FORM_TO).
  *
  * Admins only. The `admin` route keeps EmDash's default plugin-route permission, `plugins:manage` (Admin role); EmDash
  * checks it and its CSRF header before the handler runs, and the handler checks the role again. The `download` route
@@ -13,7 +14,7 @@
  * `formsPlugin()` from `@wp2emdash/forms` in astro.config.
  */
 import { definePlugin, pluginResponse } from "emdash";
-import { deleteQueued, importQueued, isOutboxKey, listSummaries, type OutboxEnv, outboxStatus, type Queued, readCounts, readQueued, retentionDays, sendQueued, updateQueued } from "../outbox.js";
+import { deleteQueued, importQueued, isOutboxKey, listSummaries, type OutboxEnv, outboxStatus, parseRecipients, type Queued, readCounts, readQueued, resolveRecipients, retentionDays, sendQueued, updateQueued, writeRecipientSetting } from "../outbox.js";
 import { FORMS_PLUGIN } from "../meta.js";
 import { exportFileName, grantDownload, logActivity, parseImport, readActivity, redeemDownload, toCsv, toJson, toQueued } from "./data.js";
 import { adminsOnly, type Filter, filtered, message, overview, type Overview, PAGE, TABS, WIDGET, widget } from "./views.js";
@@ -33,7 +34,7 @@ const outboxEnv = async () => ((await import("cloudflare:workers")) as unknown a
 
 async function build(env: OutboxEnv, filter: Filter = {}, extra: Partial<Overview> = {}): Promise<Overview> {
 	const since = new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
-	const [{ items, more }, counts, activity] = await Promise.all([listSummaries(env), readCounts(env, since), readActivity(env.FORM_OUTBOX)]);
+	const [{ items, more }, counts, activity, status, recipients] = await Promise.all([listSummaries(env), readCounts(env, since), readActivity(env.FORM_OUTBOX), outboxStatus(env), resolveRecipients(env)]);
 	let matches: Set<string> | undefined;
 	const q = filter.q?.trim().toLowerCase();
 	if (q) {
@@ -45,7 +46,8 @@ async function build(env: OutboxEnv, filter: Filter = {}, extra: Partial<Overvie
 		}
 	}
 	const forms = [...new Set([...items.map((i) => i.s.form), ...counts.map((c) => c.form)])].sort();
-	return { status: outboxStatus(env), items, more, counts, activity, days: retentionDays(env), forms, filter, ...(matches ? { matches } : {}), ...extra };
+	const configTo = (env.FORM_TO ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+	return { status, items, more, counts, activity, days: retentionDays(env), forms, filter, recipients: { ...recipients, configTo }, provider: env.EMAIL_PROVIDER ?? "brevo", ...(matches ? { matches } : {}), ...extra };
 }
 
 const str = (v: unknown, max = 200) => (typeof v === "string" ? v.slice(0, max) : undefined);
@@ -74,7 +76,7 @@ export function createPlugin() {
 					if (isWidget) {
 						const since = new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10);
 						const [{ items }, counts] = await Promise.all([listSummaries(env), readCounts(env, since)]);
-						return { blocks: widget({ items, counts, status: outboxStatus(env) }) };
+						return { blocks: widget({ items, counts, status: await outboxStatus(env) }) };
 					}
 					const key = isOutboxKey(i.value) ? i.value : undefined;
 					const act = i.action_id;
@@ -85,7 +87,7 @@ export function createPlugin() {
 							const q = await updateQueued(env, key, { read: true });
 							if (!q) return { blocks: await page(), toast: { message: "That message is no longer waiting.", type: "info" } };
 							await logActivity(kv, who, "Opened a message", 1);
-							return { blocks: message(key, q, outboxStatus(env)) };
+							return { blocks: message(key, q, await outboxStatus(env)) };
 						}
 						if (act === "unread") {
 							await updateQueued(env, key, { read: false });
@@ -102,7 +104,7 @@ export function createPlugin() {
 							if (r === "sent") return { blocks: await page(), toast: { message: "Message emailed.", type: "success" } };
 							const q = await readQueued(env, key);
 							const text = r === "failed" ? "The email provider refused it; it stays in the outbox." : r === "missing" ? "That message is no longer waiting." : "Email is not available right now.";
-							return { blocks: q ? message(key, q, outboxStatus(env)) : await page(), toast: { message: text, type: "error" } };
+							return { blocks: q ? message(key, q, await outboxStatus(env)) : await page(), toast: { message: text, type: "error" } };
 						}
 					}
 
@@ -149,6 +151,17 @@ export function createPlugin() {
 						const v = i.values ?? {};
 						const show = v.show === "unread" || v.show === "read" ? v.show : "all";
 						return { blocks: await page({ ...(str(v.q, 120) ? { q: str(v.q, 120) } : {}), form: str(v.form, 80) ?? "all", show }) };
+					}
+
+					if (i.type === "form_submit" && act === "recipients") {
+						// Who form messages are emailed to (endpoint, cron and "Email it now"). Empty: back to FORM_TO.
+						const v = i.values ?? {};
+						const { list, errors } = parseRecipients(typeof v.to === "string" ? v.to.slice(0, 4000) : "");
+						if (errors.length) return { blocks: await page({}, TABS.settings, { recipientErrors: errors }), toast: { message: "Recipients not saved. See the errors.", type: "error" } };
+						await writeRecipientSetting(env, list);
+						// The log records who changed it and how many addresses — never the addresses.
+						await logActivity(kv, who, list.length ? "Changed the form recipients" : "Reset the form recipients to the site default", list.length);
+						return { blocks: await page({}, TABS.settings), toast: { message: list.length ? `Form messages now go to ${plural(list.length, "recipient")}.` : "Recipients reset to the site default.", type: "success" } };
 					}
 
 					if (i.type === "form_submit" && act === "export") {

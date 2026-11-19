@@ -56,7 +56,7 @@ export function deployScripts(fingerprint?: string, productionFingerprint?: stri
 	};
 }
 
-const PROVIDERS: Record<string, string> = { brevo: "Brevo", resend: "Resend", postmark: "Postmark", sendgrid: "SendGrid", mailgun: "Mailgun" };
+const PROVIDERS: Record<string, string> = { brevo: "Brevo", resend: "Resend", postmark: "Postmark", sendgrid: "SendGrid", mailgun: "Mailgun", emdash: "EmDash's email settings" };
 
 export function clientRepoFiles(input: ClientRepoInput): Record<string, string> {
 	const i = { ...input, email: { ...input.email, provider: PROVIDERS[input.email.provider] ?? input.email.provider } };
@@ -259,7 +259,7 @@ the dashboard). **Inbox:** search, filter, read/unread, open, email now (once em
 **Insights:** messages per day and per form over 30 days (kept as counts only). **Import & export:** download the
 messages as CSV or JSON through a link that works once for two minutes (the file holds visitors' contact details: keep it
 private), or paste an exported file to bring messages back (duplicates are skipped). **Activity:** who did what, without
-message content. Editors and other roles cannot open it. With Cloudflare access to
+message content. **Settings:** who form messages are emailed to (up to 10 addresses; empty uses \`FORM_TO\`). Editors and other roles cannot open it. With Cloudflare access to
 the account the queue is also in Workers KV: \`npx wrangler kv key list --binding FORM_OUTBOX --remote\` (add \`--env staging\`
 for staging), then \`npx wrangler kv key get <key> --binding FORM_OUTBOX --remote\`.
 
