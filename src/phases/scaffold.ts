@@ -236,12 +236,16 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Forms (generated files are cleared first so removed forms do not linger)
 	for (const f of existsSync(join(project, "src", "forms")) ? readdirSync(join(project, "src", "forms")) : []) if (f.endsWith(".json")) rmSync(join(project, "src", "forms", f));
 	const forms: FormDefinitionOut[] = [];
-	const ffDir = join(paths.raw, "forms", "fluent-forms");
-	if (existsSync(ffDir)) {
-		for (const f of readdirSync(ffDir)) {
-			const raw = readJson<{ id: string; title: string; status: string; form: { form_fields?: Record<string, unknown> }; settings?: Record<string, unknown> }>(join(ffDir, f));
+	// Every provider extract wrote: Fluent Forms in its REST shape, the others (plugin exports) with a ready definition.
+	const formsDir = join(paths.raw, "forms");
+	const formFiles = existsSync(formsDir) ? readdirSync(formsDir).flatMap((p) => (statSync(join(formsDir, p)).isDirectory() ? readdirSync(join(formsDir, p)).filter((f) => f.endsWith(".json")).map((f) => join(formsDir, p, f)) : [])) : [];
+	{
+		for (const file of formFiles) {
+			const raw = readJson<{ id: string; title: string; status: string; form?: { form_fields?: Record<string, unknown> }; settings?: Record<string, unknown>; definition?: FormDefinitionOut }>(file);
 			if (!raw || !/^publish(ed)?$/.test(raw.status)) continue; // never "unpublished"
-			const def = applySensitivePolicy(fluentFormToDefinition(raw, config.sensitiveData), config.forms.sensitive, config.forms.notice);
+			const base: FormDefinitionOut | undefined = raw.definition ? { ...raw.definition, warnings: raw.definition.warnings ?? [], ...(config.sensitiveData ? { sensitive: true } : {}) } : raw.form ? fluentFormToDefinition({ ...raw, form: raw.form }, config.sensitiveData) : undefined;
+			if (!base) continue;
+			const def = applySensitivePolicy(base, config.forms.sensitive, config.forms.notice);
 			forms.push(def);
 			if (def.withheld?.length) reporter.emit({ type: "log", level: "info", message: `${def.id}: not collected under forms.sensitive="${config.forms.sensitive}": ${def.withheld.join(", ")}` });
 			const { warnings: _w, withheld: _h, ...out } = def;

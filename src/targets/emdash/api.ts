@@ -189,4 +189,32 @@ export class EmDashApi {
 	async updateSettings(input: Record<string, unknown>): Promise<void> {
 		await this.request("POST", "/settings", input);
 	}
+
+	// ── redirects (EmDash 1.5: /_emdash/api/redirects, cursor-paged, 100 per page) ──
+	async listRedirects(): Promise<EmDashRedirect[]> {
+		const out: EmDashRedirect[] = [];
+		let cursor: string | undefined;
+		for (let page = 0; page < 200; page++) {
+			const r = await this.request<{ items: EmDashRedirect[]; nextCursor?: string }>("GET", `/redirects?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+			out.push(...(r.items ?? []));
+			if (!r.nextCursor) break;
+			cursor = r.nextCursor;
+		}
+		return out;
+	}
+	async createRedirect(input: { source: string; destination: string; type: number; groupName?: string }): Promise<EmDashRedirect> {
+		return this.request("POST", "/redirects", input);
+	}
+	async updateRedirect(id: string, input: { destination?: string; type?: number; enabled?: boolean }): Promise<EmDashRedirect> {
+		return this.request("PUT", `/redirects/${encodeURIComponent(id)}`, input);
+	}
+}
+
+export interface EmDashRedirect {
+	id: string;
+	source: string;
+	destination: string;
+	type: number;
+	enabled: boolean;
+	groupName?: string | null;
 }

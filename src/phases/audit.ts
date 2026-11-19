@@ -1,4 +1,5 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { accessSection, exportsFor, previousSection, withAccessSection } from "../extract/plugin-exports.js";
 import { join } from "node:path";
 import { captureDesign, captureScreenshots, type DesignCapture, screenName, withBrowser } from "../audit/browser.js";
 import { type Discovery, discoverRest, discoverSitemaps, type UrlSource } from "../audit/discover.js";
@@ -228,6 +229,13 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	write(join(reportDir, "audit.md"), auditReport(ctx));
 	write(join(reportDir, "integrations.md"), integrationsReport(ctx));
 	write(join(reportDir, "plugin-matrix.md"), pluginMatrixReport(ctx));
+	// Plugin data the REST API does not expose: ask the owner for the exports, in ACCESS.md (rewritten each audit, ticks kept).
+	const signals = [...fp.plugins.map((p) => p.name), ...integrations.flatMap((i) => (i.kind === "form" && i.form ? [i.form.provider] : []))];
+	const exportsNeeded = exportsFor(signals);
+	if (existsSync(paths.access)) {
+		const access = readFileSync(paths.access, "utf8");
+		write(paths.access, withAccessSection(access, accessSection(exportsNeeded, config.slug, previousSection(access))));
+	}
 	write(join(reportDir, "interactions.md"), interactionsReport({ config, menus, headers }));
 	reporter.emit({ type: "log", level: "info", message: `Reports: ${reportDir}` });
 

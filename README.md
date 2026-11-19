@@ -65,6 +65,29 @@ never writes `.env`.
 
 Each phase ends in a gate; the next phase won't run until it passes or is accepted with a recorded reason.
 
+## Plugin data (forms and redirects)
+
+The REST API does not expose most plugins' settings. After the audit, `ACCESS.md` gets a **Plugin data** section
+listing, for every forms or redirects plugin it found, the exact export steps in WordPress admin. The owner exports;
+the files go in `sites/<slug>/raw/plugin-exports/` (any file name). `extract` recognises each file by its content:
+
+| Plugin | Export | Becomes |
+|---|---|---|
+| Fluent Forms | read over REST automatically; Tools → Export Forms as a fallback | site form |
+| Gravity Forms | Forms → Import/Export → Export Forms (.json) | site form |
+| WPForms | WPForms → Tools → Export → Form Exports (.json) | site form |
+| Contact Form 7 | Tools → Export → Contact Forms (.xml) | site form |
+| Redirection | Tools → Redirection → Import/Export → Everything, JSON | EmDash redirects |
+| Rank Math | Redirections → Export (.htaccess or Nginx) | EmDash redirects |
+| Yoast SEO Premium | Redirects → Export (.csv); any `from,to,code` CSV works too | EmDash redirects |
+
+Forms keep their fields, labels, required flags, options, button text and success message. Notification recipients
+stay in `raw/` and are set in the site's admin (Form messages → Settings), never written into the project. `load`
+imports the redirects into EmDash (group `wordpress`, so a rerun updates them and never touches redirects added in the
+admin). Rules EmDash cannot hold (conditional rules, complex regular expressions, redirects to another site) are
+listed in `raw/redirects.json` → `unconverted` and fail the extract gate until handled or accepted: nothing is dropped
+silently. Ninja Forms and Formidable exports are flagged for a rebuild by hand.
+
 ## Sharing cards (opt-in)
 
 Every page can get its own branded sharing image (og:image): the site's logo, the page title and the site's colours

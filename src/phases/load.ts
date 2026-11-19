@@ -377,7 +377,37 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 		}
 		check("menus", "Menus and site settings written", menuErrors.length === 0, menuErrors.join("; ") || site.menus.map((m) => `${m.role} ${m.items.length}`).join(", "));
 
-		if (overrides.redirects.source === "file") check("redirects", "Redirects imported", false, "raw/redirects.csv import is not implemented yet");
+		// Redirects from the plugin exports (raw/redirects.json, made by extract). Kit rules are tagged with a group so a
+		// rerun updates them and never touches redirects someone added in the admin.
+		const redirectsFile = join(paths.raw, "redirects.json");
+		if (overrides.redirects.source !== "none" && existsSync(redirectsFile)) {
+			const { rules = [] } = JSON.parse(readFileSync(redirectsFile, "utf8")) as { rules?: { source: string; destination: string; type: number }[] };
+			const errors: string[] = [];
+			let created = 0;
+			let updated = 0;
+			let same = 0;
+			try {
+				const existing = new Map((await api.listRedirects()).map((r) => [r.source, r]));
+				for (const r of rules) {
+					const have = existing.get(r.source);
+					try {
+						if (!have) {
+							await api.createRedirect({ source: r.source, destination: r.destination, type: r.type, groupName: "wordpress" });
+							created++;
+						} else if (have.groupName !== "wordpress") errors.push(`${r.source}: already set in the admin (kept)`);
+						else if (have.destination !== r.destination || have.type !== r.type) {
+							await api.updateRedirect(have.id, { destination: r.destination, type: r.type });
+							updated++;
+						} else same++;
+					} catch (e) {
+						errors.push(`${r.source}: ${(e as Error).message}`);
+					}
+				}
+			} catch (e) {
+				errors.push(`list: ${(e as Error).message}`);
+			}
+			check("redirects", "Redirects imported", errors.length === 0, `${created} created, ${updated} updated, ${same} unchanged${errors.length ? `; ${errors.slice(0, 5).join("; ")}${errors.length > 5 ? "; …" : ""}` : ""}`);
+		} else if (overrides.redirects.source === "file") check("redirects", "Redirects imported", false, "redirects.source is \"file\" but raw/redirects.json is missing: put the redirect export in raw/plugin-exports/ and rerun extract");
 
 		// ── Verify on the target ───────────────────────────────────────────────────
 		reporter.emit({ type: "step:start", step: "Verify target" });

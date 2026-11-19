@@ -6,7 +6,7 @@
  * Output lives in sites/<slug>/raw/ (gitignored). Report: reports/extract/extract.md.
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fetchUrl, mapLimit } from "../audit/http.js";
 import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
@@ -14,6 +14,7 @@ import type { GateCheck } from "../core/state.js";
 import { extractReport } from "../extract/report.js";
 import { WpClient, WpHttpError, versionAtLeast } from "../extract/client.js";
 import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.js";
+import { type RedirectRule, recognise, type Unconverted } from "../extract/plugin-exports.js";
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
 import type { PhaseContext } from "./index.js";
 
@@ -263,6 +264,43 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 		}
 		reporter.emit({ type: "step:end", step: "Forms", ok: formsSummary.every((f) => f.ok), detail: `${formsSummary.length} Fluent Forms` });
 	}
+	// ── Plugin exports the owner sent (raw/plugin-exports/, any file name; recognised by content) ─────────────
+	const dropDir = join(raw, "plugin-exports");
+	const dropped = existsSync(dropDir) ? readdirSync(dropDir).filter((f) => !f.startsWith(".") && statSync(join(dropDir, f)).isFile()) : [];
+	if (dropped.length) {
+		reporter.emit({ type: "step:start", step: "Plugin exports", total: dropped.length });
+		const exportHosts = [new URL(config.source.url).host, new URL(config.target.productionUrl).host, ...config.source.alternateHosts];
+		const rules: RedirectRule[] = [];
+		const unconverted: Unconverted[] = [];
+		const unread: string[] = [];
+		for (const file of dropped) {
+			const r = recognise(file, readFileSync(join(dropDir, file), "utf8"), exportHosts);
+			if (r.kind === "unknown") {
+				unread.push(`${file}: ${r.reason}`);
+				continue;
+			}
+			if (r.kind === "redirects") {
+				rules.push(...r.rules);
+				unconverted.push(...r.unconverted);
+				continue;
+			}
+			for (const f of r.forms) {
+				// The REST read wins for Fluent Forms; the file only fills in forms it could not reach.
+				if (formsSummary.some((s) => s.ok && s.provider === f.provider && s.id === f.id)) continue;
+				const out = f.raw ? { ...f.raw, recipients: f.recipients ?? [], source: file } : { provider: f.provider, id: f.id, title: f.title, status: f.status, definition: f.definition, recipients: f.recipients ?? [], source: file };
+				write(join(raw, "forms", f.provider, `${f.id}.json`), out);
+				formsSummary.push({ provider: f.provider, id: f.id, title: f.title, status: f.status, fields: f.definition?.fields.length ?? 0, notifications: f.recipients?.length ?? 0, ok: true });
+			}
+		}
+		// Later files win for the same source (an owner may send an updated export).
+		const bySource = new Map(rules.map((r) => [r.source, r]));
+		if (rules.length || unconverted.length) write(join(raw, "redirects.json"), { rules: [...bySource.values()], unconverted });
+		check("plugin-exports", "Every plugin export file was read", unread.length === 0, unread.length ? `Not read: ${unread.join("; ")} — rebuild by hand and record it in decisions.md, or remove the file` : `${dropped.length} file(s)`);
+		if (rules.length || unconverted.length)
+			check("redirects-convertible", "Every redirect rule fits EmDash's redirects", unconverted.length === 0, unconverted.length ? `${unconverted.length} kept out (listed in raw/redirects.json → unconverted): ${unconverted.slice(0, 3).map((u) => `${u.rule} (${u.reason})`).join("; ")}${unconverted.length > 3 ? "; …" : ""} — handle at the edge or accept with the owner` : `${bySource.size} rules`);
+		reporter.emit({ type: "step:end", step: "Plugin exports", ok: unread.length === 0, detail: `${dropped.length} files, ${formsSummary.length} forms, ${bySource.size} redirects` });
+	}
+
 	const missingForms = auditForms.filter((af) => !formsSummary.some((f) => f.ok && f.provider === af.provider && f.id === af.providerFormId));
 	check(
 		"forms",
@@ -441,8 +479,8 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 				: "Salient theme options (Redux) are not exposed over REST. Colours, fonts and header layout come from the audit's design capture. Optional for exact values: Salient → Options → Import/Export → download, save as raw/salient-options.json.",
 		);
 	}
-	if (overrides.redirects.source === "unknown" && (/seo-by-rank-math|rank-math/i.test(JSON.stringify(fingerprint ?? {})) || probe.capabilities.rankmath)) {
-		notes.push("Rank Math redirections are not exposed over REST. If the Redirections module is on: Rank Math → Redirections → Export, save as raw/redirects.csv (read in transform). Otherwise set redirects.source to \"none\" in overrides.ts.");
+	if (overrides.redirects.source === "unknown" && !existsSync(join(raw, "redirects.json")) && (/seo-by-rank-math|rank-math/i.test(JSON.stringify(fingerprint ?? {})) || probe.capabilities.rankmath)) {
+		notes.push("Rank Math redirections are not exposed over REST. If the Redirections module is on: Rank Math → Redirections → Export (.htaccess or Nginx), put the file in raw/plugin-exports/ and rerun extract. Otherwise set redirects.source to \"none\" in overrides.ts.");
 	}
 
 	const summary: ExtractSummary = {

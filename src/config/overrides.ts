@@ -24,7 +24,7 @@ export const overridesSchema = z.object({
 		.prefault({}),
 	redirects: z
 		.object({
-			/** none = the site has no redirect rules to migrate; file = read raw/redirects.csv. */
+			/** none = the site has no redirect rules to migrate; file = import raw/redirects.json (made by extract from raw/plugin-exports/). */
 			source: z.enum(["unknown", "none", "file"]).default("unknown"),
 		})
 		.prefault({}),
