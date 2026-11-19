@@ -31,7 +31,12 @@ const CONSENT_BUTTONS = [
 	"button:has-text('Accept')",
 ];
 
-async function settle(page: Page, maskSelectors: string[]): Promise<void> {
+/**
+ * Bring a page to a stable, fully painted state before a screenshot. Returns how many images still have no picture
+ * (0 when every image loaded and decoded), so a capture with a missing photo is retried or reported, never compared
+ * silently as a layout difference.
+ */
+async function settle(page: Page, maskSelectors: string[]): Promise<number> {
 	await page.addStyleTag({ content: FREEZE_CSS }).catch(() => {});
 	for (const sel of CONSENT_BUTTONS) {
 		const btn = page.locator(sel).first();
@@ -49,30 +54,45 @@ async function settle(page: Page, maskSelectors: string[]): Promise<void> {
 		}
 		window.scrollTo(0, 0);
 	});
+	// A lazy image the browser did not reach while scrolling (busy machine, parallel captures) would stay unloaded once
+	// the page is back at the top: ask for every image now.
+	await page.evaluate(() => {
+		for (const i of Array.from(document.images)) if (i.loading === "lazy") i.loading = "eager";
+	});
 	await page.evaluate(() => document.fonts?.ready).catch(() => {});
 	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
-	// Every visible image decoded: a cold media fetch (R2 through the Worker) can outlast network idle.
-	const allDecoded = () => page.waitForFunction(() => Array.from(document.images).every((i) => i.complete && (i.naturalWidth > 0 || !i.getAttribute("src"))), undefined, { timeout: 20_000, polling: 250 }).catch(() => {});
-	await allDecoded();
-	// An image that failed under parallel captures (cold media fetch, rate limit) gets one more request.
-	const retried = await page.evaluate(() => {
-		let n = 0;
-		for (const i of Array.from(document.images)) {
-			if (i.complete && i.naturalWidth === 0 && i.getAttribute("src")) {
-				i.loading = "eager";
+	// Every image with a source finished (loaded or failed): a cold media fetch (R2 through the Worker) can outlast network idle.
+	const allDone = (timeout = 20_000) => page.waitForFunction(() => Array.from(document.images).every((i) => !i.getAttribute("src") || (i.complete && (i.naturalWidth > 0 || i.dataset.wp2Failed === "1"))), undefined, { timeout, polling: 250 }).catch(() => {});
+	await allDone();
+	// An image that failed (cold fetch, rate limit under parallel captures) gets up to three more requests.
+	for (let attempt = 1; attempt <= 4; attempt++) {
+		const retried = await page.evaluate((last) => {
+			let n = 0;
+			for (const i of Array.from(document.images)) {
+				if (!i.getAttribute("src") || !i.complete || i.naturalWidth > 0) continue;
+				if (last) {
+					i.dataset.wp2Failed = "1";
+					continue;
+				}
 				const src = i.src;
+				i.removeAttribute("srcset");
 				i.src = "";
-				i.src = src;
+				i.src = `${src}${src.includes("?") ? "&" : "?"}wp2retry=${Date.now()}`;
 				n++;
 			}
-		}
-		return n;
-	});
-	if (retried) await allDecoded();
+			return n;
+		}, attempt === 4);
+		if (!retried) break;
+		await page.waitForTimeout(500 * attempt);
+		await allDone(8_000);
+	}
+	// Decoded, not just downloaded: a full-page screenshot can otherwise paint an image that is still decoding as empty.
+	await page.evaluate(() => Promise.all(Array.from(document.images).filter((i) => i.complete && i.naturalWidth > 0).map((i) => i.decode().catch(() => {})))).catch(() => {});
 	if (maskSelectors.length) {
 		await page.addStyleTag({ content: `${maskSelectors.join(",")} { visibility: hidden !important; }` }).catch(() => {});
 	}
 	await page.waitForTimeout(400);
+	return page.evaluate(() => Array.from(document.images).filter((i) => i.getAttribute("src") && !i.getAttribute("src")?.startsWith("data:") && (!i.complete || i.naturalWidth === 0) && i.getBoundingClientRect().width > 1).length).catch(() => 0);
 }
 
 export interface SectionBox {
@@ -148,6 +168,8 @@ export interface ScreenshotResult {
 	stillFile?: string;
 	/** How far the page scrolls sideways (document wider than the screen), px; 0 when it fits. */
 	overflowX?: number;
+	/** Images still without a picture when the screenshot was taken (after retries and one reload); omitted when 0. */
+	missingImages?: number;
 	error?: string;
 	consoleErrors: number;
 }
@@ -241,7 +263,12 @@ export async function captureScreenshots(
 				const file = join(dir, `${screenName(url)}.png`);
 				try {
 					await page.goto(url, { waitUntil: "load", timeout: 45_000 });
-					await settle(page, config.audit.maskSelectors);
+					let missingImages = await settle(page, config.audit.maskSelectors);
+					// A photo that still did not load: one fresh load of the page before the capture counts.
+					if (missingImages) {
+						await page.reload({ waitUntil: "load", timeout: 45_000 });
+						missingImages = await settle(page, config.audit.maskSelectors);
+					}
 					// Clip to the viewport width: marquees/off-canvas menus can make the document wider than the screen.
 					const height = await page.evaluate(() => document.documentElement.scrollHeight);
 					// Visible sideways scroll only: content clipped by an overflow:hidden ancestor (off-canvas menus) does not count.
@@ -259,7 +286,7 @@ export async function captureScreenshots(
 						await page.screenshot({ path: stillFile, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height }, timeout: 60_000 });
 						await tag.evaluate((el) => (el as Element).remove());
 					}
-					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), overflowX, consoleErrors });
+					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), overflowX, ...(missingImages ? { missingImages } : {}), consoleErrors });
 				} catch (e) {
 					results.push({ url, viewport: vp.name, error: (e as Error).message.split("\n")[0], consoleErrors });
 				}

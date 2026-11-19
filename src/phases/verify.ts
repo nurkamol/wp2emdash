@@ -268,6 +268,9 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const browser = await launchFor(pins);
 		let menu: VerifyResult["menu"];
 		const sideways: string[] = [];
+		// Captures where a photo still had not loaded after retries and a reload: named in the visual result, so a
+		// missing image is never mistaken for a layout difference.
+		const incomplete: string[] = [];
 		try {
 			const shots = await captureScreenshots(browser, results.filter((r) => r.status === 200).map((r) => r.targetUrl), config, join(outDir, "screens"), reporter, "no-preference");
 			reporter.emit({ type: "step:start", step: "Visual diff", total: shots.length });
@@ -276,6 +279,11 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			const footerIr = footerDoc ? readJson<IrPage>(join(paths.ir, footerDoc.file)) : undefined;
 			const footerGroups = groupSections((footerIr?.sections ?? []).map((x) => ({ type: x.type, path: x.sourceRef.path })), true);
 			for (const s of shots) if (s.overflowX && s.overflowX > 1) sideways.push(`${new URL(s.url).pathname} ${s.viewport} +${s.overflowX}px`);
+			for (const s of shots)
+				if (s.missingImages) {
+					incomplete.push(`${new URL(s.url).pathname} ${s.viewport} (${s.missingImages} image${s.missingImages === 1 ? "" : "s"})`);
+					reporter.emit({ type: "log", level: "warn", message: `capture incomplete: ${new URL(s.url).pathname} ${s.viewport}: ${s.missingImages} image(s) did not load; rerun verify to compare this page` });
+				}
 			for (const s of shots) {
 				const r = results.find((x) => x.targetUrl === s.url);
 				if (!r || !s.file) continue;
@@ -354,7 +362,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			"visual",
 			`Visual difference ≤ ${(g.visualDiff * 100).toFixed(0)}% per section × viewport`,
 			visualFails.length === 0,
-			visualFails.length ? `${visualFails.length} over (${allSections.length} sections compared); worst: ${visualFails.slice(0, 5).map((f) => f.text).join("; ")}` : `${allSections.length} sections compared`,
+			[visualFails.length ? `${visualFails.length} over (${allSections.length} sections compared); worst: ${visualFails.slice(0, 5).map((f) => f.text).join("; ")}` : `${allSections.length} sections compared`, ...(incomplete.length ? [`images missing in the capture (rerun): ${incomplete.join(", ")}`] : [])].join("; "),
 		);
 		check("no-sideways-scroll", "No page scrolls sideways at any screen size", sideways.length === 0, sideways.slice(0, 8).join("; ") || undefined);
 		const a11y = results.filter((r) => r.a11y && (r.a11y.serious.length || r.a11y.error));
