@@ -479,20 +479,20 @@ Progress model: phases → steps → items (e.g. `audit › screenshots › 34/1
 - **Secrets:** a form in the dashboard writes `.env` directly (migration key, app password, provider API keys); values are never shown again, never sent to Claude, never logged. Revocation reminders after import.
 
 **Features (priority order)**
-| # | Feature | What it does |
-|---|---|---|
-| 1 | Visual diff viewer | Old vs new per page × viewport: slider, onion-skin and pixel-diff modes, masked regions; approve/reject writes `decisions.md`; menu open-state and motion timing shown next to the recipe. |
-| 2 | Section inspector | Click a region on the source screenshot → the WordPress row/block, the IR section it became, and the rendered staging section. Change the section type or drop it → `overrides.elements`, rerun transform for that page only. |
-| 3 | Launch readiness score | One score per site from every gate (content, URLs, SEO, visual, forms, a11y, performance, security, editing); "what blocks launch" list with links to the fix. |
-| 4 | Launch cockpit | Cutover preflight, Worker route switch (owner-confirmed), live smoke checks, one-click rollback (delete routes), post-launch timer. |
-| 5 | Change watcher | Polls the exporter for `modified_gmt` changes during the project; shows which pages changed in WordPress and resyncs only those (cutover delta made continuous). |
-| 6 | Client sign-off page | Static export of the verify report + screenshots that the client reviews and signs; signature and date recorded in `decisions.md`. |
-| 7 | Post-launch monitor | 404 log → suggested redirects, form deliverability, Lighthouse and Core Web Vitals before vs after, Search Console coverage. |
-| 8 | Portfolio view | Every site in `sites/` with phase, readiness score, blockers and last run. |
-| 9 | Run history | Every run's IR and reports kept; diff two runs; restore an earlier IR. |
-| 10 | Guided owner checklist | ACCESS.md as a step-by-step guide with screenshots; automatic checks where possible (exporter installed, key valid, backup file present, DNS export parsed). |
+| # | Feature | What it does | Status |
+|---|---|---|---|
+| 1 | Visual diff viewer | Old vs new per page × viewport: slider, onion-skin and pixel-diff modes, masked regions; approve/reject writes `decisions.md`; menu open-state and motion timing shown next to the recipe. | Built (v1): slider, side by side, pixel diff, section table, approve/reject → `decisions.md`. Onion-skin, masked regions, menu motion next to the recipe: pending |
+| 2 | Section inspector | Click a region on the source screenshot → the WordPress row/block, the IR section it became, and the rendered staging section. Change the section type or drop it → `overrides.elements`, rerun transform for that page only. | Pending |
+| 3 | Launch readiness score | One score per site from every gate (content, URLs, SEO, visual, forms, a11y, performance, security, editing); "what blocks launch" list with links to the fix. | Built (v1): gates + `verify.json` + cutover preflight; blockers with the fix command or link |
+| 4 | Launch cockpit | Cutover preflight, Worker route switch (owner-confirmed), live smoke checks, one-click rollback (delete routes), post-launch timer. | Pending |
+| 5 | Change watcher | Polls the exporter for `modified_gmt` changes during the project; shows which pages changed in WordPress and resyncs only those (cutover delta made continuous). | Pending |
+| 6 | Client sign-off page | Static export of the verify report + screenshots that the client reviews and signs; signature and date recorded in `decisions.md`. | Pending |
+| 7 | Post-launch monitor | 404 log → suggested redirects, form deliverability, Lighthouse and Core Web Vitals before vs after, Search Console coverage. | Pending |
+| 8 | Portfolio view | Every site in `sites/` with phase, readiness score, blockers and last run. | Built (v1) |
+| 9 | Run history | Every run's IR and reports kept; diff two runs; restore an earlier IR. | Pending |
+| 10 | Guided owner checklist | ACCESS.md as a step-by-step guide with screenshots; automatic checks where possible (exporter installed, key valid, backup file present, DNS export parsed). | Pending |
 
-Built in the order above; 1–3 with M7, 4 with M8, 5–10 after the pilot launch.
+Built in the order above; 1–3 with M7, 4 with M8, 5–10 after the pilot launch. **v1 (2026-11-19):** `wp2emdash ui` with the portfolio (8), launch readiness (3), live run progress over SSE and the visual diff viewer (1); `127.0.0.1` only, a per-run token exchanged for an HttpOnly SameSite=Strict cookie, Host and Origin checks, files only from `reports/` and `snapshot/screens/`. Approving a visual difference appends to `decisions.md` and never accepts a gate. Not built yet: section inspector (2), MCP server, approval queue, secrets form, features 4–7, 9, 10.
 
 ---
 
@@ -546,7 +546,7 @@ Any failed assumption changes the plan before code depends on it.
 | M10 | `astro-pagescms` target: starter, file writer, `_redirects`, `.pages.yml` + schema generation, CI content validation | Same site migrates to either target from one IR; verify passes for both |
 | v2 | Bricks adapter (`_bricks_page_content_2` + templates), built and measured against a real client site; i18n; plugin porting | A real Bricks client site migrates with 0 unmapped content and passes verify |
 
-**Status (2026-11-19):** M0–M6 done. M7: the verify suite runs against staging and production and every check passes on the pilot except visual parity, which is being closed section by section (measured Salient rules in `docs/spikes/M7-findings.md`); the dashboard (§10b) is not built yet. M8: cutover preflight done; the pilot runs in production on `workers.dev` and waits for the owner's go-live approval, the go-live token and a working email account (form messages are held in the KV outbox until then). The form outbox has an admin page (Plugins → Form messages, admins only: inbox with search, filters, read state and bulk actions; insights from per-day counts; CSV/JSON export via one-time links and import; activity log; dashboard widget). Forms are the kit package `@wp2emdash/forms` (`packages/forms`: endpoint, email, outbox, admin plugin), copied into each client repo and linked from its package.json; usable in any EmDash project (its README). Backlog: recipients editable in the admin and sending through EmDash's email pipeline (`email:send`). Sharing cards (§7c) and the SEO panel (§7d) are opt-in per site and on for the pilot; the SEO dashboard, Search Console and IndexNow are part of §7d.
+**Status (2026-11-19):** M0–M6 done. M7: the verify suite runs against staging and production and every check passes on the pilot except visual parity, which is being closed section by section (measured Salient rules in `docs/spikes/M7-findings.md`); the dashboard (§10b) v1 is built (`wp2emdash ui`: portfolio, launch readiness, live runs, visual diff viewer with approve/reject → `decisions.md`); the section inspector, MCP server, approval queue and secrets form are next. M8: cutover preflight done; the pilot runs in production on `workers.dev` and waits for the owner's go-live approval, the go-live token and a working email account (form messages are held in the KV outbox until then). The form outbox has an admin page (Plugins → Form messages, admins only: inbox with search, filters, read state and bulk actions; insights from per-day counts; CSV/JSON export via one-time links and import; activity log; dashboard widget). Forms are the kit package `@wp2emdash/forms` (`packages/forms`: endpoint, email, outbox, admin plugin), copied into each client repo and linked from its package.json; usable in any EmDash project (its README). Backlog: recipients editable in the admin and sending through EmDash's email pipeline (`email:send`). Sharing cards (§7c) and the SEO panel (§7d) are opt-in per site and on for the pilot; the SEO dashboard, Search Console and IndexNow are part of §7d.
 
 ---
 

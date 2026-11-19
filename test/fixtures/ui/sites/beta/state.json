@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "slug": "beta",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "phases": {
+    "init": { "status": "pending", "checks": [] },
+    "audit": { "status": "pending", "checks": [] },
+    "extract": { "status": "pending", "checks": [] },
+    "transform": { "status": "pending", "checks": [] },
+    "scaffold": { "status": "pending", "checks": [] },
+    "load": { "status": "pending", "checks": [] },
+    "verify": { "status": "pending", "checks": [] },
+    "cutover": { "status": "pending", "checks": [] }
+  }
+}

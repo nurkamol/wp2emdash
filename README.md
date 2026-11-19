@@ -22,7 +22,27 @@ pnpm wp2emdash init --slug acme --name "Acme Clinic" --source https://acme.com -
 # tick the (required) items in sites/acme/ACCESS.md
 pnpm wp2emdash run acme init
 pnpm wp2emdash status
+pnpm wp2emdash ui          # local dashboard in the browser (--no-open to only print the URL)
 ```
+
+## Dashboard
+
+`pnpm wp2emdash ui` serves a local dashboard on `127.0.0.1` (random free port) and opens it in the browser. The printed
+URL carries a token that is new on every start; the first load swaps it for an HttpOnly, SameSite=Strict cookie and every
+request without it is refused. No remote access, no CDN, no Cloudflare calls.
+
+- **Portfolio** — every site in `sites/` with its phase timeline, next gate, readiness score, blockers and last run.
+- **Launch readiness** — one score per site: the share of launch checks that pass (gates `init` → `verify`, every
+  check in the latest `reports/verify/verify.json`, every cutover preflight check). Accepted gates count as passing.
+  The failing checks form the "what blocks launch" list, each with the command or link that fixes it.
+- **Live runs** — `sites/<slug>/runs/*.jsonl` streamed with server-sent events: steps, progress and log as they happen.
+- **Visual diff viewer** — WordPress vs EmDash per page × viewport: slider, side by side and pixel diff, plus the
+  section-by-section table. Approve or reject a difference with a reason: a dated row is appended to `decisions.md`.
+  This does **not** accept the verify gate: the owner still runs `wp2emdash accept <slug> verify --reason … --by …`
+  (the dashboard shows the command).
+
+Read-only otherwise: it serves only images from the site's `reports/` and `snapshot/screens/`, never runs phases and
+never writes `.env`.
 
 ## Pipeline
 

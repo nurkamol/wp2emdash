@@ -1,0 +1,7 @@
+{"at":"2026-01-02T11:00:00.000Z","type":"phase:start","phase":"cutover"}
+{"at":"2026-01-02T11:00:00.100Z","type":"step:start","step":"Preflight"}
+{"at":"2026-01-02T11:00:01.000Z","type":"step:end","step":"Preflight","ok":false,"detail":"runbook: cutover/runbook.md"}
+{"at":"2026-01-02T11:00:01.000Z","type":"log","level":"warn","message":"Preview run: gate result shown but not recorded."}
+{"at":"2026-01-02T11:00:01.000Z","type":"log","level":"error","message":"✖ Last verify run passed (failures only if the owner accepted them) — visual"}
+{"at":"2026-01-02T11:00:01.000Z","type":"log","level":"error","message":"✖ Go-live token present — CLOUDFLARE_GOLIVE_TOKEN not set"}
+{"at":"2026-01-02T11:00:01.000Z","type":"phase:end","phase":"cutover","ok":false}

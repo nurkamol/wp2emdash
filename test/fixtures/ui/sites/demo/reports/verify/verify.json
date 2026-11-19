@@ -1,0 +1,60 @@
+{
+  "target": "staging",
+  "targetUrl": "https://demo-staging.example.workers.dev",
+  "ranAt": "2026-01-02T10:00:04.000Z",
+  "pages": [
+    {
+      "path": "/",
+      "name": "home",
+      "sourceUrl": "https://demo.example/",
+      "targetUrl": "https://demo-staging.example.workers.dev/",
+      "status": 200,
+      "missingExternal": [],
+      "imagesWithoutAlt": [],
+      "forms": [],
+      "visual": {
+        "mobile": { "ratio": 0.12, "comparedHeight": 6, "sourceHeight": 6, "targetHeight": 6, "diffFile": "/elsewhere/sites/demo/reports/verify/diff/mobile/home.png" }
+      },
+      "sections": {
+        "mobile": [
+          {
+            "label": "row 1",
+            "sourceIndex": 0,
+            "footer": false,
+            "targetIndexes": [0],
+            "types": ["hero"],
+            "ratio": 0.12,
+            "sourceHeight": 3,
+            "targetHeight": 3,
+            "files": {
+              "source": "/elsewhere/sites/demo/reports/verify/sections/mobile/home/00-source.png",
+              "target": "/elsewhere/sites/demo/reports/verify/sections/mobile/home/00-target.png",
+              "diff": "/elsewhere/sites/demo/reports/verify/sections/mobile/home/00-diff.png"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "path": "/about",
+      "name": "about",
+      "sourceUrl": "https://demo.example/about",
+      "targetUrl": "https://demo-staging.example.workers.dev/about",
+      "status": 200,
+      "missingExternal": [],
+      "imagesWithoutAlt": [],
+      "forms": [],
+      "visual": {
+        "mobile": { "ratio": 0.01, "comparedHeight": 6, "sourceHeight": 6, "targetHeight": 6 }
+      },
+      "sections": {}
+    }
+  ],
+  "brokenLinks": [],
+  "security": { "headers": {}, "missing": [], "wpPaths": [] },
+  "forms": [],
+  "checks": [
+    { "id": "urls", "label": "Every audited page answers 200 at the same path", "ok": true, "detail": "2 pages" },
+    { "id": "visual", "label": "Visual difference within 3%", "ok": false, "detail": "/ mobile 12.0%" }
+  ]
+}
