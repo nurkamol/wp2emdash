@@ -264,7 +264,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
+import emdash from "emdash/astro";${config.forms.outbox ? '\nimport { fileURLToPath } from "node:url";' : ""}
 
 export default defineConfig({
 	site: ${JSON.stringify(siteConfig.productionUrl)},
@@ -279,7 +279,9 @@ export default defineConfig({
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
-			mcp: false,
+			mcp: false,${config.forms.outbox ? `
+			// Admin → Form messages: the form outbox, admins only (src/plugins/forms/plugin.ts).
+			plugins: [{ id: "site-forms", version: "1.0.0", format: "native", displayName: "Form messages", description: "Messages waiting in the form outbox", entrypoint: fileURLToPath(new URL("./src/plugins/forms/plugin.ts", import.meta.url)) }],` : ""}
 		}),
 	],
 	devToolbar: { enabled: false },

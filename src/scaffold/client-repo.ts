@@ -218,9 +218,10 @@ How a message is handled (\`src/pages/api/forms/[id].ts\`):
 
 ${i.outbox ? `**Outbox.** When email cannot be sent, the message is kept in Cloudflare KV (binding \`FORM_OUTBOX\`) instead of being
 lost, and the site retries it every 5 minutes; it is deleted once emailed, or after ${i.outbox.days} days. ${i.outbox.hold ? "**It is on hold right now:** every message is kept and none is sent, until a working email account is connected. To release the queue: set the new key (\`npx wrangler secret put EMAIL_API_KEY\`), set \`forms.outbox.hold: false\` in the migration kit's config, rerun scaffold and deploy." : ""}
-To see what is waiting (needs Cloudflare access to the account):
-\`npx wrangler kv key list --binding FORM_OUTBOX --remote\` (add \`--env staging\` for staging), then
-\`npx wrangler kv key get <key> --binding FORM_OUTBOX --remote\`.
+To see what is waiting, sign in to the admin as an **Admin** and open **Form messages** (under Plugins): each message
+can be read, emailed now (once email works) or deleted. Editors and other roles cannot open it. With Cloudflare access to
+the account the queue is also in Workers KV: \`npx wrangler kv key list --binding FORM_OUTBOX --remote\` (add \`--env staging\`
+for staging), then \`npx wrangler kv key get <key> --binding FORM_OUTBOX --remote\`.
 
 ` : ""}Recipients and sender are the \`FORM_TO\` / \`FORM_FROM\` settings in \`wrangler.jsonc\`; the ${i.email.provider} API key is the
 Worker secret \`EMAIL_API_KEY\`. The sender address must be verified in the ${i.email.provider} account.
