@@ -3,7 +3,7 @@
 import { isExternal, safeHref } from "../utils/links";
 
 interface Props {
-	items?: Array<{ label?: string; url?: string; style?: string; size?: string; text_size?: string; space_above?: string; side_space?: string; hover_label?: string; light?: boolean; min_width?: string; new_tab?: boolean; popup?: string }> | null;
+	items?: Array<{ label?: string; url?: string; style?: string; size?: string; text_size?: string; space_above?: string; side_space?: string; hover_label?: string; light?: boolean; plain?: boolean; min_width?: string; new_tab?: boolean; popup?: string }> | null;
 	class?: string;
 	/** The section's button-group settings (buttons_direction, _align, _width, _stack_phone, _gap); empty = as before. */
 	layout?: Record<string, unknown>;
@@ -28,7 +28,7 @@ const style = [above && `--actions-above:${above}`, gap && `--actions-gap:${gap}
 				return (
 					<a
 						href={href}
-						class:list={["btn", `btn--${b.style ?? "primary"}`, b.size === "large" && "btn--lg", b.hover_label && "has-hover-label", b.light === true && "btn--light"]}
+						class:list={["btn", `btn--${b.style ?? "primary"}`, b.size === "large" && "btn--lg", b.hover_label && "has-hover-label", b.light === true && "btn--light", b.plain === true && "btn--plain"]}
 						style={[/^\d{2}px$/.test(b.text_size ?? "") && `--btn-text:${b.text_size}`, /^\d{1,2}px$/.test(b.side_space ?? "") && `--btn-inset:${b.side_space}`, /^\d{2,3}px$/.test(b.min_width ?? "") && `min-width:${b.min_width}`].filter(Boolean).join(";") || undefined}
 						data-popup={b.popup || undefined}
 						target={b.new_tab ? "_blank" : undefined}

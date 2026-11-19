@@ -1,0 +1,19 @@
+{
+  "title": "House rules",
+  "content": "<!-- wp:paragraph --><p><strong>Updated:</strong> January 2026</p><!-- /wp:paragraph -->\n<!-- wp:heading {\"level\":3} --><h3 class=\"wp-block-heading\">1. Arriving</h3><!-- /wp:heading -->\n<!-- wp:list --><ul class=\"wp-block-list\"><li>Arrive ten minutes early.</li><li>Bring grip socks.</li></ul><!-- /wp:list -->",
+  "options": {
+    "bricks_global_classes": [{ "id": "tb01", "name": "page-title-box", "settings": { "_width": "auto" } }]
+  },
+  "live": [{ "width": 1440, "rootFontSize": 16, "variables": { "--content-gap": "1.875rem", "--container-gap": "4.2rem" } }],
+  "elements": [
+    { "id": "tbs1", "name": "section", "parent": 0, "children": ["tbt1", "tbc1"], "settings": { "_rowGap": "var(--container-gap)" } },
+    { "id": "tbt1", "name": "container", "parent": "tbs1", "children": ["tbh1"], "settings": { "_cssGlobalClasses": ["tb01"] } },
+    { "id": "tbh1", "name": "post-title", "parent": "tbt1", "children": [], "settings": { "tag": "h1" } },
+    { "id": "tbc1", "name": "container", "parent": "tbs1", "children": ["tbp1"], "settings": { "_rowGap": "var(--content-gap)" } },
+    { "id": "tbp1", "name": "text-basic", "parent": "tbc1", "children": [], "settings": { "tag": "p", "text": "{post_content}" } },
+    { "id": "tbs2", "name": "section", "parent": 0, "children": ["tbt2"], "settings": {} },
+    { "id": "tbt2", "name": "container", "parent": "tbs2", "children": ["tbh2", "tbd2"], "settings": { "_width": "auto", "_alignItems": "center", "_rowGap": "24" } },
+    { "id": "tbh2", "name": "heading", "parent": "tbt2", "children": [], "settings": { "tag": "h2", "text": "Visit us" } },
+    { "id": "tbd2", "name": "text-basic", "parent": "tbt2", "children": [], "settings": { "tag": "p", "text": "Two minutes from the station.", "_typography": { "text-align": "center" } } }
+  ]
+}

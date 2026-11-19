@@ -5,6 +5,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { adaptBricks, bricksDesign, type BricksElement, bricksElements, bricksSite, isBricks, liveVariables, siteTemplates, templateElements, templateType } from "../adapters/bricks/index.js";
+import { bricksHeaderLook, bricksLayout } from "../adapters/bricks/layout.js";
 import { headerButtons, headerMenu, nestedNavItems } from "../adapters/bricks/menus.js";
 import { readBricksOptions } from "../extract/bricks.js";
 import type { FormDefinitionOut } from "../scaffold/forms.js";
@@ -393,7 +394,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	write(join(paths.ir, "site.json"), site);
 	// Bricks form definitions (recipients never copied), read by scaffold next to the Fluent Forms exports.
 	for (const f of bricksForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
-	if (results.some((r) => r.doc.source.builder === "bricks")) write(join(paths.reports, "transform", "bricks-design.json"), { optionsPresent: bricks.present, ...bricksDesign(bricks) });
+	if (results.some((r) => r.doc.source.builder === "bricks")) write(join(paths.reports, "transform", "bricks-design.json"), { optionsPresent: bricks.present, ...bricksDesign(bricks), layout: bricksLayout(bricks, shots, readJson<Record<string, unknown>>(join(paths.raw, "acss-settings.json"))), header: bricksHeaderLook(bricksParts.header ? (bricksTemplates.get(bricksParts.header.id) ?? []) : [], bricks) });
 	check("ir-valid", "IR validates against the schema", invalid.length === 0, invalid.join("; ") || `${results.length} documents + site.json`);
 
 	// ── Unmapped content ───────────────────────────────────────────────────────

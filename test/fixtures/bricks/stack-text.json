@@ -1,0 +1,9 @@
+{
+  "live": [{ "width": 1440, "rootFontSize": 16, "variables": { "--width-l": "50rem", "--content-gap": "1.875rem", "--paragraph-spacing": "1em" } }],
+  "elements": [
+    { "id": "st10", "name": "section", "parent": 0, "children": ["st20"], "settings": {} },
+    { "id": "st20", "name": "container", "parent": "st10", "children": ["st30", "st40"], "settings": { "_alignItems": "center", "_width": "var(--width-l)", "_rowGap": "var(--content-gap)" } },
+    { "id": "st30", "name": "imagereveal", "parent": "st20", "children": [], "settings": { "image": { "id": 950, "url": "https://example.com/wp-content/uploads/2025/01/reformers.webp" }, "_width": "var(--width-l)", "height": "480" } },
+    { "id": "st40", "name": "text", "parent": "st20", "children": [], "settings": { "text": "<p>At the studio, the most important commitment is to <em>yourself</em>.</p><p>Reformer sessions on demand, or classes with an instructor.</p>", "_typography": { "font-size": "20", "font-weight": "400" } } }
+  ]
+}

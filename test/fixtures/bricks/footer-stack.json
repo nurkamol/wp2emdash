@@ -9,9 +9,9 @@
       { "id": "fs03", "name": "site-footer__logo", "settings": { "_width": "fit-content", "_direction": "row", "_margin": { "bottom": "12" } } },
       { "id": "fs04", "name": "site-footer__logo-img", "settings": { "_widthMax": "150" } },
       { "id": "fs05", "name": "site-footer__nav", "settings": { "_direction": "row", "_columnGap": "18", "_rowGap": "6" } },
-      { "id": "fs06", "name": "site-footer__link", "settings": { "titleTypography": { "font-size": "15", "font-weight": "400" } } },
+      { "id": "fs06", "name": "site-footer__link", "settings": { "titleTypography": { "font-size": "15", "font-weight": "400", "letter-spacing": ".5", "line-height": "1.4" } } },
       { "id": "fs07", "name": "site-footer__socials", "settings": { "_direction": "row", "_columnGap": "8" } },
-      { "id": "fs08", "name": "site-footer__credit", "settings": { "_typography": { "font-size": "13", "text-align": "center" } } }
+      { "id": "fs08", "name": "site-footer__credit", "settings": { "_typography": { "font-size": "13", "text-align": "center", "font-weight": "400", "letter-spacing": ".5", "line-height": "1.4" } } }
     ]
   },
   "live": [{ "width": 1440, "rootFontSize": 16, "variables": { "--stack-gap": "1.5rem" } }],

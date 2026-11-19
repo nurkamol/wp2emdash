@@ -158,7 +158,8 @@
             "label": "Visit us",
             "href": "https://maps.example.com/",
             "style": "primary",
-            "newTab": true
+            "newTab": true,
+            "plain": true
           }
         ],
         "mediaSide": "left",

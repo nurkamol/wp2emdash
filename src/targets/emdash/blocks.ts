@@ -81,7 +81,7 @@ export function ptToMd(blocks: RichText | undefined): string {
 const pt = (blocks: RichText | undefined) => (blocks?.length ? blocks : undefined);
 
 const buttons = (list: Button[] | undefined) =>
-	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, ...(b.size ? { size: b.size } : {}), ...(b.textSize ? { text_size: `${b.textSize}px` } : {}), ...(b.spaceAbove ? { space_above: `${b.spaceAbove}px` } : {}), ...(b.inset ? { side_space: `${b.inset}px` } : {}), ...(b.hoverLabel ? { hover_label: b.hoverLabel } : {}), ...(b.light ? { light: true } : {}), ...(b.minWidth ? { min_width: `${b.minWidth}px` } : {}), new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
+	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, ...(b.size ? { size: b.size } : {}), ...(b.textSize ? { text_size: `${b.textSize}px` } : {}), ...(b.spaceAbove ? { space_above: `${b.spaceAbove}px` } : {}), ...(b.inset ? { side_space: `${b.inset}px` } : {}), ...(b.hoverLabel ? { hover_label: b.hoverLabel } : {}), ...(b.light ? { light: true } : {}), ...(b.plain ? { plain: true } : {}),...(b.minWidth ? { min_width: `${b.minWidth}px` } : {}), new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
 
 /**
  * Sections hold up to 3 buttons. Extra ones (a footer column of legal links, say) become links in a paragraph after
@@ -193,6 +193,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		...(s.eyebrowGap !== undefined ? { eyebrow_gap: s.eyebrowGap } : {}),
 		...(s.headAlign ? { head_align: s.headAlign } : {}),
 		...(s.headGap ? { head_gap: s.headGap } : {}),
+		...(s.buttonsWidth ? { buttons_width: s.buttonsWidth } : {}),
 		...(s.pad?.top ? { pad_top: s.pad.top } : {}),
 		...(s.pad?.bottom ? { pad_bottom: s.pad.bottom } : {}),
 		...(s.pad?.topTablet !== undefined ? { pad_top_tablet: s.pad.topTablet } : {}),
@@ -207,11 +208,11 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 
 	switch (s.type) {
 		case "hero":
-			return base("hero", { ...head, body: pt(s.fields.body), buttons: buttons(s.fields.buttons), media: s.fields.media ? media(s.fields.media) : undefined, align: s.fields.align, ...stripUndefined({ content_width: s.fields.look?.width, body_size: s.fields.look?.bodySize, heading_size_phone: s.fields.look?.headingSizePhone, content_gap: s.fields.look?.gap, buttons_gap: s.fields.look?.buttonsGap !== undefined ? `${s.fields.look.buttonsGap}px` : undefined }) });
+			return base("hero", { ...head, body: pt(s.fields.body), buttons: buttons(s.fields.buttons), media: s.fields.media ? media(s.fields.media) : undefined, align: s.fields.align, ...stripUndefined({ content_width: s.fields.look?.width, body_size: s.fields.look?.bodySize, heading_size_phone: s.fields.look?.headingSizePhone, content_gap: s.fields.look?.gap, buttons_gap: s.fields.look?.buttonsGap !== undefined ? `${s.fields.look.buttonsGap}px` : undefined, buttons_above: s.fields.look?.buttonsAbove }) });
 		case "rich_text": {
 			const { head: h, rest } = headingFromBody(s.fields.body);
 			const l = s.fields.look ?? {};
-			const look = Object.fromEntries(Object.entries({ text_heading_size: l.headingSize, text_heading_size_tablet: l.headingSizeTablet, text_heading_size_phone: l.headingSizePhone, text_heading_leading: l.headingLeading, body_size: l.bodySize, body_size_small: l.bodySizeSmall, body_leading: l.bodyLeading, body_width: l.bodyWidth }).filter(([, v]) => v !== undefined));
+			const look = Object.fromEntries(Object.entries({ text_heading_size: l.headingSize, text_heading_size_tablet: l.headingSizeTablet, text_heading_size_phone: l.headingSizePhone, text_heading_leading: l.headingLeading, body_size: l.bodySize, body_size_small: l.bodySizeSmall, body_leading: l.bodyLeading, body_width: l.bodyWidth, text_block_gap: l.blockGap, text_head_gap: l.headGap, head_center: l.headCenter || undefined }).filter(([, v]) => v !== undefined));
 			const rtMore = overflowLinks(rest, s.fields.buttons, key);
 			return base("rich_text", { ...h, body: pt(rtMore.body), width: s.fields.width, align: s.fields.align, buttons: buttons(rtMore.buttons), variant: s.variant === "buttons" ? "buttons" : "default", ...look });
 		}
@@ -250,9 +251,17 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 				if (c.textWidth) cols[`col_${n}_text_width`] = c.textWidth;
 				if (c.textGap !== undefined) cols[`col_${n}_text_gap`] = c.textGap;
 				if (c.itemGap !== undefined) cols[`col_${n}_item_gap`] = c.itemGap;
+				if (c.itemGapFluid) cols[`col_${n}_item_gap_fluid`] = c.itemGapFluid;
 				if (c.linkGap !== undefined) cols[`col_${n}_link_gap`] = c.linkGap;
 				if (c.linkSize) cols[`col_${n}_link_size`] = c.linkSize;
 				if (c.textSize) cols[`col_${n}_text_size`] = c.textSize;
+				if (c.textWeight) cols[`col_${n}_text_weight`] = c.textWeight;
+				if (c.textTracking !== undefined) cols[`col_${n}_text_tracking`] = c.textTracking;
+				if (c.textLeading) cols[`col_${n}_text_leading`] = c.textLeading;
+				if (c.linkWeight) cols[`col_${n}_link_weight`] = c.linkWeight;
+				if (c.linkTracking !== undefined) cols[`col_${n}_link_tracking`] = c.linkTracking;
+				if (c.linkLeading) cols[`col_${n}_link_leading`] = c.linkLeading;
+				if (c.paraGap !== undefined) cols[`col_${n}_para_gap`] = c.paraGap;
 				if (c.socialIcons !== undefined) {
 					cols[`col_${n}_social_icons`] = true;
 					cols[`col_${n}_icon_gap`] = c.socialIcons;
@@ -300,7 +309,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		case "video":
 			return base("video", { ...head, video: s.fields.video ? media(s.fields.video) : undefined, embed_url: s.fields.embedUrl, poster: s.fields.poster ? media(s.fields.poster) : undefined, caption: s.fields.caption });
 		case "form":
-			return base("form", { ...head, intro: pt(s.fields.intro), form_id: `${s.fields.formRef.provider}-${s.fields.formRef.id}`, aside: pt(s.fields.aside) });
+			return base("form", { ...head, intro: pt(s.fields.intro), form_id: `${s.fields.formRef.provider}-${s.fields.formRef.id}`, aside: pt(s.fields.aside), ...(s.fields.stacked ? { stacked: true } : {}), ...(s.fields.formWidth ? { form_width: s.fields.formWidth } : {}), ...(s.fields.formGap ? { form_gap: s.fields.formGap } : {}) });
 		case "map":
 			return base("map", { ...head, embed_url: s.fields.embedUrl, address: s.fields.address, height: s.fields.height });
 		case "embed":

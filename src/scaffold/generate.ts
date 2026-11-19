@@ -461,7 +461,7 @@ export function headerLayout(menus: MenuCapture[]): Pick<SiteConfig["header"], "
 		layout: /centered/i.test(format) || toggleLeft ? "centered" : "logo-left",
 		inlineNav: !desktop?.found,
 		togglePosition: toggleLeft ? "left" : "right",
-		...(label && label.length <= 12 && !/^(menu toggle|toggle|open menu|navigation)$/i.test(label) ? { toggleLabel: label } : {}),
+		...(label && label.length <= 12 && !/^(menu toggle|toggle|open menu|navigation|open|close)$/i.test(label) ? { toggleLabel: label } : {}),
 	};
 }
 

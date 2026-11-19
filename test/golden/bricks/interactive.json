@@ -225,7 +225,8 @@
             "link": {
               "label": "Book",
               "href": "/book/morning/",
-              "style": "primary"
+              "style": "primary",
+              "plain": true
             }
           },
           {

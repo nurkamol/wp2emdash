@@ -63,7 +63,8 @@
           "provider": "fluent-forms",
           "id": "8"
         },
-        "aside": []
+        "aside": [],
+        "stacked": true
       }
     }
   ],
