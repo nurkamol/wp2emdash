@@ -1,0 +1,14 @@
+[
+  {
+    "url": "https://demo.example/",
+    "viewport": "mobile",
+    "file": "/elsewhere/sites/demo/snapshot/screens/mobile/home.png",
+    "height": 6,
+    "sections": [
+      { "index": 0, "y": 0, "height": 2, "footer": false, "kind": "wpbakery" },
+      { "index": 1, "y": 2, "height": 2, "footer": false, "kind": "wpbakery" },
+      { "index": 0, "y": 4, "height": 2, "footer": true, "kind": "wpbakery" }
+    ],
+    "consoleErrors": 0
+  }
+]

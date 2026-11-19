@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "kind": "partial",
+  "source": { "wpId": 90, "type": "salient_g_sections", "status": "publish", "slug": "site-footer", "builder": "wpbakery", "modifiedGmt": "2026-01-01T00:00:00" },
+  "title": "Site footer",
+  "seo": { "jsonLdTypes": [] },
+  "sections": [
+    {
+      "type": "columns",
+      "theme": { "tone": "dark" },
+      "spacing": "compact",
+      "fields": { "columns": [] },
+      "sourceRef": { "adapter": "wpbakery", "path": "vc_row[0]", "rawHash": "ffff0000" }
+    }
+  ],
+  "diagnostics": []
+}

@@ -1,0 +1,10 @@
+{
+  "id": "2026-01-03T09-00-00-000Z-a1b2c3",
+  "createdAt": "2026-01-03T09:00:00.000Z",
+  "by": "claude (wp2emdash-map)",
+  "summary": "Map the intro row on / to a text_block section <script>alert(1)</script>",
+  "file": "overrides.ts",
+  "patch": "--- a/overrides.ts\n+++ b/overrides.ts\n@@ -6,7 +6,9 @@\n \t/** WordPress path → EmDash path, when the default mapping is wrong. */\n \troutes: {},\n \t/** \"<slug>:<row path>\" from reports/transform/coverage.md → section type, or \"drop\" for decorative rows. */\n-\telements: {},\n+\telements: {\n+\t\t\"home:vc_row[1]\": \"text_block\",\n+\t},\n \t/** Integration id (reports/audit/integrations.md) → keep | rebuild | replace | drop. */\n \tintegrations: {},\n \tmedia: {\n",
+  "rerun": "transform",
+  "status": "pending"
+}

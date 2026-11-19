@@ -1,0 +1,17 @@
+[
+  {
+    "id": 10,
+    "post_type": "page",
+    "status": "publish",
+    "slug": "home",
+    "title": "Home",
+    "content": "[vc_row full_screen_row_position=\"middle\"][vc_column][vc_column_text]<h1>Welcome</h1>[/vc_column_text][/vc_column][/vc_row][vc_row disable_element=\"yes\"][vc_column][vc_column_text]hidden[/vc_column_text][/vc_column][/vc_row][vc_row el_class=\"intro\"][vc_column][vc_column_text]<p>Synthetic intro text</p>[/vc_column_text][/vc_column][/vc_row]",
+    "excerpt": "",
+    "date_gmt": "2026-01-01T00:00:00",
+    "modified_gmt": "2026-01-01T00:00:00",
+    "parent": null,
+    "menu_order": 0,
+    "taxonomies": {},
+    "meta": {}
+  }
+]

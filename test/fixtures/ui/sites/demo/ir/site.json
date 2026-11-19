@@ -1,0 +1,4 @@
+{
+  "version": 1,
+  "partials": [{ "role": "footer", "file": "partials/site-footer.json" }]
+}
