@@ -1,0 +1,191 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#14181c"
+        }
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#f100",
+        "rawHash": "9d71db0341"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "A small studio for yoga and pilates.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/4",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Visit",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "1 Example Street\nSpringfield",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t8",
+                    "text": "+1 000 000 0000",
+                    "marks": [
+                      "t7"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t7",
+                    "href": "tel:+10000000000"
+                  }
+                ]
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/4",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t9",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "ta",
+                    "text": "Explore",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Instagram",
+                "href": "https://instagram.com/example",
+                "style": "link",
+                "newTab": true
+              }
+            ]
+          }
+        ]
+      },
+      "pad": {
+        "top": "64px",
+        "bottom": "32px"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#14181c"
+        }
+      },
+      "spacing": "compact",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#f200",
+        "rawHash": "e9991e76fa"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tb",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tc",
+                "text": "© {year} Fixture Studio. All rights reserved.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "center",
+        "buttons": []
+      },
+      "pad": {
+        "top": "16px",
+        "bottom": "16px"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[logo] is rendered by the site (menu, logo, post data, filters), not migrated as content",
+      "path": "section#f100/container#f101/block#f110/logo#f111",
+      "tag": "logo"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[nav-menu] is rendered by the site (menu, logo, post data, filters), not migrated as content",
+      "path": "section#f100/container#f101/block#f130/nav-menu#f132",
+      "tag": "nav-menu"
+    }
+  ],
+  "forms": []
+}

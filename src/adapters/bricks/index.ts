@@ -1,19 +1,27 @@
 /**
- * Bricks Builder adapter. Bricks stores a page as a flat list of elements in post meta `_bricks_page_content_2`
- * (`{ id, name, parent, children[], settings, label? }`; `parent` 0 for top-level elements), not in post_content.
- * Elements → tree → rows (a top-level `section`, its row-direction container's children as columns) → the shared
- * section recognisers, like the Gutenberg adapter. Styling is mapped onto the WPBakery-style row attributes the
- * recognisers read (background colour and image, padding, anchor id).
+ * Bricks Builder adapter (Bricks 2.4.6 stable, 2.5 beta). Bricks stores a page as a flat list of elements in post
+ * meta `_bricks_page_content_2` (`{ id, name, parent, children[], settings, label?, cid?, properties? }`; `parent` 0
+ * for top-level elements), not in post_content. Header and footer templates keep theirs in `_bricks_page_header_2` /
+ * `_bricks_page_footer_2` (site.ts).
  *
- * Status: structure and content elements from Bricks' documented element settings, covered by synthetic fixtures.
- * Spacing and look are not measured on a live Bricks site yet (that is how the WPBakery/Salient adapter became
- * accurate): the first real client site confirms the meta shape the exporter returns and the element settings it
- * uses. Unknown elements are reported as unmapped, never dropped silently.
+ * Elements → tree → rows (a top-level `section`/`container`; a row-direction or multi-track grid container's
+ * structural children are the columns; nested rows become sub-rows) → the shared section recognisers, like the
+ * WPBakery and Gutenberg adapters. Styling (element settings merged with its global classes; colours resolved
+ * through the palette and global variables; padding per breakpoint) maps onto the WPBakery-style row attributes the
+ * recognisers read. Components and section templates are inlined. Unknown elements are reported as unmapped, never
+ * dropped silently. Verified facts: docs/spikes/bricks-findings.md.
  */
-import type { Diagnostic, MediaRef, PtBlock, Section, SectionType } from "../../ir/schema.js";
+import type { Diagnostic, Section, SectionType } from "../../ir/schema.js";
 import type { Keys } from "../../ir/portable-text.js";
-import { type Col, embedOrLegacy, type Fragment, type HandlerCtx, richFromHtml } from "../wpbakery/elements.js";
+import type { FormDefinitionOut } from "../../scaffold/forms.js";
+import { fluid } from "../../scaffold/generate.js";
+import { type Col, type Fragment, type HandlerCtx, mediaFrom } from "../wpbakery/elements.js";
 import { mergeRich, recognise, type Row, splitRow } from "../wpbakery/index.js";
+import { DECORATIVE, DYNAMIC, dynamicListing, type Env, HANDLERS, isFilter, mediaOf, plain } from "./elements.js";
+import { atBreakpoint, type BricksSite, effectiveSettings, emptySite, obj, pxOf, resolveColour, resolveLength, screens, str } from "./site.js";
+
+export { bricksSite, type BricksSite, siteTemplates, templateElements, templateType, bricksDesign, BRICKS_OPTIONS } from "./site.js";
+export { bricksFormToDefinition } from "./forms.js";
 
 export interface BricksElement {
 	id: string;
@@ -22,6 +30,9 @@ export interface BricksElement {
 	children?: string[];
 	settings?: Record<string, unknown>;
 	label?: string;
+	/** Component instance: the component id (`bricks_components`), and its property values. */
+	cid?: string;
+	properties?: Record<string, unknown>;
 }
 
 export interface BricksOptions {
@@ -32,18 +43,30 @@ export interface BricksOptions {
 	/** A Bricks template's elements by post id (the `template` element embeds one). */
 	template?: (id: number) => BricksElement[] | undefined;
 	rowOverrides?: Record<string, SectionType | "drop">;
+	/** Palette, global classes, theme style, components, breakpoints (WordPress options). */
+	site?: BricksSite;
+	/** The post the elements belong to (form ids are `<post>-<element>`). */
+	postId?: number;
+	/** Page title and site title, for `{post_title}` / `{site_title}` and the post-title element. */
+	title?: string;
+	siteTitle?: string;
+	/** Internal link (`{ type: internal, postId }`) → the migrated path. */
+	permalink?: (postId: number) => string | undefined;
+	/** Bricks popup template id → the IR popup slug (buttons whose interaction shows a popup). */
+	popupSlug?: (templateId: number) => string | undefined;
+}
+
+export interface BricksResult {
+	sections: Section[];
+	diagnostics: Diagnostic[];
+	/** Form definitions of the form elements on the page (written to ir/forms by transform). */
+	forms: FormDefinitionOut[];
 }
 
 /** Structural elements: they hold other elements and carry layout, not content. */
 const STRUCTURE = new Set(["section", "container", "block", "div"]);
-/** Site chrome and query-driven elements: rendered by the site itself, not migrated as page content. */
-const DYNAMIC = new Set(["nav-menu", "nav-nested", "logo", "search", "post-title", "post-content", "post-excerpt", "post-meta", "post-navigation", "post-comments", "posts", "pagination", "breadcrumbs", "sidebar", "related-posts", "query-results-summary", "offcanvas", "toggle", "back-to-top", "language-switcher"]);
-const DECORATIVE = new Set(["divider", "spacer"]);
 
-const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : undefined);
-const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined);
-const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
-const isRoot = (p: string | number) => p === 0 || p === "0" || p === "" || p === null;
+const isRoot = (p: string | number | null | undefined) => p === 0 || p === "0" || p === "" || p === null || p === undefined;
 
 /**
  * Read the meta value: an element array, an object keyed by index (PHP arrays that lost their order), or JSON text.
@@ -73,243 +96,440 @@ export function isBricks(meta: Record<string, unknown> | undefined): boolean {
 	return mode !== "wordpress" && !!bricksElements(meta._bricks_page_content_2);
 }
 
-export function adaptBricks(elements: BricksElement[], opts: BricksOptions): { sections: Section[]; diagnostics: Diagnostic[] } {
+/** Number of tracks in a grid-template-columns value (`1fr 2fr`, `repeat(3, 1fr)`, `repeat(auto-fit, minmax(…))`). */
+export function gridTracks(v: unknown): number[] | undefined {
+	const t = str(v)?.trim();
+	if (!t) return undefined;
+	const rep = /^repeat\(\s*(\d+)\s*,\s*([^)]+)\)$/.exec(t);
+	if (rep) return Array.from({ length: Number(rep[1]) }, () => Number.parseFloat(rep[2] as string) || 1);
+	if (/auto-(fit|fill)/.test(t)) return undefined;
+	const parts = t.split(/\s+(?![^(]*\))/).filter(Boolean);
+	return parts.map((p) => (/fr$/.test(p) ? Number.parseFloat(p) || 1 : 1));
+}
+
+const FRACTIONS: [number, string][] = [[1 / 6, "1/6"], [1 / 4, "1/4"], [1 / 3, "1/3"], [1 / 2, "1/2"], [2 / 3, "2/3"], [3 / 4, "3/4"]];
+const fraction = (f: number) => FRACTIONS.find(([v]) => Math.abs(v - f) < 0.02)?.[1];
+
+export function adaptBricks(elements: BricksElement[], opts: BricksOptions): BricksResult {
+	const site = opts.site ?? emptySite();
+	const { desktop, tablet, phone } = screens(site);
 	const diagnostics: Diagnostic[] = [];
 	const diag = (d: Diagnostic) => diagnostics.push(d);
+	const forms = new Map<string, FormDefinitionOut>();
 	const ctxFor = (path: string): HandlerCtx => ({ keys: opts.keys, path, diag, popupFor: opts.popupFor, postCount: opts.postCount, children: () => [] });
-	const byId = new Map(elements.map((e) => [e.id, e]));
+	const all: BricksElement[] = [...elements];
+	const byId = new Map(all.map((e) => [e.id, e]));
+	/** Element id → the post whose element list holds it (templates). */
+	const sourceOf = new Map<string, number>();
+	/** Slot element (inside a component) → the component instance whose children fill it. */
+	const slotOf = new Map<string, BricksElement>();
+	const effCache = new Map<BricksElement, Record<string, unknown>>();
+	const eff = (e: BricksElement) => {
+		let s = effCache.get(e);
+		if (!s) effCache.set(e, (s = effectiveSettings(e, site)));
+		return s;
+	};
+	let currentSource: number | undefined;
+
 	// Children in the order the parent lists them; elements a parent does not list follow in document order.
 	const childrenOf = (e: BricksElement): BricksElement[] => {
-		const listed = (e.children ?? []).flatMap((id) => byId.get(id) ?? []);
-		const extra = elements.filter((x) => String(x.parent) === e.id && !listed.includes(x));
+		const listed = (e.children ?? []).flatMap((id) => byId.get(String(id)) ?? []);
+		const extra = all.filter((x) => String(x.parent) === e.id && !listed.includes(x));
 		return [...listed, ...extra];
 	};
-	const roots = elements.filter((e) => isRoot(e.parent) || !byId.has(String(e.parent)));
 	const pathOf = (e: BricksElement) => `${e.name}#${e.id}`;
-	const seenTemplates = new Set<number>();
+
+	/** Copy another element list (template, component) into this tree under an id prefix; returns its roots. */
+	const grafted = new Map<string, BricksElement[]>();
+	function graft(els: BricksElement[], prefix: string, source?: number): BricksElement[] {
+		const done = grafted.get(prefix);
+		if (done) return done;
+		// The roots hang off a parent id that no element has, so no existing element lists them as extra children.
+		const parent = `${prefix}~^`;
+		const ids = new Set(els.map((x) => x.id));
+		const out = els.map((x) => ({ ...x, id: `${prefix}~${x.id}`, parent: isRoot(x.parent) || !ids.has(String(x.parent)) ? parent : `${prefix}~${x.parent}`, children: (x.children ?? []).map((c) => `${prefix}~${c}`), settings: { ...(x.settings ?? {}) } }));
+		for (const x of out) {
+			all.push(x);
+			byId.set(x.id, x);
+			if (source !== undefined) sourceOf.set(x.id, source);
+		}
+		const roots = out.filter((x) => x.parent === parent);
+		grafted.set(prefix, roots);
+		return roots;
+	}
+
+	const openTemplates = new Set<number>();
+	/** A `template` element → the template's top-level elements, grafted in place. */
+	function templateRoots(e: BricksElement, path: string): BricksElement[] | undefined {
+		const id = Number(e.settings?.template);
+		const els = Number.isInteger(id) && id > 0 && !openTemplates.has(id) ? opts.template?.(id) : undefined;
+		if (!els) {
+			diag({ level: "error", code: "unmapped", message: `[template] ${id || "?"} could not be loaded${openTemplates.has(id) ? " (it embeds itself)" : ""}`, path, carriesContent: true, tag: e.name });
+			return undefined;
+		}
+		return graft(els, `${e.id}t${id}`, id);
+	}
+
+	/** A component instance → the component's root element (grafted, property values applied). */
+	function componentRoot(e: BricksElement, path: string): BricksElement | undefined {
+		const comp = site.components.get(String(e.cid));
+		if (!comp?.elements.length) {
+			diag({ level: "error", code: "unmapped", message: `Bricks component ${e.cid} not found (bricks_components option missing from the extract?)`, path, carriesContent: true, tag: e.name });
+			return undefined;
+		}
+		const els = comp.elements.map((x) => ({ ...x, settings: { ...(x.settings ?? {}) } }));
+		// Instance values (else the property default) go to the connected element settings (includes/helpers.php).
+		for (const p of comp.properties) {
+			const v = e.properties?.[p.id] ?? p.default;
+			if (v === undefined || v === "" || v === null) continue;
+			for (const [elId, keys] of Object.entries(p.connections)) {
+				const target = els.find((x) => x.id === elId);
+				if (target) for (const k of keys) (target.settings as Record<string, unknown>)[k] = v;
+			}
+		}
+		const rootIdx = els.findIndex((x) => x.id === comp.id || isRoot(x.parent));
+		const roots = graft(els, e.id, sourceOf.get(e.id) ?? currentSource);
+		for (const x of all) if (x.name === "slot" && x.id.startsWith(`${e.id}~`)) slotOf.set(x.id, e);
+		const root = roots.find((x) => x.id === `${e.id}~${els[rootIdx]?.id}`) ?? roots[0];
+		// The instance keeps its own id and class settings on top of the component root's.
+		if (root) root.settings = { ...root.settings, ...(e.settings ?? {}) };
+		return root;
+	}
+
+	/** Hidden at the widest breakpoint: not migrated (a phone-only duplicate is common), reported. */
+	function hidden(e: BricksElement, path: string, report = true): boolean {
+		const s = eff(e);
+		if (atBreakpoint(s, "_display", desktop, site) !== "none") return false;
+		if (!report) return true;
+		const shownSmall = site.breakpoints.some((b) => b.key !== desktop && atBreakpoint(s, "_display", b.key, site) !== "none");
+		diag({ level: "warn", code: "lossy", message: `[${e.name}] hidden on desktop${shownSmall ? " (shown on smaller screens: usually a phone-only copy)" : ""}; not migrated`, path, tag: e.name });
+		return true;
+	}
+
+	const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
+	/** A counter's label is the short text right after it (Bricks counters have no label setting). */
+	function labelStats(frags: Fragment[]): Fragment[] {
+		const out: Fragment[] = [];
+		for (let i = 0; i < frags.length; i++) {
+			const f = frags[i] as Fragment;
+			const next = frags[i + 1];
+			if (f.kind === "stat" && !f.item.label && next?.kind === "rich" && next.blocks[0] && words(plain(next.blocks[0])) <= 8) {
+				out.push({ ...f, item: { ...f.item, label: plain(next.blocks[0]) } });
+				if (next.blocks.length > 1) out.push({ ...next, blocks: next.blocks.slice(1) });
+				i++;
+				continue;
+			}
+			out.push(f);
+		}
+		return out;
+	}
+
+	function isRowBox(e: BricksElement): boolean {
+		const s = eff(e);
+		const dir = str(atBreakpoint(s, "_direction", desktop, site));
+		if (dir === "row" || dir === "row-reverse") return true;
+		return str(atBreakpoint(s, "_display", desktop, site)) === "grid" && (gridTracks(atBreakpoint(s, "_gridTemplateColumns", desktop, site))?.length ?? 0) >= 2;
+	}
+
+	let rowTracks: number | undefined;
+	function columnsOfBox(box: BricksElement, path: string): Col[] {
+		const s = eff(box);
+		const tracks = str(atBreakpoint(s, "_display", desktop, site)) === "grid" ? gridTracks(atBreakpoint(s, "_gridTemplateColumns", desktop, site)) : undefined;
+		const kids = childrenOf(box);
+		if (tracks && tracks.length >= 2 && kids.length > tracks.length) rowTracks = tracks.length;
+		const total = tracks?.reduce((a, b) => a + b, 0) ?? 0;
+		return kids.map((k, i) => {
+			const c = column(k, `${path}/${pathOf(k)}`);
+			const t = tracks && kids.length === tracks.length ? fraction((tracks[i] as number) / total) : undefined;
+			return t && !c.width ? { ...c, width: t } : c;
+		});
+	}
 
 	function fragments(e: BricksElement, path: string): Fragment[] {
-		if (STRUCTURE.has(e.name)) return mergeRich(childrenOf(e).flatMap((c) => fragments(c, `${path}/${pathOf(c)}`)));
+		if (hidden(e, path)) return [];
+		if (e.cid) {
+			const root = componentRoot(e, path);
+			return root ? fragments(root, `${path}/component#${e.cid}`) : [];
+		}
+		if (e.name === "template") {
+			const id = Number(e.settings?.template);
+			const roots = templateRoots(e, path);
+			if (!roots) return [];
+			openTemplates.add(id);
+			const prev = currentSource;
+			currentSource = id;
+			const out = mergeRich(roots.flatMap((x) => fragments(x, `${path}/template#${id}/${pathOf(x)}`)));
+			currentSource = prev;
+			openTemplates.delete(id);
+			return out;
+		}
+		if (e.name === "slot") {
+			const inst = slotOf.get(e.id);
+			return inst ? mergeRich(childrenOf(inst).flatMap((c) => fragments(c, `${path}/${pathOf(c)}`))) : [];
+		}
+		if (e.name === "posts") return dynamicListing(e, e.settings?.query, path, env, "posts element");
+		if (STRUCTURE.has(e.name)) {
+			if (e.settings?.hasLoop) return dynamicListing(e, e.settings.query, path, env);
+			if (e.settings?._conditions) diag({ level: "info", code: "flagged", message: `[${e.name}] has display conditions in Bricks; its content is migrated unconditionally`, path, tag: e.name });
+			const kids = childrenOf(e);
+			if (kids.length >= 2 && kids.every((k) => STRUCTURE.has(k.name) || !!k.cid) && isRowBox(e)) return [{ kind: "subrow", columns: columnsOfBox(e, path) }];
+			return labelStats(mergeRich(kids.flatMap((c) => fragments(c, `${path}/${pathOf(c)}`))));
+		}
+		if (e.settings?._conditions) diag({ level: "info", code: "flagged", message: `[${e.name}] has display conditions in Bricks; migrated unconditionally`, path, tag: e.name });
+		if (str(eff(e)._columns)) diag({ level: "info", code: "lossy", message: `[${e.name}] CSS columns (${str(eff(e)._columns)}, Bricks 2.5) not reproduced; text kept in one column`, path, tag: e.name });
 		return leaf(e, path);
 	}
 
+	/** A structural element as a column: its fragments, background, width and text alignment. */
+	function column(e: BricksElement, path: string): Col {
+		const s = eff(e);
+		const bg = obj(s._background);
+		const bgImage = mediaOf(bg?.image);
+		const color = resolveColour(bg?.color, site);
+		const align = (bp: string) => str(obj(atBreakpoint(s, "_typography", bp, site))?.["text-align"]);
+		const frags = fragments(e, path);
+		const w = str(s._width)?.trim();
+		const width = w && /%$/.test(w) ? fraction(Number.parseFloat(w) / 100) : undefined;
+		return {
+			fragments: frags.length && bgImage ? [{ kind: "media", media: bgImage, role: "background" }, ...frags] : frags,
+			...(width ? { width } : {}),
+			...(color ? { background: { color } } : {}),
+			...(align(desktop) === "center" ? { centered: true } : align(desktop) === "right" ? { right: true } : {}),
+			...(align(phone) === "center" && align(desktop) !== "center" ? { phoneCenter: true } : {}),
+			...(align(tablet) === "center" && align(desktop) !== "center" ? { tabletCenter: true } : {}),
+		};
+	}
+
+	const env: Env = {
+		site,
+		opts,
+		diag,
+		ctx: ctxFor,
+		childrenOf,
+		fragments,
+		column,
+		forms,
+		sourceId: () => currentSource ?? opts.postId,
+	};
+
 	function leaf(e: BricksElement, path: string): Fragment[] {
-		const s = e.settings ?? {};
-		const ctx = ctxFor(path);
 		if (DECORATIVE.has(e.name)) {
 			diag({ level: "info", code: "dropped-decorative", message: `[${e.name}] dropped (decorative)`, path, tag: e.name });
 			return [];
 		}
-		if (DYNAMIC.has(e.name)) {
-			diag({ level: "info", code: "dynamic", message: `[${e.name}] is rendered by the site (menu, logo, post data), not migrated as content`, path, tag: e.name });
+		if (DYNAMIC.has(e.name) || isFilter(e.name)) {
+			diag({ level: "info", code: "dynamic", message: `[${e.name}] is rendered by the site (menu, logo, post data, filters), not migrated as content`, path, tag: e.name });
 			return [];
 		}
-		const text = str(s.text) ?? "";
-		if (/\{[a-z_]+(?::[^}]*)?\}/.test(text)) diag({ level: "warn", code: "dynamic", message: `[${e.name}] uses Bricks dynamic data (${/\{[a-z_]+/.exec(text)?.[0]}}); the text is kept as written`, path, tag: e.name });
-		switch (e.name) {
-			case "heading": {
-				const tag = /^h[1-6]$/.test(str(s.tag) ?? "") ? (s.tag as string) : "h3";
-				return text ? richFromHtml(`<${tag}>${text}</${tag}>`, ctx) : [];
-			}
-			case "text-basic": {
-				const tag = /^(p|div|span|h[1-6])$/.test(str(s.tag) ?? "") ? (s.tag as string) : "p";
-				return text ? richFromHtml(`<${tag === "span" || tag === "div" ? "p" : tag}>${text}</${tag === "span" || tag === "div" ? "p" : tag}>`, ctx) : [];
-			}
-			case "text":
-			case "rich-text":
-				return text ? richFromHtml(text, ctx) : [];
-			case "button": {
-				const label = text.replace(/<[^>]+>/g, "").trim();
-				if (!label) return [];
-				const link = linkOf(s.link);
-				const popup = opts.popupFor({ ...(link.href ? { href: link.href } : {}), ...(str(s._cssClasses) ? { classes: str(s._cssClasses) } : {}) });
-				const style = /outline|secondary|light/.test(str(s.style) ?? "") || s.outline === true ? "secondary" : "primary";
-				return [{ kind: "button", button: { label, href: link.href ?? (popup ? `#${popup}` : "#"), style, ...(str(s.size) === "lg" || str(s.size) === "xl" ? { size: "large" as const } : {}), ...(link.newTab ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}) } }];
-			}
-			case "image": {
-				const media = mediaOf(s.image, str(s.altText));
-				const link = linkOf(s.link);
-				const caption = str(s.caption);
-				return [...(media ? [{ kind: "media" as const, media, role: "content" as const, ...(link.href ? { link: link.href } : {}) }] : []), ...(caption ? richFromHtml(`<p>${esc(caption)}</p>`, ctx) : [])];
-			}
-			case "video": {
-				const type = str(s.videoType) ?? "youtube";
-				if (type === "youtube" && str(s.youTubeId)) return [{ kind: "video", embedUrl: `https://www.youtube.com/watch?v=${str(s.youTubeId)}` }];
-				if (type === "vimeo" && str(s.vimeoId)) return [{ kind: "video", embedUrl: `https://vimeo.com/${str(s.vimeoId)}` }];
-				const file = mediaOf(s.media, undefined, "video") ?? (str(s.fileUrl) ? { url: str(s.fileUrl) as string, kind: "video" as const } : undefined);
-				return [{ kind: "video", ...(file ? { video: file } : {}) }];
-			}
-			case "icon": {
-				const icon = iconOf(s.icon);
-				return icon ? [{ kind: "icon", icon }] : [];
-			}
-			case "icon-box": {
-				const icon = iconOf(s.icon);
-				const body = richFromHtml(str(s.content) ?? "", ctx).flatMap((f) => (f.kind === "rich" ? f.blocks : []));
-				const titleBlock = body.find((b) => /^h[1-6]$/.test(b.style ?? ""));
-				return [{ kind: "feature", item: { ...(titleBlock ? { title: titleBlock.children.map((c) => c.text).join("") } : {}), body: body.filter((b) => b !== titleBlock), ...(icon ? { icon } : {}) } }];
-			}
-			case "list": {
-				const items = Array.isArray(s.items) ? (s.items as Record<string, unknown>[]) : [];
-				const li = items.map((it) => `<li>${[str(it.title), str(it.meta)].filter(Boolean).join(" — ")}</li>`).join("");
-				return li ? richFromHtml(`<ul>${li}</ul>`, ctx) : [];
-			}
-			case "accordion":
-			case "accordion-nested": {
-				if (e.name === "accordion") return (Array.isArray(s.items) ? (s.items as Record<string, unknown>[]) : []).map((it) => ({ kind: "faq" as const, question: str(it.title) ?? "", answer: richFromHtml(str(it.content) ?? "", ctx).flatMap((f) => (f.kind === "rich" ? f.blocks : [])) }));
-				// Nested: each item is a block whose first child is the title, the rest the answer.
-				return childrenOf(e).map((item, k) => {
-					const [title, ...rest] = childrenOf(item);
-					const q = title ? fragments(title, `${path}/${k}`).flatMap((f) => (f.kind === "rich" ? f.blocks : [])).map(plain).join(" ") : "";
-					return { kind: "faq" as const, question: q, answer: rest.flatMap((r) => fragments(r, `${path}/${k}`)).flatMap((f) => (f.kind === "rich" ? f.blocks : [])) };
-				});
-			}
-			case "tabs":
-			case "tabs-nested": {
-				if (e.name === "tabs") return (Array.isArray(s.tabs) ? (s.tabs as Record<string, unknown>[]) : []).map((t) => ({ kind: "tab" as const, label: str(t.title) ?? "", body: richFromHtml(str(t.content) ?? "", ctx).flatMap((f) => (f.kind === "rich" ? f.blocks : [])) }));
-				// Nested: two children — the tab titles and the panes, in the same order.
-				const [titles, panes] = childrenOf(e);
-				const labels = titles ? childrenOf(titles).map((t) => fragments(t, path).flatMap((f) => (f.kind === "rich" ? f.blocks : [])).map(plain).join(" ")) : [];
-				return (panes ? childrenOf(panes) : []).map((pane, k) => ({ kind: "tab" as const, label: labels[k] ?? `Tab ${k + 1}`, body: fragments(pane, `${path}/${k}`).flatMap((f) => (f.kind === "rich" ? f.blocks : [])) }));
-			}
-			case "counter": {
-				const value = str(s.countTo);
-				return value ? [{ kind: "stat", item: { value, label: str(s.title) ?? "", ...(str(s.prefix) ? { prefix: str(s.prefix) } : {}), ...(str(s.suffix) ? { suffix: str(s.suffix) } : {}) } }] : [];
-			}
-			case "image-gallery": {
-				const raw = obj(s.items)?.images ?? s.items;
-				const images = (Array.isArray(raw) ? raw : []).flatMap((i) => mediaOf(i) ?? []);
-				return images.length ? [{ kind: "gallery", images, layout: str(s.layout) === "masonry" ? "masonry" : "grid" }] : [];
-			}
-			case "code":
-				return embedOrLegacy(str(s.code) ?? "", ctx, "Bricks code element");
-			case "shortcode":
-				return embedOrLegacy(str(s.shortcode) ?? "", ctx, "Bricks shortcode element");
-			case "html":
-				return embedOrLegacy(str(s.html) ?? text, ctx, "Bricks HTML element");
-			case "template": {
-				const id = Number(s.template);
-				const els = Number.isInteger(id) && !seenTemplates.has(id) ? opts.template?.(id) : undefined;
-				if (!els) {
-					diag({ level: "error", code: "unmapped", message: `[template] ${id || "?"} could not be loaded`, path, carriesContent: true, tag: e.name });
-					return [];
-				}
-				seenTemplates.add(id);
-				const tplById = new Map(els.map((x) => [x.id, x]));
-				for (const x of els) if (!byId.has(x.id)) byId.set(x.id, x);
-				const out = els.filter((x) => isRoot(x.parent) || !tplById.has(String(x.parent))).flatMap((x) => fragments(x, `${path}/template#${id}/${pathOf(x)}`));
-				seenTemplates.delete(id);
-				return out;
-			}
+		const handler = HANDLERS[e.name];
+		if (handler) {
+			const prev = currentSource;
+			currentSource = sourceOf.get(e.id) ?? currentSource;
+			const out = handler(e, e.settings ?? {}, path, env);
+			currentSource = prev;
+			return out;
 		}
-		const carries = !!(text || str(s.content) || str(s.title));
+		const s = e.settings ?? {};
+		const carries = ["text", "content", "title", "html", "code", "items", "image", "file", "link", "url", "address"].some((k) => {
+			const v = s[k];
+			return typeof v === "string" ? v.trim() !== "" : Array.isArray(v) ? v.length > 0 : !!obj(v);
+		});
 		diag({ level: carries ? "error" : "warn", code: "unmapped", message: `No handler for Bricks [${e.name}]${carries ? " (carries content)" : ""}`, path, carriesContent: carries, tag: e.name });
 		return [];
 	}
 
-	/** A section's columns: the first row-direction container (or the section itself) with two or more structural children. */
+	/** A section's columns: the first row container (or the section itself) with two or more structural children. */
 	function columnsOf(section: BricksElement, path: string): Col[] {
 		let box: BricksElement | undefined = section;
 		for (let depth = 0; box && depth < 3; depth++) {
+			if (box.cid || box.name === "template" || hidden(box, path, false)) break;
 			const kids = childrenOf(box);
-			const structural = kids.filter((k) => STRUCTURE.has(k.name));
-			const dir = str(box.settings?._direction) ?? str(obj(box.settings?._flexDirection)?.value);
-			if (kids.length >= 2 && structural.length === kids.length && (dir === "row" || box.name === "container" || box.name === "section") && (dir === "row" || kids.some((k) => str(k.settings?._width)))) {
-				return kids.map((k) => ({ fragments: fragments(k, `${path}/${pathOf(k)}`), ...(widthOf(k) ? { width: widthOf(k) } : {}) }));
-			}
-			box = kids.length === 1 && STRUCTURE.has(kids[0]?.name ?? "") ? kids[0] : undefined;
+			if (kids.length >= 2 && kids.every((k) => STRUCTURE.has(k.name)) && isRowBox(box) && !box.settings?.hasLoop) return columnsOfBox(box, depth ? `${path}/${pathOf(box)}` : path);
+			box = kids.length === 1 && STRUCTURE.has(kids[0]?.name ?? "") && !kids[0]?.cid ? kids[0] : undefined;
 		}
 		return [{ fragments: fragments(section, path) }];
 	}
 
-	const rows: Row[] = [];
-	let loose: BricksElement[] = [];
+	/** The section and the single containers inside it, outermost first (styling may sit on either). */
+	function chain(e: BricksElement): Record<string, unknown>[] {
+		const out = [eff(e)];
+		let box = e;
+		for (let i = 0; i < 2; i++) {
+			const kids = childrenOf(box);
+			if (kids.length !== 1 || !STRUCTURE.has(kids[0]?.name ?? "")) break;
+			box = kids[0] as BricksElement;
+			out.push(eff(box));
+		}
+		return out;
+	}
+
+	/** Padding of the row element at a breakpoint, px. */
+	function padAt(s: Record<string, unknown>, side: "top" | "bottom", bp: string): number | undefined {
+		const p = obj(atBreakpoint(s, "_padding", bp, site));
+		return pxOf(resolveLength(p?.[side], site));
+	}
+
+	/** A row's styling as the WPBakery-style row attributes the recognisers read, and its padding per screen. */
+	function styleOf(e: BricksElement, path: string): { attrs: Record<string, string>; pad?: Section["pad"] } {
+		const [s, ...inner] = chain(e) as [Record<string, unknown>, ...Record<string, unknown>[]];
+		const first = <T>(read: (x: Record<string, unknown>) => T | undefined) => [s, ...inner].map(read).find((v) => v !== undefined && v !== "");
+		const a: Record<string, string> = {};
+		const bg = first((x) => obj(x._background));
+		const color = resolveColour(bg?.color, site);
+		if (color) a.bg_color = color;
+		else if (bg?.color) diag({ level: "info", code: "lossy", message: `[${e.name}] background colour ${JSON.stringify(bg.color)} not resolved (palette/variables missing from the extract?)`, path, tag: e.name });
+		const image = mediaOf(bg?.image);
+		if (image) a.bg_image = image.wpId ? String(image.wpId) : (image.url as string);
+		if (str(bg?.videoUrl) && mediaFrom(str(bg?.videoUrl), "video")) {
+			a.video_bg = "true";
+			a.video_mp4 = str(bg?.videoUrl) as string;
+		}
+		if (image && (str(bg?.attachment) === "fixed" || first((x) => x._motionBackgroundParallax))) a.parallax_bg = "true";
+		const grad = first((x) => obj(x._gradient));
+		const css = gradientCss(grad);
+		if (css) {
+			a.gradient_type = "advanced";
+			a.advanced_gradient = css;
+		}
+		const pad = obj(s._padding) ? s : (inner.find((x) => obj(x._padding)) ?? (e.name === "section" ? { _padding: obj(obj(site.themeStyle?.section)?.padding) } : s));
+		const top = { d: padAt(pad, "top", desktop), t: padAt(pad, "top", tablet), p: padAt(pad, "top", phone) };
+		const bottom = { d: padAt(pad, "bottom", desktop), t: padAt(pad, "bottom", tablet), p: padAt(pad, "bottom", phone) };
+		if (top.d !== undefined) a.top_padding = `${top.d}px`;
+		if (bottom.d !== undefined) a.bottom_padding = `${bottom.d}px`;
+		const typo = first((x) => obj(x._typography));
+		const textColor = resolveColour(typo?.color, site);
+		if (textColor) a.text_color = isLight(textColor) ? "light" : "dark";
+		if (str(typo?.["text-align"]) === "center") a.text_align = "center";
+		const id = str(e.settings?._cssId);
+		if (id) a.id = id;
+		const tall = first((x) => [x._height, x._heightMin].map((v) => str(v)?.trim()).find((v) => v && /^100(?:d|s|l)?vh$/.test(v)));
+		if (tall) {
+			a.full_height = "yes";
+			const justify = first((x) => str(x._justifyContent));
+			const pos = justify === "center" ? "middle" : justify === "flex-end" ? "bottom" : undefined;
+			if (pos) a.full_screen_row_position = pos;
+		}
+		const inW = inner.map((x) => str(x._width)?.trim() ?? str(x._widthMax)?.trim()).find(Boolean);
+		if (inW && /^(100%|100vw|none)$/.test(inW)) a.type = "full_width_content";
+		const gap = first((x) => str(x._columnGap)?.trim() ?? str(x._gap)?.trim());
+		if (gap !== undefined && /^0(px|rem|em|%)?$/.test(gap)) a.column_margin = "none";
+		const side = (v: { d?: number; t?: number; p?: number }) => {
+			if (v.d === undefined) return undefined;
+			const p = v.p ?? v.d;
+			const line = p + ((v.d - p) * (768 - 390)) / (1440 - 390);
+			const t = v.t !== undefined && Math.abs(v.t - line) > 4 ? Math.round(v.t) : undefined;
+			return { value: fluid(p, v.d), tablet: t };
+		};
+		const st = side(top);
+		const sb = side(bottom);
+		const padOut = { ...(st ? { top: st.value } : {}), ...(sb ? { bottom: sb.value } : {}), ...(st?.tablet !== undefined ? { topTablet: st.tablet } : {}), ...(sb?.tablet !== undefined ? { bottomTablet: sb.tablet } : {}) };
+		return { attrs: a, ...(Object.keys(padOut).length ? { pad: padOut } : {}) };
+	}
+
+	function gradientCss(g: Record<string, unknown> | undefined): string | undefined {
+		if (!g || (str(g.applyTo) && str(g.applyTo) !== "background" && str(g.applyTo) !== "overlay")) return undefined;
+		const stops = (Array.isArray(g.colors) ? g.colors : []).flatMap((c) => {
+			const col = resolveColour(obj(c)?.color, site);
+			const stop = str(obj(c)?.stop);
+			return col ? [`${col}${stop ? ` ${Number.parseFloat(stop)}%` : ""}`] : [];
+		});
+		if (stops.length < 2) return undefined;
+		const type = str(g.gradientType) === "radial" ? "radial" : "linear";
+		const angle = type === "linear" && str(g.angle) ? `${Number.parseFloat(str(g.angle) as string)}deg, ` : "";
+		const css = `${type}-gradient(${angle}${stops.join(", ")})`;
+		return /^(?:linear|radial)-gradient\([^;{}<>]*\)$/.test(css) ? css : undefined;
+	}
+
+	// ── Rows ─────────────────────────────────────────────────────────────────
+	/** Top-level elements, with section templates and component instances at the top replaced by their content. */
+	function expandRoots(list: BricksElement[], depth = 0): { e: BricksElement; path: string }[] {
+		return list.flatMap((r) => {
+			const path = pathOf(r);
+			if (depth < 4 && r.name === "template") {
+				const id = Number(r.settings?.template);
+				const roots = templateRoots(r, path);
+				if (!roots) return [];
+				openTemplates.add(id);
+				const out = expandRoots(roots, depth + 1).map((x) => ({ e: x.e, path: `${path}/template#${id}/${x.path}` }));
+				openTemplates.delete(id);
+				return out;
+			}
+			if (depth < 4 && r.cid) {
+				const root = componentRoot(r, path);
+				return root ? [{ e: root, path: `${path}/component#${r.cid}` }] : [];
+			}
+			return [{ e: r, path }];
+		});
+	}
+
+	interface BricksRow extends Row {
+		pad?: Section["pad"];
+		tracks?: number;
+	}
+	const rows: BricksRow[] = [];
+	let loose: { e: BricksElement; path: string }[] = [];
 	const flushLoose = () => {
 		if (!loose.length) return;
-		rows.push({ attrs: {}, columns: [{ fragments: mergeRich(loose.flatMap((e) => fragments(e, pathOf(e)))) }], path: loose.map(pathOf).join("+"), raw: JSON.stringify(loose), adapter: "bricks" });
+		rows.push({ attrs: {}, columns: [{ fragments: mergeRich(loose.flatMap((x) => fragments(x.e, x.path))) }], path: loose.map((x) => x.path).join("+"), raw: JSON.stringify(loose.map((x) => x.e)), adapter: "bricks" });
 		loose = [];
 	};
-	for (const r of roots) {
+	const roots = all.filter((e) => isRoot(e.parent) || !byId.has(String(e.parent)));
+	for (const { e: r, path } of expandRoots(roots)) {
 		if (r.name !== "section" && r.name !== "container") {
-			loose.push(r);
+			loose.push({ e: r, path });
 			continue;
 		}
 		flushLoose();
-		const path = pathOf(r);
-		rows.push({ attrs: styleOf(r), columns: columnsOf(r, path), path, raw: JSON.stringify(r), adapter: "bricks" });
+		if (hidden(r, path)) continue;
+		currentSource = sourceOf.get(r.id);
+		if (r.settings?.hasLoop) {
+			dynamicListing(r, r.settings.query, path, env);
+			continue;
+		}
+		rowTracks = undefined;
+		const style = styleOf(r, path);
+		const columns = columnsOf(r, path);
+		rows.push({ attrs: style.attrs, columns, path, raw: JSON.stringify(r), adapter: "bricks", ...(style.pad ? { pad: style.pad } : {}), ...(rowTracks ? { tracks: rowTracks } : {}) });
+		currentSource = undefined;
 	}
 	flushLoose();
 
 	const sections: Section[] = [];
 	for (const row of rows) {
 		const forced = opts.rowOverrides?.[row.path];
-		if (forced === "drop") continue;
-		for (const v of splitRow(row)) sections.push(...recognise(v, { first: sections.length === 0, kind: opts.kind, ...(forced ? { forced } : {}), keys: opts.keys, diag }));
+		if (forced === "drop") {
+			diag({ level: "info", code: "dropped-decorative", message: "Row dropped by overrides.ts", path: row.path });
+			continue;
+		}
+		const out: Section[] = [];
+		for (const v of splitRow(row)) out.push(...recognise(v, { first: sections.length + out.length === 0, kind: opts.kind, ...(forced ? { forced } : {}), keys: opts.keys, diag }));
+		for (const s of out) {
+			// A grid with more cards than tracks keeps its tracks per row.
+			if (row.tracks && (s.type === "feature_grid" || s.type === "team") && (s.fields.columns ?? 0) > row.tracks) s.fields.columns = Math.min(6, row.tracks);
+		}
+		// Source padding (desktop → phone, tablet when off the line): the row's first section gets its top, the last its bottom.
+		const head = out[0];
+		const tail = out.at(-1);
+		if (row.pad && head && head.type !== "hero" && !head.fullHeight && row.pad.top) head.pad = { ...head.pad, top: row.pad.top, ...(row.pad.topTablet !== undefined ? { topTablet: row.pad.topTablet } : {}) };
+		if (row.pad && tail && tail.type !== "hero" && !tail.fullHeight && row.pad.bottom) tail.pad = { ...tail.pad, bottom: row.pad.bottom, ...(row.pad.bottomTablet !== undefined ? { bottomTablet: row.pad.bottomTablet } : {}) };
+		sections.push(...out);
 	}
-	return { sections, diagnostics };
+	return { sections, diagnostics, forms: [...forms.values()] };
 }
 
-const plain = (b: PtBlock) => b.children.map((c) => c.text).join("");
-
-function linkOf(v: unknown): { href?: string; newTab?: boolean } {
-	const l = obj(v);
-	if (!l) return {};
-	const type = str(l.type);
-	const href = type === "internal" ? (str(l.url) ?? (str(l.postId) ? `/?page_id=${str(l.postId)}` : undefined)) : str(l.url);
-	return { ...(href ? { href } : {}), ...(l.newTab === true || l.newTab === "true" ? { newTab: true } : {}) };
-}
-
-function mediaOf(v: unknown, alt?: string, kind: MediaRef["kind"] = "image"): MediaRef | undefined {
-	const m = obj(v);
-	if (!m) return undefined;
-	const id = Number(m.id);
-	const url = str(m.url) ?? str(m.full);
-	if (Number.isInteger(id) && id > 0) return { wpId: id, kind, ...(url ? { url } : {}), ...(alt ? { alt } : {}) };
-	return url ? { url, kind, ...(alt ? { alt } : {}) } : undefined;
-}
-
-function iconOf(v: unknown): { library: string; name: string } | undefined {
-	const i = obj(v);
-	const name = str(i?.icon);
-	if (!i || !name) return undefined;
-	const lib = str(i.library) ?? "";
-	return { library: /fontawesome/i.test(lib) ? "fontawesome" : /ionicons/i.test(lib) ? "ionicons" : /themify/i.test(lib) ? "themify" : lib || "custom", name: name.replace(/^(fa[srlbd]?|fa-solid|fa-regular|fa-brands)\s+fa-/, "").replace(/^ion-/, "").replace(/^ti-/, "") };
-}
-
-function widthOf(e: BricksElement): string | undefined {
-	const w = str(e.settings?._width);
-	const n = w ? Number.parseFloat(w) : Number.NaN;
-	if (!Number.isFinite(n) || !/%$/.test(w ?? "")) return undefined;
-	const known: [number, string][] = [[25, "1/4"], [33.33, "1/3"], [50, "1/2"], [66.66, "2/3"], [75, "3/4"]];
-	return known.find(([p]) => Math.abs(p - n) < 1)?.[1];
-}
-
-const colour = (v: unknown) => {
-	const c = obj(v);
-	return str(c?.hex) ?? str(c?.rgb) ?? str(c?.hsl) ?? str(c?.raw);
-};
-const px = (v: unknown) => {
-	const s = str(v)?.trim();
-	return s && /^\d+(?:\.\d+)?$/.test(s) ? `${s}px` : s;
-};
-
-/** A section's styling as the WPBakery-style row attributes the recognisers read. */
-function styleOf(e: BricksElement): Record<string, string> {
-	const s = e.settings ?? {};
-	const a: Record<string, string> = {};
-	const bg = obj(s._background);
-	const color = colour(bg?.color);
-	if (color) a.bg_color = color;
-	const image = obj(bg?.image);
-	const imageId = Number(image?.id);
-	if (Number.isInteger(imageId) && imageId > 0) a.bg_image = String(imageId);
-	else if (str(image?.url)) a.bg_image = str(image?.url) as string;
-	const pad = obj(s._padding);
-	if (px(pad?.top)) a.top_padding = px(pad?.top) as string;
-	if (px(pad?.bottom)) a.bottom_padding = px(pad?.bottom) as string;
-	const textColor = colour(obj(s._typography)?.color);
-	if (textColor) a.text_color = /^#?f{3,6}$|white|255,\s*255,\s*255/i.test(textColor.replace(/^#/, "")) ? "light" : "dark";
-	if (str(s._cssId)) a.id = str(s._cssId) as string;
-	if (str(s._height) === "100vh" || str(s._minHeight) === "100vh") a.full_height = "yes";
-	return a;
+/** Light text colour (white-ish): the section is dark. */
+function isLight(c: string): boolean {
+	const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})(?:[0-9a-f]{2})?$/i.exec(c)?.[1];
+	let rgb: number[] | undefined;
+	if (hex) {
+		const h = hex.length === 3 ? [...hex].map((x) => x + x).join("") : hex;
+		rgb = [0, 2, 4].map((i) => Number.parseInt(h.slice(i, i + 2), 16));
+	} else {
+		const m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i.exec(c);
+		if (m) rgb = [Number(m[1]), Number(m[2]), Number(m[3])];
+		else if (/^white$/i.test(c)) rgb = [255, 255, 255];
+	}
+	if (!rgb) return false;
+	const [r, g, b] = rgb as [number, number, number];
+	return 0.2126 * r + 0.7152 * g + 0.0722 * b >= 160;
 }

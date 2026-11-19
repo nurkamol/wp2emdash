@@ -1,0 +1,43 @@
+{
+  "postCount": 3,
+  "elements": [
+    { "id": "sec200", "name": "section", "parent": 0, "children": ["con200"], "settings": {} },
+    { "id": "con200", "name": "container", "parent": "sec200", "children": ["blk200", "blk201"], "settings": { "_direction": "row" } },
+    { "id": "blk200", "name": "block", "parent": "con200", "children": ["img200"], "settings": { "_width": "40%" } },
+    { "id": "img200", "name": "image", "parent": "blk200", "children": [], "settings": { "image": { "id": 610, "filename": "room.jpg", "size": "large", "full": "https://example.com/wp-content/uploads/room.jpg", "url": "https://example.com/wp-content/uploads/room-1024x683.jpg" }, "altText": "The big room", "link": "url", "url": { "type": "external", "url": "/rooms/" }, "caption": "custom", "captionCustom": "Room one, south light" } },
+    { "id": "blk201", "name": "block", "parent": "con200", "children": ["hd200", "tx200"], "settings": { "_width": "60%" } },
+    { "id": "hd200", "name": "heading", "parent": "blk201", "children": [], "settings": { "text": "Two rooms", "tag": "h2" } },
+    { "id": "tx200", "name": "text", "parent": "blk201", "children": [], "settings": { "text": "<p>Both rooms have sprung floors.</p>" } },
+
+    { "id": "sec201", "name": "section", "parent": 0, "children": ["con201"], "settings": {} },
+    { "id": "con201", "name": "container", "parent": "sec201", "children": ["hd201", "gal201"], "settings": {} },
+    { "id": "hd201", "name": "heading", "parent": "con201", "children": [], "settings": { "text": "Gallery", "tag": "h2" } },
+    { "id": "gal201", "name": "image-gallery", "parent": "con201", "children": [], "settings": { "layout": "masonry", "items": { "images": [ { "id": 620, "url": "https://example.com/wp-content/uploads/g1.jpg" }, { "id": 621, "url": "https://example.com/wp-content/uploads/g2.jpg" }, { "id": 622, "url": "https://example.com/wp-content/uploads/g3.jpg" } ], "size": "large" } } },
+
+    { "id": "sec202", "name": "section", "parent": 0, "children": ["con202"], "settings": {} },
+    { "id": "con202", "name": "container", "parent": "sec202", "children": ["car202"], "settings": {} },
+    { "id": "car202", "name": "carousel", "parent": "con202", "children": [], "settings": { "type": "media", "items": { "images": [ { "id": 630, "url": "https://example.com/wp-content/uploads/c1.jpg" }, { "id": 631, "url": "https://example.com/wp-content/uploads/c2.jpg" } ] } } },
+
+    { "id": "sec203", "name": "section", "parent": 0, "children": ["con203"], "settings": {} },
+    { "id": "con203", "name": "container", "parent": "sec203", "children": ["vid203", "vid204", "vid205"], "settings": {} },
+    { "id": "vid203", "name": "video", "parent": "con203", "children": [], "settings": { "videoType": "youtube", "youTubeId": "aBcDeFgHiJk", "previewImage": "custom", "previewImageCustom": { "id": 640, "url": "https://example.com/wp-content/uploads/poster.jpg" } } },
+    { "id": "vid204", "name": "video", "parent": "con203", "children": [], "settings": { "videoType": "vimeo", "vimeoId": "76979871" } },
+    { "id": "vid205", "name": "video", "parent": "con203", "children": [], "settings": { "videoType": "media", "media": { "id": 650, "url": "https://example.com/wp-content/uploads/intro.mp4", "filename": "intro.mp4" }, "videoPoster": { "id": 651, "url": "https://example.com/wp-content/uploads/intro.jpg" } } },
+
+    { "id": "sec204", "name": "section", "parent": 0, "children": ["con204"], "settings": {} },
+    { "id": "con204", "name": "container", "parent": "sec204", "children": ["hd204", "map204"], "settings": {} },
+    { "id": "hd204", "name": "heading", "parent": "con204", "children": [], "settings": { "text": "Find us", "tag": "h2" } },
+    { "id": "map204", "name": "map", "parent": "con204", "children": [], "settings": { "addresses": [ { "address": "1 Example Street, Springfield" }, { "latitude": "52.37", "longitude": "4.89" } ], "zoom": 14 } },
+
+    { "id": "sec205", "name": "section", "parent": 0, "children": ["con205"], "settings": {} },
+    { "id": "con205", "name": "container", "parent": "sec205", "children": ["lf205"], "settings": {} },
+    { "id": "lf205", "name": "map-leaflet", "parent": "con205", "children": [], "settings": { "center": "52.37,4.89", "markers": [ { "coordinates": "52.3702, 4.8952", "popupText": "<p>Studio entrance</p>" } ] } },
+
+    { "id": "sec206", "name": "section", "parent": 0, "children": ["con206"], "settings": {} },
+    { "id": "con206", "name": "container", "parent": "sec206", "children": ["hd206", "fl206", "svg206", "car206"], "settings": {} },
+    { "id": "hd206", "name": "heading", "parent": "con206", "children": [], "settings": { "text": "Downloads", "tag": "h3" } },
+    { "id": "fl206", "name": "file", "parent": "con206", "children": [], "settings": { "source": "file", "file": { "id": 660, "url": "https://example.com/wp-content/uploads/timetable.pdf", "filename": "timetable.pdf" }, "downloadButtonText": "Timetable (PDF)" } },
+    { "id": "svg206", "name": "svg", "parent": "con206", "children": [], "settings": { "source": "code", "code": "<svg viewBox=\"0 0 10 10\"><circle cx=\"5\" cy=\"5\" r=\"4\"/></svg>" } },
+    { "id": "car206", "name": "carousel", "parent": "con206", "children": [], "settings": { "type": "posts", "query": { "post_type": ["post"], "posts_per_page": 6 } } }
+  ]
+}

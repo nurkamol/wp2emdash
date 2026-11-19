@@ -256,6 +256,17 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			write(join(project, "src", "forms", `${def.id}.json`), out);
 		}
 	}
+	// Bricks form elements: definitions taken from the element settings by transform (ir/forms, recipients never copied).
+	const irForms = join(paths.ir, "forms");
+	for (const f of existsSync(irForms) ? readdirSync(irForms).filter((x) => x.endsWith(".json")) : []) {
+		const raw = readJson<FormDefinitionOut>(join(irForms, f));
+		if (!raw) continue;
+		const def = applySensitivePolicy({ ...raw, ...(config.sensitiveData ? { sensitive: true } : {}) }, config.forms.sensitive, config.forms.notice);
+		forms.push(def);
+		if (def.withheld?.length) reporter.emit({ type: "log", level: "info", message: `${def.id}: not collected under forms.sensitive="${config.forms.sensitive}": ${def.withheld.join(", ")}` });
+		const { warnings: _w, withheld: _h, ...out } = def;
+		write(join(project, "src", "forms", `${def.id}.json`), out);
+	}
 
 	// Seed (with the migrated content for local preview)
 	const sep = /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-";

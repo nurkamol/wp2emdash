@@ -1,0 +1,311 @@
+{
+  "sections": [
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec500",
+        "rawHash": "e7b5abc835"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Get in touch",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "We answer within a day.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "formRef": {
+          "provider": "bricks",
+          "id": "10-fm500"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec501",
+        "rawHash": "88485e9bb9"
+      },
+      "fields": {
+        "intro": [],
+        "formRef": {
+          "provider": "bricks",
+          "id": "10-fm501"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec502",
+        "rawHash": "54e63fe151"
+      },
+      "fields": {
+        "intro": [],
+        "formRef": {
+          "provider": "fluent-forms",
+          "id": "3"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec502",
+        "rawHash": "54e63fe151"
+      },
+      "fields": {
+        "intro": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Or book online:",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "formRef": {
+          "provider": "cf7",
+          "id": "44"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "calendly",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec503",
+        "rawHash": "22da65859a"
+      },
+      "fields": {
+        "provider": "calendly",
+        "html": "<iframe src=\"https://calendly.com/example/intro\" width=\"100%\" height=\"600\"></iframe>"
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec504",
+        "rawHash": "0d68615d1c"
+      },
+      "fields": {
+        "html": "<div class=\"price-calc\"><?php echo do_shortcode('[calc]'); ?></div>",
+        "reason": "Bricks code element (PHP)"
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec505",
+        "rawHash": "ec3409150a"
+      },
+      "fields": {
+        "html": "<div class=\"note\">Prices include VAT.</div>",
+        "reason": "Bricks code element"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[form] radio field \"Level\" shown as a select; field \"Attachment\" (file) not supported; rebuild by hand; hidden field \"source\" not rebuilt (its value is set by the page); add it by hand if the receiver needs it; field \"Preferred date\" has a description (Bricks 2.5) that the form does not show; Bricks form actions not rebuilt: redirect; recipient was a custom address in Bricks: set it in the admin (Forms → recipients), it is not copied",
+      "path": "section#sec500/container#con500/form#fm500",
+      "tag": "form"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[form] the Bricks form does not send email (actions: mailchimp); decide what the new form does; Bricks form actions not rebuilt: mailchimp",
+      "path": "section#sec501/container#con501/form#fm501",
+      "tag": "form"
+    },
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "[code] executes PHP on the server; never copied automatically — review and rebuild",
+      "path": "section#sec504/container#con504/code#cd504",
+      "carriesContent": true,
+      "tag": "code"
+    },
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (Bricks code element); replace with a section or approve in decisions.md",
+      "path": "section#sec505/container#con505/code#cd505",
+      "carriesContent": true
+    }
+  ],
+  "forms": [
+    {
+      "id": "bricks-10-fm500",
+      "title": "Contact form",
+      "submitLabel": "Send message",
+      "successMessage": "Thanks! We will reply soon.",
+      "fields": [
+        {
+          "name": "first_name",
+          "label": "First name",
+          "type": "text",
+          "placeholder": "Your first name",
+          "half": true
+        },
+        {
+          "name": "last_name",
+          "label": "Last name",
+          "type": "text",
+          "half": true
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "placeholder": "you@example.com",
+          "autocomplete": "email"
+        },
+        {
+          "name": "phone",
+          "label": "Phone",
+          "type": "tel",
+          "autocomplete": "tel"
+        },
+        {
+          "name": "class",
+          "label": "Class",
+          "type": "select",
+          "options": [
+            "Yoga",
+            "Pilates"
+          ]
+        },
+        {
+          "name": "level",
+          "label": "Level",
+          "type": "select",
+          "options": [
+            "Beginner",
+            "Advanced"
+          ]
+        },
+        {
+          "name": "newsletter",
+          "label": "Newsletter",
+          "type": "checkbox",
+          "options": [
+            "Send me the monthly newsletter"
+          ]
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "textarea",
+          "required": true
+        },
+        {
+          "name": "preferred_date",
+          "label": "Preferred date",
+          "type": "date"
+        }
+      ],
+      "warnings": [
+        "radio field \"Level\" shown as a select",
+        "field \"Attachment\" (file) not supported; rebuild by hand",
+        "hidden field \"source\" not rebuilt (its value is set by the page); add it by hand if the receiver needs it",
+        "field \"Preferred date\" has a description (Bricks 2.5) that the form does not show",
+        "Bricks form actions not rebuilt: redirect",
+        "recipient was a custom address in Bricks: set it in the admin (Forms → recipients), it is not copied"
+      ]
+    },
+    {
+      "id": "bricks-10-fm501",
+      "title": "Form fm501",
+      "submitLabel": "Send",
+      "successMessage": "Message successfully sent. We will get back to you as soon as possible.",
+      "fields": [
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "autocomplete": "email"
+        }
+      ],
+      "warnings": [
+        "the Bricks form does not send email (actions: mailchimp); decide what the new form does",
+        "Bricks form actions not rebuilt: mailchimp"
+      ]
+    }
+  ]
+}

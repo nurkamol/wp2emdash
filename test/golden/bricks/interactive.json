@@ -1,0 +1,381 @@
+{
+  "sections": [
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec400",
+        "rawHash": "7c4834e2a7"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Before your first class",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "What should I wear?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Comfortable clothes you can move in.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Is there parking?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Yes, behind the building.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "tabs",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec401",
+        "rawHash": "e0866d2e88"
+      },
+      "fields": {
+        "tabs": [
+          {
+            "label": "Mornings",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Classes at 7:00 and 9:00.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "label": "Evenings",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Classes at 18:00 and 19:30.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "tabs",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec402",
+        "rawHash": "5db65e8453"
+      },
+      "fields": {
+        "tabs": [
+          {
+            "label": "Yoga",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "Slow flow and breath work.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "label": "Pilates",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tk",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tl",
+                    "text": "Core strength on the mat.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "image-cards",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec403#0",
+        "rawHash": "19dbe03f3c"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Morning flow",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "to",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tp",
+                    "text": "Start the day slowly.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 811,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/s1.jpg"
+            },
+            "link": {
+              "label": "Book",
+              "href": "/book/morning/",
+              "style": "primary"
+            }
+          },
+          {
+            "title": "Evening stretch",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ts",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tt",
+                    "text": "Wind down after work.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 812,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/s2.jpg"
+            }
+          }
+        ],
+        "columns": 2
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "carousel",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec404",
+        "rawHash": "fa9183ff6f"
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 821,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/b1.jpg"
+          },
+          {
+            "wpId": 822,
+            "kind": "image",
+            "url": "https://example.com/wp-content/uploads/b2.jpg"
+          }
+        ],
+        "layout": "carousel",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "image-cards",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec405#0",
+        "rawHash": "fcf8d9a848"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Retreat weekend",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tw",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tx",
+                    "text": "Two days by the sea.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 831,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/r1.jpg"
+            },
+            "link": {
+              "label": "Details",
+              "href": "/retreat/",
+              "style": "primary"
+            }
+          },
+          {
+            "title": "Teacher training",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t10",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t11",
+                    "text": "200 hours, starts in May.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 832,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/r2.jpg"
+            }
+          }
+        ],
+        "columns": 2
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[accordion-nested] item \"Is there parking?\": media inside the answer not kept (answers are text)",
+      "path": "section#sec400/container#con400/accordion-nested#acn400",
+      "tag": "accordion-nested"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[slider-nested] 2 slide(s) shown side by side as cards (no slider in the section library)",
+      "path": "section#sec403/container#con403/slider-nested#sl403",
+      "tag": "slider-nested"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[slider] 2 slide(s) shown side by side as cards (no slider in the section library)",
+      "path": "section#sec405/container#con405/slider#sl405",
+      "tag": "slider"
+    }
+  ],
+  "forms": []
+}

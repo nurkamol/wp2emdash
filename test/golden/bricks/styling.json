@@ -1,0 +1,603 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "image",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "image": {
+            "wpId": 1001,
+            "kind": "image"
+          },
+          "gradient": "linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.6) 100%)",
+          "motion": "parallax"
+        }
+      },
+      "spacing": "normal",
+      "fullHeight": true,
+      "anchorId": "top",
+      "valign": "middle",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec700",
+        "rawHash": "afecc4c8f8"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Move well",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [],
+        "buttons": [
+          {
+            "label": "Book now",
+            "href": "/book/",
+            "style": "primary",
+            "size": "large"
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#14181c"
+        }
+      },
+      "spacing": "spacious",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec701",
+        "rawHash": "154262e97e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "A calm space",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Small groups, big attention.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      },
+      "pad": {
+        "top": "clamp(48px, 21.26px + 6.857vw, 120px)",
+        "topTablet": 120,
+        "bottom": "clamp(48px, 21.26px + 6.857vw, 120px)",
+        "bottomTablet": 120
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4ece2"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec702#0",
+        "rawHash": "52c230bc0b"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Classes",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      },
+      "pad": {
+        "top": "80px"
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "image-cards",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4ece2"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec702#1",
+        "rawHash": "52c230bc0b"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Yoga",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Breath and balance.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 1011,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/k1.jpg"
+            }
+          },
+          {
+            "title": "Pilates",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Core and control.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 1012,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/k2.jpg"
+            }
+          },
+          {
+            "title": "Barre",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "Strength at the bar.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 1013,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/k3.jpg"
+            }
+          },
+          {
+            "title": "Stretch",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tm",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tn",
+                    "text": "Long and slow.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 1014,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/k4.jpg"
+            }
+          },
+          {
+            "title": "Prenatal",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tq",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tr",
+                    "text": "Gentle and safe.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 1015,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/k5.jpg"
+            }
+          },
+          {
+            "title": "Private",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tu",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tv",
+                    "text": "One to one.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 1016,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/k6.jpg"
+            }
+          }
+        ],
+        "columns": 3
+      },
+      "pad": {
+        "bottom": "80px"
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "gap": "none",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec703",
+        "rawHash": "d3b533b050"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/3",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tw",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tx",
+                    "text": "Opening hours",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": [],
+            "background": {
+              "color": "#2f5d50"
+            }
+          },
+          {
+            "width": "2/3",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ty",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tz",
+                    "text": "Monday to Friday 7:00–21:00.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t10",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t11",
+                    "text": "Weekends 9:00–14:00.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      },
+      "pad": {
+        "top": "clamp(40px, 17.71px + 5.714vw, 100px)",
+        "topTablet": 40,
+        "bottom": "clamp(30px, 18.86px + 2.857vw, 60px)"
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "icons",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "video": {
+            "url": "https://example.com/wp-content/uploads/loop.mp4",
+            "kind": "video"
+          }
+        }
+      },
+      "spacing": "normal",
+      "width": "full",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec704",
+        "rawHash": "38d4320374"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Light",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t14",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t15",
+                    "text": "Bright rooms",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "sun"
+            }
+          },
+          {
+            "title": "Space",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t18",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t19",
+                    "text": "Room to move",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "sun"
+            }
+          },
+          {
+            "title": "Card title",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t1c",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1d",
+                    "text": "Default title kept",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "sun"
+            }
+          }
+        ],
+        "columns": 3
+      },
+      "pad": {
+        "top": "80px",
+        "bottom": "80px"
+      }
+    },
+    {
+      "type": "cta_banner",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#14181c"
+        }
+      },
+      "spacing": "spacious",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "template#tpl705/template#88/section#tpl705t88~q1",
+        "rawHash": "e880607add"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t1e",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1f",
+                "text": "Try a week for free",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [],
+        "buttons": [
+          {
+            "label": "Start",
+            "href": "/trial/",
+            "style": "primary"
+          }
+        ]
+      },
+      "pad": {
+        "top": "clamp(48px, 21.26px + 6.857vw, 120px)",
+        "topTablet": 120,
+        "bottom": "clamp(48px, 21.26px + 6.857vw, 120px)",
+        "bottomTablet": 120
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec706",
+        "rawHash": "7a6133bd2f"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t1g",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1h",
+                "text": "Default section padding comes from the theme style.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      },
+      "pad": {
+        "top": "80px",
+        "bottom": "80px"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "Bricks component missing-component not found (bricks_components option missing from the extract?)",
+      "path": "block#cmx707",
+      "carriesContent": true,
+      "tag": "block"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[section] background colour {\"raw\":\"var(--unknown-colour)\"} not resolved (palette/variables missing from the extract?)",
+      "path": "section#sec706",
+      "tag": "section"
+    }
+  ],
+  "forms": []
+}

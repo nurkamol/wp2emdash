@@ -1,0 +1,24 @@
+{
+  "title": "About the studio",
+  "permalinks": { "21": "/contact/" },
+  "popups": { "301": "newsletter" },
+  "elements": [
+    { "id": "sec100", "name": "section", "parent": 0, "children": ["con100"], "settings": {} },
+    { "id": "con100", "name": "container", "parent": "sec100", "children": ["pt100", "tb100", "tb101"], "settings": {} },
+    { "id": "pt100", "name": "post-title", "parent": "con100", "children": [], "settings": { "tag": "h1" } },
+    { "id": "tb100", "name": "text-basic", "parent": "con100", "children": [], "settings": { "text": "Welcome to {site_title}.\nOpen since 2009, © {current_date:Y}.", "tag": "p" } },
+    { "id": "tb101", "name": "text-basic", "parent": "con100", "children": [], "settings": { "text": "Ask about {acf_class_type} classes", "tag": "div", "link": { "type": "internal", "postId": 21 } } },
+
+    { "id": "sec101", "name": "section", "parent": 0, "children": ["con101"], "settings": {} },
+    { "id": "con101", "name": "container", "parent": "sec101", "children": ["hd101", "tx101", "al101", "at101", "ls101", "tl101", "bt101", "bt102", "bt103"], "settings": {} },
+    { "id": "hd101", "name": "heading", "parent": "con101", "children": [], "settings": { "text": "Our approach", "tag": "h2", "link": { "type": "external", "url": "https://example.com/approach/", "newTab": true } } },
+    { "id": "tx101", "name": "text", "parent": "con101", "children": [], "settings": { "text": "First paragraph with <strong>bold</strong> words.\n\nSecond paragraph after a blank line.", "_columns": "2" } },
+    { "id": "al101", "name": "alert", "parent": "con101", "children": [], "settings": { "content": "<p>Classes are closed on public holidays.</p>", "type": "info" } },
+    { "id": "at101", "name": "animated-typing", "parent": "con101", "children": [], "settings": { "tag": "h3", "prefix": "We teach", "strings": [{ "text": "yoga" }, { "text": "pilates" }, { "text": "barre" }], "suffix": "every day" } },
+    { "id": "ls101", "name": "list", "parent": "con101", "children": [], "settings": { "items": [ { "title": "Drop-in class", "meta": "€18" }, { "title": "Ten-class card", "meta": "€150", "description": "Valid for six months" }, { "title": "Timetable", "link": { "type": "internal", "postId": 21 } } ] } },
+    { "id": "tl101", "name": "text-link", "parent": "con101", "children": [], "settings": { "text": "Read the studio rules", "link": { "type": "external", "url": "/rules/" }, "icon": { "library": "fontawesomeSolid", "icon": "fas fa-arrow-right" } } },
+    { "id": "bt101", "name": "button", "parent": "con101", "children": [], "settings": { "text": "Join the newsletter", "style": "primary", "_interactions": [ { "id": "ia1", "trigger": "click", "action": "show", "target": "popup", "templateId": "301" } ] } },
+    { "id": "bt102", "name": "button", "parent": "con101", "children": [], "settings": { "text": "See prices", "style": "light", "size": "md", "link": { "type": "external", "url": "#prices" } } },
+    { "id": "bt103", "name": "button", "parent": "con101", "children": [], "settings": { "text": "Call us" } }
+  ]
+}

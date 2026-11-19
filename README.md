@@ -57,7 +57,7 @@ never writes `.env`.
 | `init` | Workspace, config, access & backup checklist | ✅ |
 | `audit` | Crawl live site, snapshots, screenshots, design, menu motion, forms & integrations scan | ✅ |
 | `extract` | EmDash Exporter API: raw content, meta, SEO, menus, forms, media download | ✅ |
-| `transform` | WPBakery/Salient, Gutenberg, classic (Bricks started) → section IR, coverage & text-conservation gate | ✅ |
+| `transform` | WPBakery/Salient, Gutenberg, classic, Bricks 2.4–2.5 (elements, global classes, palette, components, header/footer/popup templates, forms; not yet measured on a live Bricks site) → section IR, coverage & text-conservation gate | ✅ |
 | `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, analytics, seed; client README, docs and GitHub CI; builds + local preview | ✅ |
 | `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map | ✅ local, staging, production (`WP2EMDASH_LOAD_TARGET`) |
 | `verify` | Old site vs staging or production, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |

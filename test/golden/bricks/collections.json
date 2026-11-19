@@ -1,0 +1,290 @@
+{
+  "sections": [
+    {
+      "type": "testimonials",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec300",
+        "rawHash": "0f405844fe"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Kind words",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "items": [
+          {
+            "quote": "The best class in town.",
+            "name": "Alex P.",
+            "role": "Member since 2019",
+            "photo": {
+              "wpId": 701,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/alex.jpg"
+            }
+          },
+          {
+            "quote": "Calm, kind and strong.",
+            "name": "Sam R."
+          }
+        ]
+      }
+    },
+    {
+      "type": "team",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec301",
+        "rawHash": "92a4c435af"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Teachers",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "members": [
+          {
+            "name": "Jo Rivers",
+            "role": "Founder",
+            "photo": {
+              "wpId": 711,
+              "kind": "image",
+              "url": "https://example.com/wp-content/uploads/jo.jpg"
+            },
+            "bio": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Teaching since 2005.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "links": []
+          },
+          {
+            "name": "Kim Vale",
+            "role": "Pilates",
+            "bio": [],
+            "links": []
+          }
+        ]
+      }
+    },
+    {
+      "type": "pricing",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec302",
+        "rawHash": "f0d5728b0d"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "Memberships",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "plans": [
+          {
+            "name": "Basic (Monthly)",
+            "price": "€49",
+            "period": "per month",
+            "description": "Two classes a week",
+            "features": [
+              "Two classes a week",
+              "Mat rental",
+              "Free tea"
+            ],
+            "button": {
+              "label": "Choose Basic",
+              "href": "/join/basic/",
+              "style": "primary"
+            },
+            "highlight": false
+          },
+          {
+            "name": "Unlimited (Monthly)",
+            "price": "€89",
+            "period": "per month",
+            "features": [
+              "Every class",
+              "Guest pass"
+            ],
+            "button": {
+              "label": "Choose Unlimited",
+              "href": "/join/unlimited/",
+              "style": "primary"
+            },
+            "highlight": true
+          },
+          {
+            "name": "Unlimited (Yearly)",
+            "price": "€890",
+            "period": "per year",
+            "features": [
+              "Every class",
+              "Two months free"
+            ],
+            "highlight": false
+          }
+        ],
+        "buttons": []
+      }
+    },
+    {
+      "type": "stats",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec303",
+        "rawHash": "2f4dfc66b8"
+      },
+      "fields": {
+        "items": [
+          {
+            "value": "15",
+            "label": "Years teaching",
+            "suffix": "+"
+          },
+          {
+            "value": "2400",
+            "label": "Happy members"
+          },
+          {
+            "value": "80",
+            "suffix": "%",
+            "label": "Flexibility"
+          },
+          {
+            "value": "65",
+            "suffix": "%",
+            "label": "Strength"
+          }
+        ]
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec304",
+        "rawHash": "f2035adf82"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tg",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "th",
+                "text": "Follow the studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Instagram",
+            "href": "https://instagram.com/example",
+            "style": "link",
+            "newTab": true
+          },
+          {
+            "label": "Facebook",
+            "href": "https://facebook.com/example",
+            "style": "link",
+            "newTab": true
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[pricing-tables] Monthly / Yearly switch shown as one list (plan names carry the tab)",
+      "path": "section#sec302/container#con302/pricing-tables#pr302",
+      "tag": "pricing-tables"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[progress-bar] bars shown as figures",
+      "path": "section#sec303/container#con303/block#blk305/progress-bar#pb305",
+      "tag": "progress-bar"
+    }
+  ],
+  "forms": []
+}

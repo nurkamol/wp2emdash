@@ -1,0 +1,34 @@
+{
+  "elements": [
+    { "id": "sec300", "name": "section", "parent": 0, "children": ["con300"], "settings": {} },
+    { "id": "con300", "name": "container", "parent": "sec300", "children": ["hd300", "ts300"], "settings": {} },
+    { "id": "hd300", "name": "heading", "parent": "con300", "children": [], "settings": { "text": "Kind words", "tag": "h2" } },
+    { "id": "ts300", "name": "testimonials", "parent": "con300", "children": [], "settings": { "items": [ { "content": "<p>The best class in town.</p>", "name": "Alex P.", "title": "Member since 2019", "image": { "id": 701, "url": "https://example.com/wp-content/uploads/alex.jpg" } }, { "content": "Calm, kind and strong.", "name": "Sam R." } ] } },
+
+    { "id": "sec301", "name": "section", "parent": 0, "children": ["con301"], "settings": {} },
+    { "id": "con301", "name": "container", "parent": "sec301", "children": ["hd301", "tm301"], "settings": {} },
+    { "id": "hd301", "name": "heading", "parent": "con301", "children": [], "settings": { "text": "Teachers", "tag": "h2" } },
+    { "id": "tm301", "name": "team-members", "parent": "con301", "children": [], "settings": { "items": [ { "image": { "id": 711, "url": "https://example.com/wp-content/uploads/jo.jpg" }, "title": "Jo Rivers", "subtitle": "Founder", "description": "Teaching since 2005." }, { "title": "Kim Vale", "subtitle": "Pilates" } ] } },
+
+    { "id": "sec302", "name": "section", "parent": 0, "children": ["con302"], "settings": {} },
+    { "id": "con302", "name": "container", "parent": "sec302", "children": ["hd302", "pr302"], "settings": {} },
+    { "id": "hd302", "name": "heading", "parent": "con302", "children": [], "settings": { "text": "Memberships", "tag": "h2" } },
+    { "id": "pr302", "name": "pricing-tables", "parent": "con302", "children": [], "settings": { "tabs": true, "tab1Label": "Monthly", "tab2Label": "Yearly", "pricingTables": [ { "title": "Basic", "subtitle": "Two classes a week", "pricePrefix": "€", "price": "49", "priceMeta": "per month", "features": "Two classes a week\nMat rental\n<strong>Free</strong> tea", "buttonText": "Choose Basic", "buttonLink": { "type": "external", "url": "/join/basic/" } }, { "title": "Unlimited", "pricePrefix": "€", "price": "89", "priceMeta": "per month", "features": "Every class\nGuest pass", "buttonText": "Choose Unlimited", "buttonLink": { "type": "external", "url": "/join/unlimited/" }, "ribbonText": "Popular" }, { "title": "Unlimited", "showUnder": "tab-2", "pricePrefix": "€", "price": "890", "priceMeta": "per year", "features": "Every class\nTwo months free" } ] } },
+
+    { "id": "sec303", "name": "section", "parent": 0, "children": ["con303"], "settings": {} },
+    { "id": "con303", "name": "container", "parent": "sec303", "children": ["blk303", "blk304", "blk305"], "settings": { "_direction": "row" } },
+    { "id": "blk303", "name": "block", "parent": "con303", "children": ["cn303", "tb303"], "settings": {} },
+    { "id": "cn303", "name": "counter", "parent": "blk303", "children": [], "settings": { "countFrom": "0", "countTo": "15", "suffix": "+" } },
+    { "id": "tb303", "name": "text-basic", "parent": "blk303", "children": [], "settings": { "text": "Years teaching" } },
+    { "id": "blk304", "name": "block", "parent": "con303", "children": ["cn304", "hd304"], "settings": {} },
+    { "id": "cn304", "name": "counter", "parent": "blk304", "children": [], "settings": { "countTo": "2400", "thousandSeparator": true } },
+    { "id": "hd304", "name": "heading", "parent": "blk304", "children": [], "settings": { "text": "Happy members", "tag": "h4" } },
+    { "id": "blk305", "name": "block", "parent": "con303", "children": ["pb305"], "settings": {} },
+    { "id": "pb305", "name": "progress-bar", "parent": "blk305", "children": [], "settings": { "bars": [ { "title": "Flexibility", "percentage": "80" }, { "title": "Strength", "percentage": "65" } ], "showPercentage": true } },
+
+    { "id": "sec304", "name": "section", "parent": 0, "children": ["con304"], "settings": {} },
+    { "id": "con304", "name": "container", "parent": "sec304", "children": ["tx304", "so304"], "settings": {} },
+    { "id": "tx304", "name": "text-basic", "parent": "con304", "children": [], "settings": { "text": "Follow the studio" } },
+    { "id": "so304", "name": "social-icons", "parent": "con304", "children": [], "settings": { "icons": [ { "icon": { "library": "fontawesomeBrands", "icon": "fab fa-instagram" }, "link": { "type": "external", "url": "https://instagram.com/example" } }, { "icon": { "library": "fontawesomeBrands", "icon": "fab fa-facebook" }, "label": "Facebook", "link": { "type": "external", "url": "https://facebook.com/example", "newTab": true } } ] } }
+  ]
+}

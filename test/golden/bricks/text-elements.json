@@ -1,0 +1,307 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec100",
+        "rawHash": "cf12664efa"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "About the studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Welcome to Fixture Studio.\nOpen since 2009, © {year}.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t6",
+                "text": "Ask about {acf_class_type} classes",
+                "marks": [
+                  "t5"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t5",
+                "href": "/contact/"
+              }
+            ]
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#sec101",
+        "rawHash": "42f09e0b1f"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t7",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Our approach",
+                "marks": [
+                  "t8"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t8",
+                "href": "https://example.com/approach/",
+                "blank": true
+              }
+            ]
+          },
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "First paragraph with ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "tc",
+                "text": "bold",
+                "marks": [
+                  "strong"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "td",
+                "text": " words.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "te",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tf",
+                "text": "Second paragraph after a blank line.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tg",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "th",
+                "text": "Classes are closed on public holidays.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ti",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tj",
+                "text": "We teach yoga every day",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tk",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tl",
+                "text": "Drop-in class — €18",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tm",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tn",
+                "text": "Ten-class card — €150: Valid for six months",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "to",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tq",
+                "text": "Timetable",
+                "marks": [
+                  "tp"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "tp",
+                "href": "/contact/"
+              }
+            ],
+            "listItem": "bullet",
+            "level": 1
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Read the studio rules",
+            "href": "/rules/",
+            "style": "link"
+          },
+          {
+            "label": "Join the newsletter",
+            "href": "#newsletter",
+            "style": "primary",
+            "opensPopup": "newsletter"
+          },
+          {
+            "label": "See prices",
+            "href": "#prices",
+            "style": "secondary"
+          },
+          {
+            "label": "Call us",
+            "href": "#",
+            "style": "primary"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[post-title] filled with the page title",
+      "path": "section#sec100/container#con100/post-title#pt100",
+      "tag": "post-title"
+    },
+    {
+      "level": "warn",
+      "code": "dynamic",
+      "message": "[text-basic] uses Bricks dynamic data ({acf_class_type}); the text is kept as written",
+      "path": "section#sec100/container#con100/text-basic#tb101",
+      "tag": "text-basic"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[text] CSS columns (2, Bricks 2.5) not reproduced; text kept in one column",
+      "path": "section#sec101/container#con101/text#tx101",
+      "tag": "text"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[alert] notice box styling not reproduced; text kept",
+      "path": "section#sec101/container#con101/alert#al101",
+      "tag": "alert"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[animated-typing] typing animation not reproduced; first phrase kept, others: pilates | barre",
+      "path": "section#sec101/container#con101/animated-typing#at101",
+      "tag": "animated-typing"
+    },
+    {
+      "level": "warn",
+      "code": "link-unknown",
+      "message": "Button \"Call us\" has no link",
+      "path": "section#sec101/container#con101/button#bt103"
+    }
+  ],
+  "forms": []
+}

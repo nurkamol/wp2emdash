@@ -4,7 +4,9 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { adaptBricks, bricksElements, isBricks } from "../adapters/bricks/index.js";
+import { adaptBricks, bricksDesign, type BricksElement, bricksElements, bricksSite, isBricks, siteTemplates, templateElements, templateType } from "../adapters/bricks/index.js";
+import { readBricksOptions } from "../extract/bricks.js";
+import type { FormDefinitionOut } from "../scaffold/forms.js";
 import { adaptGutenberg } from "../adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../adapters/wpbakery/index.js";
 import { loadOverrides } from "../config/overrides.js";
@@ -73,8 +75,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const popupsRaw = content("popup");
 	const partialsRaw = content("salient_g_sections");
 	const reusable = new Map(content("wp_block").map((b) => [b.id, b.content]));
-	// Bricks templates (sections, headers, footers) embedded by the [template] element.
-	const bricksTemplates = new Map(content("bricks_template").map((t) => [t.id, bricksElements(t.meta?._bricks_page_content_2)]));
+	// Bricks: templates (header, footer, section, popup…; elements under the meta key of their type), and the options
+	// the element settings refer to (palette, global classes, theme style, components, breakpoints).
+	const bricksTemplatePosts = content("bricks_template");
+	const bricksTemplates = new Map(bricksTemplatePosts.map((t) => [t.id, templateElements(t.meta, bricksElements)]));
+	const bricks = bricksSite(readBricksOptions(paths.raw, options));
+	const bricksForms = new Map<string, FormDefinitionOut>();
+	const bricksPopups = new Map(bricksTemplatePosts.filter((t) => t.status === "publish" && templateType(t.meta) === "popup").map((t) => [t.id, `bricks-${t.slug}`]));
 	const siteUrl = config.source.url.replace(/\/$/, "");
 	const siteHosts = new Set([new URL(siteUrl).host, ...config.source.alternateHosts].map((h) => h.replace(/^www\./, "")));
 
@@ -147,14 +154,19 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const notTransformed: string[] = [];
 	const rowOverridesFor = (slug: string) => Object.fromEntries(Object.entries(overrides.elements).filter(([k]) => k.startsWith(`${slug}:`)).map(([k, v]) => [k.slice(slug.length + 1), v as SectionType | "drop"]));
 
-	const adapt = (p: ExporterPost, kind: IrPage["kind"]) => {
-		const builder = detectBuilder(p.content ?? "", p.meta);
+	const permalink = (id: number) => {
+		const p = byId.get(id) ?? posts.find((x) => x.id === id);
+		return p ? routeOf(p) : pathById.get(id);
+	};
+	/** `elements`: a Bricks template's element list (its meta key depends on the template type). */
+	const adapt = (p: ExporterPost, kind: IrPage["kind"], elements?: BricksElement[]) => {
+		const builder: Builder = elements ? "bricks" : detectBuilder(p.content ?? "", p.meta);
 		const keys = new Keys(`${p.id.toString(36)}_`);
 		const common = { kind, keys, popupFor, postCount: posts.filter((x) => x.status === "publish").length, rowOverrides: rowOverridesFor(p.slug) };
 		let sections: Section[] = [];
 		let diagnostics: Diagnostic[] = [];
 		try {
-			const r = builder === "bricks" ? adaptBricks(bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id) }) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id) });
+			const r = builder === "bricks" ? adaptBricksPost(p, common, elements) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id) });
 			sections = r.sections;
 			diagnostics = r.diagnostics;
 		} catch (e) {
@@ -168,6 +180,11 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		}
 		return { builder, sections, diagnostics };
 	};
+	function adaptBricksPost(p: ExporterPost, common: { kind: IrPage["kind"]; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, elements?: BricksElement[]) {
+		const r = adaptBricks(elements ?? bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id), site: bricks, postId: p.id, title: p.title, siteTitle, permalink, popupSlug: (id) => bricksPopups.get(id) });
+		for (const f of r.forms) bricksForms.set(f.id, f);
+		return r;
+	}
 
 	reporter.emit({ type: "step:start", step: "Adapt content", total: pages.length + partialsRaw.length + popupsRaw.length + posts.length });
 	let done = 0;
@@ -207,6 +224,20 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		emit({ version: IR_VERSION, kind: "partial", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder, modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics }, `partials/${p.slug}.json`, p.status === "publish");
 		partials.push({ role, file: `partials/${p.slug}.json` });
 	}
+	// Bricks header and footer templates: the site-wide ones (condition "entire website", else front page) become site parts.
+	const bricksParts = siteTemplates(bricksTemplatePosts.map((t) => ({ id: t.id, slug: t.slug, title: t.title, status: t.status, meta: t.meta })));
+	for (const role of ["header", "footer"] as const) {
+		const t = bricksParts[role];
+		const p = t && bricksTemplatePosts.find((x) => x.id === t.id);
+		if (!p) continue;
+		const { sections, diagnostics } = adapt(p, "partial", bricksTemplates.get(p.id) ?? []);
+		if (role === "footer") paddedEdges += applyMeasuredPadding(sections, boxesFor("/"), true);
+		emit({ version: IR_VERSION, kind: "partial", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder: "bricks", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics }, `partials/${p.slug}.json`, true);
+		partials.push({ role, file: `partials/${p.slug}.json` });
+	}
+	for (const o of bricksParts.others) notTransformed.push(`bricks_template ${o.post.slug} (${o.type}, ${o.post.status}): applies to ${o.conditions}; only the site-wide ${o.type} is migrated`);
+	const offChrome = pages.filter((p) => isBricks(p.meta) && ["headerDisabled", "footerDisabled"].some((k) => (p.meta._bricks_page_settings as Record<string, unknown> | undefined)?.[k]));
+	if (offChrome.length) notTransformed.push(`Bricks page settings hide the header or footer on: ${offChrome.map((p) => p.slug).join(", ")} (the starter shows them; decide per page)`);
 	const popups: IrSite["popups"] = [];
 	for (const p of popupsRaw) {
 		if (!popupEnabled(p)) {
@@ -223,6 +254,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			true,
 		);
 		popups.push({ slug: p.slug, file: `popups/${p.slug}.json` });
+	}
+	// Bricks popup templates: opened by a button's "show popup" interaction (the adapter sets opensPopup).
+	for (const [id, slug] of bricksPopups) {
+		const p = bricksTemplatePosts.find((x) => x.id === id) as ExporterPost;
+		const { sections, diagnostics } = adapt(p, "popup", bricksTemplates.get(id) ?? []);
+		emit({ version: IR_VERSION, kind: "popup", source: { wpId: p.id, type: p.post_type, status: p.status, slug, builder: "bricks", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics, popup: { selectors: [] } }, `popups/${slug}.json`, true);
+		popups.push({ slug, file: `popups/${slug}.json` });
 	}
 	for (const t of ["popup_theme", "wp_navigation", "rank_math_schema", "wp_block"]) {
 		const n = content(t).length;
@@ -267,6 +305,9 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const siteValid = irSite.safeParse(site);
 	if (!siteValid.success) invalid.push(`site.json: ${siteValid.error.issues[0]?.message}`);
 	write(join(paths.ir, "site.json"), site);
+	// Bricks form definitions (recipients never copied), read by scaffold next to the Fluent Forms exports.
+	for (const f of bricksForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
+	if (results.some((r) => r.doc.source.builder === "bricks")) write(join(paths.reports, "transform", "bricks-design.json"), { optionsPresent: bricks.present, ...bricksDesign(bricks) });
 	check("ir-valid", "IR validates against the schema", invalid.length === 0, invalid.join("; ") || `${results.length} documents + site.json`);
 
 	// ── Unmapped content ───────────────────────────────────────────────────────
@@ -353,7 +394,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	check("links", "Internal links point at migrated pages, anchors, popups or files", brokenLinks.length === 0, brokenLinks.slice(0, 8).join("; ") || undefined);
 
 	// ── Text conservation vs the live page HTML ─────────────────────────────────
-	const formText = readFormText(join(paths.raw, "forms"));
+	const formText = [...readFormText(join(paths.raw, "forms")), ...[...bricksForms.values()].flatMap((f) => [f.submitLabel, ...f.fields.flatMap((x) => [x.label, ...(x.placeholder ? [x.placeholder] : []), ...(x.options ?? [])])])];
 	const footerDocs = results.filter((r) => r.doc.kind === "partial" && r.published).map((r) => r.doc);
 	const lowPages: string[] = [];
 	for (const r of results.filter((x) => x.doc.kind === "page" && x.published)) {

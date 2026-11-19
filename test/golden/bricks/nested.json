@@ -237,5 +237,6 @@
       "message": "Row mixes gallery + legacy; secondary items emitted as separate sections",
       "path": "section#s3"
     }
-  ]
+  ],
+  "forms": []
 }
