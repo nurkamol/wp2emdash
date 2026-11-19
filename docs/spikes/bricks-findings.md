@@ -211,10 +211,15 @@ defines, and many global classes imported from ACSS (`btn--outline`, `btn--black
 - Lengths are evaluated, not just looked up: `calc()`, `clamp()`, `min()`, `max()`, `var()` (Bricks global variables
   first, then the live variables, then the fallback) with px / rem / em / vw at the screen width the kit measures
   (1440 / 768 / 390). Example: `--width-l: calc(85.375rem * 0.6)` → 819.6px; `--space-l` (a clamp) → 45px at 1440.
-- The screenshot capture also records every rendered Bricks element's box by id (`#brxe-<id>`: width, height, row and
-  column gap, padding, bottom margin, font size, line height) in `screens.json` (`bricks`). The adapter prefers these
-  measured gaps, widths and text sizes over the settings, which miss framework defaults (ACSS gives every container a
-  row gap of `--container-gap` without a Bricks setting).
+- Bricks prints an element's `id="brxe-<id>"` only when the element needs one (interactions, an id selector); elements
+  styled only by global classes have just `class="brxe-<name> <class names>"` (8 of ~60 elements on the home page had
+  an id). The screenshot capture therefore records every rendered element by **position**: `c:<top-level index>/<child
+  index>/…` under `#brx-content`, `f:…` under `#brx-footer`, counting only element nodes (a `brxe-` class; the
+  section's background-video wrapper is not one), with width, height, row/column gap, padding, bottom margin, font size
+  and line height (`screens.json` → `bricks`). The adapter keys its elements the same way (skipping elements hidden on
+  the front end, which are not in the DOM) and uses a measured box only when its `brxe-<name>` matches the element type.
+  It prefers the measured gaps, widths and text sizes over the settings, which miss framework defaults (ACSS gives
+  containers a row gap of `--container-gap` without any Bricks setting).
 - Measured section padding (the audit's section boxes) now applies to Bricks rows too (paired by `sourceRef.row`).
 
 ### Rules
@@ -244,6 +249,11 @@ defines, and many global classes imported from ACSS (`btn--outline`, `btn--black
   the gap between buttons and the body text size (else the theme style's body size) are carried as the hero's look.
 - **Buttons.** Bricks `style: light` (not outlined) is a white button with accent text; `_widthMin` is the button's
   minimum width; an ACSS `btn--outline` class makes an outline button.
+- **Rounded inner panel.** A background on an inner box with a border radius (a grey call-to-action panel inside a
+  white section) is a card, not the section's background; it is reported (`lossy`) and the section stays plain (the
+  library has no inner card), instead of turning the whole section grey.
+- **Body weight.** The theme style's `typographyBody` font weight (300 on this site) becomes the `--body-weight` token
+  (scaffold reads `reports/transform/bricks-design.json`); every paragraph was drawn at 400 before.
 - **Header over the hero.** The starter put the header over any hero with a background picture; on this site the
   header is solid (audit: `transparentOnTop: false`) and the hero starts below it. The header now sits over the hero
   only when it is transparent at the top.

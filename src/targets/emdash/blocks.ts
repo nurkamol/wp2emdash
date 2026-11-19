@@ -251,7 +251,10 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 				if (c.linkGap !== undefined) cols[`col_${n}_link_gap`] = c.linkGap;
 				if (c.linkSize) cols[`col_${n}_link_size`] = c.linkSize;
 				if (c.textSize) cols[`col_${n}_text_size`] = c.textSize;
-				if (c.socialIcons !== undefined) cols[`col_${n}_social_icons`] = c.socialIcons;
+				if (c.socialIcons !== undefined) {
+					cols[`col_${n}_social_icons`] = true;
+					cols[`col_${n}_icon_gap`] = c.socialIcons;
+				}
 			});
 			return base("columns", { ...head, ...cols });
 		}

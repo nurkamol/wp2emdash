@@ -351,8 +351,10 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		const v = lenPx(atBreakpoint(s, axis === "row" ? "_rowGap" : "_columnGap", desktop, site) ?? atBreakpoint(s, "_gap", desktop, site));
 		return v === undefined ? undefined : Math.round(v);
 	};
-	/** A text element's size: as measured on the live page, else its typography setting. */
-	const textPx = (x: BricksElement) => measuredBox(x)?.font ?? fontPx(eff(x));
+	/** A text element's size: its typography setting, else as measured on the live page. */
+	// Settings first: third-party elements (NextBricks titles) set the size on an inner node, so the measured outer box
+	// shows the inherited body size.
+	const textPx = (x: BricksElement) => fontPx(eff(x)) ?? measuredBox(x)?.font;
 	const PICTURE = new Set(["image", "logo", "imagereveal"]);
 	/**
 	 * Bricks blocks are flex columns: the look of a stacked column (a centred footer: logo, a row of links, social icons,
