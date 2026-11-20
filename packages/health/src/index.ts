@@ -56,6 +56,8 @@ export interface HealthOptions {
 	visits?: { accountId?: string; siteTag?: string };
 	/** SEO suite on: the report includes the average SEO score of published pages. */
 	seo?: { titleSeparator?: string; ogCards?: boolean };
+	/** The site runs @wp2emdash/backups: the Backups check reads its heartbeat (time of the last backup). */
+	backups?: boolean;
 	/** Mail DNS records at go-live (cutover/dns-before.json), as hashes: never the record values. */
 	mail?: MailBaseline;
 }

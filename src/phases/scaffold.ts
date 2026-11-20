@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
+import { backupsOptions } from "../scaffold/backups.js";
 import { healthOptions, mailBaselineFrom } from "../scaffold/health.js";
 import { consentScaffold } from "../scaffold/consent.js";
 import { analyticsOptions, carriedAnalytics, describeCarried, detectFromSnapshot, hasCarried, lookupRumSite } from "../scaffold/analytics.js";
@@ -106,10 +107,11 @@ export function workerVars(config: Pick<KitConfig, "email" | "forms">, o: { stag
  * preview URL (docs/spikes/single-env-findings.md). Opt-in staging: `env.staging` with its own Worker, data and vars
  * (unchanged from before 2026-11-20).
  */
-export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms">; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; health?: boolean; productionHost: string; perf?: PerfConfig; live?: boolean; keepWorkersDev?: boolean }): string {
+export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms">; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; health?: boolean; backups?: boolean; productionHost: string; perf?: PerfConfig; live?: boolean; keepWorkersDev?: boolean }): string {
 	const { config, workerName, cf } = o;
-	// SELF: the SEO dashboard and Site health request the site's own pages through the Worker itself.
-	const self = o.seoPanel || !!o.health;
+	// SELF: the SEO dashboard and Site health request the site's own pages through the Worker itself; Backups restores
+	// through EmDash's own API as the admin who confirmed.
+	const self = o.seoPanel || !!o.health || !!o.backups;
 	const loader = (e: "staging" | "production") => o.sandboxedEnvs.some((envs) => envs.includes(e));
 	const d1 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "DB", database_name: cf[env]?.d1?.name ?? fallback, ...(cf[env]?.d1?.id ? { database_id: cf[env]?.d1?.id } : {}) });
 	const r2 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "MEDIA", bucket_name: cf[env]?.r2?.bucket ?? fallback });
@@ -485,6 +487,14 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		(siteConfig as { consent?: unknown }).consent = consent.site;
 		reporter.emit({ type: "log", level: "info", message: `privacy & consent on (@wp2emdash/consent): banner "${consent.mode}" — ${consent.why}${consent.site.defaults.policy ? `; privacy policy ${consent.site.defaults.policy}` : "; no privacy policy page found (admins pick one)"}` });
 	}
+	// Backups & Restore (@wp2emdash/backups, on by default); backups: false turns it off.
+	rmSync(join(project, "packages", "backups"), { recursive: true, force: true });
+	const cfNow = readJson<CloudflareResources>(join(paths.root, "cloudflare.json"));
+	const backups = backupsOptions({ config, productionUrl: siteConfig.productionUrl, live: !!cfNow?.production?.live, ...(cfNow?.production?.d1?.name ? { database: cfNow.production.d1.name } : {}) });
+	if (backups) {
+		cpSync(join(KIT_ROOT, "packages", "backups"), join(project, "packages", "backups"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
+		reporter.emit({ type: "log", level: "info", message: `backups on (@wp2emdash/backups): nightly at ~${backups.hourUtc ?? "01–03"} UTC, keep ${backups.retention?.daily} daily + ${backups.retention?.monthly} monthly, alerts to ${backups.alertsTo.length} address(es)${backups.offsite ? `, off-site copy to ${new URL(backups.offsite.endpoint).host} (set BACKUP_S3_ACCESS_KEY_ID / BACKUP_S3_SECRET_ACCESS_KEY on the Worker)` : ""}` });
+	}
 	// Performance package (src/scaffold/perf.ts): route-cache defaults, hashed brand files with sizes, favicons.
 	const perf = await perfSite(join(project, "public"), config.performance, brand, siteConfig.header.logoHeight);
 	Object.assign(siteConfig, perf.site, { header: { ...siteConfig.header, ...perf.header } }, brandHashes(join(project, "public"), brand));
@@ -587,6 +597,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			"@wp2emdash/seo": "link:./packages/seo",
 			"@wp2emdash/consent": "link:./packages/consent",
 			...(health ? { "@wp2emdash/health": "link:./packages/health" } : {}),
+			...(backups ? { "@wp2emdash/backups": "link:./packages/backups" } : {}),
 			...Object.fromEntries(config.sandboxedPlugins.map((sp) => [sp.package, sp.version])),
 			astro: STACK.astro,
 			emdash: STACK.emdash,
@@ -605,7 +616,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";${ap.imports}${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${health ? '\nimport { healthPlugin } from "@wp2emdash/health";' : ""}${consent ? '\nimport { consentPlugin } from "@wp2emdash/consent";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
+import emdash from "emdash/astro";${ap.imports}${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${health ? '\nimport { healthPlugin } from "@wp2emdash/health";' : ""}${consent ? '\nimport { consentPlugin } from "@wp2emdash/consent";' : ""}${backups ? '\nimport { backupsPlugin } from "@wp2emdash/backups";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
 
 export default defineConfig({
 	site: ${JSON.stringify(siteConfig.productionUrl)},
@@ -619,12 +630,13 @@ ${ap.options}	integrations: [
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
-			mcp: false,${config.forms.outbox || og || seoPanel || health || consent ? `
+			mcp: false,${config.forms.outbox || og || seoPanel || health || consent || backups ? `
 			// Admin plugins: Form messages (form outbox, admins only — @wp2emdash/forms), Sharing images (@wp2emdash/og),
 			// SEO & Analytics (@wp2emdash/seo): editor panel, dashboard, tracking codes, conversion events, Visits;
 			// Site health (@wp2emdash/health, admins only): scheduled checks, alerts, monthly report.
-			// Privacy & consent (@wp2emdash/consent, admins only): cookie banner mode, wording, consent log.
-			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : "", health ? `healthPlugin(${JSON.stringify(health)})` : "", consent ? `consentPlugin(${JSON.stringify(consent.options)})` : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
+			// Privacy & consent (@wp2emdash/consent, admins only): cookie banner mode, wording, consent log;
+			// Backups (@wp2emdash/backups, admins only): nightly backups to R2, downloads, restore with a preview.
+			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : "", health ? `healthPlugin(${JSON.stringify(health)})` : "", consent ? `consentPlugin(${JSON.stringify(consent.options)})` : "", backups ? `backupsPlugin(${JSON.stringify(backups)})` : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
 			// Only the reviewed plugins above: no installs from the public registry through the admin.
 			...(sandboxedHere.length ? { sandboxed: sandboxedHere, sandboxRunner: sandbox(), registry: false } : {}),` : ""}
 		}),
@@ -635,7 +647,7 @@ ${ap.options}	integrations: [
 	);
 	for (const e of envs.staging ? (["staging", "production"] as const) : (["production"] as const)) if (cf[e]?.d1?.id && !cf[e]?.session?.id) reporter.emit({ type: "log", level: "warn", message: `${e}: no SESSION namespace recorded in cloudflare.json; run \`wp2emdash provision ${config.slug} ${e}\` so the first deploy does not auto-provision it` });
 	if (!envs.staging && !config.forms.turnstileSiteKey && forms.length) reporter.emit({ type: "log", level: "warn", message: `single environment: production forms refuse messages until forms.turnstileSiteKey is set (one Turnstile widget for ${new URL(siteConfig.productionUrl).host} and the account's workers.dev subdomain) and its secret is put (wrangler secret put TURNSTILE_SECRET_KEY)` });
-	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, health: !!health, productionHost: new URL(siteConfig.productionUrl).host, perf: config.performance, live: !!cf.production?.live, keepWorkersDev: config.target.keepWorkersDev }));
+	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, health: !!health, backups: !!backups, productionHost: new URL(siteConfig.productionUrl).host, perf: config.performance, live: !!cf.production?.live, keepWorkersDev: config.target.keepWorkersDev }));
 	// Local dev: Turnstile's always-pass test keys so forms work under `astro dev` (kept if the developer edited the file).
 	const devVars = join(project, ".dev.vars");
 	if (!existsSync(devVars)) write(devVars, "# Local only (gitignored). Turnstile always-pass test keys; add EMAIL_API_KEY and FORM_FROM to test real delivery.\nTURNSTILE_SITE_KEY=1x00000000000000000000AA\nTURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA\n");
@@ -670,6 +682,7 @@ ${ap.options}	integrations: [
 			...(config.performance.routeCache ? { routeCache: true } : {}),
 			...(health ? { health: { alertsTo: health.alertsTo, reportTo: health.reportTo, footer: health.brand.footer } } : {}),
 			...(consent ? { consent: { mode: consent.mode, ...(consent.options.keptTools ? { keptTools: consent.options.keptTools } : {}) } } : {}),
+			...(backups ? { backups: { alertsTo: backups.alertsTo, daily: backups.retention?.daily ?? 30, monthly: backups.retention?.monthly ?? 12, offsite: !!backups.offsite, ...(backups.database ? { database: backups.database } : {}) } } : {}),
 			sensitiveData: config.sensitiveData,
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
 		}),

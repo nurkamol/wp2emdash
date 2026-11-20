@@ -1,0 +1,20 @@
+{
+  "name": "@wp2emdash/backups",
+  "version": "0.1.0",
+  "description": "Backups & Restore for EmDash on Cloudflare Workers: nightly content backups to the site's own R2 bucket (30 daily + 12 monthly), a Backups admin page (admins only) with one-time downloads, settings / menus / single-page restore with a preview diff, alerts and an optional off-site copy",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/plugin/index.ts",
+    "./format": "./src/format.ts"
+  },
+  "files": ["src", "README.md"],
+  "peerDependencies": {
+    "emdash": ">=1.5 <2",
+    "@wp2emdash/forms": ">=1.6"
+  },
+  "engines": { "node": ">=24" }
+}

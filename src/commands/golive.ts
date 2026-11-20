@@ -30,6 +30,7 @@ import { checkAliases } from "./check-aliases.js";
 import { type DnsRecord, REDIRECT_PHASE, type RedirectRule, primaryHost, redirectRule, ruleRef } from "../cutover/aliases.js";
 import { sameAsBuildToken } from "../cutover/token.js";
 import { loadEnv, loadSiteEnv } from "../extract/credentials.js";
+import { preChangeMarker } from "../targets/d1-backup.js";
 import { remoteTarget } from "../targets/remote.js";
 
 const API = "https://api.cloudflare.com/client/v4";
@@ -429,6 +430,9 @@ async function primarySwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult>
 	const at = () => c.now().toISOString();
 	for (const r of adopt) if (!record.routes.some((x) => x.id === r.id)) record.routes.push({ id: r.id, pattern: r.pattern, adopted: true, at: at() });
 	saveRecord(c, record);
+	// Backups: record the moment (D1 bookmark + a marker on the Backups admin page) with the build token. Best effort.
+	const mark = await preChangeMarker({ reason: `Go-live: ${c.domain} switched to this site`, cf: (readJson<CfFile>(c.cfFile) ?? {}) as never, vars: c.merged, bookmarksFile: join(c.paths.root, "load", "d1-bookmarks.jsonl"), now: c.now() }, c.f);
+	c.log(`${mark.ok ? "✔" : "…"} ${mark.detail}`);
 	for (const pattern of create) {
 		const made = await c.call<{ id: string }>("POST", `/zones/${zone.id}/workers/routes`, { pattern, script: c.worker });
 		if (!made.ok || !made.result?.id) {

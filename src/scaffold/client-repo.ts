@@ -55,6 +55,8 @@ export interface ClientRepoInput {
 	health?: { alertsTo: string[]; reportTo: string[]; footer: string };
 	/** Privacy & consent (@wp2emdash/consent): the banner mode it starts with, and consent tools kept from the old site. */
 	consent?: { mode: string; keptTools?: string[] };
+	/** Backups & Restore (@wp2emdash/backups): alert recipients, retention, off-site copy, production D1 name. */
+	backups?: { alertsTo: string[]; daily: number; monthly: number; offsite: boolean; database?: string };
 	sensitiveData: boolean;
 	stack: Record<string, string>;
 }
@@ -175,6 +177,88 @@ or save as PDF. Emails start once ${productionUrl} shows this site (after the sw
 service as the website's forms. The footer reads "${h.footer}".
 `
 		: "";
+
+/** The editor guide's Backups section (the full guide is docs/backups.md). */
+const backupsGuide = (b: ClientRepoInput["backups"]) =>
+	b
+		? `
+## Backups
+
+**Plugins → Backups** (administrators only) keeps a copy of the site's content every night — pages, menus, settings,
+redirects, sections and the media library's records — for ${b.daily} days, plus one per month for ${b.monthly} months. You can
+restore the settings, the menus or a single page from any of them yourself: see [Backups and restoring](backups.md).
+`
+		: "";
+
+/** docs/backups.md: what is backed up, restoring a page, and the full-site restore for the developer. */
+export function backupsDoc(b: NonNullable<ClientRepoInput["backups"]>, o: { productionUrl: string }): string {
+	const db = b.database ?? "<production database>";
+	return md(`
+# Backups and restoring
+
+The site backs itself up every night, on its own, into its own storage (Cloudflare R2). Backups are never public.
+
+## What is in a backup
+
+- Every page and entry (drafts and the trash too), its address, SEO fields and earlier versions.
+- Menus, site settings (title, tagline, logo, favicon, social links, SEO defaults), redirects, reusable sections,
+  widgets, categories and tags, bylines.
+- The media library's records (file names, alt texts, captions) and a list of every media file with its size and
+  checksum. The files themselves already live in storage and are never deleted by a restore, so they are not copied
+  again.
+
+**Never in a backup:** passwords and passkeys, sign-in sessions, API keys and tokens, the settings plugins keep secret,
+form messages, comments.
+
+Kept: every backup of the last ${b.daily} days, and the first backup of each of the last ${b.monthly} months.${b.offsite ? " Each backup is also copied to a second storage account (off-site)." : ""}
+If the nightly backup fails twice in a row, ${b.alertsTo.length ? b.alertsTo.join(", ") : "the alert recipients"} get an email (change this under
+**Backups → Settings**). When a page is moved to the trash, a copy of just that page is kept first.
+
+## Restore a page
+
+1. Open **Plugins → Backups**. Find a backup from before the change (the list shows when each was made).
+2. Click **Restore…** next to it, then **Restore this…** next to the page.
+3. Read the preview: every field that will change, what it is now and what it will be. Nothing has changed yet.
+4. Click **Restore this page** and confirm. A fresh backup is taken first, so you can undo the restore the same way.
+
+If the page was published in the backup it is published again; otherwise its content is saved as a draft. A page in
+the trash comes back out of it; a page deleted for good is created again (with a new internal id: menus that pointed to
+it may need the page picked again).
+
+**Settings…** and **Menus…** on the same screen work the same way. The site address is never restored.
+
+## Download a backup
+
+**Download** next to a backup gives a one-time link (valid two minutes) to a compressed file (\`.json.gz\`) you can keep
+elsewhere.
+
+## Restore the whole site (developer)
+
+Whole-site restores are not done from the browser: they put every table back to one moment in a single step.
+
+- **Within 30 days:** D1 Time Travel. In the project folder, with the Cloudflare build token set:
+
+  \`\`\`bash
+  npx wrangler d1 time-travel restore ${db} --timestamp=<the backup's time, e.g. 2026-11-20T02:13:00Z>
+  \`\`\`
+
+  Take a backup first (Back up now). Media files are not affected. Then open ${o.productionUrl} and the admin to check.
+- **Older:** restore settings, menus and pages one by one from the Backups page; a full database rebuild from a backup
+  file is a manual task (the file holds every row of the tables it lists).
+- Before the agency's tools reload content into the live site (\`load --force\`) or switch the domain, they record the
+  moment on the Backups page (**Full site**) with the command to go back to it.
+${b.offsite ? `
+## Off-site copy (developer)
+
+Set the keys of the second storage account as Worker secrets (write access only is enough; the site never deletes
+there — set a lifecycle rule on that bucket to expire old copies):
+
+\`\`\`bash
+npx wrangler secret put BACKUP_S3_ACCESS_KEY_ID
+npx wrangler secret put BACKUP_S3_SECRET_ACCESS_KEY
+\`\`\`
+` : ""}`);
+}
 
 export function clientRepoFiles(input: ClientRepoInput): Record<string, string> {
 	const i = { ...input, email: { ...input.email, provider: PROVIDERS[input.email.provider] ?? input.email.provider } };
@@ -401,7 +485,7 @@ hidden from search, and the sharing image. Enter a **focus keyword** (what peopl
 to check it is in the title, description, main heading, first paragraph and address. **Check my unsaved changes**
 checks the page before you save; changes to the SEO fields themselves show after saving. A good score helps, but
 rankings also depend on content quality, links from other sites and the Google Business Profile.
-` : ""}${healthGuide(i.health, i.productionUrl)}${consentGuide(i.consent)}`);
+` : ""}${healthGuide(i.health, i.productionUrl)}${consentGuide(i.consent)}${backupsGuide(i.backups)}`);
 
 	const formRows = i.forms.map((f) => `| ${f.title} (\`${f.id}\`) | ${f.fields.join(", ") || "—"} | ${f.withheld.length ? f.withheld.join(", ") : "—"} |`).join("\n");
 	files["docs/forms-and-integrations.md"] = md(`
@@ -633,6 +717,7 @@ updates:
       interval: monthly
 `);
 	// One environment (default): README, deployment, go-live, CI and the PR checklist describe production only.
+	if (i.backups) files["docs/backups.md"] = backupsDoc(i.backups, { productionUrl: i.productionUrl });
 	if (single) Object.assign(files, singleEnvFiles(i, { admin, prodNow, setup }));
 	return files;
 }
