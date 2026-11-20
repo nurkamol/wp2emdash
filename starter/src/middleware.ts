@@ -8,6 +8,7 @@ import site from "./site.config.json";
 import { isEditor } from "./utils/editor";
 import { embedCsp, providerCsp } from "./utils/providers";
 import { siteWidgets } from "./utils/widgets";
+import { matchWpUrl, type WpUrlRules } from "./utils/wp-urls";
 import { type CspHosts, cspSources } from "@wp2emdash/seo/analytics/csp";
 import { typesOf } from "@wp2emdash/seo/analytics/trackers";
 import { pageAnalytics } from "./utils/analytics";
@@ -146,13 +147,28 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (bare(u.hostname) === bare(PRODUCTION.hostname) && (u.hostname !== PRODUCTION.hostname || u.protocol === "http:")) {
 		return redirect(`${PRODUCTION.origin}${u.pathname}${u.search}`, 301);
 	}
+	// A WordPress address the owner's rule set says is gone (410), or an unknown ?p= id (404): the 404 page, that status.
+	let goneStatus: 404 | 410 | undefined;
 	if (context.request.method === "GET" || context.request.method === "HEAD") {
 		const path = context.url.pathname;
 		if (LEGACY_SITEMAP.test(path)) return redirect("/sitemap.xml", 301);
 		// WordPress numeric links: /?p=40, /?page_id=40 (and ?preview leftovers) → the page's address.
+		const wpIds = (site as { wpIds?: Record<string, string> }).wpIds ?? {};
 		const wpId = path === "/" ? (u.searchParams.get("page_id") ?? u.searchParams.get("p")) : null;
-		const wpPath = wpId && /^\d+$/.test(wpId) ? (site as { wpIds?: Record<string, string> }).wpIds?.[wpId] : undefined;
+		const wpPath = wpId && /^\d+$/.test(wpId) ? wpIds[wpId] : undefined;
 		if (wpPath) return redirect(wpPath, 301);
+		// WordPress addresses with no page here — feeds, search, category/tag/author/date archives, attachment pages and
+		// their query forms (?s=, ?cat=, ?feed=…): one 301 or a 410, by the site's rule set (site.config.json wpUrls,
+		// decided in transform; utils/wp-urls.ts). Verify's urls-accounted check judges the same rules.
+		const rules = (site as { wpUrls?: WpUrlRules }).wpUrls;
+		const wp = rules && !path.startsWith("/_") && !path.startsWith("/api/") ? matchWpUrl(path, u.searchParams, rules, wpIds) : undefined;
+		if (wp && "file" in wp) {
+			const to = await legacyUpload(wp.file);
+			if (to) return redirect(to, 301);
+			if ("to" in wp.fallback) return redirect(wp.fallback.to, 301);
+			goneStatus = 410;
+		} else if (wp && "to" in wp) return redirect(wp.to, 301);
+		else if (wp) goneStatus = "gone" in wp ? 410 : 404;
 		// Brand files (logo, favicon) moved into /brand at scaffold time; both WordPress upload aliases map to them.
 		const files = (site as { legacyFiles?: Record<string, string> }).legacyFiles ?? {};
 		const alias = (p: string) => p.replace(/^\/storage\//, "/wp-content/uploads/");
@@ -164,9 +180,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			if (to) return redirect(to, 301);
 		}
 		const to = canonicalPath(path);
-		if (to) return redirect(`${to}${context.url.search}`, 301);
+		if (to && !goneStatus) return redirect(`${to}${context.url.search}`, 301);
 	}
-	const response = await next();
+	const response = goneStatus ? await next("/404") : await next();
 	// A signed-in editor (or an edit/preview link) gets its own page: never stored for everyone else.
 	if (isEditor(context.cookies, context.url) && context.cache?.enabled) context.cache.set(false);
 	// Responsive images (EmDash's /_image endpoint, Cloudflare Images binding): when a transform fails (e.g. the
@@ -196,5 +212,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (html && !headers.has("cache-control")) headers.set("Cache-Control", "no-cache");
 	// Never indexed: staging, and production on any address but its own domain (workers.dev before the switch).
 	if ((env as { STAGING?: string }).STAGING === "1" || bare(context.url.hostname) !== bare(PRODUCTION.hostname)) headers.set("X-Robots-Tag", "noindex, nofollow");
+	if (goneStatus) return new Response(response.body, { status: goneStatus, headers });
 	return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 });

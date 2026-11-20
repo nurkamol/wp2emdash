@@ -1,0 +1,64 @@
+{
+	"$comment": "Synthetic audit of a small WordPress blog site (example.test): pages, posts, a portfolio CPT, category/tag/author/date archives, attachment pages, feeds, search. Used by test/wp-urls.test.ts.",
+	"options": { "page_for_posts": 4, "page_on_front": 2 },
+	"publishedPages": ["/", "/about/", "/blog/", "/services/"],
+	"pageIds": { "2": "/", "3": "/about/", "4": "/blog/", "5": "/services/" },
+	"library": ["photo.jpg", "team.jpg"],
+	"urls": [
+		{ "url": "https://example.test/", "path": "/", "status": 200, "kind": "page", "wp": { "id": 2, "type": "page" } },
+		{ "url": "https://example.test/about/", "path": "/about/", "status": 200, "kind": "page", "wp": { "id": 3, "type": "page" } },
+		{ "url": "https://example.test/blog/", "path": "/blog/", "status": 200, "kind": "page", "wp": { "id": 4, "type": "page" } },
+		{ "url": "https://example.test/services/", "path": "/services/", "status": 200, "kind": "page", "wp": { "id": 5, "type": "page" } },
+		{ "url": "https://example.test/hello-world/", "path": "/hello-world/", "status": 200, "kind": "page", "wp": { "id": 10, "type": "post" } },
+		{ "url": "https://example.test/second-post/", "path": "/second-post/", "status": 200, "kind": "page", "wp": { "id": 11, "type": "post" } },
+		{ "url": "https://example.test/portfolio/project-a/", "path": "/portfolio/project-a/", "status": 200, "kind": "page", "wp": { "id": 20, "type": "portfolio" } },
+		{ "url": "https://example.test/category/news/", "path": "/category/news/", "status": 200, "kind": "page" },
+		{ "url": "https://example.test/tag/tips/", "path": "/tag/tips/", "status": 200, "kind": "page" },
+		{ "url": "https://example.test/author/admin/", "path": "/author/admin/", "status": 200, "kind": "page" },
+		{ "url": "https://example.test/2024/05/", "path": "/2024/05/", "status": 200, "kind": "page" },
+		{ "url": "https://example.test/feed/", "path": "/feed/", "status": 200, "kind": "non-html" },
+		{ "url": "https://example.test/locations.kml", "path": "/locations.kml", "status": 200, "kind": "non-html" },
+		{ "url": "https://example.test/old-broken/", "path": "/old-broken/", "status": 404, "kind": "error" },
+		{ "url": "https://example.test/wp-login.php", "path": "/wp-login.php", "status": 200, "kind": "page" }
+	],
+	"discovery": {
+		"items": [
+			{ "id": 2, "type": "page", "link": "https://example.test/" },
+			{ "id": 3, "type": "page", "link": "https://example.test/about/" },
+			{ "id": 4, "type": "page", "link": "https://example.test/blog/" },
+			{ "id": 5, "type": "page", "link": "https://example.test/services/" },
+			{ "id": 10, "type": "post", "link": "https://example.test/hello-world/" },
+			{ "id": 11, "type": "post", "link": "https://example.test/second-post/" },
+			{ "id": 20, "type": "portfolio", "link": "https://example.test/portfolio/project-a/" }
+		],
+		"terms": [
+			{ "id": 7, "taxonomy": "category", "slug": "news", "name": "News", "link": "https://example.test/category/news/", "count": 2 },
+			{ "id": 9, "taxonomy": "category", "slug": "empty", "name": "Empty", "link": "https://example.test/category/empty/", "count": 0 },
+			{ "id": 8, "taxonomy": "post_tag", "slug": "tips", "name": "Tips", "link": "https://example.test/tag/tips/", "count": 1 }
+		],
+		"authors": [{ "id": 1, "slug": "admin", "link": "https://example.test/author/admin/" }],
+		"media": [
+			{ "id": 30, "link": "https://example.test/hello-world/photo/", "sourceUrl": "https://example.test/wp-content/uploads/2024/05/photo.jpg", "mimeType": "image/jpeg", "parent": 10 },
+			{ "id": 31, "link": "https://example.test/?attachment_id=31", "sourceUrl": "https://example.test/wp-content/uploads/2024/05/logo.png", "mimeType": "image/png" },
+			{ "id": 32, "link": "https://example.test/about/team-photo/", "sourceUrl": "https://example.test/wp-content/uploads/2024/05/team.jpg", "mimeType": "image/jpeg", "parent": 3 }
+		]
+	},
+	"postDates": ["2024-05-10 09:00:00", "2024-06-01 10:00:00"],
+	"pageAssets": ["https://example.test/wp-content/uploads/2024/05/photo-300x200.jpg", "https://cdn.other.test/x.jpg", "/about/"],
+	"exporter": {
+		"types": [
+			{ "name": "page", "entries": [{ "status": "publish", "handled": false }, { "status": "publish", "handled": false }, { "status": "draft", "handled": false }] },
+			{ "name": "post", "entries": [{ "status": "publish", "handled": false }, { "status": "publish", "handled": true }] },
+			{ "name": "portfolio", "entries": [{ "status": "publish", "handled": false }] },
+			{ "name": "acf-field-group", "entries": [{ "status": "publish", "handled": false }] },
+			{ "name": "popup", "entries": [] }
+		],
+		"taxonomies": [
+			{ "name": "category", "terms": [{ "count": 2 }, { "count": 0 }] },
+			{ "name": "post_tag", "terms": [{ "count": 1 }] },
+			{ "name": "post_format", "terms": [{ "count": 1 }] },
+			{ "name": "project-type", "terms": [{ "count": 0 }] }
+		],
+		"authors": [{ "name": "Admin", "posts": 2 }, { "name": "Editor", "posts": 0 }]
+	}
+}

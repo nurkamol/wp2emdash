@@ -1,0 +1,240 @@
+[
+	{
+		"path": "/",
+		"kind": "page",
+		"status": 200,
+		"ok": true,
+		"why": "200"
+	},
+	{
+		"path": "/about/",
+		"kind": "page",
+		"status": 200,
+		"ok": true,
+		"why": "200"
+	},
+	{
+		"path": "/blog/",
+		"kind": "page",
+		"status": 200,
+		"ok": true,
+		"why": "200"
+	},
+	{
+		"path": "/services/",
+		"kind": "page",
+		"status": 200,
+		"ok": true,
+		"why": "200"
+	},
+	{
+		"path": "/hello-world/",
+		"kind": "post",
+		"status": 404,
+		"ok": true,
+		"why": "not migrated by decision (post: test: posts dropped)"
+	},
+	{
+		"path": "/second-post/",
+		"kind": "post",
+		"status": 404,
+		"ok": true,
+		"why": "not migrated by decision (post: test: posts dropped)"
+	},
+	{
+		"path": "/portfolio/project-a/",
+		"kind": "portfolio",
+		"status": 404,
+		"ok": true,
+		"why": "not migrated by decision (portfolio: test: old projects)"
+	},
+	{
+		"path": "/?page_id=2",
+		"kind": "query",
+		"status": 301,
+		"ok": true,
+		"why": "301 → / (200)"
+	},
+	{
+		"path": "/?page_id=3",
+		"kind": "query",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /about/ (200)"
+	},
+	{
+		"path": "/?page_id=4",
+		"kind": "query",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/?page_id=5",
+		"kind": "query",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /services/ (200)"
+	},
+	{
+		"path": "/?p=10",
+		"kind": "query",
+		"status": 404,
+		"ok": true,
+		"why": "not migrated by decision (post: test: posts dropped)"
+	},
+	{
+		"path": "/?p=11",
+		"kind": "query",
+		"status": 404,
+		"ok": true,
+		"why": "not migrated by decision (post: test: posts dropped)"
+	},
+	{
+		"path": "/?p=20",
+		"kind": "query",
+		"status": 404,
+		"ok": true,
+		"why": "not migrated by decision (portfolio: test: old projects)"
+	},
+	{
+		"path": "/category/news/",
+		"kind": "category",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/tag/tips/",
+		"kind": "tag",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/?cat=7",
+		"kind": "query",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/?tag=tips",
+		"kind": "query",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/author/admin/",
+		"kind": "author",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/?author=1",
+		"kind": "query",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/hello-world/photo/",
+		"kind": "attachment",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /_emdash/api/media/file/photo.jpg (200)"
+	},
+	{
+		"path": "/?attachment_id=30",
+		"kind": "query",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /_emdash/api/media/file/photo.jpg (200)"
+	},
+	{
+		"path": "/?attachment_id=31",
+		"kind": "attachment",
+		"status": 301,
+		"ok": true,
+		"why": "301 → / (200)"
+	},
+	{
+		"path": "/about/team-photo/",
+		"kind": "attachment",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /about/ (200)"
+	},
+	{
+		"path": "/?attachment_id=32",
+		"kind": "query",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /about/ (200)"
+	},
+	{
+		"path": "/2024/05/",
+		"kind": "date",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/feed/",
+		"kind": "feed",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/locations.kml",
+		"kind": "file",
+		"status": 404,
+		"ok": true,
+		"why": "gone by decision: Rank Math Local SEO file, not needed"
+	},
+	{
+		"path": "/wp-content/uploads/2024/05/photo-300x200.jpg",
+		"kind": "upload",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /_emdash/api/media/file/photo.jpg (200)"
+	},
+	{
+		"path": "/?feed=rss2",
+		"kind": "feed",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/comments/feed/",
+		"kind": "comments-feed",
+		"status": 410,
+		"ok": true,
+		"why": "gone by rule (comments-feed)"
+	},
+	{
+		"path": "/?s=wp2emdash",
+		"kind": "search",
+		"status": 301,
+		"ok": true,
+		"why": "301 → / (200)"
+	},
+	{
+		"path": "/2024/",
+		"kind": "date",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	},
+	{
+		"path": "/2024/06/",
+		"kind": "date",
+		"status": 301,
+		"ok": true,
+		"why": "301 → /blog/ (200)"
+	}
+]

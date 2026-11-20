@@ -20,6 +20,9 @@ import { completeMarianaEmbeds, marianaTenant } from "../transform/embeds.js";
 import { collectSnippets, completeProviderLoaders, providerLoaders, settleLoaders } from "../transform/snippets.js";
 import { type Diagnostic, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
 import { conservation, irText, missingContext, sourceText } from "../transform/coverage.js";
+import { contentInventory, inventoryDetail, inventoryReport } from "../transform/content-types.js";
+import { type CustomCss, customCssFromHtml, customCssReport, describeCss } from "../transform/custom-css.js";
+import { buildWpUrlPlan, type WpUrlInput, wpUrlsReport } from "../transform/wp-urls.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
 import { announcementDoc, describeBar, detectAnnouncement } from "../transform/announcement.js";
@@ -274,7 +277,16 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			p.status === "publish",
 		);
 	}
-	for (const p of posts) {
+	// Post types decided "pages" (overrides.ts contentTypes): every entry becomes a page at its WordPress address.
+	const asPages = (t: string) => overrides.contentTypes[t]?.as === "pages";
+	const contentTypesOnDisk = existsSync(join(exp, "content")) ? readdirSync(join(exp, "content")).filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, "")).sort() : [];
+	for (const t of contentTypesOnDisk.filter((x) => x !== "page" && asPages(x))) {
+		for (const p of content(t)) {
+			const { builder, sections, diagnostics } = adapt(p, "page");
+			emit({ version: IR_VERSION, kind: "page", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder, modifiedGmt: p.modified_gmt }, route: { path: routeOf(p) }, title: p.title, seo: seoOf(p), ...(p.featured_image?.id ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}), sections, diagnostics }, `pages/${t}-${p.slug}.json`, p.status === "publish");
+		}
+	}
+	for (const p of asPages("post") || overrides.contentTypes.post?.as === "skip" ? [] : posts) {
 		const builder = detectBuilder(p.content ?? "", p.meta);
 		if (builder !== "wpbakery" && builder !== "bricks") {
 			notTransformed.push(`post ${p.slug}: ${builder} content imported as Portable Text by the EmDash importer`);
@@ -511,6 +523,53 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	check("site-snippets", "Site-wide snippets carried, not needed, or decided", undecided.length === 0, undecided.length ? `${undecided.length} need a decision (coverage report → Site-wide snippets; overrides.ts snippets): ${undecided.slice(0, 5).map((s) => `${s.id} ${s.label}`).join("; ")}` : snapshotHtml.length ? `${siteSnippets.counts.carried} carried${siteSnippets.widgets.length ? ` (site widgets: ${siteSnippets.widgets.map((w) => w.provider).join(", ")})` : ""}, ${siteSnippets.counts["not-needed"]} not needed` : "no audit HTML snapshots — run audit");
 	if (siteSnippets.widgets.length) reporter.emit({ type: "log", level: "info", message: `site widgets recognised: ${siteSnippets.widgets.map((w) => `${w.provider} ${w.id}`).join(", ")}` });
 
+	// ── Content types, taxonomies, authors: everything the extract found is migrated or decided ──────────────
+	const discovery = readJson<WpUrlInput["discovery"] & { items?: { type: string; link: string }[] }>(join(paths.snapshot, "discovery.json"));
+	const analyze = readJson<{ authors?: { display_name: string; post_count: number | string }[]; attachments?: { count: number } }>(join(exp, "analyze.json"));
+	const builderPost = (p: ExporterPost) => ["wpbakery", "bricks"].includes(detectBuilder(p.content ?? "", p.meta));
+	const pathsOf = (links: string[]) => [...new Set(links.map((l) => { try { return new URL(l).pathname; } catch { return l; } }))];
+	const inventory = contentInventory({
+		types: contentTypesOnDisk.map((t) => ({ name: t, entries: content(t).map((p) => ({ status: p.status, handled: t === "post" ? builderPost(p) : false })) })),
+		taxonomies: (readJson<{ name: string; terms?: { count: number }[] }[]>(join(exp, "taxonomies.json")) ?? []).map((x) => ({ name: x.name, terms: x.terms ?? [] })),
+		authors: (analyze?.authors ?? []).map((a) => ({ name: a.display_name, posts: Number(a.post_count) || 0 })),
+		samples: {
+			types: Object.fromEntries([...new Set((discovery?.items ?? []).map((i) => i.type))].map((t) => [t, pathsOf((discovery?.items ?? []).filter((i) => i.type === t).map((i) => i.link))])),
+			taxonomies: Object.fromEntries([...new Set((discovery?.terms ?? []).map((i) => i.taxonomy))].map((t) => [t, pathsOf((discovery?.terms ?? []).filter((i) => i.taxonomy === t).map((i) => i.link))])),
+			authors: pathsOf((discovery?.authors ?? []).map((a) => a.link)),
+		},
+		attachments: analyze?.attachments?.count ?? manifest.filter((m) => m.inLibrary).length,
+		overrides,
+	});
+	check("content-types-handled", "Every post type, taxonomy in use and author with posts is migrated or decided", !inventory.some((r) => r.status === "undecided"), inventoryDetail(inventory));
+
+	// ── Customizer Additional CSS: reported, carried only by decision ───────────────────────────────────────
+	const customCss: CustomCss | undefined = readJson<CustomCss>(join(paths.raw, "custom-css.json")) ?? (() => {
+		for (const h of snapshotHtml) {
+			const css = customCssFromHtml(h.html);
+			if (css) return { source: "live-html" as const, css };
+		}
+		return undefined;
+	})();
+	if (customCss?.css) {
+		write(join(paths.ir, "custom-css.json"), { decision: overrides.customCss ?? null, css: customCss.css });
+		const d = describeCss(customCss.css);
+		check("custom-css", "Customizer Additional CSS carried or dropped by decision", !!overrides.customCss, overrides.customCss ? `${overrides.customCss}: ${(d.bytes / 1024).toFixed(1)} KB, ${d.selectors.length} selectors` : `${(d.bytes / 1024).toFixed(1)} KB, ${d.selectors.length} selectors (e.g. ${d.selectors.slice(0, 4).join(", ")}): decide in overrides.ts customCss "carry" | "drop" (coverage report → Additional CSS)`);
+	}
+
+	// ── WordPress URLs with no page on the new site: one rule set for the middleware and verify ─────────────
+	const pubPages = results.filter((r) => r.doc.kind === "page" && r.published && r.doc.route);
+	const wpUrlPlan = buildWpUrlPlan({
+		pages: pubPages.map((r) => (r.doc.route as { path: string }).path),
+		routeById: new Map(pubPages.map((r) => [r.doc.source.wpId, (r.doc.route as { path: string }).path])),
+		publishedPosts: posts.filter((p) => p.status === "publish").length,
+		...(Number(options.page_for_posts) > 0 ? { blogPageId: Number(options.page_for_posts) } : {}),
+		...(discovery ? { discovery } : {}),
+		overrides,
+		trailingSlash: config.target.trailingSlash === "preserve" ? (pubPages.every((r) => r.doc.route?.path === "/" || r.doc.route?.path.endsWith("/")) ? "always" : "never") : config.target.trailingSlash,
+	});
+	write(join(paths.ir, "wp-urls.json"), wpUrlPlan);
+	if (wpUrlPlan.feedPending) notTransformed.push("feeds: the site has published posts but no feed is generated yet; /feed/ redirects (coverage report → WordPress URLs)");
+
 	// ── Report ─────────────────────────────────────────────────────────────────
 	const reportDir = join(paths.reports, "transform");
 	write(join(reportDir, "coverage.json"), {
@@ -518,8 +577,11 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		notTransformed,
 		announcement: announcementReport,
 		snippets: { counts: siteSnippets.counts, widgets: siteSnippets.widgets, items: siteSnippets.items.map(({ id, kind, status, label, note, where, pages }) => ({ id, kind, status, label, note, where, pages: pages.length })) },
+		contentTypes: inventory,
+		...(customCss?.css ? { customCss: { decision: overrides.customCss ?? null, source: customCss.source, ...describeCss(customCss.css), ...(customCss.inactive ? { inactive: customCss.inactive } : {}) } } : {}),
+		wpUrls: { rules: wpUrlPlan.explain, attachments: Object.keys(wpUrlPlan.rules.attachments ?? {}).length, feedPending: wpUrlPlan.feedPending },
 	});
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...inventoryReport(inventory), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...wpUrlsReport(wpUrlPlan)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

@@ -116,6 +116,9 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		<Analytics />
 	</head>
 	<body class:list={{ "over-hero": overHero }}>
+		{/* Customizer "Additional CSS" carried from WordPress by decision (overrides.ts customCss): its own file, linked
+		    here so it comes after the starter's bundled CSS (Astro puts that at the end of <head>); never inline (CSP). */}
+		{(site as { customCss?: string }).customCss && <link rel="stylesheet" href={(site as { customCss?: string }).customCss} />}
 		<EmDashBodyStart page={pageCtx} />
 		<a href="#main" class="skip-link">Skip to content</a>
 		{announcement && <Announcement block={announcement} hidden={announcementLater} />}

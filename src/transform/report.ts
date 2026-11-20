@@ -18,7 +18,7 @@ export interface AnnouncementReport {
 }
 
 /** reports/transform/coverage.md — per document: sections, conservation, diagnostics. */
-export function transformReport(siteName: string, results: DocResult[], checks: GateCheck[], notTransformed: string[], site: IrSite, announcement?: AnnouncementReport, snippets?: SiteSnippets): string {
+export function transformReport(siteName: string, results: DocResult[], checks: GateCheck[], notTransformed: string[], site: IrSite, announcement?: AnnouncementReport, snippets?: SiteSnippets, extra: string[] = []): string {
 	const L: string[] = [];
 	const ok = checks.every((c) => c.ok);
 	L.push(`# Transform — ${siteName}`, "", `**Gate: ${ok ? "PASSED" : "FAILED"}**`, "", "| | Check | Detail |", "|---|---|---|");
@@ -92,6 +92,8 @@ export function transformReport(siteName: string, results: DocResult[], checks: 
 		for (const d of doc?.doc.diagnostics.filter((x) => x.message.startsWith("Announcement colours")) ?? []) L.push(`- ♿ ${esc(d.message)}`);
 	}
 	if (snippets) L.push(...snippetsReport(snippets));
+	// Content types, Additional CSS, WordPress URLs (src/transform/{content-types,custom-css,wp-urls}.ts).
+	L.push(...extra);
 	if (notTransformed.length) {
 		L.push("", "## Not transformed (by design)", "");
 		for (const n of notTransformed) L.push(`- ${n}`);

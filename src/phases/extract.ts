@@ -17,11 +17,12 @@ import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.
 import { bricksMediaRefs, bricksOptionsNote, readBricksOptions, usesBricks } from "../extract/bricks.js";
 import { type RedirectRule, recognise, type Unconverted } from "../extract/plugin-exports.js";
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
+import { type CustomCss, customCssFromHtml } from "../transform/custom-css.js";
 import type { PhaseContext } from "./index.js";
 
 export const MIN_EXPORTER = "1.2.0";
 
-/** Post types that are WordPress internals or rebuilt from other sources. */
+/** Post types that are WordPress internals or rebuilt from other sources. `custom_css` is read on its own (readCustomCss). */
 const SKIP_TYPES = new Set(["attachment", "nav_menu_item", "wp_template", "wp_template_part", "wp_global_styles", "wp_font_family", "wp_font_face", "revision", "customize_changeset", "oembed_cache", "user_request", "custom_css"]);
 /** Types worth asking for even when no listing advertises them. */
 const EXTRA_TYPES = ["salient_g_sections", "bricks_template", "wp_block", "wp_navigation", "nectar_slider", "home_slider", "portfolio", "popup", "popup_theme", "pum_cta", "rank_math_schema"];
@@ -209,6 +210,20 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 
 	const mismatched = typeSummaries.filter((t) => t.expected !== undefined && t.expected !== t.fetched);
 	check("counts-match", "Fetched counts match the exporter's own totals", mismatched.length === 0, mismatched.map((t) => `${t.name}: ${t.fetched}/${t.expected}`).join(", ") || undefined);
+
+	// ── Customizer Additional CSS (never a content type; reported in transform, carried only by decision) ──────
+	const customCss = await readCustomCss(paths.snapshot, async () => {
+		try {
+			return (await client.all<ExporterPost>("emdash/v1/content", { post_type: "custom_css", status: "any" }, 100)).items;
+		} catch {
+			return []; // the exporter may refuse non-public types; the live pages still carry the active theme's CSS
+		}
+	});
+	rmSync(join(raw, "custom-css.json"), { force: true });
+	if (customCss) {
+		write(join(raw, "custom-css.json"), customCss);
+		notes.push(`Customizer Additional CSS found (${(Buffer.byteLength(customCss.css) / 1024).toFixed(1)} KB, from the ${customCss.source === "live-html" ? "live pages" : "theme's custom_css post"}): listed in the transform report; carried only by decision (overrides.ts customCss).`);
+	}
 
 	// ── Site structure: options, menus, taxonomies, comments ──────────────────
 	reporter.emit({ type: "step:start", step: "Options, menus, taxonomies" });
@@ -508,4 +523,27 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	write(join(reportDir, "extract.md"), extractReport(config.name, summary, checks));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "extract.md")}` });
 	return checks;
+}
+
+/**
+ * The active theme's Additional CSS: what the live pages print (`<style id="wp-custom-css">`, audit snapshots), else
+ * the single custom_css post the exporter returns. Other themes' custom_css posts are listed as inactive.
+ */
+export async function readCustomCss(snapshotDir: string, exporterPosts: () => Promise<ExporterPost[]>): Promise<CustomCss | undefined> {
+	const htmlDir = join(snapshotDir, "html");
+	let live: string | undefined;
+	if (existsSync(htmlDir)) {
+		const files = readdirSync(htmlDir).filter((f) => f.endsWith(".html")).sort((a, b) => (a === "home.html" ? -1 : b === "home.html" ? 1 : a.localeCompare(b)));
+		for (const f of files) if ((live = customCssFromHtml(readFileSync(join(htmlDir, f), "utf8")))) break;
+	}
+	const posts = (await exporterPosts()).filter((p) => (p.content ?? "").trim());
+	const same = (p: ExporterPost) => (p.content ?? "").trim() === live;
+	if (live) {
+		const inactive = posts.filter((p) => !same(p)).map((p) => ({ slug: p.slug, bytes: Buffer.byteLength(p.content) }));
+		return { source: "live-html", css: live, ...(inactive.length ? { inactive } : {}) };
+	}
+	// No saved pages to read: one custom_css post is the active theme's; several cannot be told apart (listed only).
+	if (!existsSync(htmlDir) && posts.length === 1) return { source: "exporter", css: (posts[0] as ExporterPost).content.trim() };
+	if (posts.length) return { source: "exporter", css: "", inactive: posts.map((p) => ({ slug: p.slug, bytes: Buffer.byteLength(p.content) })) };
+	return undefined;
 }
