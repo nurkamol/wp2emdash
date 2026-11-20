@@ -174,8 +174,11 @@ matches the video's first frame).
 
 Measured on a live single-environment site (one location, two requests per page): cached HTML 0.25–0.36 s TTFB;
 `MISS`/`EXPIRED` 2.4–2.9 s. `age` topped out near 3,500 s: with `maxAge` 3600 each page expired hourly per Cloudflare
-location, and on a low-traffic site most visitors met an expired copy. `swr` 86400 did not help: the `EXPIRED`
-responses were rendered synchronously (2.4 s).
+location. Stale-while-revalidate works (staging, same day: `cf-cache-status: UPDATING` at age 7,766 s, 0.27 s, then
+`HIT`), so a copy is served fast for `maxAge` + `swr` (25 h). The slow responses were copies older than that
+(`EXPIRED`, rendered synchronously) or never cached at that location (`MISS`): on a low-traffic site a page can go
+unvisited at a location for more than a day. A 7-day `pageMaxAge` keeps pages servable for 8 days; a `MISS` (never
+cached, or evicted by Cloudflare) still renders once — preloading moves that render before the click.
 
 - **Pages now live 7 days** (`performance.pageMaxAge` 604800). Safe because every edit that shows on a page purges it:
   content publish/unpublish/schedule (EmDash, incl. the scheduled-publish sweep, which purges incrementally), menus,
