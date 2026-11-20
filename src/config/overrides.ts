@@ -31,6 +31,12 @@ export const overridesSchema = z.object({
 		.object({
 			/** External media URL (or host) → copy into R2 during load, or keep hotlinked. */
 			external: z.record(z.string(), z.enum(["copy", "hotlink"])).default({}),
+			/**
+			 * Which media-library files load uploads besides the ones content uses (and the files content links to, always):
+			 * "documents" (default) = every PDF, Word, Excel, ZIP… file in the library too, so links from emails and other
+			 * sites keep working through the old upload address; "referenced" = only what content uses; "all" = every file.
+			 */
+			library: z.enum(["referenced", "documents", "all"]).default("documents"),
 		})
 		.prefault({}),
 	redirects: z

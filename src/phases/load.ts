@@ -22,6 +22,7 @@ import type { BlogPlan } from "../transform/blog.js";
 import { type CptCollection, type CptPlan, collectionFields } from "../transform/cpt.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { svgToPng } from "../targets/emdash/svg.js";
+import { DOC_MIME, DOCUMENT_FIELD, globallyAllowed, isDocument, lostMetadata, manifestIndex, plainCaption, uploadLinks } from "../targets/emdash/documents.js";
 import { type ContentItem, EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
 import { blockKey, sectionToBlock } from "../targets/emdash/blocks.js";
 import { faststart, needsFaststart } from "../targets/emdash/faststart.js";
@@ -44,7 +45,7 @@ export interface IdMap {
 	content: Record<string, { collection: string; id: string; slug: string }>;
 }
 
-const MIME: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".avif": "image/avif", ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm", ".pdf": "application/pdf", ".ico": "image/x-icon" };
+const MIME: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".avif": "image/avif", ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".m4v": "video/mp4", ".ico": "image/x-icon", ...DOC_MIME };
 const mimeOf = (f: string) => MIME[extname(f).toLowerCase()] ?? "application/octet-stream";
 const mediaKey = (m: MediaRef) => (m.wpId ? `wp:${m.wpId}` : `url:${m.url}`);
 
@@ -353,6 +354,32 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			const r = ogRef(d);
 			if (r) refs.set(mediaKey(r), r);
 		}
+		// Files linked from content (PDFs, Word, Excel, ZIP… and pictures opened by a link): uploaded too, so the links can
+		// point at the media library (src/targets/emdash/documents.ts). Extract downloaded every one it could (raw/media).
+		const isSiteUrl = (u: string) => {
+			try {
+				return u.startsWith("/") || siteHosts.has(new URL(u).host.replace(/^www\./, ""));
+			} catch {
+				return false;
+			}
+		};
+		const localFile = manifestIndex(manifest);
+		const linked = new Map<string, string>(); // upload address → media key
+		const linkedMissing: string[] = [];
+		for (const u of uploadLinks(docs.map((d) => [d.sections, d.post?.body ?? [], d.entry?.fields ?? {}, d.entry?.body ?? []]), isSiteUrl)) {
+			const m = localFile(new URL(u, config.source.url).href);
+			if (!m) {
+				linkedMissing.push(u);
+				continue;
+			}
+			const ref: MediaRef = m.id ? { kind: "file", wpId: m.id } : { kind: "file", url: m.url };
+			linked.set(u, mediaKey(ref));
+			if (!refs.has(mediaKey(ref)) && !refs.has(`wp:${m.id}`)) refs.set(mediaKey(ref), ref);
+		}
+		// Library files nobody links from the content (overrides.ts media.library): documents by default, so old links to
+		// them from emails and other sites still find the file.
+		const library = overrides.media.library;
+		if (library !== "referenced") for (const m of manifest) if (m.id && m.inLibrary && m.file && m.status !== "failed" && (library === "all" || isDocument(m.file)) && !refs.has(`wp:${m.id}`)) refs.set(`wp:${m.id}`, { kind: isDocument(m.file) ? "file" : "image", wpId: m.id });
 
 		reporter.emit({ type: "step:start", step: "Media", total: refs.size });
 		const existing = await api.mediaList();
@@ -365,6 +392,19 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const slowVideos: string[] = [];
 		const svgConverted: string[] = [];
 		let svgBrowser: import("playwright").Browser | undefined;
+		// Word, Excel, ZIP…: EmDash takes them only for a file field that allows them (documents.ts DOCUMENT_FIELD).
+		let docField: Promise<string> | undefined;
+		const documentFieldId = () =>
+			(docField ??= (async () => {
+				const have = (await api.fields("pages")).find((f) => f.slug === DOCUMENT_FIELD.slug);
+				if (have) return have.id;
+				await api.createField("pages", { ...DOCUMENT_FIELD });
+				const made = (await api.fields("pages")).find((f) => f.slug === DOCUMENT_FIELD.slug);
+				if (!made) throw new Error(`could not create the ${DOCUMENT_FIELD.slug} field on pages`);
+				return made.id;
+			})());
+		const uploadedEntries: MediaEntry[] = [];
+		let duplicates = 0;
 		for (const [key, ref] of refs) {
 			reporter.emit({ type: "step:progress", step: "Media", done: ++n, total: refs.size, item: key });
 			const known = idMap.media[key];
@@ -373,11 +413,12 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			try {
 				let bytes: Buffer;
 				let filename: string;
-				if (ref.wpId) {
-					const m = byWpId.get(ref.wpId);
-					if (!m?.file) throw new Error("not in raw/media (rerun extract)");
-					bytes = readFileSync(join(paths.raw, "media", m.file));
-					filename = m.file.split("/").pop() as string;
+				// A file of this site extract downloaded: from the library (wpId) or linked from content without being in it.
+				const local = ref.wpId ? byWpId.get(ref.wpId) : ref.url && isSiteUrl(ref.url) ? localFile(new URL(ref.url, config.source.url).href) : undefined;
+				if (ref.wpId && !local?.file) throw new Error("not in raw/media (rerun extract)");
+				if (local?.file) {
+					bytes = readFileSync(join(paths.raw, "media", local.file));
+					filename = local.file.split("/").pop() as string;
 				} else {
 					const url = ref.url as string;
 					const decision = externalMediaDecision(overrides, url);
@@ -407,11 +448,17 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				const sha1 = createHash("sha1").update(bytes).digest("hex");
 				if (known && known.sha1 === sha1 && existingIds.has(known.id)) continue;
 				let item: MediaItem | undefined = bySha.get(sha1);
-				if (item) reused++;
-				else {
-					item = await api.mediaUpload(bytes, filename, mimeOf(filename), ref.alt);
+				if (item) {
+					reused++;
+					// The same file twice in the WordPress library (uploaded again under another name): one media item.
+					if (Object.values(idMap.media).some((e) => e.sha1 === sha1)) duplicates++;
+				} else {
+					const mime = mimeOf(filename);
+					const caption = plainCaption(local?.caption).slice(0, 1000);
+					item = await api.mediaUpload(bytes, filename, mime, ref.alt ?? (local?.alt || undefined), { ...(caption ? { caption } : {}), ...(!globallyAllowed(mime) ? { fieldId: await documentFieldId() } : {}) });
 					bySha.set(sha1, item);
 					uploaded++;
+					if (local) uploadedEntries.push(local);
 				}
 				const mime = item.mimeType ?? mimeOf(filename);
 				idMap.media[key] = { id: item.id, sha1, mime, ...(item.url ? { url: item.url } : {}), ...(mime === "video/mp4" && !needsFaststart(bytes) ? { faststart: true } : {}) };
@@ -424,7 +471,14 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		if (svgBrowser) await svgBrowser.close().catch(() => {});
 		if (svgConverted.length) reporter.emit({ type: "log", level: "info", message: `SVG drawn to PNG (EmDash's media library takes no SVG): ${svgConverted.join(", ")}` });
 		reporter.emit({ type: "step:end", step: "Media", ok: mediaErrors.length === 0, detail: `${uploaded} uploaded, ${reused} reused, ${refs.size} referenced` });
-		check("media", "Every referenced media item is on the target", mediaErrors.length === 0, mediaErrors.slice(0, 6).join("; ") || `${refs.size} items (${uploaded} uploaded, ${reused} already there)`);
+		check("media", "Every referenced media item is on the target", mediaErrors.length === 0, mediaErrors.slice(0, 6).join("; ") || `${refs.size} items (${uploaded} uploaded, ${reused} already there${duplicates ? `, ${duplicates} duplicate file(s) of the WordPress library share one media item` : ""})`);
+		// Files linked from content: each one in the media library (the links are rewritten below); a link to an upload
+		// extract could not download was already broken on the live site (extract's brokenUploads).
+		const linkProblems = [...[...linked].filter(([, key]) => !idMap.media[key]).map(([u]) => `${u}: not uploaded`), ...linkedMissing.map((u) => `${u}: not in raw/media (broken on the live site, or rerun extract)`)];
+		if (linked.size || linkedMissing.length) check("documents", "Every file linked from content (PDFs, documents) is in the media library", linkProblems.length === 0, linkProblems.slice(0, 6).join("; ") || `${linked.size} linked file(s)`);
+		// What EmDash media cannot hold: alt and caption are carried, titles and descriptions are not (reported).
+		const lost = lostMetadata(uploadedEntries);
+		if (lost.titles.length || lost.descriptions.length) reporter.emit({ type: "log", level: "info", message: `media: EmDash keeps alt text and captions only — not carried: ${lost.titles.length} attachment title(s) (${lost.titles.slice(0, 3).join(", ")}${lost.titles.length > 3 ? ", …" : ""}), ${lost.descriptions.length} description(s) (${lost.descriptions.slice(0, 3).join(", ")}${lost.descriptions.length > 3 ? ", …" : ""})` });
 
 		const resolver = (m: MediaRef | undefined) => {
 			if (!m) return undefined;
@@ -439,7 +493,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				if (siteHosts.has(u.host.replace(/^www\./, ""))) {
 					if (uploadsRe.test(u.pathname)) {
 						const key = [...byWpId.values()].find((m) => m.file && u.pathname.toLowerCase().endsWith(m.file.toLowerCase()));
-						const mapped = key?.id ? idMap.media[`wp:${key.id}`]?.url : undefined;
+						const local = key ?? localFile(u.href);
+						const mapped = local?.id ? idMap.media[`wp:${local.id}`]?.url : local ? idMap.media[`url:${local.url}`]?.url : undefined;
 						if (mapped) return mapped;
 					}
 					if (/^https?:/i.test(href)) return `${u.pathname}${u.search}${u.hash}`;
@@ -449,7 +504,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		};
 		const fixLinks = <T>(v: T): T => {
 			if (Array.isArray(v)) return v.map(fixLinks) as T;
-			if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, k === "href" && typeof x === "string" ? fixHref(x) : fixLinks(x)])) as T;
+			// Raw HTML (legacy sections, embeds): upload links in its href/src attributes point at the media library too.
+			if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, k === "href" && typeof x === "string" ? fixHref(x) : k === "html" && typeof x === "string" ? x.replace(/\b(href|src)(\s*=\s*["'])([^"']+\/(?:wp-content\/uploads|storage)\/\d{4}\/\d{2}\/[^"']+)(["'])/gi, (m, a: string, q: string, url: string, e: string) => { const to = fixHref(url); return to !== url && to.startsWith("/_emdash/") ? `${a}${q}${to}${e}` : m; }) : fixLinks(x)])) as T;
 			return v;
 		};
 

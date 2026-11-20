@@ -21,6 +21,10 @@ const ID_META = /^(_thumbnail_id|.*_image_id|.*_attachment_id|site_icon|site_log
 const MEDIA_EXT = "jpe?g|png|gif|webp|avif|svg|ico|bmp|tiff?|mp4|webm|ogv|ogg|mov|m4v|mp3|wav|m4a|pdf|docx?|xlsx?|pptx?|zip|kml|json|lottie";
 const URL_RE = new RegExp(`(?:https?:)?//[^\\s"'<>()\\[\\]{}|\\\\^\`]+?\\.(?:${MEDIA_EXT})(?=[\\s"'<>()\\[\\]?#,;|&]|$)|/(?:wp-content/uploads|storage)/[^\\s"'<>()\\[\\]{}|\\\\^\`]+?\\.(?:${MEDIA_EXT})(?=[\\s"'<>()\\[\\]?#,;|&]|$)`, "gi");
 
+/** More document types, only under the uploads folder (elsewhere `.txt`/`.csv` links are rarely files of this site). */
+const DOC_EXT = "odt|ods|odp|rtf|csv|txt|rar|7z|epub|pps|ppsx|dotx|gz|tar|key|numbers|pages";
+const DOC_RE = new RegExp(`(?:(?:https?:)?//[^\\s"'<>()\\[\\]{}|\\\\^\`/]+)?/(?:wp-content/uploads|storage)/[^\\s"'<>()\\[\\]{}|\\\\^\`]+?\\.(?:${DOC_EXT})(?=[\\s"'<>()\\[\\]?#,;|&]|$)`, "gi");
+
 const SHORTCODE_RE = /\[([a-z][a-z0-9_-]*)((?:\s+[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s\]]+))*)\s*\/?\]/gi;
 const ATTR_RE = /([a-z0-9_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s\]]+))/gi;
 
@@ -69,6 +73,7 @@ export function findMediaRefs(content: string, meta: Record<string, unknown> = {
 
 	const texts = [content, safeDecode(content.replace(/\+/g, " ")), ...decodeRawBlocks(content)];
 	for (const t of texts) for (const m of t.matchAll(URL_RE)) add({ kind: "url", value: normaliseUrlRef(m[0]), via: "content:url" });
+	for (const t of texts) for (const m of t.matchAll(DOC_RE)) add({ kind: "url", value: normaliseUrlRef(m[0]), via: "content:url" });
 
 	for (const [key, raw] of Object.entries(meta)) {
 		const values = Array.isArray(raw) ? raw : [raw];

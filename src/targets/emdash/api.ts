@@ -153,6 +153,10 @@ export class EmDashApi {
 	async createCollection(input: { slug: string; label: string; labelSingular?: string; description?: string; supports?: string[]; urlPattern?: string; routable?: boolean; hasSeo?: boolean; sortOrder?: number }): Promise<void> {
 		await this.request("POST", "/schema/collections", input);
 	}
+	/** GET /schema/collections/{c}/fields → { items } (schema:read); each field has its database `id`. */
+	async fields(collection: string): Promise<{ id: string; slug: string; type: string; validation?: { allowedMimeTypes?: string[] } | null }[]> {
+		return (await this.request<{ items: { id: string; slug: string; type: string; validation?: { allowedMimeTypes?: string[] } | null }[] }>("GET", `/schema/collections/${encodeURIComponent(collection)}/fields`)).items;
+	}
 	async createField(collection: string, field: Record<string, unknown>): Promise<void> {
 		await this.request("POST", `/schema/collections/${encodeURIComponent(collection)}/fields`, { validation: null, ...field });
 	}
@@ -206,10 +210,17 @@ export class EmDashApi {
 		} while (cursor);
 		return out;
 	}
-	async mediaUpload(bytes: Uint8Array, filename: string, mime: string, alt?: string): Promise<MediaItem> {
+	/**
+	 * POST /media (multipart): `alt` and `caption` are the only text EmDash 1.5 stores with a file (mediaUploadMetadataForm).
+	 * `fieldId`: a file field's id, whose `validation.allowedMimeTypes` replaces the global allowlist (images, audio,
+	 * video, PDF) for this upload — how Word, Excel, ZIP… files get in (api/handlers/media-allowlist.ts).
+	 */
+	async mediaUpload(bytes: Uint8Array, filename: string, mime: string, alt?: string, opts: { caption?: string; fieldId?: string } = {}): Promise<MediaItem> {
 		const form = new FormData();
 		form.append("file", new Blob([bytes as BlobPart], { type: mime }), filename);
 		if (alt) form.append("alt", alt);
+		if (opts.caption) form.append("caption", opts.caption);
+		if (opts.fieldId) form.append("fieldId", opts.fieldId);
 		return (await this.request<{ item: MediaItem }>("POST", "/media", form)).item;
 	}
 

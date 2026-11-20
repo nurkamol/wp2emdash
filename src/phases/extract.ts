@@ -90,6 +90,8 @@ export interface MediaEntry {
 	alt?: string;
 	title?: string;
 	caption?: string;
+	/** The attachment's description (EmDash media has no field for it: reported by load). */
+	description?: string;
 	width?: number;
 	height?: number;
 	inLibrary: boolean;
@@ -469,7 +471,7 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 		const rel = key ? (/\/(?:wp-content\/uploads|storage)\/(.+)$/i.exec(job.url.split(/[?#]/)[0] ?? "")?.[1] ?? key) : `external/${createHash("sha1").update(job.url).digest("hex").slice(0, 12)}`;
 		const file = join(mediaDir, decodeURIComponent(rel));
 		const base: MediaEntry = {
-			...(job.media ? { id: job.media.id, mime: job.media.mime_type, alt: job.media.alt, title: job.media.title, caption: job.media.caption, width: job.media.width, height: job.media.height } : {}),
+			...(job.media ? { id: job.media.id, mime: job.media.mime_type, alt: job.media.alt, title: job.media.title, caption: job.media.caption, ...(job.media.description ? { description: job.media.description } : {}), width: job.media.width, height: job.media.height } : {}),
 			url: job.url,
 			inLibrary: !!job.media,
 			referencedBy: job.referencedBy,
