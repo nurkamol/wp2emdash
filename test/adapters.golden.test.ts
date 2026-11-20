@@ -25,7 +25,7 @@ const reusable = (id: number) => (id === 99 ? `<!-- wp:paragraph --><p>Shared no
 
 const adapters = {
 	wpbakery: (src: string) => adaptWpbakery(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0 }),
-	gutenberg: (src: string) => adaptGutenberg(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0, reusable }),
+	gutenberg: (src: string) => adaptGutenberg(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0, reusable, postId: 10 }),
 	// Bricks fixtures: { elements, templates?: { [id]: elements }, options?: { bricks_* }, kind?, title?, postCount?,
 	// permalinks?: { [postId]: path }, popups?: { [templateId]: slug }, content?: post_content, menus?: { [menuId]: items } } — the post meta, the
 	// bricks_template posts, the Bricks options (palette, global classes, theme styles, components, breakpoints), the

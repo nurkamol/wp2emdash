@@ -139,6 +139,8 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const diviTemplates = content("et_template");
 	const diviLayouts = new Map([...content("et_header_layout"), ...content("et_body_layout"), ...content("et_footer_layout")].map((l) => [l.id, l]));
 	const diviForms = new Map<string, FormDefinitionOut>();
+	// Block-library form blocks (Kadence, Spectra, CoBlocks) on Gutenberg pages.
+	const blockForms = new Map<string, FormDefinitionOut>();
 	const siteUrl = config.source.url.replace(/\/$/, "");
 	const siteHosts = new Set([new URL(siteUrl).host, ...config.source.alternateHosts].map((h) => h.replace(/^www\./, "")));
 	// Media library id of an upload URL (WordPress size variants and -scaled copies point at the original).
@@ -273,7 +275,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		let sections: Section[] = [];
 		let diagnostics: Diagnostic[] = [];
 		try {
-			const r = builder === "bricks" ? adaptBricksPost(p, common, elements) : builder === "elementor" ? adaptElementorPost(p, common, role) : builder === "divi" ? adaptDiviPost(p, common, role) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id) });
+			const r = builder === "bricks" ? adaptBricksPost(p, common, elements) : builder === "elementor" ? adaptElementorPost(p, common, role) : builder === "divi" ? adaptDiviPost(p, common, role) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenbergPost(p, common);
 			sections = r.sections;
 			diagnostics = r.diagnostics;
 		} catch (e) {
@@ -305,6 +307,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	function adaptDiviPost(p: ExporterPost, common: { kind: Exclude<IrPage["kind"], "entry">; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, role?: "header" | "footer") {
 		const r = adaptDivi(p.content ?? "", { ...common, ...(role ? { role } : {}), site: divi, postId: p.id, title: p.title, siteTitle, menuItems: (id) => { const m = menusRaw.find((x) => String(x.id) === id); return m ? menuTree(m) : undefined; } });
 		for (const f of r.forms) diviForms.set(f.id, f);
+		return r;
+	}
+
+	/** Gutenberg / classic content; block-library form blocks (Kadence, Spectra, CoBlocks) bring their definitions. */
+	function adaptGutenbergPost(p: ExporterPost, common: { kind: Exclude<IrPage["kind"], "entry">; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }) {
+		const r = adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id), postId: p.id });
+		for (const f of r.forms ?? []) blockForms.set(f.id, f);
 		return r;
 	}
 
@@ -771,6 +780,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	for (const f of bricksForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
 	for (const f of elementorForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
 	for (const f of diviForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
+	for (const f of blockForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
 	// Divi theme options and global colours (for comparison with the design capture).
 	if (results.some((r) => r.doc.source.builder === "divi")) write(join(paths.reports, "transform", "divi-design.json"), { optionsPresent: divi.present, ...diviDesign(divi), themeBuilder: { ...(diviParts.template ? { template: diviParts.template.id } : {}), ...(diviParts.header ? { header: diviParts.header } : {}), ...(diviParts.footer ? { footer: diviParts.footer } : {}), ...(diviParts.body ? { body: diviParts.body } : {}) } });
 	// Elementor Kit design values (for comparison with the design capture) and the entrance animations count (motion).
@@ -864,7 +874,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	check("links", "Internal links point at migrated pages, anchors, popups or files", brokenLinks.length === 0, brokenLinks.slice(0, 8).join("; ") || undefined);
 
 	// ── Text conservation vs the live page HTML ─────────────────────────────────
-	const formText = [...readFormText(join(paths.raw, "forms")), ...[...bricksForms.values(), ...diviForms.values()].flatMap((f) => [f.submitLabel, ...f.fields.flatMap((x) => [x.label, ...(x.placeholder ? [x.placeholder] : []), ...(x.options ?? [])])])];
+	const formText = [...readFormText(join(paths.raw, "forms")), ...[...bricksForms.values(), ...diviForms.values(), ...blockForms.values()].flatMap((f) => [f.submitLabel, ...f.fields.flatMap((x) => [x.label, ...(x.placeholder ? [x.placeholder] : []), ...(x.options ?? [])])])];
 	const footerDocs = results.filter((r) => r.doc.kind === "partial" && r.published).map((r) => r.doc);
 	const lowPages: string[] = [];
 	for (const r of results.filter((x) => (x.doc.kind === "page" || x.doc.kind === "entry") && x.published)) {

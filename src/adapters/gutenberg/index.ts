@@ -7,6 +7,8 @@ import { autop, type Keys } from "../../ir/portable-text.js";
 import { embedOrLegacy, type Fragment, type HandlerCtx, mediaFrom, richFromHtml } from "../wpbakery/elements.js";
 import { adaptWpbakery, mergeRich, recognise, type Row, splitRow } from "../wpbakery/index.js";
 import type { Col } from "../wpbakery/elements.js";
+import type { FormDefinitionOut } from "../../scaffold/forms.js";
+import { isLibRow, LIB_CONTAINERS, LIB_LEAF, type LibEnv, libColumns, libraryOf, libStyle } from "./libraries.js";
 
 export interface Block {
 	name: string;
@@ -65,12 +67,16 @@ export interface GutenbergOptions {
 	rowOverrides?: Record<string, SectionType | "drop">;
 	/** Return the content as fragments (no sections): post content shown inside another builder's layout. */
 	asFragments?: boolean;
+	/** The post's id (form ids of block-library forms: `<postId>-<n>`). */
+	postId?: number;
 }
 
 const DECORATIVE = new Set(["core/spacer", "core/separator", "core/nextpage", "core/more"]);
 const PROSE = new Set(["core/paragraph", "core/heading", "core/list", "core/list-item", "core/quote", "core/pullquote", "core/verse", "core/preformatted", "core/code", "core/freeform", "core/footnotes"]);
 const CONTAINERS = new Set(["core/group", "core/columns", "core/cover", "core/media-text", "core/row", "core/stack"]);
 const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : undefined);
+/** Fragment kinds that make a top-level block-library block a section of its own. */
+const LIB_COLLECTIONS = new Set<Fragment["kind"]>(["faq", "tab", "team", "testimonial", "gallery", "price", "stat", "form", "embed", "video", "map"]);
 
 /**
  * Post content as fragments, for a page builder that shows it inside its own layout (a Bricks post-content element or
@@ -81,11 +87,16 @@ export function gutenbergFragments(content: string, opts: Omit<GutenbergOptions,
 	return { fragments: r.fragments ?? [], diagnostics: r.diagnostics };
 }
 
-export function adaptGutenberg(content: string, opts: GutenbergOptions): { sections: Section[]; diagnostics: Diagnostic[]; fragments?: Fragment[] } {
+export function adaptGutenberg(content: string, opts: GutenbergOptions): { sections: Section[]; diagnostics: Diagnostic[]; fragments?: Fragment[]; /** Form definitions of block-library form blocks (only when there are some). */ forms?: FormDefinitionOut[] } {
 	const diagnostics: Diagnostic[] = [];
 	const diag = (d: Diagnostic) => diagnostics.push(d);
 	const ctxFor = (path: string): HandlerCtx => ({ keys: opts.keys, path, diag, popupFor: opts.popupFor, postCount: opts.postCount, children: () => [] });
 	const blocks = parseBlocks(content);
+	const forms = new Map<string, FormDefinitionOut>();
+	let formCount = 0;
+	const libEnv: LibEnv = { keys: opts.keys, ctx: ctxFor, diag, popupFor: opts.popupFor, postCount: opts.postCount, ...(opts.postId !== undefined ? { postId: opts.postId } : {}), fragmentsOf: (b, path) => fragmentsOf(b, path), forms, nextForm: () => ++formCount };
+	const withForms = <T extends object>(r: T) => (forms.size ? { ...r, forms: [...forms.values()] } : r);
+	const isLibContainer = (b: Block) => LIB_CONTAINERS.has(b.name) || isLibRow(b);
 
 	// Classic content: no blocks at all.
 	if (blocks.length === 1 && blocks[0]?.name === "core/freeform") {
@@ -112,6 +123,9 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 		}
 		if (b.name === "core/list") return richFromHtml(serialiseList(b), ctx);
 		if (PROSE.has(b.name)) return richFromHtml(b.innerHTML, ctx);
+		// Block libraries (Kadence, Spectra, GenerateBlocks, Stackable, CoBlocks): src/adapters/gutenberg/libraries.ts.
+		const lib = LIB_LEAF[b.name];
+		if (lib) return lib(b, path, libEnv);
 		switch (b.name) {
 			case "core/image": {
 				const id = typeof b.attrs.id === "number" ? b.attrs.id : undefined;
@@ -172,7 +186,10 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 			default: {
 				const text = b.innerHTML.replace(/<[^>]+>/g, "").trim();
 				const dynamic = !b.innerHTML.trim();
-				diag({ level: text || dynamic ? "error" : "warn", code: dynamic ? "dynamic" : "unmapped", message: `${b.name}: ${dynamic ? "server-rendered block, content comes from the live render — needs a handler" : "no handler"}`, path, carriesContent: !!text || dynamic, tag: b.name });
+				// A block of a known library without a handler: its text and inner blocks are kept, and it is still reported.
+				const library = libraryOf(b.name);
+				const kept = library && (text || b.innerBlocks.length) ? `; ${library} block without a handler, its ${text ? "text" : "inner blocks"} kept` : library ? `; ${library} block without a handler` : "";
+				diag({ level: text || dynamic ? "error" : "warn", code: dynamic ? "dynamic" : "unmapped", message: `${b.name}: ${dynamic ? "server-rendered block, content comes from the live render — needs a handler" : "no handler"}${kept}`, path, carriesContent: !!text || dynamic, tag: b.name });
 				return [...(text ? richFromHtml(b.innerHTML, ctx) : []), ...b.innerBlocks.flatMap((i, k) => fragmentsOf(i, `${path}/${k}`))];
 			}
 		}
@@ -182,6 +199,11 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 	function fragmentsOf(b: Block, path: string): Fragment[] {
 		if (b.name === "core/columns") return [{ kind: "subrow", columns: b.innerBlocks.map((c, k) => columnOf(c, `${path}/${k}`)) }];
 		if (CONTAINERS.has(b.name)) return mergeRich(b.innerBlocks.flatMap((i, k) => fragmentsOf(i, `${path}/${k}`)));
+		if (isLibRow(b)) {
+			const cols = libColumns(b, path, libEnv);
+			return cols.filter((c) => c.fragments.length).length >= 2 ? [{ kind: "subrow", columns: cols }] : cols.flatMap((c) => c.fragments);
+		}
+		if (LIB_CONTAINERS.has(b.name)) return mergeRich(b.innerBlocks.flatMap((i, k) => fragmentsOf(i, `${path}/${k}`)));
 		return leaf(b, path);
 	}
 
@@ -217,7 +239,23 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 			runStart = i + 1;
 			return;
 		}
-		if (!CONTAINERS.has(b.name)) {
+		// A block-library item collection (accordion, tabs, testimonials, form, map…) is a section of its own; a heading
+		// right before it stays with it as its title.
+		if (!opts.asFragments && libraryOf(b.name) && !isLibContainer(b)) {
+			const frags = fragmentsOf(b, path);
+			if (frags.some((f) => LIB_COLLECTIONS.has(f.kind))) {
+				const headingOnly = run.length > 0 && run.every((f) => f.kind === "rich" && f.blocks.length <= 2 && f.blocks.some((x) => /^h[1-6]$/.test(x.style)));
+				if (!headingOnly) flush(i);
+				if (!run.length) runStart = i;
+				run.push(...frags);
+				flush(i + 1);
+				return;
+			}
+			if (!run.length) runStart = i;
+			run.push(...frags);
+			return;
+		}
+		if (!CONTAINERS.has(b.name) && !isLibContainer(b)) {
 			if (!run.length) runStart = i;
 			run.push(...fragmentsOf(b, path));
 			return;
@@ -232,6 +270,10 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 		const attrs = gutenbergStyle(b);
 		const raw = JSON.stringify(b).slice(0, 2000);
 		if (b.name === "core/columns") return { attrs, columns: b.innerBlocks.map((c, k) => columnOf(c, `${path}/${k}`)), path, raw, adapter: "gutenberg" };
+		if (isLibContainer(b)) {
+			const style = { ...attrs, ...libStyle(b) };
+			return { attrs: style, columns: isLibRow(b) ? libColumns(b, path, libEnv) : [{ fragments: mergeRich(b.innerBlocks.flatMap((i, k) => fragmentsOf(i, `${path}/${k}`))) }], path, raw, adapter: "gutenberg" };
+		}
 		if (b.name === "core/media-text") {
 			const id = typeof b.attrs.mediaId === "number" ? b.attrs.mediaId : undefined;
 			const url = str(b.attrs.mediaUrl);
@@ -262,7 +304,7 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 				return [...(bg ? [{ kind: "media" as const, media: bg, role: "content" as const }] : []), ...body];
 			}),
 		);
-		return { sections: [], diagnostics, fragments };
+		return withForms({ sections: [], diagnostics, fragments });
 	}
 
 	const sections: Section[] = [];
@@ -273,7 +315,7 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 		for (const v of splitRow(row)) sections.push(...recognise(v, { first: sections.length === 0, kind: opts.kind, ...(forced ? { forced } : {}), keys: opts.keys, diag }));
 	});
 	for (const x of extraSections.filter((e) => e.at >= rows.length)) sections.push(...x.sections);
-	return { sections, diagnostics };
+	return withForms({ sections, diagnostics });
 }
 
 /** Map block styling onto the WPBakery-style attrs the recognisers read. */

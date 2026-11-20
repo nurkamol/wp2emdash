@@ -1,0 +1,301 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#eef3f7"
+        }
+      },
+      "spacing": "normal",
+      "width": "full",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0]",
+        "rawHash": "ef8054c97d"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "h2",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Riverside Bike Repair",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Same-day fixes for commuters.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Holiday hours",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Closed on public holidays.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[1-1]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "question": "Do you service e-bikes?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Yes, all major motor brands.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "pricing",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[2-2]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "intro": [],
+        "plans": [
+          {
+            "name": "Tune-up",
+            "price": "$49",
+            "features": [
+              "Gears indexed",
+              "Brakes adjusted"
+            ],
+            "button": {
+              "label": "Book",
+              "href": "/book/tune-up/",
+              "style": "primary"
+            },
+            "highlight": false
+          },
+          {
+            "name": "Full service",
+            "price": "$129",
+            "features": [
+              "Everything in a tune-up",
+              "Bearings regreased"
+            ],
+            "highlight": false
+          }
+        ],
+        "buttons": []
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[3-3]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "intro": [],
+        "formRef": {
+          "provider": "coblocks",
+          "id": "10-1"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "map",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[4-4]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "address": "4 River Street, Millbrook"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[5-5]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "Coffee while you wait: $3.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "coblocks/form: recipient set in the coblocks form: set it in the admin (Forms → recipients), it is not copied",
+      "path": "blocks[3]",
+      "tag": "coblocks/form"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "coblocks/food-and-drinks: no handler; CoBlocks block without a handler, its text kept",
+      "path": "blocks[5]",
+      "carriesContent": true,
+      "tag": "coblocks/food-and-drinks"
+    }
+  ],
+  "forms": [
+    {
+      "id": "coblocks-10-1",
+      "title": "Repair enquiry",
+      "submitLabel": "Request a quote",
+      "successMessage": "Your message was sent.",
+      "fields": [
+        {
+          "name": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "autocomplete": "name"
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "autocomplete": "email"
+        },
+        {
+          "name": "bike_type",
+          "label": "Bike type",
+          "type": "select",
+          "options": [
+            "Road",
+            "Mountain",
+            "E-bike"
+          ]
+        },
+        {
+          "name": "what_needs_fixing",
+          "label": "What needs fixing?",
+          "type": "textarea"
+        }
+      ],
+      "warnings": [
+        "recipient set in the coblocks form: set it in the admin (Forms → recipients), it is not copied"
+      ]
+    }
+  ]
+}

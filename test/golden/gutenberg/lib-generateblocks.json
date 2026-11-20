@@ -1,0 +1,251 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "image",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#0e2433",
+          "image": {
+            "wpId": 701,
+            "kind": "image"
+          }
+        }
+      },
+      "spacing": "normal",
+      "anchorId": "top",
+      "width": "full",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0]",
+        "rawHash": "fee65e80f7"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Alpine Ridge Guides",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Guided hikes and ski touring since 2009.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Browse trips",
+            "href": "/trips/",
+            "style": "primary"
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "media_text",
+      "variant": "inline",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[1]",
+        "rawHash": "42aa864e85"
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 711,
+            "kind": "image",
+            "url": "https://alpine.example/wp-content/uploads/2026/04/hut.jpg",
+            "alt": "Mountain hut at dusk"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Hut-to-hut weeks",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Six days, five huts, one unforgettable traverse.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[2]",
+        "rawHash": "7376e6833b"
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Summer",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Day hikes and via ferrata.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Winter",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Ski touring for every level.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Private",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Ask about private guiding",
+                "href": "/private/",
+                "style": "primary"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "generateblocks/query-loop: lists posts, but the site has none — dropped",
+      "path": "blocks[3]",
+      "tag": "generateblocks/query-loop"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "generateblocks/shape dropped (decorative)",
+      "path": "blocks[4]",
+      "tag": "generateblocks/shape"
+    }
+  ]
+}

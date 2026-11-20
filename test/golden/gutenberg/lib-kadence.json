@@ -1,0 +1,508 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "image",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#1f2a24",
+          "image": {
+            "wpId": 501,
+            "kind": "image"
+          }
+        }
+      },
+      "spacing": "normal",
+      "anchorId": "welcome",
+      "width": "full",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0]",
+        "rawHash": "709b749336"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Harbor Light Rowing Club",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Learn to row on the bay with certified coaches.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Boats and oars provided",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Sessions at sunrise",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Try a session",
+            "href": "/try/",
+            "style": "primary"
+          },
+          {
+            "label": "Membership",
+            "href": "/join/",
+            "style": "secondary",
+            "newTab": true
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[1]",
+        "rawHash": "2a2c00f724"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Learn to row",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "A four-week course for complete beginners.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 511,
+              "kind": "image",
+              "url": "https://harbor.example/wp-content/uploads/2026/02/scull.jpg",
+              "alt": "A single scull"
+            },
+            "link": {
+              "label": "See dates",
+              "href": "/learn/",
+              "style": "link"
+            }
+          },
+          {
+            "title": "Racing squad",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Train for regattas three times a week.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "title": "Social rowing",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Relaxed outings followed by breakfast.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "columns": 3
+      }
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[3-4]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "te",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tf",
+                "text": "Questions",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "Can I join without experience?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Yes, every course starts on land.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Do I need to swim?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "You need to swim 50 metres in light clothing.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "tabs",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[5-5]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "tabs": [
+          {
+            "label": "Summer",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tk",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tl",
+                    "text": "Outings every morning at six.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "label": "Winter",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tm",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tn",
+                    "text": "Indoor ergometer training on weekday evenings.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "testimonials",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[6-6]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "items": [
+          {
+            "quote": "The coaches made my first outing feel easy.",
+            "name": "Morgan Example",
+            "role": "Novice rower",
+            "photo": {
+              "wpId": 521,
+              "kind": "image",
+              "url": "https://harbor.example/wp-content/uploads/2026/02/morgan.jpg"
+            }
+          },
+          {
+            "quote": "Best mornings of my week.",
+            "name": "Casey Sample"
+          }
+        ]
+      }
+    },
+    {
+      "type": "stats",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[7]",
+        "rawHash": "f5cf5d3292"
+      },
+      "fields": {
+        "items": [
+          {
+            "value": "1200",
+            "label": "Members trained",
+            "suffix": "+"
+          },
+          {
+            "value": "48",
+            "label": "Boats in the fleet"
+          }
+        ]
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[8-8]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "intro": [],
+        "formRef": {
+          "provider": "kadence",
+          "id": "10-1"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[10-10]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "to",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tp",
+                "text": "Club history: founded by six friends with one borrowed boat.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "kadence/spacer dropped (decorative)",
+      "path": "blocks[2]",
+      "tag": "kadence/spacer"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "kadence/form: actions not rebuilt: mailchimp",
+      "path": "blocks[8]",
+      "tag": "kadence/form"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "kadence/form: recipient set in the kadence form: set it in the admin (Forms → recipients), it is not copied",
+      "path": "blocks[8]",
+      "tag": "kadence/form"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "kadence/advanced-form: the form is stored in a kadence_form post (#845); rebuild it or export it",
+      "path": "blocks[9]",
+      "carriesContent": true,
+      "tag": "kadence/advanced-form"
+    },
+    {
+      "level": "warn",
+      "code": "unmapped",
+      "message": "kadence/show-more: no handler; Kadence Blocks block without a handler, its inner blocks kept",
+      "path": "blocks[10]",
+      "carriesContent": false,
+      "tag": "kadence/show-more"
+    }
+  ],
+  "forms": [
+    {
+      "id": "kadence-10-1",
+      "title": "Form 10-1",
+      "submitLabel": "Send message",
+      "successMessage": "Thanks, a coach will reply soon.",
+      "fields": [
+        {
+          "name": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "half": true
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "half": true,
+          "autocomplete": "email"
+        },
+        {
+          "name": "interest",
+          "label": "Interest",
+          "type": "select",
+          "options": [
+            "Learn to row course",
+            "Racing squad"
+          ]
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "textarea"
+        }
+      ],
+      "warnings": [
+        "recipient set in the kadence form: set it in the admin (Forms → recipients), it is not copied"
+      ]
+    }
+  ]
+}
