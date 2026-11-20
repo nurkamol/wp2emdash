@@ -9,7 +9,9 @@ import { blockKey, type MediaResolver, sectionToBlock } from "../targets/emdash/
 import type { BlogPlan } from "../transform/blog.js";
 import { type CptPlan, collectionFields } from "../transform/cpt.js";
 import { emdashMenuLabel, emdashMenuNames } from "../transform/menus.js";
+import { pageData, pageFields, parentsFirst } from "../transform/pages.js";
 import type { WidgetPlan } from "../transform/widgets.js";
+import type { IrReusableSection } from "../transform/sections.js";
 import type { FormDefinitionOut } from "./forms.js";
 
 export interface MediaInfo {
@@ -111,6 +113,8 @@ export interface SeedInput {
 	comments?: { form: string[] };
 	/** Classic-theme widget areas (ir/widgets.json). */
 	widgets?: WidgetPlan;
+	/** WordPress reusable blocks as EmDash sections (ir/sections.json). */
+	sections?: IrReusableSection[];
 }
 
 /** Seed widget areas (EmDash seed `widgetAreas`: content widgets carry Portable Text, images at their WordPress file for the local preview). */
@@ -175,6 +179,8 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 	dropLog = i.onDrop ?? (() => {});
 	const content = { slug: "content", label: "Sections", type: "blocks", validation: { allowedTypes: SECTION_SLUGS, maxItems: 80 } };
 	const menus = emdashMenus(i.site).map((m) => ({ ...m, items: menuItems(m.items) }));
+	// Page attributes the site uses (order, parent, excerpt, featured image): extra pages fields, none otherwise.
+	const extraPageFields = pageFields(i.pages);
 	const seed: Record<string, unknown> = {
 		$schema: "https://emdashcms.com/seed.schema.json",
 		version: "1",
@@ -183,7 +189,7 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 		blockTypes: BLOCK_TYPES,
 		collections: [
 			// Title searchable: EmDash's full-text index (EmDash 1.5 refuses searchable blocks fields; the search page reads the sections itself).
-			{ slug: "pages", label: "Pages", labelSingular: "Page", urlPattern: "/{slug}", supports: ["drafts", "revisions", "preview", "seo", "search"], sortOrder: 1, fields: [{ slug: "title", label: "Title", type: "string", required: true, searchable: true }, content] },
+			{ slug: "pages", label: "Pages", labelSingular: "Page", urlPattern: "/{slug}", supports: ["drafts", "revisions", "preview", "seo", "search"], sortOrder: 1, fields: [{ slug: "title", label: "Title", type: "string", required: true, searchable: true }, content, ...extraPageFields.map((f) => ({ ...f }))] },
 			{ slug: "site_parts", label: "Header & footer", labelSingular: "Site part", description: "Shown on every page: the announcement bar above the header (entry “announcement”) and the footer", routable: false, supports: ["drafts", "revisions"], sortOrder: 2, fields: [{ slug: "title", label: "Title", type: "string", required: true }, content] },
 			{
 				slug: "popups",
@@ -233,10 +239,16 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 		c.commentsEnabled = true;
 		c.fields = [...c.fields, { ...COMMENTS_CLOSED_FIELD }]; // a copy: POSTS_COLLECTION's fields are shared
 	}
+	// Reusable blocks → EmDash sections (seed `sections`, source "import"; images at their WordPress file for the local preview).
+	if (i.includeContent && i.sections?.length) seed.sections = i.sections.map((s) => ({ slug: s.slug, title: s.title, description: `From the WordPress reusable block "${s.title}" (#${s.wpId})`, content: seedPostBody(s.content, i.media), source: "import" }));
 	if (i.includeContent) {
 		seed.content = {
 			// Password-protected pages stay drafts in the seed (local preview has no password page data).
-			pages: i.pages.map((p) => ({ id: routeToSlug(p.route?.path ?? p.source.slug), slug: routeToSlug(p.route?.path ?? p.source.slug), status: p.source.status === "publish" && !p.access ? "published" : "draft", data: { title: p.title, content: blocksOf(p, i.media) } })),
+			// Parents first: a seed `$ref` resolves only to an entry earlier in the file (pages without a parent keep their order).
+			pages: (extraPageFields.length ? parentsFirst(i.pages) : i.pages).map((p) => {
+				const parent = p.page?.parent ? i.pages.find((x) => `page:${x.source.wpId}` === p.page?.parent) : undefined;
+				return { id: routeToSlug(p.route?.path ?? p.source.slug), slug: routeToSlug(p.route?.path ?? p.source.slug), status: p.source.status === "publish" && !p.access ? "published" : "draft", data: { title: p.title, content: blocksOf(p, i.media), ...pageData(p, extraPageFields, i.media), ...(parent && extraPageFields.some((f) => f.slug === "parent") ? { parent: `$ref:${routeToSlug(parent.route?.path ?? parent.source.slug)}` } : {}) } };
+			}),
 			site_parts: i.partials.map((p) => ({ id: p.source.slug, slug: p.source.slug, status: "published", data: { title: p.title, content: blocksOf(p, i.media) } })),
 			popups: i.popups.map((p) => ({ id: p.source.slug, slug: p.source.slug, status: "published", data: { title: p.title, content: blocksOf(p, i.media), selectors: p.popup?.selectors.filter((s) => !s.includes("popmake")).join(", ") || undefined, auto_open_delay: p.popup?.autoOpen?.delayMs } })),
 			...(i.blog

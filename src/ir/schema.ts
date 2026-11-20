@@ -516,6 +516,11 @@ export const irPage = z.object({
 	/** Entry-only (custom post type collections). */
 	entry: irEntry.optional(),
 	/**
+	 * Page-only: the WordPress page attributes this page has (src/transform/pages.ts) — manual order, parent page as
+	 * `page:<wpId>` (resolved by load to the migrated page), hand-written excerpt. Absent when it has none.
+	 */
+	page: z.object({ menuOrder: z.number().int().optional(), parent: z.string().optional(), excerpt: z.string().optional() }).optional(),
+	/**
 	 * Password-protected or private on WordPress, and what migration does with it (src/transform/protected.ts):
 	 * protect = published behind the password page (the hash stays in raw/protected.json, never in the IR); draft; publish.
 	 */

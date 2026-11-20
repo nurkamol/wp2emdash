@@ -9,8 +9,11 @@ import { BRICKS_OPTIONS } from "../adapters/bricks/site.js";
 import { sitePaths } from "../core/paths.js";
 import { readOptionsFromDump } from "../extract/sql-options.js";
 
-/** Rank Math and Yoast options the site settings read (social profiles, default sharing image, verification). */
-export const SEO_OPTIONS = ["rank-math-options-titles", "rank-math-options-general", "wpseo_social", "wpseo"];
+/**
+ * Rank Math and Yoast options the site settings read (social profiles, default sharing image, verification), and Yoast's
+ * per-term SEO values (`wpseo_taxonomy_meta`: counted in the transform report; EmDash terms have no SEO fields).
+ */
+export const SEO_OPTIONS = ["rank-math-options-titles", "rank-math-options-general", "wpseo_social", "wpseo", "wpseo_taxonomy_meta"];
 
 /** WordPress discussion settings (Settings → Discussion) for the comment settings: plain flags and numbers, no secrets. */
 export const DISCUSSION_OPTIONS = ["default_comment_status", "comment_moderation", "comment_previously_approved", "close_comments_for_old_posts", "close_comments_days_old", "comment_registration", "require_name_email", "thread_comments", "thread_comments_depth"];

@@ -347,7 +347,8 @@ export interface SiteConfig {
 	lang: string;
 	productionUrl: string;
 	favicon?: string;
-	fonts: { body: string; display: string; displayWeight?: number; googleHref?: string; selfHosted?: boolean; preload?: string[] };
+	/** typekitHref: an Adobe Fonts project kept from the live site (scaffold/fonts.ts typekitKit); the CSP then allows Typekit. */
+	fonts: { body: string; display: string; displayWeight?: number; googleHref?: string; selfHosted?: boolean; preload?: string[]; typekitHref?: string };
 	header: {
 		panel: string;
 		/** centered: toggle | logo | actions (Salient "centered-logo…", many agency themes); logo-left: logo | nav | actions. */

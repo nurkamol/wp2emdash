@@ -1,0 +1,170 @@
+{
+  "sections": [
+    {
+      "type": "embed",
+      "variant": "x-twitter",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-8]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "From around the web",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "provider": "x-twitter",
+        "html": "<blockquote class=\"twitter-tweet\"><a href=\"https://x.com/examplestudio/status/1234567890\">https://x.com/examplestudio/status/1234567890</a></blockquote><script async src=\"https://platform.twitter.com/widgets.js\"></script>"
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "tiktok",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-8]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "provider": "tiktok",
+        "html": "<blockquote class=\"tiktok-embed\" cite=\"https://www.tiktok.com/@examplestudio/video/7000000000000000001\" data-video-id=\"7000000000000000001\"><a href=\"https://www.tiktok.com/@examplestudio/video/7000000000000000001\">https://www.tiktok.com/@examplestudio/video/7000000000000000001</a></blockquote><script async src=\"https://www.tiktok.com/embed.js\"></script>"
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "dailymotion",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-8]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "provider": "dailymotion",
+        "html": "<iframe src=\"https://www.dailymotion.com/embed/video/x8abc12\" title=\"Dailymotion video\" loading=\"lazy\" allowfullscreen allow=\"autoplay; fullscreen; picture-in-picture\"></iframe>"
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "spotify",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-8]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "provider": "spotify",
+        "html": "<iframe src=\"https://open.spotify.com/embed/playlist/37i9dQZF1DXexample\" title=\"Spotify player\" loading=\"lazy\" allowfullscreen allow=\"encrypted-media\"></iframe>"
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "ted",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-8]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "provider": "ted",
+        "html": "<iframe src=\"https://embed.ted.com/talks/example_speaker_an_example_talk\" title=\"TED talk\" loading=\"lazy\" allowfullscreen></iframe>"
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "instagram",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-8]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "provider": "instagram",
+        "html": "<blockquote class=\"instagram-media\" data-instgrm-permalink=\"https://www.instagram.com/p/Cexample123/\"><a href=\"https://www.instagram.com/p/Cexample123/\">https://www.instagram.com/p/Cexample123/</a></blockquote><script async src=\"https://www.instagram.com/embed.js\"></script>"
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "mixcloud",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-8]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "provider": "mixcloud",
+        "html": "<iframe src=\"https://player-widget.mixcloud.com/widget/iframe/?feed=%2Fexamplestudio%2Fmorning-mix%2F\" title=\"Mixcloud player\" loading=\"lazy\" allowfullscreen></iframe>"
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-8]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "html": "<a href=\"https://www.example-unknown.test/watch/1\">https://www.example-unknown.test/watch/1</a>",
+        "reason": "embed example-unknown"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (embed example-unknown); replace with a section or approve in decisions.md",
+      "path": "blocks[8]",
+      "carriesContent": true
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "Row mixes embed + legacy; secondary items emitted as separate sections",
+      "path": "blocks[0-8]"
+    }
+  ]
+}

@@ -212,6 +212,9 @@ export class EmDashApi {
 	async terms(taxonomy: string): Promise<EmDashTerm[]> {
 		return flattenTerms((await this.request<{ terms: EmDashTerm[] }>("GET", `/taxonomies/${encodeURIComponent(taxonomy)}/terms?includeCounts=false`)).terms);
 	}
+	async updateTerm(taxonomy: string, slug: string, input: { label?: string; description?: string }): Promise<void> {
+		await this.request("PUT", `/taxonomies/${encodeURIComponent(taxonomy)}/terms/${encodeURIComponent(slug)}`, input);
+	}
 	async createTerm(taxonomy: string, input: { slug: string; label: string; parentId?: string | null; description?: string }): Promise<EmDashTerm> {
 		return (await this.request<{ term: EmDashTerm }>("POST", `/taxonomies/${encodeURIComponent(taxonomy)}/terms`, input)).term;
 	}
@@ -279,6 +282,27 @@ export class EmDashApi {
 	async createMenuItem(menu: string, item: { type: string; label: string; customUrl?: string; target?: string; titleAttr?: string; cssClasses?: string; parentId?: string; sortOrder?: number }): Promise<{ id: string }> {
 		const r = await this.request<{ item?: { id: string }; id?: string }>("POST", `/menus/${encodeURIComponent(menu)}/items`, item);
 		return { id: r.item?.id ?? (r.id as string) };
+	}
+	// ── invites (EmDash 1.5 POST /_emdash/api/auth/invite: admin user, token scope admin) ──
+	/** Creates an invite. EmDash e-mails it when the site has an e-mail provider; otherwise it returns the link instead. */
+	async invite(email: string, role: number): Promise<{ message?: string; inviteUrl?: string }> {
+		return await this.request<{ message?: string; inviteUrl?: string }>("POST", "/auth/invite", { email, role });
+	}
+	// ── sections (EmDash 1.5 /_emdash/api/sections: GET content:read, WRITE content:write; role EDITOR for sections:manage) ──
+	/** The section with this slug, or undefined when there is none (404). */
+	async section(slug: string): Promise<{ id: string; slug: string; title: string; source?: string } | undefined> {
+		try {
+			return await this.request<{ id: string; slug: string; title: string; source?: string }>("GET", `/sections/${encodeURIComponent(slug)}`);
+		} catch (e) {
+			if (e instanceof EmDashHttpError && e.status === 404) return undefined;
+			throw e;
+		}
+	}
+	async createSection(input: { slug: string; title: string; description?: string; content: unknown[]; source: "import" }): Promise<void> {
+		await this.request("POST", "/sections", input);
+	}
+	async updateSection(slug: string, input: { title?: string; description?: string; content?: unknown[] }): Promise<void> {
+		await this.request("PUT", `/sections/${encodeURIComponent(slug)}`, input);
 	}
 	// ── widget areas (EmDash 1.5 /_emdash/api/widget-areas: GET content:read, WRITE content:write + widgets:manage role) ──
 	async widgetAreas(): Promise<{ name: string; widgets?: unknown[] }[]> {

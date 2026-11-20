@@ -93,6 +93,17 @@ export const PROVIDERS: Provider[] = [
 	{ id: "arketa", name: "Arketa", category: "booking", detect: /arketa\.co\b/i, embed: true, hosts: ["arketa.co"], source: "snippet" },
 	{ id: "classpass", name: "ClassPass", category: "booking", detect: /classpass\.com/i, embed: true, hosts: ["classpass.com"], source: "snippet" },
 
+	// ── WordPress oEmbed providers (core/embed URLs; the Gutenberg adapter writes their official embed markup) ──
+	{ id: "dailymotion", name: "Dailymotion", category: "video", detect: /dailymotion\.com\/(?:embed|video|player)|\bdai\.ly\//i, embed: true, hosts: ["dailymotion.com"], source: "snippet" },
+	{ id: "ted", name: "TED", category: "video", detect: /embed\.ted\.com|ted\.com\/talks\//i, embed: true, hosts: ["embed.ted.com"], source: "snippet" },
+	{ id: "twitch", name: "Twitch", category: "video", detect: /(?:player|clips|embed)\.twitch\.tv/i, embed: true, hosts: ["player.twitch.tv", "clips.twitch.tv", "embed.twitch.tv"], source: "snippet" },
+	{ id: "pinterest", name: "Pinterest", category: "social", detect: /assets\.pinterest\.com\/js\/pinit|data-pin-do=/i, embed: true, hosts: ["assets.pinterest.com", "widgets.pinterest.com"], source: "snippet" },
+	{ id: "reddit", name: "Reddit", category: "social", detect: /embed\.reddit\.com|embed\.redditmedia\.com|class=["'][^"']*\breddit-embed-bq\b/i, embed: true, hosts: ["embed.reddit.com", "embed.redditmedia.com"], source: "snippet" },
+	{ id: "bluesky", name: "Bluesky", category: "social", detect: /embed\.bsky\.app|class=["'][^"']*\bbluesky-embed\b/i, embed: true, hosts: ["embed.bsky.app"], source: "snippet" },
+	{ id: "mixcloud", name: "Mixcloud", category: "audio", detect: /mixcloud\.com/i, embed: true, hosts: ["player-widget.mixcloud.com"], source: "snippet" },
+	{ id: "bandcamp", name: "Bandcamp", category: "audio", detect: /bandcamp\.com\/EmbeddedPlayer/i, embed: true, hosts: ["bandcamp.com"], source: "snippet" },
+	{ id: "apple-embeds", name: "Apple Podcasts / Music", category: "audio", detect: /embed\.(?:podcasts|music)\.apple\.com/i, embed: true, hosts: ["embed.podcasts.apple.com", "embed.music.apple.com"], source: "snippet" },
+
 	// ── Site-wide widgets: loaded by the starter from an ID (components/SiteWidgets.astro) ──
 	{
 		id: "tawkto",

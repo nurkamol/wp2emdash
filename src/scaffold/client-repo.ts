@@ -77,10 +77,25 @@ export interface ClientRepoInput {
 	collections?: { label: string; labelSingular: string; slug: string; archive?: string; base?: string; fields: { label: string; type: string }[]; hierarchical: boolean; taxonomies: string[] }[];
 	/** WordPress comments migrated or a comment form on (docs/moderating-comments.md): per collection, counts only. */
 	comments?: { collections: { slug: string; form: boolean; moderation: "all" | "first_time" | "none"; closedAfterDays: number; approved: number }[]; turnstile: boolean };
+	/** WordPress users to invite (src/transform/users.ts): counts per EmDash role only — names and emails never reach the repo. */
+	invites?: Record<string, number>;
 }
 
 const md = (body: string) => `<!-- ${MARKER}. Delete this line to take the file over: later scaffold runs then leave it alone. -->\n${body.trim()}\n`;
 const yml = (body: string) => `# ${MARKER}. Delete this line to take the file over: later scaffold runs then leave it alone.\n${body.trim()}\n`;
+
+/**
+ * Go-live checklist steps the migration cannot do for the owner: past form entries (never read by the kit: they stay in
+ * WordPress until the owner exports them) and the team's accounts (invited by the owner; passwords never migrate).
+ */
+export function goLiveExtras(i: Pick<ClientRepoInput, "invites">): string {
+	const roles = Object.entries(i.invites ?? {}).filter(([, n]) => n > 0);
+	const people = roles.reduce((n, [, c]) => n + c, 0);
+	return [
+		"- [ ] Form entries exported from WordPress by the owner (each form plugin's **Entries → Export**, CSV) and kept somewhere safe outside the site: the migration never reads them, and they are gone once WordPress hosting is retired",
+		`- [ ] Team accounts: the owner invites the people who edit the site (admin → **Users** → **Invite**)${people ? ` — ${people} from the old site (${roles.map(([r, n]) => `${n} ${r.toLowerCase()}`).join(", ")}), listed in the invite checklist handed over separately (names and e-mail addresses are never stored in this repository)` : ""}. WordPress passwords do not move: each person sets up their own sign-in from the invite`,
+	].join("\n") + "\n";
+}
 
 /**
  * Package scripts the docs and CI rely on (scaffold writes them into package.json). None is named "deploy": that is a
@@ -667,7 +682,7 @@ ${i.productionReady ? "" : "Not live yet: WordPress still serves " + i.productio
 - [ ] Content frozen on WordPress, last changes copied over, final check run against production
 - [ ] DNS records written down (mail, SPF, DKIM, DMARC, verification) — they must not change
 - [ ] Owner's go-ahead for the switch, and who decides on a rollback
-
+${goLiveExtras(i)}
 ## Switch
 
 Add the two Worker routes (zone \`${host}\` → Worker \`${i.workerName}\`) — from the migration kit,
@@ -692,7 +707,8 @@ monitoring period). Content edited here after the switch has to be copied back b
   engines about every page** once.` : ""}
 ${i.health ? "- Site health: with \`production.live\` set, rerun scaffold and deploy so alerts and the monthly report start; then **Plugins → Site health → Settings → Send a test email**.\n" : ""}- Check form deliveries and Worker errors for the first two weeks.
 - Later, with the owner's approval: replace the routes with a Worker Custom Domain and retire WordPress hosting
-  (keep the final backup).
+  (keep the final backup). Before WordPress is switched off for good, make sure the form entries were exported
+  (above): they exist only there.
 `);
 
 	files[".env.example"] = `# ${MARKER}.
@@ -969,7 +985,7 @@ ${i.productionReady ? "" : `Not live yet: WordPress still serves ${i.productionU
 - [ ] Content frozen on WordPress, last changes copied over, final check run
 - [ ] DNS records written down (mail, SPF, DKIM, DMARC, verification) — they must not change
 - [ ] Owner's go-ahead for the switch, and who decides on a rollback
-
+${goLiveExtras(i)}
 ## Switch
 
 Add the two Worker routes (zone \`${host}\` → Worker \`${i.workerName}\`) — from the migration kit,
@@ -998,7 +1014,8 @@ monitoring period). Content edited here after the switch has to be copied back b
   every page** once (after the rescaffold and deploy above).` : ""}
 ${i.health ? "- Site health: with \`production.live\` set, rerun scaffold and deploy so alerts and the monthly report start; then **Plugins → Site health → Settings → Send a test email**.\n" : ""}- Check form deliveries and Worker errors for the first two weeks.
 - Later, with the owner's approval: replace the routes with a Worker Custom Domain and retire WordPress hosting
-  (keep the final backup).
+  (keep the final backup). Before WordPress is switched off for good, make sure the form entries were exported
+  (above): they exist only there.
 `);
 
 	files[".github/workflows/ci.yml"] = yml(`

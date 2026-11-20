@@ -1,0 +1,39 @@
+{
+	"about": {
+		"route": "/about/",
+		"page": {
+			"menuOrder": 1,
+			"excerpt": "Who we are and how we teach."
+		},
+		"featuredImage": {
+			"wpId": 31,
+			"kind": "image"
+		}
+	},
+	"coaches": {
+		"route": "/about/coaches/",
+		"page": {
+			"menuOrder": 2,
+			"parent": "page:2"
+		},
+		"featuredImage": null
+	},
+	"contact": {
+		"route": "/contact/",
+		"page": null,
+		"featuredImage": null
+	},
+	"history": {
+		"route": "/about/history/",
+		"page": {
+			"menuOrder": 1,
+			"parent": "page:2"
+		},
+		"featuredImage": null
+	},
+	"home": {
+		"route": "/",
+		"page": null,
+		"featuredImage": null
+	}
+}

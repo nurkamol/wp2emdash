@@ -139,6 +139,17 @@ export const overridesSchema = z.object({
 	 * (who, when, what was fixed). Until every such published page has one, the transform gate `dom-fallback-reviewed` fails.
 	 */
 	domFallbackReviewed: z.record(z.string(), z.string().min(3, "give the owner's review note")).default({}),
+	/**
+	 * Team invite list (src/transform/users.ts): `roles` maps a WordPress role to an EmDash role or "skip" (defaults:
+	 * administrator → ADMIN, editor → EDITOR, author → AUTHOR, contributor → CONTRIBUTOR, subscriber → skip; plugin roles
+	 * such as shop_manager are skipped until mapped); `skip` leaves WordPress user ids off the list (former staff).
+	 */
+	users: z
+		.object({
+			roles: z.record(z.string(), z.enum(["ADMIN", "EDITOR", "AUTHOR", "CONTRIBUTOR", "SUBSCRIBER", "skip"])).default({}),
+			skip: z.array(z.number().int()).default([]),
+		})
+		.default({ roles: {}, skip: [] }),
 });
 
 function decision<T extends string>(values: [T, ...T[]]) {

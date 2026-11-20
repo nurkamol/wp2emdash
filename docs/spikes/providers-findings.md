@@ -54,6 +54,19 @@ browser against a live account**.
 | Tock | `www.exploretock.com/tock.js` + `#Tock_widget_container` (inline `tock('init', …)` is removed by the allowlist) | exploretock.com | **unverified** |
 | Arketa | `app.arketa.co/iframe/{slug}/schedule` | arketa.co | **unverified** |
 | ClassPass | script/iframe on classpass.com (exact paths not confirmed) | classpass.com | **unverified** |
+| Dailymotion (2026-11-21) | `<iframe src="https://www.dailymotion.com/embed/video/{id}">` (also `geo.dailymotion.com/player`) | dailymotion.com | snippet |
+| TED (2026-11-21) | `<iframe src="https://embed.ted.com/talks/{slug}">` | embed.ted.com | snippet |
+| Twitch (2026-11-21) | `player.twitch.tv/?video=…&parent=<domain>` / `clips.twitch.tv/embed` iframe (the `parent` must be the site's domain) | player.twitch.tv, clips.twitch.tv, embed.twitch.tv | snippet (unverified) |
+| Pinterest (2026-11-21) | `<a data-pin-do="embedPin" href="…/pin/{id}/">` + `assets.pinterest.com/js/pinit.js` | assets.pinterest.com, widgets.pinterest.com | snippet (unverified) |
+| Reddit (2026-11-21) | `<blockquote class="reddit-embed-bq">` + `embed.reddit.com/widgets.js` (older: `embed.redditmedia.com`) | embed.reddit.com, embed.redditmedia.com | snippet (unverified) |
+| Bluesky (2026-11-21) | `<blockquote class="bluesky-embed" data-bluesky-uri="at://…">` + `embed.bsky.app/static/embed.js` | embed.bsky.app | snippet (unverified) |
+| Mixcloud (2026-11-21) | `<iframe src="https://player-widget.mixcloud.com/widget/iframe/?feed=/{user}/{show}/">` | player-widget.mixcloud.com | snippet |
+| Bandcamp (2026-11-21) | `<iframe src="https://bandcamp.com/EmbeddedPlayer/album={id}/…">` | bandcamp.com | snippet |
+| Apple Podcasts / Music (2026-11-21) | `<iframe src="https://embed.podcasts.apple.com/…">` / `embed.music.apple.com` | embed.podcasts.apple.com, embed.music.apple.com | snippet |
+
+Gutenberg `core/embed` blocks store only the URL; `src/adapters/gutenberg/oembed.ts` writes the official markup above
+(and the X, TikTok, Instagram, Spotify and Loom forms in this table) from it, so the embed works without a runtime
+oEmbed request (P2 batch, `p2-batch-findings.md`).
 
 Before a gate depends on one of the **unverified** booking hosts, open a live page that uses it, record the network
 log's script/frame/XHR hosts here, and adjust the entry.

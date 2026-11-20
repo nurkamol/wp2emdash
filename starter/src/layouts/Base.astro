@@ -129,6 +129,7 @@ const pageCtx = createPublicPageContext({
 const canonicalUrl = canonical ?? `${site.productionUrl}${Astro.url.pathname}`;
 /** Google Fonts stylesheet, only when the fonts were not self-hosted at scaffold time. */
 const googleHref = (site.fonts as { googleHref?: string }).googleHref;
+const typekitHref = (site.fonts as { typekitHref?: string }).typekitHref;
 ---
 
 <!doctype html>
@@ -149,6 +150,8 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		{((site.fonts as { preload?: string[] }).preload ?? []).map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
 		{googleHref && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}
 		{googleHref && <link rel="stylesheet" href={googleHref} />}
+		{/* Adobe Fonts project kept from the old site (its licence is tied to the project): middleware.ts allows Typekit then. */}
+		{typekitHref && <link rel="stylesheet" href={typekitHref} />}
 		{/* Favicons sized for their use (performance package), the captured file when there are none; once an editor picks
 		    another favicon in Settings, EmDash's head links it and only its home-screen icon is added here. */}
 		{brand.icons.map((i) => <link rel={i.rel} href={i.href} type={i.type || undefined} sizes={i.sizes} />)}

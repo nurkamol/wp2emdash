@@ -85,7 +85,9 @@ Rich text inside sections is Portable Text. Media is referenced by WP attachment
 | Pages built with WPBakery | Kit adapter → IR → `layout` blocks field (overlay). |
 | Pages built with Gutenberg | Kit adapter → IR when the page uses layout blocks (cover, columns, group, media-text); plain-prose pages stay Portable Text. |
 | Custom post types | Kit CPT mapper (2026-11-21, `docs/spikes/cpt-findings.md`): a collection per public type, ACF/Meta Box/Pods fields mapped to EmDash field types (unsupported → JSON + warning), builder content in them goes through the adapter. |
-| Reusable blocks / WPBakery templates | Inlined into pages by the adapter; also imported as EmDash sections (`source: import`). |
+| Reusable blocks / WPBakery templates | Inlined into pages by the adapter; published `wp_block` posts also imported as EmDash sections (`source: import`, built 2026-11-21, `src/transform/sections.ts`; EmDash inserts a copy, not a synced block). WPBakery templates are not imported as sections. |
+| Page attributes | Order, parent page, excerpt and featured image → `pages` fields only when the site uses them (2026-11-21, `src/transform/pages.ts`). |
+| Users | Never accounts, never passwords: an invite checklist under `sites/<slug>/users/` (counts only elsewhere); `wp2emdash invite --send` is the owner's opt-in (2026-11-21, `src/transform/users.ts`). |
 
 ---
 
@@ -570,7 +572,7 @@ before consent, trackers after Accept all) and the existing axe pass. Facts and 
 | **i18n** | WPML/Polylang detected in audit; v1 flags it as out of scope, v2 maps to EmDash i18n. |
 | **Accessibility** | WCAG 2.2 AA target; axe in verify; fixed issues from the source site noted as improvements, not regressions. |
 | **Security** | Admin passkeys/MFA, least-privilege users, secrets only in Wrangler secrets/`.env`, app password + migration key revoked after import, staging behind Access/noindex, no backups in public storage. |
-| **Editor handoff** | Generated editor guide: list of section types with screenshots, how to add/edit pages, menus, media, SEO fields; admin accounts invited, not shared. |
+| **Editor handoff** | Generated editor guide: list of section types with screenshots, how to add/edit pages, menus, media, SEO fields; admin accounts invited, not shared — from the invite checklist the kit builds from the WordPress users (roles mapped; names and e-mails only in `sites/<slug>/users/`), by the owner in the admin or with `wp2emdash invite <slug> --send`. The go-live checklist has the owner export past form entries from WordPress before it is retired. |
 | **Backups & ops** | D1 Time Travel/export schedule, R2 lifecycle, `emdash site export` before every load and before cutover; logs and alerts on the Worker. |
 
 ---
@@ -725,7 +727,7 @@ Any failed assumption changes the plan before code depends on it.
 - **Sign-in sessions on R2 — built,** run locally, unit-tested; not yet deployed ([sessions findings](spikes/sessions-findings.md)).
 - **Plugin suite — built, all on by default (Form messages off on sensitiveData sites).** Forms 1.7.0 (endpoint, providers, outbox, Form messages, waivers, full inbox, file uploads, conditional fields, steps); Sharing images; SEO & Analytics 0.2; Site health, Privacy & consent, Backups & restore, Media assistant and Change requests 0.1: unit-tested and build-checked / run locally, not yet deployed to a client site (see each findings file).
 - **Performance package — built,** measured on a staging Worker ([performance findings](spikes/performance-findings.md)).
-- **Migration safety net, settings, providers — built:** `urls-accounted`, `content-types-handled`, WordPress URL rules, Additional CSS, Settings prefill, 46-provider registry and site-wide snippets, unit-tested; the Settings prefill also checked on a local dev server ([settings findings](spikes/settings-findings.md)).
+- **Migration safety net, settings, providers — built:** `urls-accounted`, `content-types-handled`, WordPress URL rules, Additional CSS, Settings prefill, 55-provider registry and site-wide snippets, unit-tested; the Settings prefill also checked on a local dev server ([settings findings](spikes/settings-findings.md)).
 - **Blog and custom post types — built,** tested on a synthetic WordPress blog and a local EmDash; not yet on a real blog ([blog](spikes/blog-findings.md), [CPT](spikes/cpt-findings.md)).
 - **Bricks (v2 row) — adapter built and measured** on one real Bricks site through three visual parity rounds ([Bricks findings](spikes/bricks-findings.md)).
 - **Built, awaiting a real site:** Elementor adapter (2026-11-21); site features (2026-11-21): every menu, mega-menu fallback, classic widget areas, search page, breadcrumbs, the old 404 page, Site health's Missing pages and coming-soon mode — unit-tested on a synthetic classic-theme fixture, EmDash seed/FTS/widget/404-log behaviour checked against the installed 1.5.0 in an in-memory spike ([site-features findings](spikes/site-features-findings.md)); not yet loaded into a running EmDash or run on a real classic-theme site.
@@ -733,6 +735,7 @@ Any failed assumption changes the plan before code depends on it.
 - **Built, awaiting a real site:** DOM-fallback adapter for every other builder and theme (2026-11-21; 8 synthetic fixtures, [findings](spikes/dom-fallback-findings.md)).
 - **Built, awaiting a real site:** comments migration (2026-11-21; synthetic blog + local EmDash).
 - **Built, awaiting a real site:** content & forms batch (2026-11-21): password-protected/private content, linked documents and library documents, Ninja/Formidable/WS Form/Forminator, forms 1.7 (file uploads, conditional fields, steps), shortcode registry — unit-tested, starter `astro check` clean; not yet loaded into a live EmDash ([findings](spikes/content-forms-findings.md)).
+- **Built, awaiting a real site:** P2 parity batch (2026-11-21, [P2 batch findings](spikes/p2-batch-findings.md)): team invite list from WordPress users + opt-in `invite` command, term descriptions on existing terms (Yoast term SEO counted, not carried), page order/parent/excerpt/featured image fields, reusable blocks as EmDash sections, oEmbed URLs → official embed markup and nine more providers, Adobe Fonts kept with Typekit in the CSP, featured image as the sitemap image fallback, form-entries step in the go-live checklist — unit-tested and checked with EmDash's `validateSeed`; not run against a local or deployed EmDash.
 - **M8a, M9, M10 — not started** (M8a: kit docs refreshed 2026-11-21; the docs review checklist and the full configuration reference remain).
 
 ---

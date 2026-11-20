@@ -20,6 +20,10 @@ import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
 import { COMMENTS_CLOSED_FIELD, menuItemExtras, PAGES_SEARCHABLE, POSTS_COLLECTION, productionCanonical, routeToSlug } from "../scaffold/seed.js";
 import { emdashMenuLabel, emdashMenuNames } from "../transform/menus.js";
 import type { WidgetPlan } from "../transform/widgets.js";
+import { pageData, pageFields } from "../transform/pages.js";
+import { termDescriptionUpdate } from "../transform/term-meta.js";
+import type { SectionsPlan } from "../transform/sections.js";
+import { writeSections } from "../targets/emdash/sections.js";
 import type { BlogPlan } from "../transform/blog.js";
 import { type CptCollection, type CptPlan, collectionFields } from "../transform/cpt.js";
 import { BLOCK_TYPES } from "../starter/library.js";
@@ -61,6 +65,17 @@ const COLLECTION: Record<IrPage["kind"], string> = { page: "pages", post: "pages
 const collectionOf = (doc: IrPage, blog: boolean) => (doc.kind === "entry" && doc.entry ? doc.entry.collection : doc.kind === "post" && blog && doc.post ? "posts" : COLLECTION[doc.kind]);
 
 /** IR references (`<type>:<wpId>` per field) → EmDash entry ids; unknown ones reported and left out. */
+/** Reference fields to write in load's second pass: a custom post type entry's references, a page's parent. */
+export function docReferences(d: IrPage): Record<string, string[]> {
+	if (d.entry) return d.entry.references;
+	return d.kind === "page" && d.page?.parent ? { parent: [d.page.parent] } : {};
+}
+
+/** The entry's SEO (sharing) image: the live page's og:image when it is a known file, else the featured image. */
+export function seoImageRef(d: IrPage, ogRef: (d: IrPage) => MediaRef | undefined): MediaRef | undefined {
+	return ogRef(d) ?? (d.featuredImage?.wpId ? d.featuredImage : undefined);
+}
+
 export function resolveReferences(refs: Record<string, string[]>, idOf: (key: string) => string | undefined, missing: (field: string, key: string) => void): Record<string, string[]> {
 	return Object.fromEntries(
 		Object.entries(refs).map(([field, keys]) => [
@@ -259,6 +274,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const commentForm = new Set((commentsFile?.collections ?? []).filter((c) => c.form).map((c) => c.slug));
 		const commentsClosed = new Set((commentsFile?.entries ?? []).filter((e) => e.closed).map((e) => e.key));
 		const irDocs = ["pages", "posts"].flatMap((d) => (existsSync(join(paths.ir, d)) ? readdirSync(join(paths.ir, d)).filter((f) => f.endsWith(".json")).map((f) => readJson<IrPage>(join(paths.ir, d, f)) as IrPage) : []));
+		// Page attributes the site uses (order, parent, excerpt, featured image: src/transform/pages.ts): fields on `pages`.
+		const extraPageFields = pageFields(irDocs.filter((d) => d.kind === "page"));
 		// ── Schema on the target ─────────────────────────────────────────────────
 		try {
 			const [bt, cols] = await Promise.all([api.blockTypesFull(), api.collections()]);
@@ -341,6 +358,18 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					schemaErrors.push(`${c} access fields: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
 				}
 			}
+			// Page attribute fields: seeded on a new site; created here on a site set up before them (or before the site used them).
+			if (extraPageFields.length) {
+				try {
+					const have = new Set((await api.fields("pages")).map((f) => f.slug));
+					for (const f of extraPageFields.filter((x) => !have.has(x.slug))) {
+						await api.createField("pages", { ...f });
+						schemaChanges.push(`pages.${f.slug} created`);
+					}
+				} catch (e) {
+					schemaErrors.push(`pages attribute fields: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
+				}
+			}
 			const missingCols = ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.map((c) => c.slug)].filter((c) => !cols.some((x) => x.slug === c));
 			check("schema", "Section library in sync and collections present on the target", schemaErrors.length === 0 && missingCols.length === 0, [...schemaErrors.slice(0, 4), ...missingCols.map((c) => `collection ${c} missing`)].join("; ") || (schemaChanges.length ? schemaChanges.join(", ") : `${bt.length} block types up to date`));
 			if (schemaErrors.length || missingCols.length) return checks;
@@ -405,6 +434,9 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		for (const b of blogPlan?.bylines ?? []) if (b.avatar) refs.set(mediaKey(b.avatar), b.avatar);
 		// Images in classic-theme widgets (ir/widgets.json).
 		for (const a of widgetPlan?.areas ?? []) for (const w of a.widgets) collect(w.content ?? []);
+		// Images in reusable blocks written as EmDash sections (ir/sections.json).
+		const sectionsPlan = readJson<SectionsPlan>(join(paths.ir, "sections.json"));
+		for (const s of sectionsPlan?.sections ?? []) collect(s.content);
 		// Social sharing image (og:image from the SEO plugin): uploaded like any other picture and set as the page's SEO image.
 		const uploadPath = (u: string) => /\/(?:wp-content\/uploads|storage)\/(.+)$/.exec(u.split(/[?#]/)[0] ?? "")?.[1]?.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/i, "").toLowerCase();
 		const ogRef = (d: IrPage): MediaRef | undefined => {
@@ -578,6 +610,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		if (blogPlan) {
 			const taxErrors: string[] = [];
 			let termsCreated = 0;
+			let termsDescribed = 0;
 			try {
 				const defs = await api.taxonomies();
 				for (const t of blogPlan.taxonomies) {
@@ -587,7 +620,15 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 						else if (!def.collections.includes("posts")) taxErrors.push(`${t.name}: exists on the target without the posts collection (add it in the admin: Taxonomies → ${t.label})`);
 						const have = new Map((await api.terms(t.name)).map((x) => [x.slug, x]));
 						for (const term of t.terms) {
-							if (have.has(term.slug)) continue;
+							if (have.has(term.slug)) {
+								// A term made before descriptions were carried (or by hand without one): fill it, never replace an editor's.
+								const description = termDescriptionUpdate(have.get(term.slug), term.description);
+								if (description) {
+									await api.updateTerm(t.name, term.slug, { description });
+									termsDescribed++;
+								}
+								continue;
+							}
 							const parentId = term.parent ? have.get(term.parent)?.id : undefined;
 							const made = await api.createTerm(t.name, { slug: term.slug, label: term.label, ...(parentId ? { parentId } : {}), ...(term.description ? { description: term.description } : {}) });
 							have.set(term.slug, made);
@@ -600,7 +641,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			} catch (e) {
 				taxErrors.push((e as Error).message);
 			}
-			check("taxonomies", "Blog taxonomies and terms on the target", taxErrors.length === 0, taxErrors.slice(0, 4).join("; ") || `${blogPlan.taxonomies.map((t) => `${t.name} ${t.terms.length}`).join(", ")} terms (${termsCreated} created)`);
+			check("taxonomies", "Blog taxonomies and terms on the target", taxErrors.length === 0, taxErrors.slice(0, 4).join("; ") || `${blogPlan.taxonomies.map((t) => `${t.name} ${t.terms.length}`).join(", ")} terms (${termsCreated} created${termsDescribed ? `, ${termsDescribed} descriptions filled in` : ""})`);
 			if (blogPlan.bylines.length) {
 				const bylineErrors: string[] = [];
 				let bylinesCreated = 0;
@@ -628,6 +669,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		if (cptPlan && (cptPlan.taxonomies.length || cptCols.some((c) => c.taxonomies.some((t) => t.shared)))) {
 			const taxErrors: string[] = [];
 			let termsCreated = 0;
+			let termsDescribed = 0;
 			try {
 				const defs = await api.taxonomies();
 				for (const t of cptPlan.taxonomies) {
@@ -637,7 +679,14 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 						else if (t.collections.some((c) => !def.collections.includes(c))) await api.updateTaxonomy(t.name, { collections: [...new Set([...def.collections, ...t.collections])] });
 						const have = new Map((await api.terms(t.name)).map((x) => [x.slug, x]));
 						for (const term of t.terms) {
-							if (have.has(term.slug)) continue;
+							if (have.has(term.slug)) {
+								const description = termDescriptionUpdate(have.get(term.slug), term.description);
+								if (description) {
+									await api.updateTerm(t.name, term.slug, { description });
+									termsDescribed++;
+								}
+								continue;
+							}
 							const parentId = term.parent ? have.get(term.parent)?.id : undefined;
 							have.set(term.slug, await api.createTerm(t.name, { slug: term.slug, label: term.label, ...(parentId ? { parentId } : {}), ...(term.description ? { description: term.description } : {}) }));
 							termsCreated++;
@@ -656,7 +705,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			} catch (e) {
 				taxErrors.push((e as Error).message);
 			}
-			check("cpt-taxonomies", "Taxonomies of the custom post types and their terms on the target", taxErrors.length === 0, taxErrors.slice(0, 4).join("; ") || `${cptPlan.taxonomies.map((t) => `${t.name} ${t.terms.length}`).join(", ") || "shared with the blog"} (${termsCreated} terms created)`);
+			check("cpt-taxonomies", "Taxonomies of the custom post types and their terms on the target", taxErrors.length === 0, taxErrors.slice(0, 4).join("; ") || `${cptPlan.taxonomies.map((t) => `${t.name} ${t.terms.length}`).join(", ") || "shared with the blog"} (${termsCreated} terms created${termsDescribed ? `, ${termsDescribed} descriptions filled in` : ""})`);
 		}
 		if (cptPlan?.bylines.length) {
 			const bylineErrors: string[] = [];
@@ -711,6 +760,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					data.featured = !!doc.post.sticky;
 					if (doc.post.format) data.format = doc.post.format;
 				}
+				if (doc.kind === "page" && collection === "pages") Object.assign(data, pageData(doc, extraPageFields, resolver));
 				if (doc.kind === "popup") {
 					const sel = doc.popup?.selectors.filter((s) => !s.includes("popmake")).join(", ");
 					if (sel) data.selectors = sel;
@@ -722,7 +772,9 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				const stripped = doc.seo.title?.replace(new RegExp(`\\s*[${sep}]\\s*${site.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`), "").trim();
 				const seoTitle = stripped && stripped !== doc.title.trim() ? doc.seo.title?.trim() : stripped;
 				const seo: Record<string, unknown> | undefined = doc.kind === "page" || doc.kind === "post" || (col?.routable && doc.kind === "entry") ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: productionCanonical(doc.seo.canonical, siteHosts, config.target.productionUrl) } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
-					const r = ogRef(doc);
+					// The page's own sharing image, else its featured image (as WordPress SEO plugins do): EmDash lists it as the
+					// entry's <image:image> in its sitemap too (docs/spikes/p2-batch-findings.md).
+					const r = seoImageRef(doc, ogRef);
 					// The file path, not the media id: EmDash expands a bare id to /media/file/<id>, which 404s (files are served by storage key).
 					const url = r ? idMap.media[mediaKey(r)]?.url : undefined;
 					return url?.startsWith("/_emdash/api/media/file/") ? { image: url } : {};
@@ -782,19 +834,19 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		check("content", "Every IR document written to the target", contentErrors.length === 0, contentErrors.slice(0, 5).join("; ") || `${docs.length} documents (${created} created, ${updated} updated)`);
 
 		// ── References (custom post types): a second pass, now that every entry has its EmDash id ──────────────
-		const withRefs = docs.filter((d) => d.entry && Object.keys(d.entry.references).length);
+		const withRefs = docs.filter((d) => Object.keys(docReferences(d)).length);
 		if (withRefs.length) {
 			const refErrors: string[] = [];
 			let links = 0;
 			for (const d of withRefs) {
 				const entry = idMap.content[`${d.source.type}:${d.source.wpId}`];
 				if (!entry) continue; // reported by `content`
-				const references = resolveReferences(d.entry?.references ?? {}, (k) => idMap.content[k]?.id, (field, k) => refErrors.push(`${entry.collection}/${entry.slug} ${field} → ${k}: not on the target (not migrated)`));
+				const references = resolveReferences(docReferences(d), (k) => idMap.content[k]?.id, (field, k) => refErrors.push(`${entry.collection}/${entry.slug} ${field} → ${k}: not on the target (not migrated)`));
 				links += Object.values(references).flat().length;
 				try {
 					await api.update(entry.collection, entry.id, { references });
 					// The links are part of the entry: publish again so the live version carries them.
-					if (entryAction(d) === "publish") await api.publish(entry.collection, entry.id, d.entry?.publishedAt);
+					if ((d.entry ? entryAction(d) : pageAction(d)) === "publish") await api.publish(entry.collection, entry.id, d.entry?.publishedAt);
 				} catch (e) {
 					refErrors.push(`${entry.collection}/${entry.slug}: ${(e as Error).message}`);
 				}
@@ -868,6 +920,12 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				}
 			}
 			check("widgets", "Widget areas written", widgetErrors.length === 0, widgetErrors.slice(0, 4).join("; ") || `${written} widgets in ${widgetPlan.areas.filter((x) => x.widgets.length).length} area(s)`);
+		}
+
+		// ── Reusable blocks → EmDash sections (ir/sections.json): created, or updated when the kit made them ──────────
+		if (sectionsPlan?.sections.length) {
+			const r = await writeSections(api, sectionsPlan.sections, (content) => fixLinks(resolvePostBody(content, postMedia)));
+			check("sections", "Reusable blocks written as EmDash sections (source import)", r.errors.length === 0, r.errors.slice(0, 4).join("; ") || `${r.created} created, ${r.updated} updated`);
 		}
 
 		// ── Site search: EmDash's full-text index on for pages (title), posts and collections: the starter's /search/ page ──
