@@ -253,7 +253,7 @@ Load and verify targets: `WP2EMDASH_LOAD_TARGET` / `WP2EMDASH_TARGET` = `local`,
 
 ## Plugin suite
 
-Every migrated site ships with eight PixelKraft plugins, built as native EmDash admin pages inside the client's
+Every migrated site ships with nine PixelKraft plugins, built as native EmDash admin pages inside the client's
 own site (no external service, no extra account). Each is switched in the site's `sites/<slug>/kit.config.ts` and
 takes effect at the next `scaffold`.
 
@@ -266,6 +266,7 @@ takes effect at the next `scaffold`.
 | Backups & restore | `@wp2emdash/backups` | Plugins → Backups (admins) | On | `backups: false` |
 | Media assistant | `@wp2emdash/media` | Plugins → Media (editors and admins) | On | `media: false` |
 | Change requests | `@wp2emdash/change-requests` | Plugins → Change requests (editors and admins) | On | `changeRequests: false` |
+| Motion | `@wp2emdash/motion` | Plugins → Motion (admins) | On (the panel; every motion option in it starts off) | `motionPanel: false` |
 | Form messages | `@wp2emdash/forms` | Plugins → Form messages (admins) | On (off by default on `sensitiveData` sites: storing visitor text is an owner decision there) | `forms: { outbox: false }` |
 
 The form endpoint itself (`@wp2emdash/forms`: Turnstile, rate limit, validation, email delivery) is part of every
@@ -456,6 +457,31 @@ Closed requests are deleted with their files after `retentionMonths`; the reques
 nightly backups. Client guide: `docs/change-requests.md` in the site repo. Facts and limits:
 [docs/spikes/change-requests-findings.md](docs/spikes/change-requests-findings.md); details and the webhook payload:
 [packages/change-requests/README.md](packages/change-requests/README.md).
+
+### Motion
+
+Every site gets **Plugins → Motion** (admins only; `@wp2emdash/motion`, a PixelKraft plugin), where the owner turns
+on the motion a client wants. Everything new starts **off** (speed first): a first-visit logo preloader (once per
+browser session, hard cap 1.2 s, never for bots or reduced motion, no layout shift; background from the site's colour
+tokens, minimum 0–800 ms), page transitions (fade or slide-up with the cross-document View Transitions API — no
+router, no script; Chrome, Edge, Safari 18.2+), and extras: hover lift on cards and buttons, smooth anchor scrolling,
+image fade-in, a thin scroll progress bar. Element entrances (calm / standard / off) and the old site's parallax and
+drifting columns default to *as the site was built* (kit.config `motion` stays the migration's default), so existing
+sites do not change when the panel ships. `prefers-reduced-motion` is always respected (no switch). The page shows
+how many KB the switched-on options add and gives a preview link for unsaved settings (signed-in editors, never
+cached); saving purges the cached pages.
+
+With everything off the pages are byte-identical to a site without the panel: settings render as attributes and a
+class on `<html>` plus at most one stylesheet (`public/styles/site-motion.css`, 4.7 KB, 1.6 KB gzipped) and one script
+(`public/scripts/site-motion.js`, 2.5 KB, 1.1 KB gzipped), each linked only when an option needs it; no inline script.
+
+```ts
+// sites/<slug>/kit.config.ts
+motionPanel: false, // removes the panel (the default is true; the motion itself is always off until an admin turns it on)
+```
+
+Facts and limits: [docs/spikes/motion-findings.md](docs/spikes/motion-findings.md); details:
+[packages/motion/README.md](packages/motion/README.md).
 
 ### Form messages (outbox and inbox)
 

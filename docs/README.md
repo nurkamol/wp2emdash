@@ -29,6 +29,7 @@ Astro, Wrangler and Cloudflare versions before code depended on it — check the
 | [`@wp2emdash/consent`](../packages/consent/README.md) | Privacy & consent: the built-in cookie banner, Consent Mode v2, consent log |
 | [`@wp2emdash/media`](../packages/media/README.md) | Media assistant: media health, in-place optimizing, reviewed AI alt text, focal points, media trash |
 | [`@wp2emdash/change-requests`](../packages/change-requests/README.md) | Change requests: the client asks the agency for changes inside the admin and follows their status |
+| [`@wp2emdash/motion`](../packages/motion/README.md) | Motion: preloader, page transitions, entrance animations and extras the owner switches on (all off by default) |
 
 ## Spike findings (verified facts)
 
@@ -57,6 +58,7 @@ Astro, Wrangler and Cloudflare versions before code depended on it — check the
 | [Custom post types & fields](spikes/cpt-findings.md) | CPTs → EmDash collections; ACF, Meta Box and Pods field mapping |
 | [Site health](spikes/health-findings.md) | Cron design, check limits, alerts and the monthly report |
 | [Media assistant](spikes/media-findings.md) | Media scan, Images binding optimizing, Workers AI alt text, trash |
+| [Motion](spikes/motion-findings.md) | Cross-document View Transitions, the preloader's cap and CSP, byte-identical pages with motion off |
 | [P2 parity batch](spikes/p2-batch-findings.md) | Team invites (EmDash invite API, roles), term descriptions, page order/parent/excerpt/featured image, reusable blocks as sections, oEmbeds, Adobe Fonts, image sitemap entries |
 | [Performance](spikes/performance-findings.md) | Route cache, warm-up, responsive images, deferred video, with staging measurements; why Smart Placement stays off |
 | [Provider registry](spikes/providers-findings.md) | Hosts and snippet forms of the 55 known widget providers; site widgets |

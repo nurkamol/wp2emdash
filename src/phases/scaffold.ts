@@ -14,6 +14,7 @@ import { healthOptions, mailBaselineFrom } from "../scaffold/health.js";
 import { mediaNeedsAi, mediaOptions } from "../scaffold/media.js";
 import { changeRequestsOptions } from "../scaffold/change-requests.js";
 import { consentScaffold } from "../scaffold/consent.js";
+import { motionOptions } from "../scaffold/motion.js";
 import { analyticsOptions, carriedAnalytics, describeCarried, detectFromSnapshot, hasCarried, lookupRumSite } from "../scaffold/analytics.js";
 import { credentialsFor } from "../commands/provision.js";
 import { carriedWidgets } from "../scaffold/widgets.js";
@@ -576,6 +577,16 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		reporter.emit({ type: "log", level: "info", message: `change requests on (@wp2emdash/change-requests): new requests email ${changeRequests.agencyTo.length} agency address(es)${changeRequests.webhook ? `, webhook to ${new URL(changeRequests.webhook).host} (set CHANGE_REQUESTS_WEBHOOK_SECRET on the Worker)` : ""}, closed requests kept ${changeRequests.retentionMonths ?? 12} months` });
 		if (!changeRequests.agencyTo.length) reporter.emit({ type: "log", level: "warn", message: "change requests: no agency address (changeRequests.agencyTo / email.stagingTo): new requests will not be emailed" });
 	}
+	// Motion (@wp2emdash/motion; the panel on by default, motionPanel: false removes it): always copied — the starter's
+	// layout and middleware import its settings module; the plugin is registered and the settings read only when on.
+	// The motion itself stays off until an admin turns it on (pages unchanged until then).
+	rmSync(join(project, "packages", "motion"), { recursive: true, force: true });
+	cpSync(join(KIT_ROOT, "packages", "motion"), join(project, "packages", "motion"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
+	const motionPanel = motionOptions({ config, productionUrl: siteConfig.productionUrl, siteEntrance: entranceMotion === "calm" ? "calm" : "standard" });
+	if (motionPanel) {
+		(siteConfig as { motionPanel?: boolean }).motionPanel = true;
+		reporter.emit({ type: "log", level: "info", message: `motion panel on (@wp2emdash/motion): every option off until an admin turns it on; entrances as built (${motionPanel.siteEntrance})` });
+	}
 	// Performance package (src/scaffold/perf.ts): route-cache defaults, hashed brand files with sizes, favicons.
 	const perf = await perfSite(join(project, "public"), config.performance, brand, siteConfig.header.logoHeight);
 	Object.assign(siteConfig, perf.site, { header: { ...siteConfig.header, ...perf.header } }, brandHashes(join(project, "public"), brand));
@@ -690,6 +701,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			...(og ? { "@wp2emdash/og": "link:./packages/og", ...OG_DEPENDENCIES } : {}),
 			"@wp2emdash/seo": "link:./packages/seo",
 			"@wp2emdash/consent": "link:./packages/consent",
+			"@wp2emdash/motion": "link:./packages/motion",
 			...(health ? { "@wp2emdash/health": "link:./packages/health" } : {}),
 			...(backups ? { "@wp2emdash/backups": "link:./packages/backups" } : {}),
 			...(mediaAssistant ? { "@wp2emdash/media": "link:./packages/media" } : {}),
@@ -719,7 +731,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig${sessions.store === "r2" ? ", sessionDrivers" : ""} } from "astro/config";
-import emdash from "emdash/astro";${ap.imports}${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${health ? '\nimport { healthPlugin } from "@wp2emdash/health";' : ""}${consent ? '\nimport { consentPlugin } from "@wp2emdash/consent";' : ""}${backups ? '\nimport { backupsPlugin } from "@wp2emdash/backups";' : ""}${mediaAssistant ? '\nimport { mediaPlugin } from "@wp2emdash/media";' : ""}${changeRequests ? '\nimport { changeRequestsPlugin } from "@wp2emdash/change-requests";' : ""}${commentsImport ? '\nimport { commentsPlugin } from "@wp2emdash/comments";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
+import emdash from "emdash/astro";${ap.imports}${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${health ? '\nimport { healthPlugin } from "@wp2emdash/health";' : ""}${consent ? '\nimport { consentPlugin } from "@wp2emdash/consent";' : ""}${backups ? '\nimport { backupsPlugin } from "@wp2emdash/backups";' : ""}${mediaAssistant ? '\nimport { mediaPlugin } from "@wp2emdash/media";' : ""}${changeRequests ? '\nimport { changeRequestsPlugin } from "@wp2emdash/change-requests";' : ""}${motionPanel ? '\nimport { motionPlugin } from "@wp2emdash/motion";' : ""}${commentsImport ? '\nimport { commentsPlugin } from "@wp2emdash/comments";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
 
 export default defineConfig({
 	site: ${JSON.stringify(siteConfig.productionUrl)},
@@ -733,15 +745,15 @@ ${sess.options}${ap.options}	integrations: [
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
-			mcp: false,${config.forms.outbox || og || seoPanel || health || consent || backups || mediaAssistant || changeRequests || commentsImport ? `
+			mcp: false,${config.forms.outbox || og || seoPanel || health || consent || backups || mediaAssistant || changeRequests || motionPanel || commentsImport ? `
 			// Admin plugins: Form messages (form outbox, admins only — @wp2emdash/forms), Sharing images (@wp2emdash/og),
 			// SEO & Analytics (@wp2emdash/seo): editor panel, dashboard, tracking codes, conversion events, Visits;
 			// Site health (@wp2emdash/health, admins only): scheduled checks, alerts, monthly report.
 			// Privacy & consent (@wp2emdash/consent, admins only): cookie banner mode, wording, consent log;
 			// Backups (@wp2emdash/backups, admins only): nightly backups to R2, downloads, restore with a preview.
 			// Media (@wp2emdash/media, editors and admins): media health, optimize, alt text suggestions, media trash.
-			// Change requests (@wp2emdash/change-requests, editors and admins): ask the agency for changes, follow the status.${commentsImport ? "\n\t\t\t// WordPress comments import (@wp2emdash/comments, admins and admin API tokens): the load phase's import route." : ""}
-			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : "", health ? `healthPlugin(${JSON.stringify(health)})` : "", consent ? `consentPlugin(${JSON.stringify(consent.options)})` : "", backups ? `backupsPlugin(${JSON.stringify(backups)})` : "", mediaAssistant ? `mediaPlugin(${JSON.stringify(mediaAssistant)})` : "", changeRequests ? `changeRequestsPlugin(${JSON.stringify(changeRequests)})` : "", commentsImport ? "commentsPlugin()" : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
+			// Change requests (@wp2emdash/change-requests, editors and admins): ask the agency for changes, follow the status.${motionPanel ? "\n\t\t\t// Motion (@wp2emdash/motion, admins only): preloader, page transitions, entrances, extras — all off until switched on." : ""}${commentsImport ? "\n\t\t\t// WordPress comments import (@wp2emdash/comments, admins and admin API tokens): the load phase's import route." : ""}
+			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : "", health ? `healthPlugin(${JSON.stringify(health)})` : "", consent ? `consentPlugin(${JSON.stringify(consent.options)})` : "", backups ? `backupsPlugin(${JSON.stringify(backups)})` : "", mediaAssistant ? `mediaPlugin(${JSON.stringify(mediaAssistant)})` : "", changeRequests ? `changeRequestsPlugin(${JSON.stringify(changeRequests)})` : "", motionPanel ? `motionPlugin(${JSON.stringify(motionPanel)})` : "", commentsImport ? "commentsPlugin()" : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
 			// Only the reviewed plugins above: no installs from the public registry through the admin.
 			...(sandboxedHere.length ? { sandboxed: sandboxedHere, sandboxRunner: sandbox(), registry: false } : {}),` : ""}
 		}),
@@ -802,6 +814,7 @@ ${sess.options}${ap.options}	integrations: [
 			...(backups ? { backups: { alertsTo: backups.alertsTo, daily: backups.retention?.daily ?? 30, monthly: backups.retention?.monthly ?? 12, offsite: !!backups.offsite, ...(backups.database ? { database: backups.database } : {}) } } : {}),
 			...(mediaAssistant ? { media: { aiAlt: mediaAssistant.aiAlt, autoOptimize: !!mediaAssistant.autoOptimize, maxDimension: mediaAssistant.limits?.maxDimension ?? 2500 } } : {}),
 			...(changeRequests ? { changeRequests: { retentionMonths: changeRequests.retentionMonths ?? 12, webhook: !!changeRequests.webhook } } : {}),
+			...(motionPanel ? { motion: { siteEntrance: motionPanel.siteEntrance } } : {}),
 			sensitiveData: config.sensitiveData,
 			...(blogPlan ? { blog: { index: blogPlan.index, archives: blogPlan.taxonomies.map((t) => ({ label: t.label, base: t.base })), ...(blogPlan.bylines.length ? { authorBase: blogPlan.authorBase } : {}), feedFull: blogPlan.feed.full } } : {}),
 			...(cptPlan?.collections.length ? { collections: cptPlan.collections.map((c) => ({ label: c.label, labelSingular: c.labelSingular, slug: c.slug, ...(c.archive && c.routable ? { archive: c.archive } : {}), ...(c.base && c.routable ? { base: c.base } : {}), fields: c.fields.map((f) => ({ label: f.label, type: f.type })), hierarchical: c.hierarchical, taxonomies: c.taxonomies.map((t) => t.label) })) } : {}),

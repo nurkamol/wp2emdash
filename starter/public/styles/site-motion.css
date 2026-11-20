@@ -1,0 +1,60 @@
+/* Motion (Plugins → Motion, @wp2emdash/motion). Linked only when an option that needs it is on; each rule waits for its
+   attribute on <html>. Nothing here runs under prefers-reduced-motion. */
+
+/* First-visit preloader: hidden unless site-motion.js set html.motion-preloading before the first paint. Fixed (no layout
+   shift), never takes clicks, gone by 1.2 s even if the script stalls (the animation below). */
+.motion-preloader { display: none; }
+.motion-preloading .motion-preloader { display: grid; place-items: center; position: fixed; inset: 0; z-index: 2147483000; background: var(--color-bg, #fff); pointer-events: none; animation: motion-pre-out 0.25s ease-out 0.95s forwards; }
+[data-motion-preloader-bg="surface"] .motion-preloader { background: var(--color-surface, var(--color-bg, #fff)); }
+[data-motion-preloader-bg="text"] .motion-preloader { background: var(--color-text, #111); }
+[data-motion-preloader-bg="accent"] .motion-preloader { background: var(--color-accent, #111); }
+.motion-preloader img { width: auto; height: auto; max-width: min(50vw, 240px); max-height: 28vh; animation: motion-pre-logo 0.6s ease-out both; }
+.motion-preloading.motion-preloaded .motion-preloader { animation: none; opacity: 0; transition: opacity 0.25s ease-out; }
+@keyframes motion-pre-out { to { opacity: 0; visibility: hidden; } }
+@keyframes motion-pre-logo { from { opacity: 0; transform: scale(0.96); } }
+
+/* Page transitions: cross-document View Transitions (the opt-in is written into the page only when on). */
+:root[data-motion-transition] { --motion-vt: 250ms; }
+:root[data-motion-transition-ms="150"] { --motion-vt: 150ms; }
+:root[data-motion-transition-ms="400"] { --motion-vt: 400ms; }
+:root[data-motion-transition-ms="600"] { --motion-vt: 600ms; }
+:root[data-motion-transition]::view-transition-group(root) { animation-duration: var(--motion-vt); }
+:root[data-motion-transition]::view-transition-old(root) { animation: motion-vt-out var(--motion-vt) ease-out both; }
+:root[data-motion-transition="fade"]::view-transition-new(root) { animation: motion-vt-in var(--motion-vt) ease-out both; }
+:root[data-motion-transition="slide-up"]::view-transition-new(root) { animation: motion-vt-up var(--motion-vt) cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+@keyframes motion-vt-out { to { opacity: 0; } }
+@keyframes motion-vt-in { from { opacity: 0; } }
+@keyframes motion-vt-up { from { opacity: 0; transform: translateY(24px); } }
+
+@media (prefers-reduced-motion: no-preference) {
+	/* Smooth scrolling for anchor links. */
+	:root[data-motion-smooth="on"] { scroll-behavior: smooth; }
+
+	/* Images fade in once loaded (site-motion.js marks lazy images still loading). */
+	.motion-img { opacity: 0; transition: opacity 0.5s ease-out; }
+	.motion-img.is-loaded { opacity: 1; }
+}
+
+/* Hover lift (mouse only). `translate` composes with the entrance transforms; the :not(#\#) raises specificity above the
+   calm entrance rules so their transitions keep working alongside the lift. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+	:root[data-motion-hover="on"] :is(.card, .plan, .gallery__item):not(#\#) { transition-property: opacity, transform, translate, box-shadow, border-color; transition-duration: 0.55s, 0.55s, 0.25s, 0.25s, 0.25s; transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1); }
+	:root[data-motion-hover="on"] :is(.card, .plan, .gallery__item):not(#\#):hover { translate: 0 -4px; box-shadow: 0 12px 28px rgb(0 0 0 / 0.12); }
+	:root[data-motion-hover="on"] .btn:not(.btn--link):not(#\#) { transition-property: background-color, color, border-color, transform, translate, box-shadow; transition-duration: 0.25s; }
+	:root[data-motion-hover="on"] .btn:not(.btn--link):not(#\#):hover { translate: 0 -2px; box-shadow: 0 6px 18px rgb(0 0 0 / 0.14); }
+}
+
+/* Scroll progress bar: a scroll-driven animation (no script); browsers without animation-timeline show no bar. */
+@supports (animation-timeline: scroll()) {
+	@media (prefers-reduced-motion: no-preference) {
+		:root[data-motion-progress="on"]::after { content: ""; position: fixed; inset: 0 0 auto; z-index: 2147483001; height: 3px; background: var(--color-accent, currentColor); transform-origin: 0 50%; transform: scaleX(0); pointer-events: none; animation: motion-progress linear both; animation-timeline: scroll(root block); }
+	}
+}
+@keyframes motion-progress { to { transform: scaleX(1); } }
+
+/* Reduced motion: nothing at all (the page's own rule already shortens every animation). */
+@media (prefers-reduced-motion: reduce) {
+	.motion-preloader { display: none !important; }
+	:root::view-transition-group(*), :root::view-transition-old(*), :root::view-transition-new(*) { animation: none !important; }
+}
+@media print { .motion-preloader, :root[data-motion-progress]::after { display: none !important; } }

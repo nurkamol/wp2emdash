@@ -7,6 +7,7 @@
  */
 import { type MediaDocInput, mediaDoc, mediaGuide } from "./media-docs.js";
 import { type ChangeRequestsDocInput, changeRequestsDoc, changeRequestsGuide } from "./change-requests.js";
+import { motionGuide } from "./motion.js";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { LegacyAnalytics } from "../../packages/seo/src/analytics/trackers.js";
@@ -69,6 +70,8 @@ export interface ClientRepoInput {
 	media?: MediaDocInput;
 	/** Change requests (@wp2emdash/change-requests): retention and whether a webhook feeds the agency tracker. */
 	changeRequests?: ChangeRequestsDocInput;
+	/** Motion (@wp2emdash/motion): the panel is on; what "as the site was built" means for entrances. */
+	motion?: { siteEntrance: "calm" | "standard" };
 	sensitiveData: boolean;
 	stack: Record<string, string>;
 	/** Blog sites: the posts page, archive bases and feed (docs/writing-posts.md). */
@@ -528,7 +531,7 @@ hidden from search, and the sharing image. Enter a **focus keyword** (what peopl
 to check it is in the title, description, main heading, first paragraph and address. **Check my unsaved changes**
 checks the page before you save; changes to the SEO fields themselves show after saving. A good score helps, but
 rankings also depend on content quality, links from other sites and the Google Business Profile.
-` : ""}${healthGuide(i.health, i.productionUrl)}${consentGuide(i.consent)}${backupsGuide(i.backups)}${mediaGuide(i.media)}${changeRequestsGuide(i.changeRequests)}`);
+` : ""}${healthGuide(i.health, i.productionUrl)}${consentGuide(i.consent)}${backupsGuide(i.backups)}${mediaGuide(i.media)}${changeRequestsGuide(i.changeRequests)}${motionGuide(i.motion)}`);
 
 	const formRows = i.forms.map((f) => `| ${f.title} (\`${f.id}\`) | ${f.fields.join(", ") || "—"} | ${f.withheld.length ? f.withheld.join(", ") : "—"} |`).join("\n");
 	if (i.blog) {

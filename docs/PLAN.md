@@ -551,6 +551,25 @@ per day only, 90 days). Saving purges the cached pages (SEO suite mechanism). Mi
 report "Consent banner"); a kept consent service → mode off. Verify: `consent-runtime` (live; Playwright: nothing
 before consent, trackers after Accept all) and the existing axe pass. Facts and limits: docs/spikes/consent-findings.md.
 
+## 7f. Motion (the panel on by default; `motionPanel: false` removes it)
+`packages/motion` (`@wp2emdash/motion`, 0.1, experimental; a PixelKraft plugin). EmDash native plugin, **Plugins →
+Motion** (Block Kit, admins only, route permission `plugins:manage`). Settings in plugin KV (`plugin:motion:settings`),
+read by the site with the chrome in the page frontmatter (`starter/src/utils/motion.ts` via `utils/chrome.ts`, one
+primary-key row, only when `site.config.json motionPanel`). Options, all new ones **off by default**: first-visit
+logo preloader (sync head script decides before paint: once per session via sessionStorage, never for bots /
+prerender / hidden tabs / reduced motion; CSS animation and script both cap it at 1.2 s; fixed, pointer-events none,
+`hidden` without the stylesheet; background from tokens; minimum 0–800 ms), page transitions (cross-document View
+Transitions: `@view-transition` opt-in written into the head only when on, inside a no-preference media query;
+fade / slide-up; 150–600 ms), element entrances (as built = kit.config `motion` / off / calm / standard), hover lift,
+smooth anchor scrolling, image fade-in (lazy images still loading), parallax/drift (as built / off), scroll progress
+bar (scroll-driven animation, no script). Rendered as `data-motion-*` attributes and `motion-calm` on `<html>`, plus at
+most `public/styles/site-motion.css` and `public/scripts/site-motion.js`, each only when needed; with everything off
+the page is byte-identical (compiled template checked, docs/spikes/motion-findings.md). Speed note in the panel from
+the files' real sizes (test-enforced budget). Preview: "Preview only" returns `/?motion-preview=<code>` (strictly
+parsed; honoured for signed-in editors only; middleware never caches it). Save purges the cached pages
+(`purgePages`). Verify: nothing new (Playwright runs with `navigator.webdriver`, so the preloader never shows in
+captures). Client guide: editor guide "Motion". Facts: docs/spikes/motion-findings.md.
+
 ## 8. Everything else a migration touches
 
 | Area | Plan |

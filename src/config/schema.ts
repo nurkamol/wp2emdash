@@ -211,9 +211,17 @@ export const kitConfigSchema = z.object({
 	 * follow with a short stagger, pictures fade and settle from a 3% zoom, buttons and links ease their colours. The
 	 * page's first section is never held back (LCP), nothing moves under prefers-reduced-motion, all is visible without JS.
 	 * Unset: calm on Bricks sites whose live pages animate their content (entrance interactions), else the starter's
-	 * default reveal; "none" keeps the default.
+	 * default reveal; "none" keeps the default. The Motion panel (`motionPanel`) can override it on the live site; this
+	 * stays the migration's default ("As the site was built").
 	 */
 	motion: z.enum(["calm", "none"]).optional(),
+	/**
+	 * Motion panel (@wp2emdash/motion): Plugins → Motion (admins only), where the owner switches on a first-visit logo
+	 * preloader, page transitions, entrance animations, hover lift, smooth anchor scrolling, image fade-in, parallax and
+	 * a scroll progress bar. The PANEL ships on every site; the MOTION it controls is off until an admin turns it on
+	 * (pages are unchanged until then). `motionPanel: false` removes the panel.
+	 */
+	motionPanel: z.boolean().default(true),
 	/**
 	 * Performance package (docs/spikes/performance-findings.md), on by default:
 	 * - routeCache: rendered pages kept in Cloudflare's Workers cache (Astro route caching, EmDash purges on publish);

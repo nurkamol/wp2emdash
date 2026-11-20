@@ -17,7 +17,7 @@ export default defineConfig({
 			{ find: "cloudflare:workers", replacement: new URL("./test/stubs/cloudflare-workers.ts", import.meta.url).pathname },
 			{ find: "@cf-wasm/satori", replacement: new URL("./test/stubs/cf-wasm-satori.ts", import.meta.url).pathname },
 			{ find: "@cf-wasm/resvg", replacement: new URL("./test/stubs/cf-wasm-resvg.ts", import.meta.url).pathname },
-			{ find: /^@wp2emdash\/(forms|seo|consent)\/(.+)$/, replacement: `${new URL("./packages/", import.meta.url).pathname}$1/src/$2.ts` },
+			{ find: /^@wp2emdash\/(forms|seo|consent|motion)\/(.+)$/, replacement: `${new URL("./packages/", import.meta.url).pathname}$1/src/$2.ts` },
 		],
 	},
 });

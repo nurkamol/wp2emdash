@@ -24,6 +24,8 @@ document.addEventListener(
 );
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Plugins → Motion (@wp2emdash/motion) can switch the entrance reveal and the old site's parallax/drift off.
+const motionOff = (what: "motionEntrance" | "motionParallax") => document.documentElement.dataset[what] === "off";
 
 // ── Announcement bar: keeps --announce-h / --announce-offset current (the inline script after the bar set them
 // before first paint); the close button hides it and remembers this message version. ──
@@ -212,7 +214,7 @@ for (const tabs of document.querySelectorAll<HTMLElement>("[data-tabs]")) {
 }
 
 // ── Reveal on scroll ───────────────────────────────────────────────────────────
-if (!reduce && "IntersectionObserver" in window) {
+if (!reduce && "IntersectionObserver" in window && !motionOff("motionEntrance")) {
 	const io = new IntersectionObserver(
 		(entries) => {
 			for (const e of entries) if (e.isIntersecting) {
@@ -483,7 +485,7 @@ if (bgVideos.length) {
 // Drifting text columns (Salient column parallax): offset = k × (column centre − viewport centre),
 // side-by-side layouts only, nothing under reduced motion.
 const drifters = [...document.querySelectorAll<HTMLElement>("[data-drift]")];
-if (drifters.length && !reduce) {
+if (drifters.length && !reduce && !motionOff("motionParallax")) {
 	const wide = window.matchMedia("(min-width: 900px)");
 	let queued = false;
 	const place = () => {
@@ -518,7 +520,7 @@ if (drifters.length && !reduce) {
 // than its box, starts k × viewport height above it, and moves down k px per scrolled px from the moment the box
 // enters the viewport. Nothing under reduced motion: the picture then simply fills its box.
 const parallax = [...document.querySelectorAll<HTMLElement>("[data-parallax]")];
-if (parallax.length && !reduce) {
+if (parallax.length && !reduce && !motionOff("motionParallax")) {
 	let queued = false;
 	const place = () => {
 		queued = false;

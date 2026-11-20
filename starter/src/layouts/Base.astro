@@ -14,6 +14,9 @@ import site from "../site.config.json";
 import { announcementState, type Chrome, loadChrome } from "../utils/chrome";
 import type { Crumb } from "../utils/breadcrumbs";
 import { safeHref } from "../utils/links";
+import { isEditor } from "../utils/editor";
+import { motionFor } from "../utils/motion";
+import { MOTION_CSS, MOTION_JS, VIEW_TRANSITION_CSS } from "@wp2emdash/motion/settings";
 import { brandMediaIds, brandMediaRows, sameAsWithSocial, type SettingsData, siteBrand, socialHrefFor, verificationTags, withSocial } from "../utils/settings";
 import "../styles/fonts.css";
 import "../styles/tokens.css";
@@ -99,6 +102,9 @@ const brand = siteBrand(s, {
 	...(sc.brandSha1 ? { brandSha1: sc.brandSha1 } : {}),
 }, await brandMediaRows(db, brandMediaIds(s)));
 const verification = verificationTags(s, sc.verification);
+// Motion (Plugins → Motion, utils/motion.ts): nothing is added while it is off, so the page stays as it was.
+const motion = motionFor(chrome.motion?.settings, { url: Astro.url, editor: isEditor(Astro.cookies, Astro.url), hasLogo: !!brand.logo, hasLightLogo: !!brand.logoOnTop });
+const preloaderLogo = motion.preloader ? (motion.preloader.logo === "onTop" ? brand.logoOnTop : brand.logo) : undefined;
 const footerContent = footer.entry ? withSocial((footer.entry.data as any).content, s) : undefined;
 const business = sc.structuredData?.business;
 const sameAs = business ? sameAsWithSocial(business.sameAs, s) : undefined;
@@ -133,10 +139,16 @@ const typekitHref = (site.fonts as { typekitHref?: string }).typekitHref;
 ---
 
 <!doctype html>
-<html lang={site.lang} data-prefetch={(site as { prefetch?: boolean }).prefetch === false ? "off" : undefined} class:list={{ "has-announcement": !!announcement && !announcementLater, "motion-calm": (site as { motion?: string }).motion === "calm", "video-phones": (site as { phoneVideo?: boolean }).phoneVideo === true }}>
+<html lang={site.lang} data-prefetch={(site as { prefetch?: boolean }).prefetch === false ? "off" : undefined} {...motion.attrs} class:list={{ "has-announcement": !!announcement && !announcementLater, "motion-calm": motion.calm, "video-phones": (site as { phoneVideo?: boolean }).phoneVideo === true }}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		{/* Motion: its stylesheet and script are files (CSP), linked only when an option needs them; the script runs before
+		    the first paint only for the preloader. The View Transitions opt-in is the one rule written here (style-src allows it). */}
+		{motion.css && <link rel="stylesheet" href={MOTION_CSS} />}
+		{motion.js === "sync" && <script is:inline src={MOTION_JS}></script>}
+		{motion.js === "defer" && <script is:inline src={MOTION_JS} defer></script>}
+		{motion.viewTransition && <style is:inline set:html={VIEW_TRANSITION_CSS}></style>}
 		<title>{fullTitle}</title>
 		<EmDashHead page={pageCtx} />
 		{/* EmDash's head has no og:locale; SEO plugins publish it (en-US → en_US). */}
@@ -167,6 +179,8 @@ const typekitHref = (site.fonts as { typekitHref?: string }).typekitHref;
 		<Analytics />
 	</head>
 	<body class:list={{ "over-hero": overHero }}>
+		{/* First-visit preloader (Motion): hidden unless site-motion.js shows it; fixed, never takes clicks, gone by 1.2 s. */}
+		{preloaderLogo && <div class="motion-preloader" aria-hidden="true" hidden><img src={preloaderLogo.src} width={preloaderLogo.width} height={preloaderLogo.height} alt="" decoding="async" /></div>}
 		{/* Customizer "Additional CSS" carried from WordPress by decision (overrides.ts customCss): its own file, linked
 		    here so it comes after the starter's bundled CSS (Astro puts that at the end of <head>); never inline (CSP). */}
 		{(site as { customCss?: string }).customCss && <link rel="stylesheet" href={(site as { customCss?: string }).customCss} />}

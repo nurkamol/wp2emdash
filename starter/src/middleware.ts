@@ -14,6 +14,7 @@ import { type CspHosts, cspSources } from "@wp2emdash/seo/analytics/csp";
 import { typesOf } from "@wp2emdash/seo/analytics/trackers";
 import { pageAnalytics } from "./utils/analytics";
 import { REGION_PATH, regionResponse } from "./utils/consent";
+import { PREVIEW_PARAM as MOTION_PREVIEW } from "@wp2emdash/motion/settings";
 import { comingSoonHtml, MAINTENANCE_OPTION, MAINTENANCE_TTL_MS, maintenanceBypass, type MaintenanceState, parseMaintenance, retryAfter } from "./utils/maintenance";
 import announcementScript from "./scripts/inline/announcement.js?raw";
 import { commentPostTarget } from "./utils/comments";
@@ -243,6 +244,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const response = goneStatus ? await next("/404") : await next();
 	// A signed-in editor (or an edit/preview link) gets its own page: never stored for everyone else.
 	if (isEditor(context.cookies, context.url) && context.cache?.enabled) context.cache.set(false);
+	// A Motion preview link (?motion-preview=…, Plugins → Motion) is never stored either.
+	if (context.url.searchParams.has(MOTION_PREVIEW) && context.cache?.enabled) context.cache.set(false);
 	// Responsive images (EmDash's /_image endpoint, Cloudflare Images binding): when a transform fails (e.g. the
 	// account's free transformations are used up, error 9422) the visitor gets the original file, not a broken image.
 	if (context.url.pathname === "/_image" && response.status >= 500) {
