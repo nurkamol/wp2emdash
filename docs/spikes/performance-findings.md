@@ -1,8 +1,8 @@
 # Performance package — verified facts and measurements (2026-11-20)
 
 Checked against the installed **EmDash 1.5.0, Astro 7.4.12, @astrojs/cloudflare 14.4.8, Wrangler 4.163.0** (the
-`STACK` versions; read in `~/Projects/Example Studio Studio/emdash/node_modules`, never modified) and measured on the
-studio-a **staging** Worker (`studio-a-staging.pixelkraft.workers.dev`, D1 + R2 in ENAM, D1 read replication
+`STACK` versions; read in a kit site project's `node_modules`, never modified) and measured on the
+the pilot Bricks site **staging** Worker (`<site>-staging.<subdomain>.workers.dev`, D1 + R2 in ENAM, D1 read replication
 disabled). Runner: a laptop in Central Asia whose requests land at Cloudflare **ARN** (Stockholm) — far from the
 database, close to the worst case the owner measured. Nothing was deployed to production.
 
@@ -72,7 +72,7 @@ database, close to the worst case the owner measured. Nothing was deployed to pr
   never cached, so a cached page never carries an editor's variant.
 - **Browser caching of HTML stays `no-cache`** (middleware sets it when absent): the route cache is what makes pages
   fast; EmDash can only purge that one.
-- **Not used:** the object cache (KV) — off, as decided. D1 read replication is disabled on both studio-a
+- **Not used:** the object cache (KV) — off, as decided. D1 read replication is disabled on both the pilot Bricks site
   databases (`read_replication.mode: "disabled"`), so `session: "auto"` reads hit the primary and a purge never
   re-caches a lagging replica's copy. If a site enables replication, re-test edit visibility.
 - Billing note (Cloudflare docs): with the Workers cache on, every request to the Worker is billed as a Workers
@@ -118,7 +118,7 @@ database, close to the worst case the owner measured. Nothing was deployed to pr
   a day (or until a deploy). (The EmDash docs describe one-year media caching under `emdash:media:<key>` tags — not
   present in 1.5.0.)
 - Brand files: content-hashed copies under `/brand/h/` (immutable via `public/_headers`), the raster logo re-encoded
-  as WebP at 2× the header logo height (Chromium canvas via Playwright, only when smaller — studio-a: 31 KB PNG →
+  as WebP at 2× the header logo height (Chromium canvas via Playwright, only when smaller — the pilot Bricks site: 31 KB PNG →
   14 KB WebP, 155×200), `width`/`height` on every logo `<img>`; favicon as a 32 px PNG (2 KB), a 192 px WebP (10 KB)
   and the original PNG as apple-touch fallback. AVIF: Chromium's canvas cannot encode it, so not produced. The
   original `/brand/logo.png` stays (sharing cards and old links). Fonts were already content-hashed (sha1 of the
@@ -156,7 +156,7 @@ compare with the same method (`cf-placement`, `server-timing`).
 
 ## Verify on staging (preview run, 2026-11-20)
 
-`WP2EMDASH_TARGET=staging wp2emdash run studio-a verify --preview`: the new gates pass — `route-cache` (11 pages
+`WP2EMDASH_TARGET=staging wp2emdash run <slug> verify --preview`: the new gates pass — `route-cache` (11 pages
 HIT on the second request), `cached-ttfb` 244 ms, `payload` 397 KB in 10 requests; `a11y` and `performance` (worst
 lab LCP 592 ms) pass. `visual` fails as before (it was accepted at 24 sections over: third-party embeds), now 26:
 the home page's mobile hero is 56% different because phones now keep the hero picture instead of playing the
