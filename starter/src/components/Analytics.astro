@@ -1,17 +1,18 @@
 ---
 /**
- * Analytics carried over from the WordPress site (Google tag / GA4, Tag Manager, Cloudflare Web Analytics), from
- * site.config.json. Loaded only on the production domain — never on staging, previews or localhost — and never for
- * signed-in editors (the old site excluded logged-in users too). The loader is a real file (public/scripts/site-analytics.js):
- * Astro inlines small processed <script>s, and the public CSP has no inline-script allowance for them — an inline
- * loader was blocked and no analytics ran on a launched site.
+ * Analytics (Google tag / GA4 / Google Ads, Tag Manager, Cloudflare Web Analytics, Meta Pixel, Clarity, Hotjar): the
+ * tracking codes switched on in SEO & Analytics → Analytics (@wp2emdash/seo), else the IDs carried over from
+ * WordPress (site.config.json). Loaded only on the production domain — never on staging, previews or localhost — and
+ * never for signed-in editors (the old site excluded logged-in users too). The loader is a real file
+ * (public/scripts/site-analytics.js): Astro inlines small processed <script>s, and the public CSP has no inline-script
+ * allowance for them — an inline loader was blocked and no analytics ran on a launched site. The middleware's CSP is
+ * built from the same list (utils/analytics.ts, read once per request).
  */
-import site from "../site.config.json";
 import { isEditor } from "../utils/editor";
+import { hasTrackers, pageAnalytics } from "../utils/analytics";
 
-const a = (site as { analytics?: { google?: string[]; gtm?: string; cloudflareToken?: string } }).analytics;
-const production = Astro.url.host === new URL(site.productionUrl).host;
-const on = !!a && production && !import.meta.env.DEV && !isEditor(Astro.cookies, Astro.url);
+const a = await pageAnalytics(Astro.locals, Astro.url, isEditor(Astro.cookies, Astro.url));
+const on = hasTrackers(a);
 ---
 
 {on && <meta name="site-analytics" content={JSON.stringify(a)} />}

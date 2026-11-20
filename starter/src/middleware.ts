@@ -7,6 +7,9 @@ import { defineMiddleware } from "astro:middleware";
 import site from "./site.config.json";
 import { isEditor } from "./utils/editor";
 import { PROVIDER_HOSTS } from "./utils/embed";
+import { type CspHosts, cspSources } from "@wp2emdash/seo/analytics/csp";
+import { typesOf } from "@wp2emdash/seo/analytics/trackers";
+import { pageAnalytics } from "./utils/analytics";
 import announcementScript from "./scripts/inline/announcement.js?raw";
 
 /**
@@ -17,13 +20,11 @@ import announcementScript from "./scripts/inline/announcement.js?raw";
  * inline scripts, allowed by their SHA-256 hash (scripts/inline/*: the announcement bar's pre-paint script).
  */
 const embedHosts = [...new Set(Object.values(PROVIDER_HOSTS).flat())].flatMap((h) => [`https://${h}`, `https://*.${h}`]);
-/** Analytics hosts, only when the site carries analytics (components/Analytics.astro). */
-const analytics = (site as { analytics?: { google?: string[]; gtm?: string; cloudflareToken?: string } }).analytics;
-const google = analytics?.google?.length || analytics?.gtm;
-// Cloudflare Web Analytics is always allowed: when it is switched on for the zone, Cloudflare injects its beacon into every
-// page by itself (no site setting), and a CSP without it blocks the beacon (seen on a launched site).
-const analyticsScripts = [google ? "https://www.googletagmanager.com" : "", "https://static.cloudflareinsights.com"].filter(Boolean).join(" ");
-const analyticsConnect = [google ? "https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com" : "", "https://cloudflareinsights.com"].filter(Boolean).join(" ");
+/*
+ * Analytics hosts: exactly the services this page loads (components/Analytics.astro, the same per-request list), from
+ * the fixed host table in @wp2emdash/seo/analytics/csp. Cloudflare Web Analytics is always allowed: when it is switched on
+ * for the zone, Cloudflare injects its beacon into every page by itself, and a CSP without it blocks the beacon.
+ */
 const INLINE_SCRIPTS = [announcementScript];
 let inlineHashes: Promise<string> | undefined;
 async function sha256(text: string): Promise<string> {
@@ -35,17 +36,17 @@ function inlineScriptHashes(): Promise<string> {
 	inlineHashes ??= Promise.all(INLINE_SCRIPTS.map(sha256)).then((h) => h.join(" "));
 	return inlineHashes;
 }
-function csp(editor: boolean, hashes: string): string {
+function csp(editor: boolean, hashes: string, analytics: CspHosts): string {
 	const turnstile = "https://challenges.cloudflare.com";
 	return [
 		"default-src 'self'",
-		`script-src 'self' ${turnstile} ${embedHosts.join(" ")} ${analyticsScripts}${editor ? " 'unsafe-inline'" : ` ${hashes}`}`,
-		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-		"font-src 'self' data: https://fonts.gstatic.com",
+		`script-src 'self' ${turnstile} ${embedHosts.join(" ")} ${analytics.script.join(" ")}${editor ? " 'unsafe-inline'" : ` ${hashes}`}`,
+		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${(analytics.style ?? []).join(" ")}`,
+		`font-src 'self' data: https://fonts.gstatic.com ${(analytics.font ?? []).join(" ")}`,
 		"img-src 'self' data: blob: https:",
 		"media-src 'self' blob:",
-		`connect-src 'self' ${turnstile} ${embedHosts.join(" ")} ${analyticsConnect}`,
-		`frame-src 'self' ${turnstile} ${embedHosts.join(" ")}`,
+		`connect-src 'self' ${turnstile} ${embedHosts.join(" ")} ${analytics.connect.join(" ")}`,
+		`frame-src 'self' ${turnstile} ${embedHosts.join(" ")} ${analytics.frame.join(" ")}`,
 		"worker-src 'self' blob:",
 		"object-src 'none'",
 		"base-uri 'self'",
@@ -182,7 +183,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// Not in `astro dev`: Vite injects inline scripts for live reload.
 	const html = (headers.get("content-type") ?? "").includes("text/html");
 	if (!import.meta.env.DEV && html && !headers.has("content-security-policy")) {
-		headers.set("Content-Security-Policy", csp(isEditor(context.cookies, context.url), await inlineScriptHashes()).replace(/ {2,}/g, " ").replace(/ ;/g, ";"));
+		const editor = isEditor(context.cookies, context.url);
+		const trackers = cspSources(typesOf(await pageAnalytics(context.locals, context.url, editor)));
+		headers.set("Content-Security-Policy", csp(editor, await inlineScriptHashes(), trackers).replace(/ {2,}/g, " ").replace(/ ;/g, ";"));
 	}
 	// Browsers always revalidate a page; the shared route cache keeps that fast, and EmDash purges only that cache.
 	if (html && !headers.has("cache-control")) headers.set("Cache-Control", "no-cache");

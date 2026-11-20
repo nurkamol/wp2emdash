@@ -1,8 +1,26 @@
 /**
  * Site behaviour, no framework: header scroll states, burger menu (motion from motion.css),
- * popups (<dialog>), tabs, reveal-on-scroll, form submission, signature pads.
+ * popups (<dialog>), tabs, reveal-on-scroll, form submission, signature pads, conversion events.
  */
 import { mountSignaturePads } from "@wp2emdash/forms/signature-pad";
+import { classifyLink } from "@wp2emdash/seo/analytics/events";
+
+/**
+ * Conversion events (SEO & Analytics → Analytics): handed to the analytics loader (public/scripts/site-analytics.js),
+ * which exists only where tracking codes load and sends only the kinds switched on. Kind and a non-personal label
+ * only (form id, "phone"/"email", a host) — never what a visitor typed.
+ */
+const track = (kind: "lead" | "contact" | "booking" | "outbound", label: string) => (window as { siteAnalytics?: { track(k: string, l: string): void } }).siteAnalytics?.track(kind, label);
+document.addEventListener(
+	"click",
+	(e) => {
+		const a = (e.target as Element | null)?.closest?.("a[href]");
+		const href = a?.getAttribute("href");
+		const ev = href ? classifyLink(href, location.host) : undefined;
+		if (ev) track(ev.kind, ev.label);
+	},
+	{ capture: true },
+);
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -250,6 +268,7 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")
 				field?.querySelector<HTMLElement>("input:not([type=hidden]), textarea, select")?.setAttribute("aria-invalid", "true");
 			}
 			if (res.ok) {
+				track("lead", form.dataset.form ?? "form");
 				form.reset();
 				// Fluent "Hide Form": only the thank-you message stays.
 				if (form.dataset.after === "hide") form.classList.add("is-sent");

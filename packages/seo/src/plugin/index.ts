@@ -1,18 +1,26 @@
 /**
- * SEO — EmDash native plugin (loaded in the Worker from `@wp2emdash/seo/plugin`): a Block Kit panel in the page editor.
+ * SEO & Analytics — EmDash native plugin (loaded in the Worker from `@wp2emdash/seo/plugin`): a Block Kit panel in the page editor.
  *
  * Opening the panel analyses the saved page (`content:read`: its sections and SEO fields, plus other pages for the
  * duplicate check; `media:read`: alt text kept in the media library). "Check unsaved changes" analyses the editor's
  * current title and sections (`admin.editor-draft:read`; EmDash sends the draft with button presses, not on load).
  * The SEO fields live outside the entry, so their unsaved edits are not visible here until saved. A focus keyword per
  * page is kept in the plugin's KV. Contributors and up can use it (EmDash also checks they may edit the entry).
+ *
+ * Analytics (plugin/analytics.ts, analytics/*): tracking codes, conversion events and consent mode in the dashboard's
+ * Analytics tab (changes: admins only; every save purges the cached pages), Cloudflare Web Analytics visits in the
+ * Visits tab, the Visits dashboard widget (admins) and the editor panel (this page's views).
  */
 import { definePlugin } from "emdash";
 import type { Analysis, Check } from "../analyze.js";
 import { SEO_PLUGIN, type SeoPanelOptions } from "../index.js";
 import { siteChecks } from "../site-checks.js";
 import { allItems, analyseItem, keywordKey, mediaIds, mediaInfo, type SeoCtx, siteReport } from "./collect.js";
-import { DASHBOARD_PAGE, dashboard, type GoogleData, type GoogleState, type IndexNowState, WIDGET, widget } from "./dashboard.js";
+import { DASHBOARD_PAGE, dashboard, type GoogleData, type GoogleState, type IndexNowState, type TabKey, WIDGET, widget } from "./dashboard.js";
+import { analyticsTab, overviewAnalytics, panelVisits, VISITS_WIDGET, visitsTab, visitsWidget, type VisitsState } from "../analytics/views.js";
+import { viewsOfPath } from "../analytics/visits.js";
+import type { StoredAnalytics } from "../analytics/store.js";
+import { ADMIN_ROLE, analyticsAction, loadAnalytics, type Toast, visitsState, workerBits } from "./analytics.js";
 import { dateRange, GoogleError, parseServiceAccount, pickProperty, SearchConsole } from "../google.js";
 import { type IndexNowResult, submitIndexNow } from "../indexnow.js";
 
@@ -48,8 +56,9 @@ function view(a: Analysis, keyword: string, source: "saved" | "draft"): Block[] 
 	];
 }
 
-export function createPlugin(options: SeoPanelOptions) {
+export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fetch } = {}) {
 	const o = options;
+	const fetchFn = deps.fetch ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
 	const collections = o.collections?.length ? o.collections : ["pages"];
 	return definePlugin({
 		...SEO_PLUGIN,
@@ -68,8 +77,8 @@ export function createPlugin(options: SeoPanelOptions) {
 				gscKey: { type: "secret", label: "Google Search Console service account key (JSON)" },
 				gscProperty: { type: "string", label: "Search Console property (optional)" },
 			},
-			pages: [{ path: DASHBOARD_PAGE, label: "SEO", icon: "chart-line" }],
-			widgets: [{ id: WIDGET, title: "SEO", size: "third" }],
+			pages: [{ path: DASHBOARD_PAGE, label: o.analytics ? "SEO & Analytics" : "SEO", icon: "chart-line" }],
+			widgets: [{ id: WIDGET, title: "SEO", size: "third" }, ...(o.analytics ? [{ id: VISITS_WIDGET, title: "Visits", size: "half" as const }] : [])],
 			editorPanels: [{ id: "seo", title: "SEO", route: "panel", collections, order: 10, draft: { read: { fields: ["title", "content"] } } }],
 		},
 		routes: {
@@ -77,8 +86,26 @@ export function createPlugin(options: SeoPanelOptions) {
 			admin: {
 				permission: "content:edit_any",
 				handler: async (raw) => {
-					const ctx = raw as unknown as SeoCtx;
-					const i = (ctx.input ?? {}) as { type?: string; action_id?: string; values?: Record<string, unknown> };
+					const ctx = raw as unknown as SeoCtx & { user?: { role: number; name?: string | null; email?: string } };
+					const i = (ctx.input ?? {}) as { type?: string; action_id?: string; block_id?: string; value?: unknown; page?: string; values?: Record<string, unknown> };
+					const host = new URL(o.productionUrl).host;
+					// Visits widget: admins only, no SEO report needed.
+					if (ctx.ui?.surface === "dashboard-widget" && i.page === `widget:${VISITS_WIDGET}`) {
+						if (!o.analytics || (ctx.user?.role ?? 0) < ADMIN_ROLE) return { blocks: [] };
+						return { blocks: visitsWidget(await visitsState(ctx, o, await workerBits(), fetchFn), host, DASHBOARD_PAGE) };
+					}
+					// Analytics actions first: the add / edit forms replace the dashboard.
+					let analytics: StoredAnalytics | undefined = o.analytics ? await loadAnalytics(ctx, o) : undefined;
+					let anErrors: string[] | undefined;
+					let anToast: Toast | undefined;
+					const bits = o.analytics ? await workerBits() : undefined;
+					if (analytics && bits && (i.action_id ?? "").startsWith("an-")) {
+						const r = await analyticsAction(ctx, analytics, i, bits);
+						if ("view" in r) return { blocks: r.view, ...(r.toast ? { toast: r.toast } : {}) };
+						analytics = r.stored;
+						anErrors = r.errors;
+						anToast = r.toast;
+					}
 					let altSaved: number | undefined;
 					if (i.type === "form_submit" && i.action_id === "save-alt" && ctx.media?.updateMetadata) {
 						altSaved = 0;
@@ -105,7 +132,7 @@ export function createPlugin(options: SeoPanelOptions) {
 					const fetcher = (self ? (input: RequestInfo | URL, init?: RequestInit) => self.fetch(new Request(String(input), init)) : fetch) as typeof fetch;
 					const site = await siteChecks(origin, o.productionUrl, paths, fetcher).catch((e: Error) => [{ id: "site", label: "Site checks", status: "warn" as const, detail: `Could not run: ${e.message}` }]);
 					// Google Search Console and IndexNow actions.
-					let toast: { message: string; type: "success" | "error" | "info" } | undefined = altSaved ? { message: `${altSaved} image description${altSaved === 1 ? "" : "s"} saved.`, type: "success" } : undefined;
+					let toast: { message: string; type: "success" | "error" | "info" } | undefined = altSaved ? { message: `${altSaved} image description${altSaved === 1 ? "" : "s"} saved.`, type: "success" } : anToast;
 					let google: GoogleState;
 					const act = i.action_id ?? "";
 					if (act.startsWith("gsc-")) {
@@ -123,9 +150,15 @@ export function createPlugin(options: SeoPanelOptions) {
 						const keyFile = o.indexNow.live ? ((await fetcher(new URL(`/${o.indexNow.key}.txt`, origin).toString()).then(async (r) => (r.ok && (await r.text()).trim() === o.indexNow?.key ? "ok" : "missing")).catch(() => "missing")) as "ok" | "missing") : "not-checked";
 						indexNow = { live: o.indexNow.live, keyFile, host: new URL(o.productionUrl).host, log: (await ctx.kv.get<IndexNowState["log"]>("indexnow:log")) ?? [] };
 					}
-					const tabFor: Record<string, number> = { "save-alt": 2, refresh: 3, "indexnow-all": 5 };
+					let visits: VisitsState | undefined;
+					if (o.analytics && bits) visits = await visitsState(ctx, o, bits, fetchFn, act === "visits-refresh");
+					const an =
+						o.analytics && analytics && visits
+							? { overview: overviewAnalytics(visits, analytics), visits: visitsTab(visits, host), tab: analyticsTab({ enabled: true, stored: analytics, options: o.analytics, productionUrl: o.productionUrl, admin: (ctx.user?.role ?? 0) >= ADMIN_ROLE, ...(anErrors ? { errors: anErrors } : {}) }) }
+							: undefined;
+					const tabFor: Record<string, TabKey> = { "save-alt": "images", refresh: "site", "indexnow-all": "indexnow", "visits-refresh": "visits" };
 					return {
-						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}), google, ...(indexNow ? { indexNow } : {}), productionUrl: o.productionUrl }, act.startsWith("gsc-") ? 4 : (tabFor[act] ?? 0)),
+						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}), google, ...(indexNow ? { indexNow } : {}), productionUrl: o.productionUrl, ...(an ? { analytics: an } : {}) }, act.startsWith("gsc-") ? "google" : act.startsWith("an-") ? "analytics" : (tabFor[act] ?? "overview")),
 						...(toast ? { toast } : {}),
 					};
 				},
@@ -152,7 +185,14 @@ export function createPlugin(options: SeoPanelOptions) {
 					const all = await allItems(ctx, entry.collection, 300);
 					const media = await mediaInfo(ctx, mediaIds(draft?.content ?? saved.data.content).slice(0, 60));
 					const a = analyseItem(o, ctx.site.name, saved, all, media, keyword || undefined, draft);
-					return { blocks: view(a, keyword, source), ...(toast ? { toast } : {}) };
+					// This page's views (7 days) from the same cached Cloudflare query, when Visits are set up.
+					let traffic: Record<string, unknown>[] = [];
+					if (o.analytics) {
+						const vs = await visitsState(ctx, o, await workerBits(), fetchFn).catch(() => undefined);
+						const slug = typeof saved.slug === "string" ? saved.slug : null;
+						if (vs?.kind === "data") traffic = panelVisits(viewsOfPath(vs.visits, new URL(pageUrl(o, slug)).pathname));
+					}
+					return { blocks: [...traffic, ...view(a, keyword, source)], ...(toast ? { toast } : {}) };
 				},
 			},
 		},

@@ -429,6 +429,19 @@ Output: `snapshot/interactions.json`, `snapshot/interactions/<viewport>/…`, `r
 ## 7d. SEO panel in the page editor (on by default; `seo: { panel: false }` turns it off)
 `packages/seo` (`@wp2emdash/seo`). EmDash native plugin with an `editorPanels` entry on pages (Block Kit in the editor sidebar). Analysis is a pure module (`analyze.ts`): Google preview (title as the layout renders it, address, description, cut-off warnings), checks with good/improve/fix and a 0–100 score, focus keyword per page (plugin KV). Capabilities: `content:read`, `media:read`, `admin.editor-draft:read`; route permission `content:read_drafts`. Plus the **SEO dashboard** (admin page and widget, permission `content:edit_any`): overview with average score, score chart and issue counts; every page with an editor link; images without alt text with a form that writes alt to the media library (`media:metadata:write`); site checks (robots.txt, sitemap coverage, home page indexability, canonical host, JSON-LD), environment-aware. Plus **Google Search Console** (service account key in an encrypted plugin setting; JWT RS256 signed in the Worker; Search Analytics, Sitemaps list/submit, URL Inspection; 6-hour KV cache) and **IndexNow** (`content:afterPublish` hook and a notify-all button; key derived from the production host, file in `public/`; active only with `production.live`). Pilot: on (2026-11-19); Search Console waits for the owner's service account.
 
+**Analytics in the suite (0.2.0, 2026-11-20; "SEO & Analytics").** Tracking codes managed by ID in the dashboard's
+Analytics tab (admins only): GA4, Google tag, Google Ads, Tag Manager, Meta Pixel, Microsoft Clarity, Hotjar, Cloudflare
+Web Analytics; strict per-service ID formats, no code fields; retired UA- listed, never loaded. Prefill at scaffold from
+the audit's raw HTML (`snapshot/html`) plus a read-only Cloudflare `rum/site_info/list` lookup (site tag; a
+zone-injected beacon is not loaded twice). Settings live in the plugin's KV (D1 `options` row
+`plugin:site-seo:analytics`), read by the starter once per uncached render; saving purges `wp2emdash:analytics` +
+`emdash:settings`. Middleware CSP from one host table (`analytics/csp.ts`). Conversion events (form sent, contact,
+booking, outbound) and consent mode are switches; the loader (`public/scripts/site-analytics.js`) maps them per
+service. Visits: Cloudflare GraphQL `rumPageloadEventsAdaptiveGroups` (Visits tab, admin widget, per-page views in the
+editor panel), Worker secret `CF_ANALYTICS_TOKEN`. Opt-out: `seo: { panel: false }` (whole suite; the site loads exactly
+`analytics`), `analytics: false` (no trackers at all). Verify's `analytics-runtime` expects each live service's
+loader request (gtag.js, gtm.js, fbevents.js, clarity.ms tag, hotjar script). Facts: docs/spikes/analytics-findings.md.
+
 ## 8. Everything else a migration touches
 
 | Area | Plan |

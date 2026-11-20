@@ -168,9 +168,12 @@ export const kitConfigSchema = z.object({
 	email: emailConfig.prefault({}),
 
 	/**
-	 * Analytics carried over from the live site. Unset = the tracking ids the audit found (Google tag GT-/G-/AW-,
-	 * Tag Manager GTM-); false = none. Loaded only on the production domain and never for signed-in editors.
-	 * cloudflareToken: a Web Analytics beacon to add in code — leave unset when Cloudflare injects it at the edge.
+	 * Analytics carried over from the live site. Unset = everything the audit found in the old pages' HTML (Google tag
+	 * GT-/G-/AW-, Tag Manager GTM-, Meta Pixel, Microsoft Clarity, Hotjar, retired UA- listed but never loaded, and a
+	 * Cloudflare beacon the old site added in its own code). An object = exactly these IDs. false = the site carries and
+	 * loads no trackers at all (the SEO & Analytics page says so). Loaded only on the production domain and never for
+	 * signed-in editors. With the SEO suite on (seo.panel, the default) this is the starting list: admins add, edit and
+	 * switch trackers in SEO & Analytics → Analytics; with seo: { panel: false } the site loads exactly this list.
 	 */
 	analytics: z
 		.union([
@@ -179,6 +182,9 @@ export const kitConfigSchema = z.object({
 				google: z.array(z.string().regex(/^(?:GT|G|AW)-[A-Z0-9]{4,14}$/)).default([]),
 				gtm: z.string().regex(/^GTM-[A-Z0-9]{4,10}$/).optional(),
 				cloudflareToken: z.string().regex(/^[a-f0-9]{32}$/).optional(),
+				meta: z.array(z.string().regex(/^\d{12,20}$/)).optional(),
+				clarity: z.string().regex(/^[a-z0-9]{8,12}$/).optional(),
+				hotjar: z.string().regex(/^\d{5,10}$/).optional(),
 			}),
 		])
 		.optional(),
@@ -215,7 +221,7 @@ export const kitConfigSchema = z.object({
 			phoneVideo: z.boolean().default(false),
 		})
 		.prefault({}),
-	/** SEO panel, dashboard, Search Console and IndexNow (@wp2emdash/seo). On by default; { panel: false } turns it off. */
+	/** SEO & Analytics suite (@wp2emdash/seo): editor panel, dashboard, Search Console, IndexNow, tracking codes, conversion events and Visits. On by default; { panel: false } turns the whole suite off (the site then loads exactly `analytics`). */
 	seo: z.object({ panel: z.boolean().default(true) }).default({ panel: true }),
 	/**
 	 * Third-party EmDash plugins that run in EmDash's sandbox (Cloudflare Worker Loader, Workers Paid). Each is pinned
