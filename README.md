@@ -564,6 +564,28 @@ to wrangler.jsonc. Optional Worker secret `MEDIA_API_TOKEN` lets the hourly task
 `docs/media.md` in the site repo. Facts and limits: [docs/spikes/media-findings.md](docs/spikes/media-findings.md);
 details: [packages/media/README.md](packages/media/README.md).
 
+## Change requests (on by default)
+
+Every site gets **Plugins → Change requests** (editors and admins; `@wp2emdash/change-requests`, an in-house
+PixelKraft plugin): the client asks the agency for a change inside the admin — title, description, page (or anywhere),
+priority, up to 3 private screenshots/PDFs, how to get back — and follows its status (New → Seen → In progress →
+Waiting for you → Done / Declined) with a comment timeline. The agency (admins) replies and moves the status on the
+same page; a "Request a change" editor panel and a dashboard widget come with it. New requests email the agency;
+status changes and replies email the requester (opt-out). Optional signed webhook for the agency's tracker.
+
+```ts
+// sites/<slug>/kit.config.ts
+changeRequests: false,
+// or
+changeRequests: { agencyTo: ["pm@agency.example"], agencyDomains: ["agency.example"], webhook: "https://hooks.zapier.com/…", retentionMonths: 12 },
+```
+
+`agencyTo` defaults to `email.stagingTo`. With `webhook`, put the Worker secret `CHANGE_REQUESTS_WEBHOOK_SECRET`.
+Closed requests are deleted with their files after `retentionMonths`; the requests (not their files) are in the
+nightly backups. Client guide: `docs/change-requests.md` in the site repo. Facts and limits:
+[docs/spikes/change-requests-findings.md](docs/spikes/change-requests-findings.md); details and the webhook payload:
+[packages/change-requests/README.md](packages/change-requests/README.md).
+
 ## Performance (on by default)
 
 Every generated site ships a performance package (`src/scaffold/perf.ts`; facts and measurements in

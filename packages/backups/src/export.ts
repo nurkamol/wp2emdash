@@ -8,7 +8,7 @@
  * relations, and has no restore. Site transfer (`emdash site export/import`) needs the CLI and imports only into an
  * EMPTY site. Rows are read the way EmDash's snapshot reads them (rowid-ordered pages), with the same options rule.
  */
-import { type BackupCounts, type BackupDoc, classifyTable, FORMAT, FORMAT_VERSION, type MediaObject, OPTION_KEYS, optionAllowed, type Trigger } from "./format.js";
+import { type BackupCounts, type BackupDoc, classifyTable, FORMAT, FORMAT_VERSION, type MediaObject, OPTION_KEYS, optionAllowed, PLUGIN_DATA_PREFIXES, type Trigger } from "./format.js";
 
 export interface D1Stmt {
 	bind(...values: unknown[]): D1Stmt;
@@ -78,9 +78,10 @@ export async function readRows(db: { prepare: D1Db["prepare"] }, table: string, 
 	}
 }
 
-/** The options rows a backup may hold (filtered in SQL, then again in code). */
+/** The options rows a backup may hold (site settings and allowed plugin data; filtered in SQL, then again in code). */
 export async function readSettingsRows(db: { prepare: D1Db["prepare"] }): Promise<Record<string, unknown>[]> {
-	const rows = await readRows(db, "options", `name LIKE 'site:%' OR name IN (${OPTION_KEYS.map(() => "?").join(", ")})`, [...OPTION_KEYS]);
+	const plugin = Object.keys(PLUGIN_DATA_PREFIXES);
+	const rows = await readRows(db, "options", `name LIKE 'site:%' OR name IN (${OPTION_KEYS.map(() => "?").join(", ")})${plugin.map(() => " OR substr(name, 1, ?) = ?").join("")}`, [...OPTION_KEYS, ...plugin.flatMap((p) => [p.length, p])]);
 	return rows.filter((r) => optionAllowed(String(r.name ?? ""), r.value));
 }
 

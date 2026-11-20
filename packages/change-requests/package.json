@@ -1,0 +1,22 @@
+{
+  "name": "@wp2emdash/change-requests",
+  "version": "0.1.0",
+  "description": "Change Requests for EmDash on Cloudflare Workers: clients ask the agency for changes from inside the admin (page picker, priority, private screenshot/PDF attachments) and follow the status; agency replies in the admin, email notifications, an optional signed webhook to the agency's tracker and a dashboard widget (editors and admins)",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/plugin/index.ts",
+    "./admin": "./src/admin.ts",
+    "./model": "./src/model.ts"
+  },
+  "files": ["src", "README.md"],
+  "peerDependencies": {
+    "emdash": ">=1.5 <2",
+    "react": ">=18",
+    "@wp2emdash/forms": ">=1.6"
+  },
+  "engines": { "node": ">=24" }
+}

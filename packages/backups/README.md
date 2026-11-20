@@ -14,7 +14,9 @@ builds (`backups: false` in `kit.config.ts` turns it off). Admins only.
   media records and folders, the schema version, and the site settings (`site:*` and the site title / tagline /
   locale, the same rule as EmDash's own backup). A media manifest lists every file in the bucket (key, size, ETag);
   the files are not copied (they already live in R2 and no restore touches them). Every table left out is listed in
-  the file's `skipped` with the reason.
+  the file's `skipped` with the reason. One plugin's data is allowed by name (`PLUGIN_DATA_PREFIXES`): the Change
+  requests plugin's requests (`plugin:change-requests:req:*` options rows — site content without secrets; their files
+  stay in R2 under `backups/change-requests/`).
 - **Never in a backup:** users, passkeys, sign-in tokens, sessions (KV), API / OAuth tokens and clients, plugin data
   and plugin settings (encrypted secrets), form messages (Workers KV and plugin storage), comments, audit and 404 logs.
   Proven by `test/backups.test.ts` with sentinel values in every one of those tables.

@@ -250,6 +250,7 @@ export function runtimeSecrets(ctx: SiteContext, env: EnvName): { name: string; 
 				]
 			: []),
 		...(ctx.config.media !== false && ctx.config.media?.autoOptimize ? [{ name: "MEDIA_API_TOKEN", required: false, why: "Optional: lets Media optimize queued uploads every hour (an EmDash API token from this admin with media write access). Without it an editor optimizes the queue with one click." }] : []),
+		...(ctx.config.changeRequests !== false && ctx.config.changeRequests?.webhook ? [{ name: "CHANGE_REQUESTS_WEBHOOK_SECRET", required: true, why: "Change requests webhook: signs each call to the agency tracker (HMAC-SHA256, at least 16 characters). Without it nothing is sent." }] : []),
 	];
 	// Anything else the project declares for local development (.dev.vars.example): names only.
 	const example = join(ctx.paths.project, ".dev.vars.example");

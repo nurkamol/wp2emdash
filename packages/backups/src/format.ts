@@ -39,7 +39,7 @@ export const INCLUDED_TABLES: Readonly<Record<string, string>> = Object.freeze({
 	media: "media library records (the files stay in R2: see the media manifest)",
 	media_folders: "media folders",
 	revisions: "saved revisions and drafts",
-	options: "site settings only (site:* and the site title, tagline and locale)",
+	options: "site settings only (site:* and the site title, tagline and locale) and change requests",
 	_emdash_migrations: "the database schema version",
 });
 
@@ -93,6 +93,12 @@ export const EXCLUDED_PREFIXES: Readonly<Record<string, string>> = Object.freeze
 /** Options rows that may go in: EmDash's own backup allowlist (api/handlers/backup.ts in emdash 1.5). */
 export const OPTION_PREFIXES = ["site:"] as const;
 export const OPTION_KEYS = ["emdash:site_title", "emdash:site_tagline", "emdash:locale"] as const;
+/**
+ * Plugin rows that are the client's site content and hold no secrets — allowed one prefix at a time (the rest of
+ * `plugin:*` stays out): the Change requests plugin's requests (`plugin:change-requests:req:<id>`: titles,
+ * descriptions, statuses, comments, attachment names, the requester's name and email). Their files stay in R2.
+ */
+export const PLUGIN_DATA_PREFIXES: Readonly<Record<string, string>> = Object.freeze({ "plugin:change-requests:req:": "change requests" });
 
 export const SAFE_TABLE = /^[a-z_][a-z0-9_]*$/;
 
@@ -110,7 +116,7 @@ export function classifyTable(name: string): TableDecision {
 
 /** Whether an options row may go into a backup (pure). Encrypted plugin-setting envelopes never do, whatever the key. */
 export function optionAllowed(name: string, value: unknown): boolean {
-	if (!(OPTION_KEYS as readonly string[]).includes(name) && !OPTION_PREFIXES.some((p) => name.startsWith(p))) return false;
+	if (!(OPTION_KEYS as readonly string[]).includes(name) && !OPTION_PREFIXES.some((p) => name.startsWith(p)) && !Object.keys(PLUGIN_DATA_PREFIXES).some((p) => name.startsWith(p))) return false;
 	if (typeof value === "string" && value.includes('"$emdash"')) return false;
 	return true;
 }

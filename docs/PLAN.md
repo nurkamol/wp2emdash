@@ -498,6 +498,20 @@ Alt text: suggestions (Workers AI `@cf/meta/llama-3.2-11b-vision-instruct` when 
 `media:afterUpload` (default off); processed by a click or hourly with `MEDIA_API_TOKEN`. Verify: nothing new. Client
 guide `docs/media.md`. Facts: docs/spikes/media-findings.md.
 
+## 7f. Change requests (on by default; `changeRequests: false` turns it off)
+`packages/change-requests` (`@wp2emdash/change-requests`, 0.1, experimental; in-house PixelKraft). EmDash native
+plugin, **Plugins → Change requests** for editors and admins (routes `content:edit_any`), dashboard widget, editor
+panel on pages (posts too on blog sites). Capabilities `content:read`, `email:send`. Requests in plugin KV (`req:<id>`,
+compare-and-set), attachments (3 × 5 MB, PNG/JPEG/GIF/WebP/PDF by magic bytes) in `MEDIA` under
+`backups/change-requests/` (never served by EmDash's media route), one-time download tokens (5 min) through a public
+raw route. The upload page is the only React part (descriptor `adminEntry`, page `/attach`; Block Kit has no file
+input; `admin.entry` deliberately unset so the panel stays). Agency = admins (optionally narrowed by
+`agencyDomains`); requester may withdraw / mark done / reopen within 30 days; other editors comment. Email through the
+forms delivery path (never from staging); optional webhook signed with `CHANGE_REQUESTS_WEBHOOK_SECRET`. Daily task
+deletes closed requests after `retentionMonths` (12). Backups allowlist: `plugin:change-requests:req:*` rows only.
+Site health: nothing new. Verify: nothing new. Client guide `docs/change-requests.md`. Facts:
+docs/spikes/change-requests-findings.md.
+
 ## 7f. Privacy & consent (on by default; `consent: false` turns it off)
 `packages/consent` (`@wp2emdash/consent`, 0.1, experimental; in-house PixelKraft). Built-in banner in the starter
 (`components/Consent.astro`, `public/scripts/site-consent.js`, before SiteWidgets and Analytics in `<head>`), no inline
