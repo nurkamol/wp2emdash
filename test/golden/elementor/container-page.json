@@ -1,0 +1,251 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "image",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "image": {
+            "wpId": 501,
+            "kind": "image"
+          },
+          "overlay": 0.45
+        }
+      },
+      "spacing": "normal",
+      "fullHeight": true,
+      "anchorId": "welcome",
+      "valign": "middle",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#a1b2c3d",
+        "rawHash": "760d8b465f",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Calm studio for movement",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Small classes, unhurried teaching and a room full of light.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book a class",
+            "href": "/book/",
+            "style": "primary",
+            "size": "large"
+          },
+          {
+            "label": "See timetable",
+            "href": "/timetable/",
+            "style": "secondary"
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#c1d2e3f#0",
+        "rawHash": "97be96d2ce",
+        "row": 1
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "What we offer",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "title": "Pilates",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Mat and reformer classes for every level.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "leaf"
+            }
+          },
+          {
+            "title": "Yoga",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Slow flow in the morning, yin at night.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "sun"
+            },
+            "link": {
+              "label": "Yoga",
+              "href": "/yoga/",
+              "style": "link"
+            }
+          },
+          {
+            "title": "Privates",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "One to one sessions by appointment.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "heart"
+            }
+          }
+        ],
+        "columns": 3
+      },
+      "pad": {
+        "top": "clamp(48px, 30.17px + 4.571vw, 96px)",
+        "topTablet": 96,
+        "bottom": "clamp(48px, 30.17px + 4.571vw, 96px)",
+        "bottomTablet": 96
+      }
+    },
+    {
+      "type": "stats",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#1F2A2E"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#d1e2f3a",
+        "rawHash": "5fdb4983f8",
+        "row": 2
+      },
+      "fields": {
+        "items": [
+          {
+            "value": "12",
+            "label": "Years teaching",
+            "suffix": "+"
+          },
+          {
+            "value": "40",
+            "label": "Classes a week"
+          }
+        ]
+      }
+    },
+    {
+      "type": "testimonials",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "width": "full",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#e1f2a3b",
+        "rawHash": "4ec0506389",
+        "row": 3
+      },
+      "fields": {
+        "items": [
+          {
+            "quote": "The kindest teachers I have met.",
+            "name": "A. Member",
+            "role": "Member since 2020",
+            "photo": {
+              "wpId": 502,
+              "kind": "image",
+              "url": "https://fixture.example/wp-content/uploads/2026/01/member.jpg"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [],
+  "forms": []
+}

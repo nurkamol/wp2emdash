@@ -1,0 +1,42 @@
+{
+  "title": "Pricing",
+  "postCount": 3,
+  "permalinks": { "42": "/contact/" },
+  "popups": { "300": "elementor-newsletter" },
+  "templates": {
+    "200": [
+      { "id": "fa00001", "elType": "section", "isInner": false, "settings": { "background_background": "classic", "background_color": "#F4EFE9" }, "elements": [
+        { "id": "fa00002", "elType": "column", "settings": { "_column_size": 100 }, "elements": [
+          { "id": "fa00003", "elType": "widget", "widgetType": "heading", "settings": { "title": "Saved section: opening hours", "header_size": "h2" }, "elements": [] },
+          { "id": "fa00004", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Mon–Fri 7–21, weekends 8–14.</p>" }, "elements": [] }
+        ] }
+      ] }
+    ],
+    "201": [
+      { "id": "fb00001", "elType": "widget", "widgetType": "button", "settings": { "text": "Global call to action", "link": { "url": "/start/" } }, "elements": [] }
+    ],
+    "202": [
+      { "id": "fc00001", "elType": "widget", "widgetType": "template", "settings": { "template_id": "202" }, "elements": [] }
+    ]
+  },
+  "elements": [
+    { "id": "fd00001", "elType": "widget", "widgetType": "template", "settings": { "template_id": "200" }, "elements": [] },
+    { "id": "fe00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "fe00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Static fallback", "header_size": "h1", "__dynamic__": { "title": "[elementor-tag id=\"d1\" name=\"post-title\" settings=\"%7B%7D\"]" } }, "elements": [] },
+      { "id": "fe00003", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Kept as written.</p>", "__dynamic__": { "editor": "[elementor-tag id=\"d2\" name=\"acf-text\" settings=\"%7B%22key%22%3A%22subtitle%22%7D\"]" } }, "elements": [] },
+      { "id": "fe00004", "elType": "widget", "widgetType": "global", "templateID": 201, "settings": [], "elements": [] },
+      { "id": "fe00005", "elType": "widget", "widgetType": "button", "settings": { "text": "Join the newsletter", "link": { "url": "" }, "__dynamic__": { "link": "[elementor-tag id=\"d3\" name=\"popup\" settings=\"%7B%22popup%22%3A%22300%22%7D\"]" } }, "elements": [] },
+      { "id": "fe00006", "elType": "widget", "widgetType": "button", "settings": { "text": "Popup by URL", "link": { "url": "%23elementor-action%3Aaction%3Dpopup%3Aopen%26settings%3DeyJpZCI6IjMwMCIsInRvZ2dsZSI6ZmFsc2V9" } }, "elements": [] },
+      { "id": "fe00007", "elType": "widget", "widgetType": "button", "settings": { "text": "Contact us", "link": { "url": "" }, "__dynamic__": { "link": "[elementor-tag id=\"d4\" name=\"internal-url\" settings=\"%7B%22post_id%22%3A%2242%22%7D\"]" } }, "elements": [] }
+    ] },
+    { "id": "ff00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "ff00002", "elType": "widget", "widgetType": "template", "settings": { "template_id": "202" }, "elements": [] },
+      { "id": "ff00003", "elType": "widget", "widgetType": "template", "settings": { "template_id": "999" }, "elements": [] },
+      { "id": "ff00004", "elType": "widget", "widgetType": "posts", "settings": { "posts_post_type": "post", "posts_per_page": 3 }, "elements": [] },
+      { "id": "ff00005", "elType": "widget", "widgetType": "search-form", "settings": [], "elements": [] },
+      { "id": "ff00006", "elType": "widget", "widgetType": "acme-timeline", "settings": { "items": [ { "title": "2014", "text": "Opened the studio" } ] }, "elements": [] },
+      { "id": "ff00007", "elType": "widget", "widgetType": "acme-ornament", "settings": { "_margin": { "unit": "px", "top": "10" } }, "elements": [] },
+      { "id": "ff00008", "elType": "widget", "widgetType": "heading", "settings": { "title": "Desktop hidden copy", "hide_desktop": "hidden-desktop" }, "elements": [] }
+    ] }
+  ]
+}

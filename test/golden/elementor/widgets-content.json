@@ -1,0 +1,393 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#aa00001",
+        "rawHash": "c704474479",
+        "row": 0
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t2",
+                "text": "About the teachers",
+                "marks": [
+                  "t1"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t1",
+                "href": "/teachers/",
+                "blank": true
+              }
+            ]
+          },
+          {
+            "_type": "block",
+            "_key": "t3",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t4",
+                "text": "A small eyebrow line",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t5",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t6",
+                "text": "Every teacher trained for at least ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "500 hours",
+                "marks": [
+                  "strong"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t8",
+                "text": ".",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t9",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "ta",
+                "text": "Pilates",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tb",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tc",
+                "text": "Yoga",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "td",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "te",
+                "text": "Free mats and towels",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tf",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "th",
+                "text": "Showers on site",
+                "marks": [
+                  "tg"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "tg",
+                "href": "/facilities/"
+              }
+            ],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "ti",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tj",
+                "text": "Holiday hours",
+                "marks": [
+                  "strong"
+                ]
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tk",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tl",
+                "text": "Closed on public holidays.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tm",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tn",
+                "text": "Rated by members 4.8/5",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "to",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tp",
+                "text": "Move with care every day",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tq",
+            "style": "blockquote",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tr",
+                "text": "Slow is smooth, smooth is strong.\n— Head teacher",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ab00001",
+        "rawHash": "ab0640800c",
+        "row": 1
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ts",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tt",
+                    "text": "Morning class",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [
+              {
+                "wpId": 601,
+                "kind": "image",
+                "url": "https://fixture.example/wp-content/uploads/2026/02/teacher.jpg",
+                "alt": "A teacher"
+              }
+            ],
+            "buttons": [
+              {
+                "label": "Instagram",
+                "href": "https://instagram.com/fixture",
+                "style": "link",
+                "newTab": true
+              }
+            ]
+          },
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tu",
+                "style": "h2",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tv",
+                    "text": "Meet us",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tw",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tx",
+                    "text": "Come to an open day.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Open days",
+                "href": "#",
+                "style": "primary"
+              }
+            ],
+            "align": "center"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[text-editor] drop cap not reproduced",
+      "path": "container#aa00001/text-editor#aa00004",
+      "tag": "text-editor"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "[divider] dropped (decorative)",
+      "path": "container#aa00001/divider#aa00005",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "[spacer] dropped (decorative)",
+      "path": "container#aa00001/spacer#aa00006",
+      "tag": "spacer"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[alert] notice box styling not reproduced; text kept",
+      "path": "container#aa00001/alert#aa00008",
+      "tag": "alert"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[star-rating] stars shown as text",
+      "path": "container#aa00001/star-rating#aa00009",
+      "tag": "star-rating"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[animated-headline] animation not reproduced; first phrase kept, others: intent | joy",
+      "path": "container#aa00001/animated-headline#aa0000a",
+      "tag": "animated-headline"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[icon] linked icon kept as a \"Instagram\" link (the icon itself is not drawn)",
+      "path": "container#ab00001/container#ab00002/icon#ab00004",
+      "tag": "icon"
+    },
+    {
+      "level": "warn",
+      "code": "link-unknown",
+      "message": "Button \"Open days\" has no link",
+      "path": "container#ab00001/container#ab00005/button#ab00008"
+    },
+    {
+      "level": "warn",
+      "code": "media-missing",
+      "message": "[image] without an image",
+      "path": "container#ab00001/container#ab00005/image#ab00009",
+      "tag": "image"
+    }
+  ],
+  "forms": []
+}

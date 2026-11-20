@@ -1,0 +1,230 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#2F4F4F"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ga00001",
+        "rawHash": "dce6a03266",
+        "row": 0
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Colour from the kit",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Dark section, light text.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "gradient": "linear-gradient(90deg, #F4EFE9 10%, #FFFFFF 100%)"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "section#gb00001",
+        "rawHash": "fbf28b30de",
+        "row": 1
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Gradient section",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "section#gc00001",
+        "rawHash": "5ee047ecdd",
+        "row": 2
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Unknown global",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "image": {
+            "wpId": 650,
+            "kind": "image"
+          }
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#gd00001",
+        "rawHash": "6472119413",
+        "row": 3
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Video background",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "video": {
+            "url": "https://fixture.example/wp-content/uploads/2026/02/loop.mp4",
+            "kind": "video"
+          }
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ge00001",
+        "rawHash": "edc185e4fa",
+        "row": 4
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "Hosted video background",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[section] background colour globals/colors?id=missing1 not resolved (Kit missing from the extract?)",
+      "path": "section#gc00001",
+      "tag": "section"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[section] background overlay #C9A27E not reproduced (the section overlay is black only)",
+      "path": "section#gc00001",
+      "tag": "section"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[container] background video https://www.youtube.com/watch?v=XHOmBV4js_E (YouTube/Vimeo) not reproduced as a background; its fallback picture is the background",
+      "path": "container#gd00001",
+      "tag": "container"
+    }
+  ],
+  "forms": []
+}

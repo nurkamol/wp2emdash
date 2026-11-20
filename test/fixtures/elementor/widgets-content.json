@@ -1,0 +1,34 @@
+{
+  "elements": [
+    {
+      "id": "aa00001", "elType": "container", "isInner": false, "settings": { "flex_direction": "column" },
+      "elements": [
+        { "id": "aa00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "About the teachers", "header_size": "h2", "link": { "url": "/teachers/", "is_external": "on" } }, "elements": [] },
+        { "id": "aa00003", "elType": "widget", "widgetType": "heading", "settings": { "title": "A small eyebrow line", "header_size": "p" }, "elements": [] },
+        { "id": "aa00004", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Every teacher trained for at least <strong>500 hours</strong>.</p><ul><li>Pilates</li><li>Yoga</li></ul>", "drop_cap": "yes" }, "elements": [] },
+        { "id": "aa00005", "elType": "widget", "widgetType": "divider", "settings": { "style": "solid" }, "elements": [] },
+        { "id": "aa00006", "elType": "widget", "widgetType": "spacer", "settings": { "space": { "unit": "px", "size": 40 } }, "elements": [] },
+        { "id": "aa00007", "elType": "widget", "widgetType": "icon-list", "settings": { "view": "traditional", "icon_list": [ { "_id": "l1", "text": "Free mats and towels", "selected_icon": { "value": "fas fa-check", "library": "fa-solid" } }, { "_id": "l2", "text": "Showers on site", "selected_icon": { "value": "fas fa-check", "library": "fa-solid" }, "link": { "url": "/facilities/" } } ] }, "elements": [] },
+        { "id": "aa00008", "elType": "widget", "widgetType": "alert", "settings": { "alert_type": "info", "alert_title": "Holiday hours", "alert_description": "Closed on public holidays." }, "elements": [] },
+        { "id": "aa00009", "elType": "widget", "widgetType": "star-rating", "settings": { "rating": 4.8, "rating_scale": 5, "title": "Rated by members" }, "elements": [] },
+        { "id": "aa0000a", "elType": "widget", "widgetType": "animated-headline", "settings": { "headline_style": "rotate", "before_text": "Move with", "rotating_text": "care\nintent\njoy", "after_text": "every day", "tag": "h3" }, "elements": [] },
+        { "id": "aa0000b", "elType": "widget", "widgetType": "blockquote", "settings": { "blockquote_content": "Slow is smooth, smooth is strong.", "author_name": "Head teacher" }, "elements": [] }
+      ]
+    },
+    {
+      "id": "ab00001", "elType": "container", "isInner": false, "settings": { "flex_direction": "row" },
+      "elements": [
+        { "id": "ab00002", "elType": "container", "isInner": true, "settings": { "width": { "unit": "%", "size": 50 } }, "elements": [
+          { "id": "ab00003", "elType": "widget", "widgetType": "image", "settings": { "image": { "url": "https://fixture.example/wp-content/uploads/2026/02/teacher.jpg", "id": 601, "alt": "A teacher" }, "caption_source": "custom", "caption": "Morning class", "link_to": "custom", "link": { "url": "/teachers/", "is_external": "" } }, "elements": [] },
+          { "id": "ab00004", "elType": "widget", "widgetType": "icon", "settings": { "selected_icon": { "value": "fab fa-instagram", "library": "fa-brands" }, "link": { "url": "https://instagram.com/fixture", "is_external": "on" } }, "elements": [] }
+        ] },
+        { "id": "ab00005", "elType": "container", "isInner": true, "settings": { "width": { "unit": "%", "size": 50 } }, "elements": [
+          { "id": "ab00006", "elType": "widget", "widgetType": "heading", "settings": { "title": "Meet us", "header_size": "h2", "align": "center", "align_mobile": "center" }, "elements": [] },
+          { "id": "ab00007", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "Come to an open day.", "align": "center" }, "elements": [] },
+          { "id": "ab00008", "elType": "widget", "widgetType": "button", "settings": { "text": "Open days", "link": { "url": "", "is_external": "" }, "align": "center" }, "elements": [] },
+          { "id": "ab00009", "elType": "widget", "widgetType": "image", "settings": { "image": { "url": "https://fixture.example/wp-content/plugins/elementor/assets/images/placeholder.png", "id": "" } }, "elements": [] }
+        ] }
+      ]
+    }
+  ]
+}

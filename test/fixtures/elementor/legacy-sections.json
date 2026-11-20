@@ -1,0 +1,56 @@
+{
+  "elements": [
+    {
+      "id": "1a2b3c4", "elType": "section", "isInner": false,
+      "settings": { "layout": "full_width", "gap": "no", "padding": { "unit": "px", "top": "80", "right": "0", "bottom": "80", "left": "0", "isLinked": false }, "padding_tablet": { "unit": "px", "top": "40", "right": "0", "bottom": "40", "left": "0", "isLinked": false }, "padding_mobile": { "unit": "px", "top": "40", "right": "0", "bottom": "40", "left": "0", "isLinked": false } },
+      "elements": [
+        { "id": "1b2c3d4", "elType": "column", "isInner": false, "settings": { "_column_size": 50, "_inline_size": null }, "elements": [
+          { "id": "1c2d3e4", "elType": "widget", "widgetType": "heading", "settings": { "title": "Our story", "header_size": "h2" }, "elements": [] },
+          { "id": "1d2e3f4", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "We opened in a former bakery.\n\nThe ovens are gone; the warmth stayed." }, "elements": [] }
+        ] },
+        { "id": "1e2f3a4", "elType": "column", "isInner": false, "settings": { "_column_size": 50, "_inline_size": null }, "elements": [
+          { "id": "1f2a3b4", "elType": "widget", "widgetType": "image", "settings": { "image": { "url": "https://fixture.example/wp-content/uploads/2026/01/room.jpg", "id": 510, "alt": "The studio room" } }, "elements": [] }
+        ] }
+      ]
+    },
+    {
+      "id": "2a3b4c5", "elType": "section", "isInner": false, "settings": { "height": "min-height", "custom_height": { "unit": "vh", "size": 70 }, "content_position": "middle" },
+      "elements": [
+        { "id": "2b3c4d5", "elType": "column", "isInner": false, "settings": { "_column_size": 100 }, "elements": [
+          { "id": "2c3d4e5", "elType": "widget", "widgetType": "heading", "settings": { "title": "Three ways to start", "header_size": "h2" }, "elements": [] },
+          {
+            "id": "2d3e4f5", "elType": "section", "isInner": true, "settings": [],
+            "elements": [
+              { "id": "2e3f4a5", "elType": "column", "isInner": true, "settings": { "_column_size": 33, "_inline_size": 33.333 }, "elements": [
+                { "id": "2f3a4b5", "elType": "widget", "widgetType": "image-box", "settings": { "image": { "url": "https://fixture.example/wp-content/uploads/2026/01/a.jpg", "id": 511 }, "title_text": "Intro week", "description_text": "Five classes for the price of two." }, "elements": [] }
+              ] },
+              { "id": "3a4b5c6", "elType": "column", "isInner": true, "settings": { "_column_size": 33, "_inline_size": 33.333 }, "elements": [
+                { "id": "3b4c5d6", "elType": "widget", "widgetType": "image-box", "settings": { "image": { "url": "https://fixture.example/wp-content/uploads/2026/01/b.jpg", "id": 512 }, "title_text": "Drop in", "description_text": "Any class, any day." }, "elements": [] }
+              ] },
+              { "id": "3c4d5e6", "elType": "column", "isInner": true, "settings": { "_column_size": 33, "_inline_size": 33.333 }, "elements": [
+                { "id": "3d4e5f6", "elType": "widget", "widgetType": "image-box", "settings": { "image": { "url": "https://fixture.example/wp-content/uploads/2026/01/c.jpg", "id": 513 }, "title_text": "Membership", "description_text": "Unlimited classes, paused when you travel.", "link": { "url": "/membership/" } }, "elements": [] }
+              ] }
+            ]
+          }
+        ] }
+      ]
+    },
+    {
+      "id": "4a5b6c7", "elType": "section", "isInner": false, "settings": { "_element_id": "faq" },
+      "elements": [
+        { "id": "4b5c6d7", "elType": "column", "isInner": false, "settings": { "_column_size": 100 }, "elements": [
+          { "id": "4c5d6e7", "elType": "widget", "widgetType": "heading", "settings": { "title": "Questions", "header_size": "h2" }, "elements": [] },
+          { "id": "4d5e6f7", "elType": "widget", "widgetType": "accordion", "settings": { "tabs": [ { "_id": "q1", "tab_title": "Do I need a mat?", "tab_content": "<p>No, we lend mats for free.</p>" }, { "_id": "q2", "tab_title": "Can I cancel?", "tab_content": "<p>Up to 12 hours before class.</p>" } ] }, "elements": [] }
+        ] }
+      ]
+    },
+    {
+      "id": "5a6b7c8", "elType": "section", "isInner": false, "settings": { "hide_desktop": "hidden-desktop", "hide_tablet": "hidden-tablet" },
+      "elements": [
+        { "id": "5b6c7d8", "elType": "column", "isInner": false, "settings": { "_column_size": 100 }, "elements": [
+          { "id": "5c6d7e8", "elType": "widget", "widgetType": "heading", "settings": { "title": "Phone-only call bar" }, "elements": [] }
+        ] }
+      ]
+    }
+  ]
+}

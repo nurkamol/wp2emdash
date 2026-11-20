@@ -446,8 +446,9 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		}
 	}
 	write(join(project, "src", "styles", "fonts.css"), fontsCss);
-	// Calm entrance motion: the owner's setting, else on for a Bricks site whose live pages animate content on entry.
-	const entranceMotion = config.motion ?? ((bricksDesignOut?.entranceAnimations ?? 0) >= 3 ? "calm" : undefined);
+	// Calm entrance motion: the owner's setting, else on for a Bricks or Elementor site whose live pages animate content on entry.
+	const elementorAnimations = readJson<{ entranceAnimations?: number }>(join(paths.reports, "transform", "elementor-design.json"))?.entranceAnimations ?? 0;
+	const entranceMotion = config.motion ?? ((bricksDesignOut?.entranceAnimations ?? 0) >= 3 || elementorAnimations >= 3 ? "calm" : undefined);
 	if (entranceMotion === "calm") (siteConfig as { motion?: string }).motion = "calm";
 	// Background videos on phones too (owner choice per site; default: phones keep the picture).
 	if (config.performance.phoneVideo) (siteConfig as { phoneVideo?: boolean }).phoneVideo = true;

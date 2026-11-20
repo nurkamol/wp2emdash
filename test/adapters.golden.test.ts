@@ -8,6 +8,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { adaptBricks, type BricksElement, bricksSite, liveVariables } from "../src/adapters/bricks/index.js";
+import { adaptElementor, type ElementorElement, elementorKit } from "../src/adapters/elementor/index.js";
 import { adaptGutenberg } from "../src/adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../src/adapters/wpbakery/index.js";
 import { Keys } from "../src/ir/portable-text.js";
@@ -40,6 +41,26 @@ const adapters = {
 			postId: 10,
 			...(f.content !== undefined ? { content: f.content } : {}),
 			reusable,
+			title: f.title ?? "Fixture page",
+			siteTitle: "Fixture Studio",
+			permalink: (id) => f.permalinks?.[String(id)],
+			popupSlug: (id) => f.popups?.[String(id)],
+			menuItems: (id) => f.menus?.[id],
+		});
+	},
+	// Elementor fixtures (hand-written in Elementor's documented format, no client data): { elements, templates?: { [id]:
+	// elements }, kit?: the Kit's _elementor_page_settings, kind?, role?, title?, postCount?, permalinks?, popups?, menus? }.
+	elementor: (src: string) => {
+		const f = JSON.parse(src) as { elements: ElementorElement[]; templates?: Record<string, ElementorElement[]>; kit?: Record<string, unknown>; kind?: "page" | "partial"; role?: "header" | "footer"; title?: string; postCount?: number; permalinks?: Record<string, string>; popups?: Record<string, string>; menus?: Record<string, IrMenuItem[]> };
+		return adaptElementor(f.elements, {
+			kind: f.kind ?? "page",
+			...(f.role ? { role: f.role } : {}),
+			keys: new Keys("t"),
+			popupFor,
+			postCount: f.postCount ?? 0,
+			template: (id) => f.templates?.[String(id)],
+			kit: elementorKit(f.kit),
+			postId: 10,
 			title: f.title ?? "Fixture page",
 			siteTitle: "Fixture Studio",
 			permalink: (id) => f.permalinks?.[String(id)],

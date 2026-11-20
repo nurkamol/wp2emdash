@@ -1,0 +1,30 @@
+{
+  "elements": [
+    { "id": "da00001", "elType": "section", "isInner": false, "settings": [], "elements": [
+      { "id": "da00002", "elType": "column", "settings": { "_column_size": 100 }, "elements": [
+        { "id": "da00003", "elType": "widget", "widgetType": "toggle", "settings": { "tabs": [ { "_id": "t1", "tab_title": "Is parking available?", "tab_content": "Yes, behind the building." } ] }, "elements": [] }
+      ] }
+    ] },
+    { "id": "db00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "db00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Before your first class", "header_size": "h2" }, "elements": [] },
+      { "id": "db00003", "elType": "widget", "widgetType": "nested-accordion", "settings": { "items": [ { "_id": "n1", "item_title": "What should I wear?" }, { "_id": "n2", "item_title": "Where is the studio?" } ] }, "elements": [
+        { "id": "db00004", "elType": "container", "isInner": true, "settings": [], "elements": [
+          { "id": "db00005", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Comfortable clothes you can move in.</p>" }, "elements": [] }
+        ] },
+        { "id": "db00006", "elType": "container", "isInner": true, "settings": [], "elements": [
+          { "id": "db00007", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Second floor, lift available.</p>" }, "elements": [] },
+          { "id": "db00008", "elType": "widget", "widgetType": "google_maps", "settings": { "address": "1 Fixture Lane" }, "elements": [] }
+        ] }
+      ] }
+    ] },
+    { "id": "dc00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "dc00002", "elType": "widget", "widgetType": "tabs", "settings": { "tabs": [ { "_id": "a", "tab_title": "Mornings", "tab_content": "<p>7:00 Flow, 9:00 Mat.</p>" }, { "_id": "b", "tab_title": "Evenings", "tab_content": "<p>18:00 Reformer, 19:30 Yin.</p>" } ] }, "elements": [] }
+    ] },
+    { "id": "dd00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "dd00002", "elType": "widget", "widgetType": "nested-tabs", "settings": { "tabs": [ { "_id": "x", "tab_title": "Studio A" }, { "_id": "y", "tab_title": "" } ] }, "elements": [
+        { "id": "dd00003", "elType": "container", "isInner": true, "settings": [], "elements": [ { "id": "dd00004", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "Big windows, wooden floor." }, "elements": [] } ] },
+        { "id": "dd00005", "elType": "container", "isInner": true, "settings": [], "elements": [ { "id": "dd00006", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "Reformer room." }, "elements": [] } ] }
+      ] }
+    ] }
+  ]
+}

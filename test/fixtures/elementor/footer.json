@@ -1,0 +1,26 @@
+{
+  "kind": "partial",
+  "role": "footer",
+  "menus": { "footer": [ { "label": "Privacy", "href": "/privacy/", "children": [] }, { "label": "Terms", "href": "/terms/", "children": [] } ] },
+  "elements": [
+    { "id": "ia00001", "elType": "section", "isInner": false, "settings": { "background_background": "classic", "background_color": "#1F2A2E", "color_text": "#EEEEEE", "padding": { "unit": "px", "top": "60", "right": "0", "bottom": "30", "left": "0" } }, "elements": [
+      { "id": "ia00002", "elType": "column", "settings": { "_column_size": 33 }, "elements": [
+        { "id": "ia00003", "elType": "widget", "widgetType": "heading", "settings": { "title": "Fixture Studio", "header_size": "h4" }, "elements": [] },
+        { "id": "ia00004", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "1 Fixture Lane<br>Testville" }, "elements": [] }
+      ] },
+      { "id": "ia00005", "elType": "column", "settings": { "_column_size": 33 }, "elements": [
+        { "id": "ia00006", "elType": "widget", "widgetType": "heading", "settings": { "title": "Contact", "header_size": "h4" }, "elements": [] },
+        { "id": "ia00007", "elType": "widget", "widgetType": "icon-list", "settings": { "icon_list": [ { "_id": "c1", "text": "hello@fixture.example", "selected_icon": { "value": "fas fa-envelope", "library": "fa-solid" }, "link": { "url": "mailto:hello@fixture.example" } }, { "_id": "c2", "text": "+00 000 000", "link": { "url": "tel:+00000000" } } ] }, "elements": [] }
+      ] },
+      { "id": "ia00008", "elType": "column", "settings": { "_column_size": 33 }, "elements": [
+        { "id": "ia00009", "elType": "widget", "widgetType": "nav-menu", "settings": { "menu": "footer" }, "elements": [] },
+        { "id": "ia0000a", "elType": "widget", "widgetType": "social-icons", "settings": { "social_icon_list": [ { "_id": "s1", "social_icon": { "value": "fab fa-instagram", "library": "fa-brands" }, "link": { "url": "https://instagram.com/fixture" } } ] }, "elements": [] }
+      ] }
+    ] },
+    { "id": "ib00001", "elType": "section", "isInner": false, "settings": { "background_background": "classic", "background_color": "#1F2A2E", "color_text": "#EEEEEE" }, "elements": [
+      { "id": "ib00002", "elType": "column", "settings": { "_column_size": 100 }, "elements": [
+        { "id": "ib00003", "elType": "widget", "widgetType": "heading", "settings": { "title": "© 2026 Fixture Studio", "header_size": "p", "align": "center" }, "elements": [] }
+      ] }
+    ] }
+  ]
+}

@@ -1,0 +1,238 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ja00001",
+        "rawHash": "da522c8f8c",
+        "row": 0
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Studio tour",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "soundcloud",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#jb00001",
+        "rawHash": "f4c738211d",
+        "row": 1
+      },
+      "fields": {
+        "provider": "soundcloud",
+        "html": "<iframe src=\"https://w.soundcloud.com/player/?url=https%3A%2F%2Fsoundcloud.com%2Ffixture%2Fbreathing-practice\"></iframe>"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#jc00001",
+        "rawHash": "7321489ea8",
+        "row": 2
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t4",
+                "text": "Watch the video on Dailymotion",
+                "marks": [
+                  "t3"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t3",
+                "href": "https://www.dailymotion.com/video/x6tqhqb",
+                "blank": true
+              }
+            ]
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#jd00001#0",
+        "rawHash": "9902150df4",
+        "row": 3
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t5",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t6",
+                    "text": "Reception",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t7",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t8",
+                    "text": "Tea is always on.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t9",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "ta",
+                    "text": "Changing rooms",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tb",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tc",
+                    "text": "Lockers and showers.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[theme-post-title] filled with the page title",
+      "path": "container#ja00001/theme-post-title#ja00002",
+      "tag": "theme-post-title"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[menu-anchor] anchor #tour not kept (link to the section's CSS id instead)",
+      "path": "container#ja00001/menu-anchor#ja00004",
+      "tag": "menu-anchor"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[wp-widget-recent-posts] is rendered by the site (search, post data, sharing, widgets), not migrated as content",
+      "path": "container#ja00001/wp-widget-recent-posts#ja00005",
+      "tag": "wp-widget-recent-posts"
+    },
+    {
+      "level": "warn",
+      "code": "dynamic",
+      "message": "[image] is Elementor dynamic data (post-featured-image); not migrated",
+      "path": "container#ja00001/image#ja00006",
+      "tag": "image"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[video] Dailymotion video kept as a link (https://www.dailymotion.com/video/x6tqhqb); the video section plays YouTube, Vimeo and uploaded files",
+      "path": "container#jc00001/video#jc00002",
+      "tag": "video"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[nested-carousel] 2 slide(s) shown side by side as cards (no slider in the section library)",
+      "path": "container#jd00001/nested-carousel#jd00002",
+      "tag": "nested-carousel"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "[global] library template 777 could not be loaded (elementor_library missing from the extract?)",
+      "path": "container#je00001/global#je00002",
+      "carriesContent": true,
+      "tag": "global"
+    }
+  ],
+  "forms": []
+}

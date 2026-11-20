@@ -1,0 +1,40 @@
+{
+  "elements": [
+    { "id": "ea00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "ea00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Get in touch", "header_size": "h2" }, "elements": [] },
+      { "id": "ea00003", "elType": "widget", "widgetType": "form", "settings": {
+        "form_name": "Contact",
+        "form_fields": [
+          { "_id": "f1", "custom_id": "name", "field_type": "text", "field_label": "Name", "placeholder": "Your name", "required": "true", "width": "50" },
+          { "_id": "f2", "custom_id": "email", "field_type": "email", "field_label": "Email", "required": "true", "width": "50" },
+          { "_id": "f3", "custom_id": "topic", "field_type": "select", "field_label": "Topic", "field_options": "Classes|classes\nPrivates|privates" },
+          { "_id": "f4", "custom_id": "level", "field_type": "radio", "field_label": "Level", "field_options": "New\nRegular" },
+          { "_id": "f5", "custom_id": "message", "field_type": "textarea", "field_label": "Message" },
+          { "_id": "f6", "custom_id": "consent", "field_type": "acceptance", "field_label": "I agree to be contacted" },
+          { "_id": "f7", "custom_id": "src", "field_type": "hidden", "field_label": "Source" },
+          { "_id": "f8", "custom_id": "cv", "field_type": "upload", "field_label": "Attachment" },
+          { "_id": "f9", "field_type": "recaptcha_v3" }
+        ],
+        "button_text": "Send message",
+        "submit_actions": ["email", "mailchimp"],
+        "email_to": "owner@example.com",
+        "success_message": "Thanks, we will reply soon."
+      }, "elements": [] }
+    ] },
+    { "id": "eb00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "eb00002", "elType": "widget", "widgetType": "shortcode", "settings": { "shortcode": "[fluentform id=\"3\"]" }, "elements": [] }
+    ] },
+    { "id": "ec00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "ec00002", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Newsletter sign-up:</p>[contact-form-7 id=\"12\" title=\"News\"]" }, "elements": [] }
+    ] },
+    { "id": "ed00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "ed00002", "elType": "widget", "widgetType": "html", "settings": { "html": "<iframe src=\"https://www.youtube.com/embed/XHOmBV4js_E\" width=\"560\" height=\"315\"></iframe>" }, "elements": [] }
+    ] },
+    { "id": "ee00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "ee00002", "elType": "widget", "widgetType": "html", "settings": { "html": "<div class=\"custom-badge\">Since 2014</div><script>console.log('x')</script>" }, "elements": [] }
+    ] },
+    { "id": "ef00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "ef00002", "elType": "widget", "widgetType": "shortcode", "settings": { "shortcode": "[my_custom_widget]" }, "elements": [] }
+    ] }
+  ]
+}

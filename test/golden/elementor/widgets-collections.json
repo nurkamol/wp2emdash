@@ -1,0 +1,482 @@
+{
+  "sections": [
+    {
+      "type": "pricing",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "section#ca00001",
+        "rawHash": "f113b9cc9b",
+        "row": 0
+      },
+      "fields": {
+        "intro": [],
+        "plans": [
+          {
+            "name": "Drop in",
+            "price": "€18",
+            "period": "per class",
+            "description": "One class",
+            "features": [
+              "Any class",
+              "Mat included"
+            ],
+            "button": {
+              "label": "Book",
+              "href": "/book/",
+              "style": "primary"
+            },
+            "highlight": false
+          },
+          {
+            "name": "Unlimited",
+            "price": "CHF 160",
+            "period": "per month",
+            "features": [
+              "Every class"
+            ],
+            "button": {
+              "label": "Join",
+              "href": "/join/",
+              "style": "primary"
+            },
+            "highlight": true
+          }
+        ],
+        "buttons": []
+      }
+    },
+    {
+      "type": "pricing",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#cb00001",
+        "rawHash": "50b3e1498b",
+        "row": 1
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Café menu",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "plans": [
+          {
+            "name": "Matcha latte",
+            "price": "5.50",
+            "description": "Oat milk",
+            "features": [],
+            "highlight": false
+          },
+          {
+            "name": "Ginger tea",
+            "price": "4",
+            "features": [],
+            "button": {
+              "label": "Ginger tea",
+              "href": "/cafe/",
+              "style": "link"
+            },
+            "highlight": false
+          }
+        ],
+        "buttons": []
+      }
+    },
+    {
+      "type": "stats",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#cc00001",
+        "rawHash": "91ee53b6c5",
+        "row": 2
+      },
+      "fields": {
+        "items": [
+          {
+            "value": "80",
+            "suffix": "%",
+            "label": "Flexibility"
+          },
+          {
+            "value": "65",
+            "suffix": "%",
+            "label": "Strength"
+          }
+        ]
+      }
+    },
+    {
+      "type": "testimonials",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#cd00001",
+        "rawHash": "e2f4c7fce4",
+        "row": 3
+      },
+      "fields": {
+        "items": [
+          {
+            "quote": "Best hour of my week.",
+            "name": "B. Member",
+            "role": "Member"
+          },
+          {
+            "quote": "Patient and precise.",
+            "name": "C. Member"
+          }
+        ]
+      }
+    },
+    {
+      "type": "testimonials",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ce00001",
+        "rawHash": "016efc2853",
+        "row": 4
+      },
+      "fields": {
+        "items": [
+          {
+            "quote": "Lovely space.",
+            "name": "D. Visitor",
+            "rating": 5
+          }
+        ]
+      }
+    },
+    {
+      "type": "media_text",
+      "variant": "stacked",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#cf00001",
+        "rawHash": "fa1803464b",
+        "row": 5
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 640,
+            "kind": "image",
+            "url": "https://fixture.example/wp-content/uploads/2026/02/cta.jpg"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "First class free",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Try any beginner class on us.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Claim it",
+            "href": "/first-class/",
+            "style": "primary"
+          }
+        ],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#cg00001",
+        "rawHash": "db2376e719",
+        "row": 6
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Reformer",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Spring-loaded strength.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Book now",
+                    "marks": [
+                      "strong"
+                    ]
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Six machines per class.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "link": {
+              "label": "Reserve",
+              "href": "/reformer/",
+              "style": "link"
+            }
+          },
+          {
+            "title": "Mat",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Just you and gravity.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Any level",
+                    "marks": [
+                      "strong"
+                    ]
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "columns": 2
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ch00001",
+        "rawHash": "e10acaf7c2",
+        "row": 7
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tg",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "th",
+                "text": "Follow along",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tn",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tj",
+                "text": "Instagram",
+                "marks": [
+                  "ti"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "tl",
+                "text": " ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "tm",
+                "text": "Facebook",
+                "marks": [
+                  "tk"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "ti",
+                "href": "https://instagram.com/fixture",
+                "blank": true
+              },
+              {
+                "_type": "link",
+                "_key": "tk",
+                "href": "https://facebook.com/fixture",
+                "blank": true
+              }
+            ]
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[price-table] original price CHF 180 (on sale) not shown",
+      "path": "section#ca00001/column#ca00004/price-table#ca00005",
+      "tag": "price-table"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[progress] bar shown as a figure",
+      "path": "container#cc00001/progress#cc00002",
+      "tag": "progress"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[progress] bar shown as a figure",
+      "path": "container#cc00001/progress#cc00003",
+      "tag": "progress"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[call-to-action] ribbon \"New\" not reproduced",
+      "path": "container#cf00001/call-to-action#cf00002",
+      "tag": "call-to-action"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[flip-box] flip effect not reproduced; front and back shown together (back: Book now — Six machines per class.)",
+      "path": "container#cg00001/container#cg00002/flip-box#cg00003",
+      "tag": "flip-box"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[flip-box] flip effect not reproduced; front and back shown together (back: Any level)",
+      "path": "container#cg00001/container#cg00004/flip-box#cg00005",
+      "tag": "flip-box"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Stacked image + text in one column converted to media_text",
+      "path": "container#cf00001"
+    }
+  ],
+  "forms": []
+}

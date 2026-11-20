@@ -1,0 +1,18 @@
+{
+  "kind": "partial",
+  "role": "header",
+  "menus": { "main-menu": [ { "label": "Classes", "href": "/classes/", "children": [] }, { "label": "About", "href": "/about/", "children": [] } ] },
+  "elements": [
+    { "id": "ha00001", "elType": "container", "isInner": false, "settings": { "flex_direction": "row", "content_width": "boxed" }, "elements": [
+      { "id": "ha00002", "elType": "container", "isInner": true, "settings": { "width": { "unit": "%", "size": 25 } }, "elements": [
+        { "id": "ha00003", "elType": "widget", "widgetType": "theme-site-logo", "settings": [], "elements": [] }
+      ] },
+      { "id": "ha00004", "elType": "container", "isInner": true, "settings": { "width": { "unit": "%", "size": 50 } }, "elements": [
+        { "id": "ha00005", "elType": "widget", "widgetType": "nav-menu", "settings": { "menu": "main-menu", "layout": "horizontal" }, "elements": [] }
+      ] },
+      { "id": "ha00006", "elType": "container", "isInner": true, "settings": { "width": { "unit": "%", "size": 25 } }, "elements": [
+        { "id": "ha00007", "elType": "widget", "widgetType": "button", "settings": { "text": "Book now", "link": { "url": "/book/" } }, "elements": [] }
+      ] }
+    ] }
+  ]
+}

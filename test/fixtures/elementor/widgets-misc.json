@@ -1,0 +1,33 @@
+{
+  "title": "Studio tour",
+  "elements": [
+    { "id": "ja00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "ja00002", "elType": "widget", "widgetType": "theme-post-title", "settings": { "header_size": "h1" }, "elements": [] },
+      { "id": "ja00003", "elType": "widget", "widgetType": "icon", "settings": { "selected_icon": { "value": "fas fa-spa", "library": "fa-solid" } }, "elements": [] },
+      { "id": "ja00004", "elType": "widget", "widgetType": "menu-anchor", "settings": { "anchor": "tour" }, "elements": [] },
+      { "id": "ja00005", "elType": "widget", "widgetType": "wp-widget-recent-posts", "settings": [], "elements": [] },
+      { "id": "ja00006", "elType": "widget", "widgetType": "image", "settings": { "image": { "url": "", "id": "" }, "__dynamic__": { "image": "[elementor-tag id=\"i1\" name=\"post-featured-image\" settings=\"%7B%7D\"]" } }, "elements": [] }
+    ] },
+    { "id": "jb00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "jb00002", "elType": "widget", "widgetType": "audio", "settings": { "link": { "url": "https://soundcloud.com/fixture/breathing-practice" } }, "elements": [] }
+    ] },
+    { "id": "jc00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "jc00002", "elType": "widget", "widgetType": "video", "settings": { "video_type": "dailymotion", "dailymotion_url": "https://www.dailymotion.com/video/x6tqhqb" }, "elements": [] }
+    ] },
+    { "id": "jd00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "jd00002", "elType": "widget", "widgetType": "nested-carousel", "settings": { "carousel_items": [ { "_id": "a", "slide_title": "Slide #1" }, { "_id": "b", "slide_title": "Slide #2" } ] }, "elements": [
+        { "id": "jd00003", "elType": "container", "isInner": true, "settings": [], "elements": [
+          { "id": "jd00004", "elType": "widget", "widgetType": "heading", "settings": { "title": "Reception", "header_size": "h3" }, "elements": [] },
+          { "id": "jd00005", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "Tea is always on." }, "elements": [] }
+        ] },
+        { "id": "jd00006", "elType": "container", "isInner": true, "settings": [], "elements": [
+          { "id": "jd00007", "elType": "widget", "widgetType": "heading", "settings": { "title": "Changing rooms", "header_size": "h3" }, "elements": [] },
+          { "id": "jd00008", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "Lockers and showers." }, "elements": [] }
+        ] }
+      ] }
+    ] },
+    { "id": "je00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "je00002", "elType": "widget", "widgetType": "global", "templateID": 777, "settings": [], "elements": [] }
+    ] }
+  ]
+}
