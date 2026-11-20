@@ -34,7 +34,7 @@ import { scrubSecrets } from "../extract/credentials.js";
 import { type ActionDeps, BusyError, defaultDeps, mergedEnv, SiteLocks } from "./actions.js";
 import { checklistView, cockpitView } from "./cockpit.js";
 import { appendVisualDecision, isRunId, isSiteSlug, listRuns, portfolio, readiness, runFile, runHistory, SERVABLE_ROOTS, siteMeta, siteSummary, UserError, visualReport } from "./data.js";
-import { environmentView, startSecretPut, workerSecretsView } from "./environment.js";
+import { environmentView, environmentViewLive, startSecretPut, workerSecretsView } from "./environment.js";
 import { inspectorView, proposeSectionChange } from "./inspector.js";
 import { golivePlan, isGoliveMode, launchView, siteContext, startGolive } from "./launch.js";
 import { appCss, appJs, indexHtml } from "./page.js";
@@ -363,7 +363,7 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 							throw e;
 						}
 					}
-					if (parts.length === 4 && parts[3] === "environment") return out(environmentView(ctx));
+					if (parts.length === 4 && parts[3] === "environment") return out(flag("local") ? environmentView(ctx) : await environmentViewLive(ctx, deps.fetch));
 					if (parts.length === 4 && parts[3] === "worker-secrets") return out({ ...(await workerSecretsView(ctx, deps, { remote: !flag("local"), verify: flag("verify") })), ...(busy ? { busy } : {}) });
 				}
 				if (parts.length === 6 && parts[3] === "inspect") {

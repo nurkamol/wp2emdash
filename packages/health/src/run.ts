@@ -8,6 +8,7 @@ import type { OutboxEnv } from "@wp2emdash/forms/outbox";
 import type { D1Like } from "@wp2emdash/seo/analytics/store";
 import { alertEvents, alertMail, type AlertLog, pickAlerts } from "./alerts.js";
 import { analyticsCheck, expectedTrackers } from "./checks/analytics.js";
+import { backupsCheck, readBackupBeat } from "./checks/backups.js";
 import { compareMail, dnsCheck } from "./checks/dns.js";
 import { formsCheck, readForms } from "./checks/forms.js";
 import { homeIndexing, indexabilityCheck, parseSiteFiles, sitemapLocs, sitemapPaths } from "./checks/indexability.js";
@@ -154,6 +155,13 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 		checks.analytics = analyticsCheck(expected, home.status === 200 ? (home.html ?? "") : undefined, at, { zoneBeacon: !!o.analytics?.zoneBeacon });
 		jobs.analytics = at;
 		ran.push("analytics");
+	}
+
+	// ── Backups (hourly): the backups plugin's heartbeat, through the Worker itself.
+	if (plan.light.includes("backups")) {
+		checks.backups = backupsCheck(!!o.backups, o.backups ? await readBackupBeat(d.self, origin) : undefined, at, now);
+		jobs.backups = at;
+		ran.push("backups");
 	}
 
 	// ── Form outbox (every 15 minutes): counts and email status only.

@@ -472,6 +472,37 @@ No form contents or personal data anywhere. Verify gets `health-plugin` (registe
 the last 30 minutes). Cron design, limits and what was verified: [docs/spikes/health-findings.md](docs/spikes/health-findings.md);
 details: [packages/health/README.md](packages/health/README.md).
 
+## Backups & Restore (on by default)
+
+Every site gets **Plugins → Backups** (admins only; `@wp2emdash/backups`, an in-house PixelKraft plugin). Every night
+(01–03 UTC, a minute fixed per site) the Worker writes a read-only export of the site's content to its own R2 bucket
+under `backups/<yyyy-mm-dd>/` (compressed JSON, a few KB to a few MB): every collection (drafts and trash too),
+revisions, menus, site settings, redirects, sections, widgets, taxonomies, bylines, SEO, the media library's records
+and a manifest of the media files (keys, sizes, ETags — the files already live in R2 and are never touched). Never in
+a backup: users, passkeys, sessions, API/OAuth tokens, plugin data and secrets, form messages, comments, logs — an
+allowlist; every table left out is listed in the file with the reason.
+
+```ts
+// sites/<slug>/kit.config.ts
+backups: false,
+// or
+backups: { retention: { daily: 30, monthly: 12 }, hourUtc: 2, alertsTo: ["ops@agency.example"], offsite: { endpoint: "https://<other-account>.r2.cloudflarestorage.com", bucket: "client-backups", prefix: "acme" } },
+```
+
+| From the browser (admins) | From the command line (developer) |
+|---|---|
+| List backups (when, kind, size, what's in it), **Back up now** (single flight, at most every 2 min) | Whole-site restore: `npx wrangler d1 time-travel restore <db> --timestamp=<backup time>` (any minute of the last 30 days) |
+| **Download** (one-time link, 2 minutes) | `load --force` / `golive` record a D1 bookmark and a marker the Backups page lists with its restore command |
+| **Restore** the settings, the menus or one page from any backup — preview of every change, a fresh backup first, refused if the site changed since the preview | Older than 30 days: settings/menus/pages one by one from the page; a full rebuild from a file is manual |
+
+Kept: 30 daily + the first of each of 12 months (configurable). When an entry is moved to the trash a snapshot of it is
+kept first (`content:beforeDelete`). Two failed nightly attempts in a row email `backups.alertsTo` (default
+`health.alertsTo`, then `email.stagingTo`); Site health gets a **Backups** check; verify gets `backups-plugin`; the
+dashboard's Environment view shows the last backup. Optional off-site copy: any S3-compatible bucket, keys as Worker
+secrets `BACKUP_S3_ACCESS_KEY_ID` / `BACKUP_S3_SECRET_ACCESS_KEY` (write-only; lifecycle rules there). Why the plugin and
+not EmDash's own Settings → Backups, and what was verified: [docs/spikes/backup-findings.md](docs/spikes/backup-findings.md);
+details: [packages/backups/README.md](packages/backups/README.md).
+
 ## Performance (on by default)
 
 Every generated site ships a performance package (`src/scaffold/perf.ts`; facts and measurements in
@@ -522,6 +553,7 @@ Smart Placement stays off (`performance: { smartPlacement: true }` to try it): s
 - [`@wp2emdash/seo`](packages/seo/README.md) — SEO & Analytics suite: editor panel, dashboard, Google Search Console, IndexNow, tracking codes, conversion events, consent mode, Visits; on by default (`seo: { panel: false }` turns it off; `analytics: false` carries and loads no trackers)
 - [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; on by default (`og: { cards: false }` in a site's `kit.config.ts` turns them off)
 - [`@wp2emdash/health`](packages/health/README.md) — Site health & monthly report: scheduled checks, alerts, a branded monthly report; on by default (`health: false` turns it off)
+- [`@wp2emdash/backups`](packages/backups/README.md) — Backups & Restore: nightly content backups to the site's R2, downloads, restore of settings / menus / a page from the admin; on by default (`backups: false` turns it off)
 - [Agent rules](CLAUDE.md)
 
 Full GitHub docs (configuration reference, adapters, troubleshooting, …) are produced in milestone M8a.

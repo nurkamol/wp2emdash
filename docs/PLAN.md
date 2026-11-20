@@ -463,7 +463,24 @@ scaffold, like IndexNow), alerts/report switchable in Settings, never on staging
 ("Prepared by PixelKraft"). Branding: og colours from the tokens, the copied raster logo. Optional Worker secrets:
 `CRUX_API_KEY`, `CF_ZONE_READ_TOKEN` (dashboard Secrets/Environment list them as optional); visits in the report use
 `CF_ANALYTICS_TOKEN`. Verify: `health-plugin` (heartbeat route, or the `status` route with an admin-scoped token;
-live sites must have run within 30 minutes). Facts and limits: docs/spikes/health-findings.md.
+live sites must have run within 30 minutes). Facts and limits: docs/spikes/health-findings.md. Since 2026-11-20 a
+ninth check, **Backups**, reads the backups plugin's heartbeat hourly (through `SELF`).
+
+## 7f. Backups & Restore (on by default; `backups: false` turns it off)
+`packages/backups` (`@wp2emdash/backups`, 0.1, experimental; in-house PixelKraft plugin). EmDash native plugin, admins
+only: **Plugins → Backups** (tabs Backups / Restore / Full site / Settings). Plugin cron task `nightly`, hourly at a
+minute fixed per site; due once a day from 01–03 UTC (`backups.hourUtc`), retried hourly up to 4 attempts. A backup is
+a read-only D1 dump through the Worker's `DB` binding (allowlisted tables + `ec_*`, options filtered to `site:*` and
+the site identity keys — EmDash's own backup rule) plus an R2 media manifest, gzip JSON at
+`backups/<yyyy-mm-dd>/<hhmmss>-<trigger>-<rand>.json.gz` in the site's `MEDIA` bucket (EmDash's media route refuses
+`backups/`). Retention 30 daily + 12 monthly (first full backup of the month). Restore of settings / menus / one entry
+in the browser: plan (read current state from D1, diff, fingerprint) → confirm → fresh backup → fingerprint re-check
+→ writes through EmDash's REST API as the confirming admin via `SELF` (EmDash validates, keeps revisions, purges
+caches). Whole site: D1 Time Travel by timestamp (CLI), never a browser button. Pre-change safety: `content:beforeDelete`
+snapshot of the entry; `load --force` and `golive` record a D1 bookmark + `backups/markers/` object (R2 object API,
+token A). Alerts after 2 failed nightly attempts in a row (forms email path, live only, never staging). Off-site copy:
+SigV4 PUT to an S3-compatible bucket, keys as Worker secrets, no deletes. Public routes: `download` (one-time token)
+and `heartbeat`. Verify: `backups-plugin` (live: a backup within 36 h). Facts: docs/spikes/backup-findings.md.
 
 ## 8. Everything else a migration touches
 

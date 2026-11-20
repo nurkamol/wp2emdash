@@ -51,6 +51,8 @@ export interface EnvironmentCard {
 	resources: { label: string; value: string }[];
 	lastDeploy?: { at: string; source: string };
 	lastLoad?: { at?: string; status: string };
+	/** Backups (@wp2emdash/backups): the last marker the kit recorded, and (when readable) the site's last nightly backup. */
+	lastBackup?: { marker?: { at: string; reason: string }; nightly?: { at: string | null; ok: boolean; source: string } };
 }
 
 export interface EnvironmentView {
@@ -71,6 +73,43 @@ const WHY: Record<string, string> = {
 	"cloudflare.json": "Staging is on (staging resources are recorded in cloudflare.json).",
 };
 
+/** The newest backup marker / D1 bookmark the kit recorded (load/d1-bookmarks.jsonl), if any. */
+function lastMarker(ctx: SiteContext): { at: string; reason: string } | undefined {
+	const file = join(ctx.paths.root, "load", "d1-bookmarks.jsonl");
+	if (!existsSync(file)) return undefined;
+	const lines = readFileSync(file, "utf8").trim().split("\n").filter(Boolean);
+	try {
+		const b = JSON.parse(lines.at(-1) ?? "") as { at?: string; reason?: string; bookmark?: string };
+		return b.at ? { at: b.at, reason: `${b.reason ?? "change"}${b.bookmark ? ` (D1 bookmark ${b.bookmark.slice(0, 12)}…)` : ""}` } : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * The Environment view plus the production site's last nightly backup, read from the Backups plugin's public heartbeat
+ * (time of the last good backup and whether the last attempt worked — nothing else). 4 s at most; left out when the
+ * site does not answer.
+ */
+export async function environmentViewLive(ctx: SiteContext, fetcher: (url: string, init?: RequestInit) => Promise<Response>): Promise<EnvironmentView> {
+	const view = environmentView(ctx);
+	if (ctx.config.backups === false) return view;
+	const prod = view.environments.find((e) => e.name === "production");
+	if (!prod?.publicUrl || !prod.provisioned) return view;
+	try {
+		const res = await fetcher(`${prod.publicUrl.replace(/\/$/, "")}/_emdash/api/plugins/site-backups/heartbeat`, { signal: AbortSignal.timeout(4_000) });
+		if (!res.ok) {
+			await res.body?.cancel();
+			return view;
+		}
+		const d = ((await res.json().catch(() => ({}))) as { data?: { lastBackupAt?: string | null; ok?: boolean } }).data;
+		if (!d) return view;
+		prod.lastBackup = { ...(prod.lastBackup ?? {}), nightly: { at: d.lastBackupAt ?? null, ok: d.ok !== false, source: "Backups plugin heartbeat" } };
+		prod.resources.push({ label: "Last backup", value: d.lastBackupAt ? `${d.lastBackupAt.slice(0, 16).replace("T", " ")} UTC${d.ok === false ? " (last attempt failed)" : ""}` : "none yet" });
+	} catch {}
+	return view;
+}
+
 export function environmentView(ctx: SiteContext): EnvironmentView {
 	let loadStatus: { at?: string; status: string } | undefined;
 	try {
@@ -89,6 +128,8 @@ export function environmentView(ctx: SiteContext): EnvironmentView {
 		const session = r?.session ?? (r?.kv as { binding?: string; name?: string } | undefined);
 		if (session?.name) resources.push({ label: "Session KV", value: session.name });
 		if (r?.outbox?.name) resources.push({ label: "Form outbox KV", value: r.outbox.name });
+		const mk = name === "production" ? lastMarker(ctx) : undefined;
+		if (mk) resources.push({ label: "Last backup marker", value: `${mk.at.slice(0, 16).replace("T", " ")} UTC — ${mk.reason}` });
 		return {
 			name,
 			provisioned: !!r?.d1?.id && !!r?.worker?.url,
@@ -101,6 +142,7 @@ export function environmentView(ctx: SiteContext): EnvironmentView {
 			resources,
 			...(deployedAt ? { lastDeploy: { at: deployedAt, source: "cloudflare.json" } } : {}),
 			...(loadStatus && name === "production" && !ctx.envs.staging ? { lastLoad: loadStatus } : {}),
+			...(name === "production" && lastMarker(ctx) ? { lastBackup: { marker: lastMarker(ctx) as { at: string; reason: string } } } : {}),
 		};
 	});
 	const prod = envRecord(ctx, "production");
@@ -196,6 +238,12 @@ export function runtimeSecrets(ctx: SiteContext, env: EnvName): { name: string; 
 			? [
 					{ name: "CRUX_API_KEY", required: false, why: "Optional: Site health's real-visitor Core Web Vitals (Google Chrome UX Report API key). Without it the speed check uses the page build time only." },
 					{ name: "CF_ZONE_READ_TOKEN", required: false, why: "Optional: Site health reads the certificate expiry (Zone Read + SSL and Certificates Read on this zone only). Cloudflare renews certificates itself." },
+				]
+			: []),
+		...(ctx.config.backups !== false && ctx.config.backups?.offsite
+			? [
+					{ name: "BACKUP_S3_ACCESS_KEY_ID", required: true, why: `Off-site backup copy (backups.offsite → ${ctx.config.backups.offsite.bucket}): the access key id. Write access is enough; the site never deletes there.` },
+					{ name: "BACKUP_S3_SECRET_ACCESS_KEY", required: true, why: "Off-site backup copy: the same key's secret." },
 				]
 			: []),
 	];

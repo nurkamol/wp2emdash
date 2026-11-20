@@ -7,6 +7,7 @@
  *          forms      every 15 min       form outbox counts (Workers KV list, no request)
  *          index      hourly             robots.txt + sitemap (index + ≤ 3 child sitemaps)   ≤ 5 requests to itself
  *          analytics  hourly             reads the tags in that tick's home page             0 requests (1 D1 read)
+ *          backups    hourly             the backups plugin's heartbeat (@wp2emdash/backups)  1 request to itself
  *   heavy  links      daily from 02–04 UTC (per-site offset), then continued tick by tick:     ≤ 12 requests a tick
  *          report     1st of the month from 08 UTC (catch-up until the 3rd)                     1 Cloudflare API call
  *          dns        daily from 05 UTC   mail records over DNS-over-HTTPS (cloudflare-dns.com) ≤ 8 requests
@@ -23,10 +24,10 @@ import { dayOf, HOUR, hash32, MINUTE } from "./util.js";
 export const TICK_SCHEDULE = "*/5 * * * *";
 export const TICK_TASK = "tick";
 
-export type LightJob = "uptime" | "forms" | "index" | "analytics";
+export type LightJob = "uptime" | "forms" | "index" | "analytics" | "backups";
 export type HeavyJob = "links" | "report" | "dns" | "ssl" | "speed";
 
-export const INTERVALS: Record<LightJob, number> = { uptime: 0, forms: 15 * MINUTE, index: HOUR, analytics: HOUR };
+export const INTERVALS: Record<LightJob, number> = { uptime: 0, forms: 15 * MINUTE, index: HOUR, analytics: HOUR, backups: HOUR };
 /** Daily jobs: the UTC hour from which they run (links get a per-site offset of 0–2 hours). */
 export const DAILY_HOUR: Record<"links" | "dns" | "ssl" | "speed", number> = { links: 2, dns: 5, ssl: 6, speed: 7 };
 export const REPORT_HOUR = 8;
@@ -58,7 +59,7 @@ export function planRun(now: number, s: Pick<HealthState, "jobs">, o: { host: st
 	const hour = new Date(now).getUTCHours();
 	const today = dayOf(now);
 	const ranToday = (job: string) => !!s.jobs[job] && dayOf(s.jobs[job] as string) === today;
-	if (o.manual) return { light: ["uptime", "forms", "index", "analytics"], heavy: o.linkJobActive ? "links" : undefined, startLinks: !o.linkJobActive };
+	if (o.manual) return { light: ["uptime", "forms", "index", "analytics", "backups"], heavy: o.linkJobActive ? "links" : undefined, startLinks: !o.linkJobActive };
 	const light = (Object.keys(INTERVALS) as LightJob[]).filter((j) => now - last(j) >= INTERVALS[j] - TOLERANCE);
 	// One heavy job per tick, in this order: an unfinished link check first (it is resumable), then the monthly report,
 	// then the daily jobs whose hour has come and which have not run today.

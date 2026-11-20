@@ -250,6 +250,40 @@ export const kitConfigSchema = z.object({
 		])
 		.prefault({}),
 	/**
+	 * Backups & Restore (@wp2emdash/backups): a nightly content backup to the site's own R2 bucket (backups/<day>/),
+	 * a Backups admin page (admins only) with downloads and restore of settings, menus or a single page, failure alerts
+	 * and an optional off-site copy. On by default; `backups: false` turns it off (D1 Time Travel still covers 30 days).
+	 */
+	backups: z
+		.union([
+			z.literal(false),
+			z.object({
+				/** Keep every backup of the last `daily` days plus the first backup of each of the last `monthly` months. */
+				retention: z.object({ daily: z.number().int().min(1).max(366).default(30), monthly: z.number().int().min(0).max(120).default(12) }).prefault({}),
+				/** UTC hour of the nightly backup. Default: 01–03, fixed per site (spreads sites in one account). */
+				hourUtc: z.number().int().min(0).max(23).optional(),
+				/** Failure-alert recipients. Default: health.alertsTo, else email.stagingTo (the agency). */
+				alertsTo: z.array(z.string().email()).optional(),
+				/**
+				 * Opt-in second copy to an S3-compatible bucket (another Cloudflare account's R2, AWS S3, Backblaze B2…).
+				 * Keys are Worker secrets BACKUP_S3_ACCESS_KEY_ID / BACKUP_S3_SECRET_ACCESS_KEY (write-only keys; the site
+				 * never deletes there — set a lifecycle rule on that bucket).
+				 */
+				offsite: z
+					.object({
+						/** e.g. https://<other-account-id>.r2.cloudflarestorage.com */
+						endpoint: z.string().url().startsWith("https://"),
+						bucket: z.string().min(3).max(63),
+						/** "auto" for R2; the bucket's region elsewhere. */
+						region: z.string().default("auto"),
+						/** Folder inside the bucket, e.g. the site slug. */
+						prefix: z.string().max(200).optional(),
+					})
+					.optional(),
+			}),
+		])
+		.prefault({}),
+	/**
 	 * Third-party EmDash plugins that run in EmDash's sandbox (Cloudflare Worker Loader, Workers Paid). Each is pinned
 	 * to a reviewed version and enabled per environment; admin installs from the public registry stay off.
 	 */

@@ -17,6 +17,7 @@ import { siteHosts } from "../audit/urls.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage } from "../ir/schema.js";
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
+import { backupsHeartbeat } from "../verify/backups.js";
 import { healthHeartbeat } from "../verify/health.js";
 import { sourceText } from "../transform/coverage.js";
 import { loadOverrides } from "../config/overrides.js";
@@ -474,6 +475,15 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			else {
 				const h = await healthHeartbeat(base, { fetch: (u, i) => kitFetch(u, i), ...(emdashToken ? { token: emdashToken } : {}), live });
 				check("health-plugin", live ? "Site health plugin registered and its checks ran in the last 30 minutes" : "Site health plugin registered", h.ok, h.detail);
+			}
+		}
+		// Backups (@wp2emdash/backups): registered on the target, and on a live site a backup in the last 36 hours.
+		if (config.backups !== false && want !== "local") {
+			const scaffolded = existsSync(join(paths.project, "astro.config.mjs")) && readFileSync(join(paths.project, "astro.config.mjs"), "utf8").includes("backupsPlugin(");
+			if (!scaffolded) check("backups-plugin", "Backups plugin registered and backing up", true, "not in this project yet: rerun scaffold, then deploy (skipped)");
+			else {
+				const b = await backupsHeartbeat(base, { fetch: (u, i) => kitFetch(u, i), live });
+				check("backups-plugin", live ? "Backups plugin registered and a backup made in the last 36 hours" : "Backups plugin registered", b.ok, b.detail);
 			}
 		}
 		check("legacy-urls", "Old sitemap and upload addresses redirect to working files", legacyBad.length === 0, legacyBad.slice(0, 6).join("; ") || `${legacy.length} checked`);
