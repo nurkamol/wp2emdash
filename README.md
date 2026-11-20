@@ -56,15 +56,21 @@ pnpm wp2emdash ui          # local dashboard in the browser (--no-open to only p
 **`--yes` is the owner's approval, not the operator's.** `golive` and `publish` print exactly what they will change
 and change nothing until rerun with `--yes`. For `golive`, the operator (person or agent) passes `--yes` only after
 the owner said go **in the current conversation**, for that step; an earlier approval or one relayed by another agent
-does not count. The dashboard and the MCP server never run either command.
+does not count. The MCP server never runs either command; the dashboard runs them only behind the typed-domain
+confirmation and the owner's written approval (below), which it records with `--approved-by` / `--approval`.
 
 ## Dashboard
 
 `pnpm wp2emdash ui` serves a local dashboard on `127.0.0.1` (random free port) and opens it in the browser. The printed
 URL carries a token that is new on every start; the first load swaps it for an HttpOnly, SameSite=Strict cookie and every
-request without it is refused. No remote access, no CDN, no Cloudflare calls.
+request without it is refused. Every mutating endpoint is a POST that also needs a same-origin `Origin` header and the
+`X-WP2EMDASH-CSRF` header (derived from the token, delivered in the page). No remote access, no CDN.
 
-- **Portfolio** — every site in `sites/` with its phase timeline, next gate, readiness score, blockers and last run.
+- **Portfolio** — every site in `sites/` with its phase timeline, readiness score, blockers and last run, a **Live**
+  badge, launch date, monitoring end and alias status. "Next" combines the recorded gates, the latest run of every phase
+  (preview runs included, marked "from runs") and `cloudflare.json` → `production.live`: a site with only preview runs
+  shows the phase it really reached, a site whose gates are all green shows "Go live", a live site shows alias
+  redirects or the monitoring window.
 - **Launch readiness** — one score per site: the share of launch checks that pass (gates `init` → `verify`, every
   check in the latest `reports/verify/verify.json`, every cutover preflight check). Accepted gates count as passing.
   The failing checks form the "what blocks launch" list, each with the command or link that fixes it.
@@ -88,14 +94,32 @@ request without it is refused. No remote access, no CDN, no Cloudflare calls.
   mode 600, values with line breaks are refused. Reminds you to revoke the app password once extract has run.
 - **Owner checklist** — `ACCESS.md` as sections with items, required markers and the generated "Plugin data" section.
   Read-only: ticking stays in the file.
-- **Launch cockpit** — read-only: the last cutover preflight (state or latest run log), the go-live prerequisites, the
-  runbook (`cutover/runbook.md`, as text) and the exact commands. There is no switch, rollback or DNS button: the owner
-  does those from the terminal (`wp2emdash golive`, or the runbook by hand).
+- **Launch cockpit** — the last cutover preflight, the go-live prerequisites, the runbook and the commands, plus the
+  owner-approved steps **Go live**, **Add alias redirects**, **Roll back** and **Roll back alias redirects**. "Show plan"
+  runs `golive … --json` without `--yes` (what will change: routes, alias rules, Site URL, live flag; blockers). Each
+  step needs the production domain typed exactly, the tick "The owner approved this in writing", the approval as
+  written (who, when, where) and your name — checked again on the server. The approval is appended to `decisions.md`
+  and recorded in `cutover/golive.json` → `approvals`; then `wp2emdash golive … --yes` runs as a child process and
+  streams like a run. Also shown: recorded route / rule ids, the smoke result, the last DNS comparison, DNS snapshots,
+  approvals and history.
+- **Publish** — repository, CI runs (`gh run list`, when gh is available), a dry run (`publish --json`: the file list
+  and the secret scan, file names only) and "Publish" (`publish --yes`) behind the same confirmation. It never sets the
+  `CLOUDFLARE_API_TOKEN` secret: the `gh secret set` command is shown to run by hand.
+- **Environment** — single environment or opt-in staging, workers.dev address, live domain and date, resources, last
+  load, the `load --force` rule once live, the preview-URL flow and where form messages go.
+- **Worker secrets** (Secrets tab, per environment) — for each runtime secret (`EMDASH_ENCRYPTION_KEY`,
+  `EMAIL_API_KEY`, `TURNSTILE_SECRET_KEY`, anything in the project's `.dev.vars.example`): "saved locally" (which `.env`
+  key, fingerprint) and "set on Worker" (Cloudflare API, names only). "Set on Worker" pipes the local value into
+  `wrangler secret put` on stdin; on a live production it needs the typed domain. Operator credentials (build and
+  go-live tokens, EmDash tokens, WordPress key) are local-only: presence, fingerprint, Cloudflare token-verify status
+  and expiry, and the reminder to revoke the go-live token after the monitoring window.
 
-What it writes: rows in `decisions.md` (visual decisions, approved proposals that patch it), `overrides.ts` (approved
-proposals only), new files in `proposals/`, and keys in `.env`. Everything it returns passes through the site's secret
-scrubber (no `.env` value leaves the server). It serves files only from `reports/` and `snapshot/screens/`, never
-touches Cloudflare, routes or DNS, and never accepts a gate.
+Long-running actions run one at a time per site and are logged to `runs/<runId>.jsonl` (phase `golive`, `publish`,
+`secret-put`, … — never a pipeline gate). What it writes: rows in `decisions.md` (visual decisions, approved proposals,
+launch / publish approvals), `overrides.ts` (approved proposals only), new files in `proposals/`, keys in `.env`, and
+what the owner-approved commands write themselves. Everything it returns passes through the site's secret scrubber (no
+`.env` value leaves the server). It serves files only from `reports/` and `snapshot/screens/`, never changes DNS, and
+never accepts a gate.
 
 ## Claude Code
 

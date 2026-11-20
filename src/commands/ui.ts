@@ -29,7 +29,7 @@ export async function serveUi(opts: { open?: boolean; port?: number } = {}): Pro
 	const ui = await startUi(opts);
 	console.log(`${pc.bold("wp2emdash dashboard")} ${pc.dim("(local only; the token in this URL is valid until you stop the server)")}`);
 	console.log(`  ${pc.cyan(ui.url)}`);
-	console.log(pc.dim("  Writes only what you decide in it: visual decisions, approved proposals, secrets (.env, write-only). Ctrl+C to stop."));
+	console.log(pc.dim("  Writes only what you decide in it: visual decisions, approved proposals, secrets (.env, write-only), owner-approved launch steps. Ctrl+C to stop."));
 	const stop = () => void ui.close().then(() => process.exit(0));
 	process.on("SIGINT", stop);
 	process.on("SIGTERM", stop);

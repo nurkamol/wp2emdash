@@ -21,13 +21,14 @@ const asset = (name: string) => {
 export const appJs = () => asset("app.js");
 export const appCss = () => asset("app.css");
 
-export function indexHtml(): string {
+export function indexHtml(csrf = ""): string {
 	return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
+<meta name="wp2emdash-csrf" content="${csrf.replace(/[^A-Za-z0-9_-]/g, "")}">
 <title>wp2emdash dashboard</title>
 <link rel="stylesheet" href="/app.css">
 <link rel="icon" href="data:,">
@@ -39,7 +40,7 @@ export function indexHtml(): string {
 	<button type="button" class="ghost" id="theme" aria-label="Toggle colour theme">Theme</button>
 </header>
 <main id="app" tabindex="-1"><p class="muted pad">Loading…</p></main>
-<footer class="foot muted">Local only (127.0.0.1). Writes only what you decide here: visual decisions and approved proposals (<code>decisions.md</code>, <code>overrides.ts</code>) and secrets (<code>.env</code>, write-only). Gates are accepted only with <code>wp2emdash accept</code>; the launch switch is done from the terminal.</footer>
+<footer class="foot muted">Local only (127.0.0.1). Writes only what you decide here: visual decisions and approved proposals (<code>decisions.md</code>, <code>overrides.ts</code>) and secrets (<code>.env</code>, write-only). and the owner-approved launch steps (go-live, alias redirects, rollback, publish, Worker secrets: typed domain and the owner's written approval required). Gates are accepted only with <code>wp2emdash accept</code>; DNS is never changed.</footer>
 <script src="/app.js" defer></script>
 </body>
 </html>

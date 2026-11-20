@@ -2,7 +2,8 @@
  * Launch cockpit (docs/PLAN.md §10b feature 4) and the guided owner checklist (feature 10), both read-only.
  *
  * The cockpit shows the last cutover preflight, the generated runbook (as text), the go-live prerequisites and the
- * exact commands. It has no route switch, rollback or DNS action: the owner runs those from the terminal.
+ * exact commands. The owner-approved actions (go-live, alias redirects, rollback) are in src/ui/launch.ts; this view
+ * stays read-only.
  * The checklist renders ACCESS.md as sections with items; ticking stays in the file.
  */
 import { existsSync, readFileSync, statSync } from "node:fs";
@@ -99,6 +100,9 @@ export function cockpitView(slug: string, sitesDir = SITES_DIR): CockpitView {
 	const commands = [
 		{ label: "Run the preflight (read-only, gate not recorded)", command: `pnpm wp2emdash run ${slug} cutover --preview` },
 		{ label: "Run the preflight and record the cutover gate", command: `pnpm wp2emdash run ${slug} cutover` },
+		{ label: "Go-live plan (changes nothing)", command: `pnpm wp2emdash golive ${slug}` },
+		{ label: "Go live, after the owner's written approval", command: `pnpm wp2emdash golive ${slug} --yes --approved-by="<you>" --approval="<owner, date, where>"` },
+		{ label: "Roll back the switch (deletes exactly the recorded routes)", command: `pnpm wp2emdash golive ${slug} --rollback --yes` },
 		{ label: "Deploy production to workers.dev (in the site project)", command: "pnpm deploy:production" },
 		{ label: "Verify production after the switch (preview)", command: `WP2EMDASH_TARGET=production pnpm wp2emdash run ${slug} verify --preview` },
 		{ label: "Open the runbook (switch and rollback commands)", command: `cat sites/${slug}/cutover/runbook.md` },
@@ -109,7 +113,7 @@ export function cockpitView(slug: string, sitesDir = SITES_DIR): CockpitView {
 		...(runbook ? { runbook } : {}),
 		prerequisites,
 		commands,
-		note: "The traffic switch, rollback and any DNS change are done by the owner from the terminal, following the runbook, with the go-live token. This dashboard never changes routes, DNS or production.",
+		note: "Go-live, alias redirects and rollback run below only after you type the production domain and record the owner's written approval (or in the terminal: wp2emdash golive). They run the same command as the terminal, with the go-live token. DNS is never changed.",
 	};
 }
 

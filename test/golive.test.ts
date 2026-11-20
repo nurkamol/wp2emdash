@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -161,6 +161,18 @@ describe("golive", () => {
 		expect(readFileSync(join(paths().root, "cloudflare.json"), "utf8")).toContain('\n\t"production"'); // tabs kept
 		expect(record().routes.map((x: { id: string; adopted: boolean }) => `${x.id}:${x.adopted}`)).toEqual(["r1:false", "r2:false"]);
 		expect(r.next.join(" ")).toContain("golive acme --aliases");
+	});
+
+	it("records the owner's approval and the step's checks in golive.json (only when applied)", async () => {
+		const approval = { by: "Op Erator", text: "Jane Owner, email 2026-11-21 09:00: go", via: "dashboard" };
+		await run({ approval }); // plan only: nothing recorded
+		expect(existsSync(join(paths().root, "cutover", "golive.json"))).toBe(false);
+		await run({ yes: true, approval, now: () => new Date("2026-11-21T10:00:00Z") });
+		expect(record().approvals).toEqual([{ at: "2026-11-21T10:00:00.000Z", step: "primary", by: "Op Erator", approval: "Jane Owner, email 2026-11-21 09:00: go", via: "dashboard" }]);
+		expect(record().history[0].action).toBe("primary approved by Op Erator (dashboard)");
+		expect(record().lastChecks.checks.map((c: { id: string }) => c.id)).toContain("dns-unchanged");
+		await run({ rollback: true, yes: true, approval: { ...approval, text: "Jane Owner, phone 2026-11-22: roll back" } });
+		expect(record().approvals.map((a: { step: string }) => a.step)).toEqual(["primary", "rollback"]);
 	});
 
 	it("is idempotent: a route already pointing at the Worker is kept and recorded, not created again", async () => {
