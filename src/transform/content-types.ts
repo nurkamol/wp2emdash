@@ -25,6 +25,15 @@ export const INTERNAL_TYPES: Record<string, string> = {
 	"acf-post-type": "ACF configuration",
 	"acf-taxonomy": "ACF configuration",
 	"acf-ui-options-page": "ACF configuration",
+	"meta-box": "Meta Box configuration (field groups read by the CPT mapper)",
+	"mb-post-type": "Meta Box configuration",
+	"mb-taxonomy": "Meta Box configuration",
+	"mb-relationship": "Meta Box configuration",
+	"mb-settings-page": "Meta Box configuration",
+	_pods_pod: "Pods configuration (field definitions read by the CPT mapper)",
+	_pods_field: "Pods configuration",
+	_pods_group: "Pods configuration",
+	_pods_template: "Pods configuration",
 	elementor_library: "builder template library (used templates are inlined)",
 	et_pb_layout: "builder template library (used layouts are inlined)",
 	vc_grid_item: "WPBakery grid templates",
@@ -54,7 +63,7 @@ export interface InventoryRow {
 	handled: number;
 	status: InventoryStatus;
 	note: string;
-	decision?: { as: string; reason: string };
+	decision?: { as: string; reason?: string };
 	samples: string[];
 }
 
@@ -72,6 +81,11 @@ export interface InventoryInput {
 	 * taxonomies → note, and whether the authors become bylines.
 	 */
 	blog?: { types: Record<string, string>; taxonomies: Record<string, string>; authors?: string };
+	/**
+	 * Custom post types migrated as collections (src/transform/cpt.ts): post type → note, taxonomies they migrate, and
+	 * the proposal shown for a type that still needs a decision.
+	 */
+	collections?: { types: Record<string, string>; taxonomies: Record<string, string>; proposals: Record<string, string> };
 }
 
 export function contentInventory(input: InventoryInput): InventoryRow[] {
@@ -84,13 +98,16 @@ export function contentInventory(input: InventoryInput): InventoryRow[] {
 		const decision = input.overrides.contentTypes[t.name];
 		const samples = (input.samples.types[t.name] ?? []).slice(0, 3);
 		const base = { group: "type" as const, name: t.name, total: t.entries.length, published, handled, samples };
-		if (decision) rows.push({ ...base, status: "decided", decision, note: decision.as === "skip" ? "not migrated (owner decision)" : "migrated as pages at their WordPress address" });
+		const asCollection = input.collections?.types[t.name];
+		if (asCollection) rows.push({ ...base, status: decision ? "decided" : "migrated", ...(decision ? { decision } : {}), handled: t.entries.length, note: asCollection });
+		else if (decision) rows.push({ ...base, status: "decided", decision, note: decision.as === "skip" ? "not migrated (owner decision)" : decision.as === "collection" ? "collection (no entries to migrate)" : "migrated as pages at their WordPress address" });
 		else if (input.blog?.types[t.name]) rows.push({ ...base, status: "migrated", note: input.blog.types[t.name] as string });
 		else if (INTERNAL_TYPES[t.name]) rows.push({ ...base, status: "internal", note: INTERNAL_TYPES[t.name] as string });
 		else if (HANDLED_TYPES[t.name]) rows.push({ ...base, status: "migrated", note: HANDLED_TYPES[t.name] as string });
 		else {
 			const open = t.entries.filter((e) => !e.handled && live(e.status)).length;
-			const note = t.name === "post" ? (open ? `${open} Gutenberg/classic post(s) have no posts collection yet${handled ? `; ${handled} builder post(s) migrated as pages` : ""}` : "builder posts migrated as pages") : open ? "no collection for this type" : "no published entries";
+			const proposed = input.collections?.proposals[t.name];
+			const note = t.name === "post" ? (open ? `${open} Gutenberg/classic post(s) have no posts collection yet${handled ? `; ${handled} builder post(s) migrated as pages` : ""}` : "builder posts migrated as pages") : open ? (proposed ? `no collection for this type; proposed: ${proposed}` : "no collection for this type") : "no published entries";
 			rows.push({ ...base, status: open ? "undecided" : "migrated", note });
 		}
 	}
@@ -102,6 +119,7 @@ export function contentInventory(input: InventoryInput): InventoryRow[] {
 		const base = { group: "taxonomy" as const, name: tx.name, total: used, published: used, handled: 0, samples: (input.samples.taxonomies[tx.name] ?? []).slice(0, 3) };
 		if (decision) rows.push({ ...base, status: "decided", decision, note: "archives not rebuilt (owner decision); their URLs follow the WordPress-URL rules" });
 		else if (input.blog?.taxonomies[tx.name]) rows.push({ ...base, status: "migrated", handled: used, note: input.blog.taxonomies[tx.name] as string });
+		else if (input.collections?.taxonomies[tx.name]) rows.push({ ...base, status: "migrated", handled: used, note: input.collections.taxonomies[tx.name] as string });
 		else if (INTERNAL_TAXONOMIES.has(tx.name)) rows.push({ ...base, status: "internal", note: "classifies configuration, not content" });
 		else rows.push({ ...base, status: "undecided", note: "terms in use: no taxonomy is migrated yet" });
 	}
@@ -125,6 +143,6 @@ export function inventoryReport(rows: InventoryRow[]): string[] {
 	if (!rows.length) return [];
 	const L = ["", "## Content types", "", "Every post type with entries, every taxonomy with terms in use and the authors with published posts. **undecided** blocks the gate: record a decision with the owner's reason in `overrides.ts` (`contentTypes: { <type>: { as: \"skip\" | \"pages\", reason } }`, `taxonomies`, `authors`).", "", "| Kind | Name | Count | Published | Status | What happens | Sample URLs |", "|---|---|---|---|---|---|---|"];
 	const esc = (s: string) => s.replace(/\|/g, "\\|");
-	for (const r of rows) L.push(`| ${r.group} | ${esc(r.name)} | ${r.total} | ${r.published} | ${r.status === "undecided" ? "❌ undecided" : r.status} | ${esc(r.decision ? `${r.note}: ${r.decision.reason}` : r.note)} | ${r.samples.map((s) => `\`${s}\``).join(" ") || "—"} |`);
+	for (const r of rows) L.push(`| ${r.group} | ${esc(r.name)} | ${r.total} | ${r.published} | ${r.status === "undecided" ? "❌ undecided" : r.status} | ${esc(r.decision?.reason ? `${r.note}: ${r.decision.reason}` : r.note)} | ${r.samples.map((s) => `\`${s}\``).join(" ") || "—"} |`);
 	return L;
 }

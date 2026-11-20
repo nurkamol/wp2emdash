@@ -112,7 +112,7 @@ export async function importDump(slug: string, dir?: string, sitesDir?: string):
 			if (r.kind === "unknown") items.push({ file: rel, used: `not recognised (${r.reason})`, ok: false });
 			else {
 				copyFileSync(file, join(exportsDir, name));
-				items.push({ file: rel, used: `${r.kind === "forms" ? `${r.forms.length} ${r.provider} form(s)` : `${r.rules.length} redirect(s) from ${r.provider}`} → raw/plugin-exports/ (read by extract)`, ok: true });
+				items.push({ file: rel, used: `${r.kind === "forms" ? `${r.forms.length} ${r.provider} form(s)` : r.kind === "fields" ? `${r.provider} field definitions` : `${r.rules.length} redirect(s) from ${r.provider}`} → raw/plugin-exports/ (read by extract)`, ok: true });
 			}
 		}
 	}

@@ -465,9 +465,31 @@ export const irPost = z.object({
 });
 export type IrPost = z.infer<typeof irPost>;
 
+/**
+ * An entry of a custom post type migrated as its own collection (src/transform/cpt.ts). `fields` hold EmDash values
+ * by field slug (media as MediaRefs, rich text as Portable Text with `_media` marks); `references` the WordPress posts a
+ * reference field points at (`<post type>:<wpId>`), resolved by load after every entry exists. Builder entries keep
+ * `sections`; classic ones carry `body`.
+ */
+export const irEntry = z.object({
+	collection: z.string(),
+	fields: z.record(z.string(), z.unknown()).default({}),
+	references: z.record(z.string(), z.array(z.string())).default({}),
+	body: z.array(z.looseObject({ _type: z.string(), _key: z.string() })).default([]),
+	excerpt: z.string().optional(),
+	publishedAt: z.string().optional(),
+	modifiedAt: z.string().optional(),
+	menuOrder: z.number().int().optional(),
+	/** EmDash taxonomy name → term slugs. */
+	terms: z.record(z.string(), z.array(z.string())).default({}),
+	/** Byline slugs, in order. */
+	bylines: z.array(z.string()).default([]),
+});
+export type IrEntry = z.infer<typeof irEntry>;
+
 export const irPage = z.object({
 	version: z.literal(IR_VERSION),
-	kind: z.enum(["page", "post", "partial", "popup"]),
+	kind: z.enum(["page", "post", "partial", "popup", "entry"]),
 	source: z.object({ wpId: z.number().int(), type: z.string(), status: z.string(), slug: z.string(), builder: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "empty", "html"]), modifiedGmt: z.string().optional() }),
 	route: z.object({ path: z.string(), parentPath: z.string().optional(), template: z.string().optional(), isFrontPage: z.boolean().optional() }).optional(),
 	title: z.string(),
@@ -488,6 +510,8 @@ export const irPage = z.object({
 	popup: z.object({ selectors: z.array(z.string()).default([]), autoOpen: z.object({ delayMs: z.number() }).optional(), size: z.string().optional() }).optional(),
 	/** Post-only (blog): body, dates, terms and bylines (src/transform/blog.ts). */
 	post: irPost.optional(),
+	/** Entry-only (custom post type collections). */
+	entry: irEntry.optional(),
 	diagnostics: z.array(diagnostic),
 });
 export type IrPage = z.infer<typeof irPage>;

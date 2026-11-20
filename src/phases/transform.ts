@@ -19,10 +19,13 @@ import { businessFromJsonLd } from "../transform/business.js";
 import { completeMarianaEmbeds, marianaTenant } from "../transform/embeds.js";
 import { collectSnippets, completeProviderLoaders, providerLoaders, settleLoaders } from "../transform/snippets.js";
 import { consentReport, planConsent } from "../transform/consent.js";
-import { type Diagnostic, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrPost, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
+import { type Diagnostic, type IrEntry, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrPost, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
 import { conservation, irText, missingContext, sourceText } from "../transform/coverage.js";
 import { buildSettings, irSettings, settingsReport } from "../transform/settings.js";
-import { contentInventory, INTERNAL_TAXONOMIES, inventoryDetail, inventoryReport } from "../transform/content-types.js";
+import { contentInventory, HANDLED_TYPES, INTERNAL_TAXONOMIES, INTERNAL_TYPES, inventoryDetail, inventoryReport } from "../transform/content-types.js";
+import { type AnalyzeType, completeOptions, type ContentTypeDecision, type CptEntrySource, type CptPlan, cptReport, entryData, planCollections, proposal, type WpRestType } from "../transform/cpt.js";
+import { fieldGroups } from "../transform/cpt-sources.js";
+import { fieldsForType } from "../transform/cpt-fields.js";
 import { type CustomCss, customCssFromHtml, customCssReport, describeCss } from "../transform/custom-css.js";
 import { baseOf, buildWpUrlPlan, type WpUrlInput, wpUrlsReport } from "../transform/wp-urls.js";
 import { type BlogByline, blogIndexPath, type BlogPlan, blogReport, blogTaxonomies, bylineSlug, convertPostBody, feedSettings, permalinkPath, type WpTaxonomy, wpGmtToIso } from "../transform/blog.js";
@@ -240,7 +243,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		return marianaTenantCache ?? undefined;
 	};
 	/** `elements`: a Bricks template's element list (its meta key depends on the template type). */
-	const adapt = (p: ExporterPost, kind: IrPage["kind"], elements?: BricksElement[]) => {
+	const adapt = (p: ExporterPost, kind: Exclude<IrPage["kind"], "entry">, elements?: BricksElement[]) => {
 		const builder: Builder = elements ? "bricks" : detectBuilder(p.content ?? "", p.meta);
 		const keys = new Keys(`${p.id.toString(36)}_`);
 		const common = { kind, keys, popupFor, postCount: posts.filter((x) => x.status === "publish").length, rowOverrides: rowOverridesFor(p.slug) };
@@ -263,7 +266,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		}
 		return { builder, sections, diagnostics };
 	};
-	function adaptBricksPost(p: ExporterPost, common: { kind: IrPage["kind"]; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, elements?: BricksElement[]) {
+	function adaptBricksPost(p: ExporterPost, common: { kind: Exclude<IrPage["kind"], "entry">; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, elements?: BricksElement[]) {
 		const r = adaptBricks(elements ?? bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id), site: bricks, postId: p.id, content: p.content ?? "", reusable: (id) => reusable.get(id), title: p.title, siteTitle, permalink, popupSlug: (id) => bricksPopups.get(id), measured: (key) => bricksBoxes.get(`${common.kind === "page" ? routeOf(p) : "/"} ${key}`), menuItems: (id) => { const m = menusRaw.find((x) => String(x.id) === id); return m ? menuTree(m) : undefined; } });
 		for (const f of r.forms) bricksForms.set(f.id, f);
 		return r;
@@ -407,6 +410,117 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			}
 		: undefined;
 	if (blogPlan) write(join(paths.ir, "blog.json"), blogPlan);
+	// ── Custom post types: a collection per public type (or by decision), custom fields, entries ───────────────────────
+	const cpt = buildCollections();
+	function buildCollections() {
+		const analyzeFull = readJson<{ post_types?: AnalyzeType[]; acf?: unknown }>(join(exp, "analyze.json")) ?? {};
+		const restTypes = readJson<Record<string, WpRestType>>(join(exp, "types.json")) ?? {};
+		const candidates = contentTypesOnDisk.filter((t) => t !== "page" && t !== "post" && !HANDLED_TYPES[t] && !INTERNAL_TYPES[t] && overrides.contentTypes[t]?.as !== "skip" && !asPages(t));
+		const decisions = Object.fromEntries(candidates.map((t) => [t, overrides.contentTypes[t]]));
+		const proposals = Object.fromEntries(candidates.map((t) => [t, proposal(t, (analyzeFull.post_types ?? []).find((a) => a.name === t))]));
+		const empty = { plan: undefined, docs: [] as IrPage[], proposals, unknownMeta: [] as string[] };
+		if (!candidates.length) return empty;
+		const groups = fieldGroups({ raw: paths.raw, content: (t) => content(t), analyzeAcf: analyzeFull.acf });
+		const typeOfIdMap = new Map<number, string>();
+		for (const t of contentTypesOnDisk) for (const p of content(t)) typeOfIdMap.set(p.id, t);
+		const entriesOf = new Map(candidates.map((t) => [t, content(t) as CptEntrySource[]]));
+		const entryRoute = (p: CptEntrySource) => {
+			const known = pathById.get(p.id);
+			if (known && p.status === "publish") return overrides.routes[known] ?? known;
+			const live = (() => {
+				try {
+					const u = new URL(p.permalink ?? "");
+					return siteHosts.has(u.host.replace(/^www\./, "")) && !u.search ? u.pathname : undefined;
+				} catch {
+					return undefined;
+				}
+			})();
+			if (live) return overrides.routes[live] ?? live;
+			const siblings = entriesOf.get(p.post_type) ?? [];
+			const segs = [p.slug || `${p.post_type}-${p.id}`];
+			for (let q = p.parent ? siblings.find((x) => x.id === p.parent) : undefined, g = 0; q && g < 20; q = q.parent ? siblings.find((x) => x.id === q?.parent) : undefined, g++) segs.unshift(q.slug);
+			const path = `/${p.post_type}/${segs.join("/")}/`;
+			return overrides.routes[path] ?? path;
+		};
+		const plan = planCollections({
+			types: candidates.map((t) => ({ name: t, entries: entriesOf.get(t) ?? [] })),
+			analyze: analyzeFull.post_types ?? [],
+			rest: restTypes,
+			groups,
+			decisions: decisions as Record<string, ContentTypeDecision | undefined>,
+			taxonomies: wpTaxonomies,
+			termBases: Object.fromEntries(wpTaxonomies.map((t) => [t.name, termBases(t.name)])),
+			blogTaxonomies: taxName,
+			routeOf: entryRoute,
+			pagePaths: new Set(results.filter((r) => r.doc.kind === "page" && r.doc.route).map((r) => (r.doc.route as { path: string }).path)),
+			siteHosts,
+			perPage: Math.min(100, Math.max(1, Number(options.posts_per_page) || 10)),
+			firstSortOrder: blogOn ? 3 : 2,
+			builderOf: (p) => detectBuilder(p.content ?? "", p.meta),
+		});
+		if (!plan.collections.length) return empty;
+		const docs: IrPage[] = [];
+		const cptBylines: CptPlan["bylines"] = [];
+		for (const col of plan.collections) {
+			const defs = new Map(fieldsForType(groups, col.type).fields.map((d) => [d.name, d]));
+			const built: { p: ExporterPost; doc: IrPage }[] = [];
+			for (const p of (entriesOf.get(col.type) ?? []).filter((e) => POST_STATUSES.has(e.status)) as unknown as ExporterPost[]) {
+				const builder = detectBuilder(p.content ?? "", p.meta);
+				const isBuilder = builder === "wpbakery" || builder === "bricks" || builder === "gutenberg";
+				const adapted = isBuilder ? adapt(p, "page") : undefined;
+				const converted = !isBuilder && builder !== "empty" ? convertPostBody(p.content ?? "", "classic", { keyPrefix: `${p.id.toString(36)}_b`, mediaIdForUrl, reusable: (id) => reusable.get(id) }) : undefined;
+				const { entry, diagnostics } = entryData(p as unknown as CptEntrySource, col, {
+					mediaIdForUrl,
+					typeOfId: (id) => typeOfIdMap.get(id),
+					html: (h, k) => convertPostBody(h, "classic", { keyPrefix: k, mediaIdForUrl, reusable: (id) => reusable.get(id) }),
+				}, defs);
+				// Links to the WordPress site in URL fields become site paths (the same pages on the new site).
+				for (const f of col.fields) {
+					const v = entry.fields[f.slug];
+					if (f.type === "url" && typeof v === "string") entry.fields[f.slug] = relHref(v);
+					if (f.type === "repeater" && Array.isArray(v)) for (const row of v as Record<string, unknown>[]) for (const sf of f.subFields ?? []) if (sf.type === "url" && typeof row[sf.slug] === "string") row[sf.slug] = relHref(row[sf.slug] as string);
+				}
+				if (col.core.bylines && overrides.authors?.as !== "skip") {
+					const a = authorOf(p);
+					const known = a ? (blogBylines.find((b) => b.wpId === a.id) ?? cptBylines.find((b) => b.wpId === a.id)) : undefined;
+					if (a && known) {
+						if (cptBylines.includes(known as never)) known.posts++;
+						entry.bylines = [known.slug];
+					} else if (a) {
+						const used = new Set([...blogBylines, ...cptBylines].map((b) => b.slug));
+						const d = discoveredAuthors.get(a.id);
+						let slug = bylineSlug(d?.slug ?? a.name);
+						for (let i = 2; used.has(slug); i++) slug = `${bylineSlug(d?.slug ?? a.name)}-${i}`;
+						const path = d?.link ? (() => { try { return new URL(d.link).pathname; } catch { return undefined; } })() : undefined;
+						cptBylines.push({ slug, displayName: a.name || d?.name || slug, ...(d?.description ? { bio: d.description } : {}), wpId: a.id, ...(path ? { path } : {}), posts: 1 });
+						entry.bylines = [slug];
+					}
+				}
+				const doc: IrPage = {
+					version: IR_VERSION,
+					kind: "entry",
+					source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug || `${p.post_type}-${p.id}`, builder, modifiedGmt: p.modified_gmt },
+					...(col.routable ? { route: { path: entryRoute(p as unknown as CptEntrySource) } } : {}),
+					title: p.title,
+					seo: seoOf(p),
+					...(p.featured_image?.id && col.core.featuredImage ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}),
+					sections: adapted?.sections ?? [],
+					entry: { ...entry, body: (converted?.body ?? []) as IrEntry["body"] },
+					diagnostics: [...(adapted?.diagnostics ?? []), ...(converted?.diagnostics ?? []), ...diagnostics],
+				};
+				built.push({ p, doc });
+			}
+			completeOptions(col, built.map((b) => b.doc.entry as never));
+			for (const { p, doc } of built) {
+				emit(doc, `entries/${col.slug}/${doc.source.slug}.json`, p.status === "publish");
+				docs.push(doc);
+			}
+		}
+		plan.bylines = cptBylines;
+		write(join(paths.ir, "collections.json"), plan);
+		const unknownMeta = plan.collections.flatMap((c) => c.unknownMeta.filter((u) => !u.decided).map((u) => `${c.type}.${u.key} (${u.entries})`));
+		return { plan, docs, proposals, unknownMeta };
+	}
 	const partials: IrSite["partials"] = [];
 	for (const p of partialsRaw) {
 		const { builder, sections, diagnostics } = adapt(p, "partial");
@@ -575,7 +689,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		}
 		for (const x of Object.values(o)) visitMedia(x, where);
 	};
-	for (const r of inScope) visitMedia([r.doc.sections, r.doc.post?.body ?? []], r.doc.source.slug);
+	for (const r of inScope) visitMedia([r.doc.sections, r.doc.post?.body ?? [], r.doc.entry?.fields ?? {}, r.doc.entry?.body ?? []], r.doc.source.slug);
 	check("media-refs", "Every media reference in published content resolves", missingMedia.length === 0, missingMedia.slice(0, 8).join(", ") || undefined);
 
 	// ── Every image published content uses in WordPress is kept somewhere in the IR ──
@@ -594,6 +708,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		collect(r.doc.sections);
 		collect(r.doc.featuredImage);
 		collect(r.doc.post?.body);
+		collect(r.doc.entry);
 		for (const ref of refs[key] ?? []) {
 			if (ref.kind !== "id" || !(ref.via.startsWith("content:") || ref.via === "featured_image")) continue;
 			const id = Number(ref.value);
@@ -628,7 +743,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		if (typeof o.href === "string") checkHref(o.href, where);
 		for (const [k, x] of Object.entries(o)) if (k !== "href") visitLinks(x, where);
 	};
-	for (const r of inScope) visitLinks([r.doc.sections, r.doc.post?.body ?? []], r.doc.source.slug);
+	for (const r of inScope) visitLinks([r.doc.sections, r.doc.post?.body ?? [], r.doc.entry?.fields ?? {}, r.doc.entry?.body ?? []], r.doc.source.slug);
 	for (const m of menus) visitLinks(m.items, `menu ${m.name}`);
 	check("links", "Internal links point at migrated pages, anchors, popups or files", brokenLinks.length === 0, brokenLinks.slice(0, 8).join("; ") || undefined);
 
@@ -636,12 +751,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const formText = [...readFormText(join(paths.raw, "forms")), ...[...bricksForms.values()].flatMap((f) => [f.submitLabel, ...f.fields.flatMap((x) => [x.label, ...(x.placeholder ? [x.placeholder] : []), ...(x.options ?? [])])])];
 	const footerDocs = results.filter((r) => r.doc.kind === "partial" && r.published).map((r) => r.doc);
 	const lowPages: string[] = [];
-	for (const r of results.filter((x) => x.doc.kind === "page" && x.published)) {
+	for (const r of results.filter((x) => (x.doc.kind === "page" || x.doc.kind === "entry") && x.published)) {
 		const snap = snapPages.get(r.doc.source.wpId);
 		const htmlFile = snap ? join(paths.snapshot, "html", `${snap.name}.html`) : undefined;
 		if (!htmlFile || !existsSync(htmlFile)) continue;
 		const src = sourceText(readFileSync(htmlFile, "utf8"));
-		const c = conservation(src, irText([r.doc, ...footerDocs], menus.map((m) => m.items), [siteTitle, ...formText]));
+		// Entries: their title, excerpt, field values and body are page text too (the starter renders them).
+		const entryText = r.doc.entry ? [r.doc.title, r.doc.entry.excerpt ?? "", entryWords(r.doc.entry)] : [];
+		const c = conservation(src, irText([r.doc, ...footerDocs], menus.map((m) => m.items), [siteTitle, ...formText, ...entryText]));
 		r.conservation = { ...c, context: missingContext(src, c.missing) };
 		if (c.ratio < config.gates.textConservation) lowPages.push(`${r.doc.route?.path} ${(c.ratio * 100).toFixed(1)}%`);
 	}
@@ -684,8 +801,19 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 					},
 				}
 			: {}),
+		...(cpt.plan || Object.keys(cpt.proposals).length
+			? {
+					collections: {
+						types: Object.fromEntries((cpt.plan?.collections ?? []).map((c) => [c.type, `collection "${c.slug}" (${c.fields.length} custom field${c.fields.length === 1 ? "" : "s"}${c.archive ? `, archive at ${c.archive}` : ""}${c.routable ? "" : ", no addresses"}): coverage report → Custom post types`])),
+						taxonomies: Object.fromEntries((cpt.plan?.taxonomies ?? []).map((t) => [t.wpName, `taxonomy "${t.name}" of ${t.collections.join(", ")} (${t.terms.length} terms${t.hierarchical ? ", hierarchy kept" : ""}), archives at ${t.base}<slug>/`])),
+						proposals: cpt.proposals,
+					},
+				}
+			: {}),
 	});
 	check("content-types-handled", "Every post type, taxonomy in use and author with posts is migrated or decided", !inventory.some((r) => r.status === "undecided"), inventoryDetail(inventory));
+	// Custom fields of migrated post types: every meta key is a mapped field, a decided one, or WordPress's own.
+	if (cpt.plan) check("cpt-fields", "Every custom field of a migrated post type is mapped or decided (overrides.ts contentTypes.<type>.fields)", cpt.unknownMeta.length === 0, cpt.unknownMeta.length ? `${cpt.unknownMeta.length} meta key(s) without a field definition (coverage report → Custom post types): ${cpt.unknownMeta.slice(0, 6).join(", ")}${cpt.unknownMeta.length > 6 ? ", …" : ""}` : `${cpt.plan.collections.map((c) => `${c.slug}: ${c.fields.length} field(s)`).join(", ")}`);
 	// Private and password-protected posts: EmDash has no such status, so each needs the owner's decision.
 	if (protectedPosts.length) check("protected-posts", "Private and password-protected posts decided (overrides.ts protectedPosts)", !!overrides.protectedPosts, overrides.protectedPosts ? `${overrides.protectedPosts.as}: ${protectedPosts.length} post(s) (${overrides.protectedPosts.reason})` : `${protectedPosts.length} post(s) need a decision: ${protectedPosts.slice(0, 5).map((p) => `${p.slug || p.id} (${p.status === "private" ? "private" : "password"})`).join(", ")}; overrides.ts protectedPosts: { as: "draft" | "skip" | "publish", reason }`);
 
@@ -705,9 +833,11 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 
 	// ── WordPress URLs with no page on the new site: one rule set for the middleware and verify ─────────────
 	const pubPages = results.filter((r) => r.doc.kind === "page" && r.published && r.doc.route);
+	// Published entries of routable collections are real addresses too (never matched by a rule, like pages).
+	const pubEntries = results.filter((r) => r.doc.kind === "entry" && r.published && r.doc.route);
 	const wpUrlPlan = buildWpUrlPlan({
-		pages: pubPages.map((r) => (r.doc.route as { path: string }).path),
-		routeById: new Map(pubPages.map((r) => [r.doc.source.wpId, (r.doc.route as { path: string }).path])),
+		pages: [...pubPages, ...pubEntries].map((r) => (r.doc.route as { path: string }).path),
+		routeById: new Map([...pubPages, ...pubEntries].map((r) => [r.doc.source.wpId, (r.doc.route as { path: string }).path])),
 		publishedPosts: posts.filter((p) => p.status === "publish").length,
 		...(Number(options.page_for_posts) > 0 ? { blogPageId: Number(options.page_for_posts) } : {}),
 		...(discovery ? { discovery } : {}),
@@ -745,14 +875,31 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		snippets: { counts: siteSnippets.counts, widgets: siteSnippets.widgets, items: siteSnippets.items.map(({ id, kind, status, label, note, where, pages }) => ({ id, kind, status, label, note, where, pages: pages.length })) },
 		settings: { sources: settings.sources, notCarried: settings.notCarried },
 		contentTypes: inventory,
+		...(cpt.plan ? { collections: cpt.plan.collections.map((c) => ({ type: c.type, slug: c.slug, entries: c.entries, published: c.published, fields: c.fields.map((f) => ({ slug: f.slug, type: f.type, wp: `${f.wp.source}:${f.wp.type}`, ...(f.note ? { note: f.note } : {}) })), unknownMeta: c.unknownMeta, ...(c.archive ? { archive: c.archive } : {}) })) } : {}),
 		...(blogPlan ? { blog: { index: blogPlan.index, posts: results.filter((r) => r.doc.kind === "post").length, published: results.filter((r) => r.doc.kind === "post" && r.published).length, taxonomies: blogPlan.taxonomies.map((t) => ({ name: t.name, terms: t.terms.length })), bylines: blogPlan.bylines.length, feed: blogPlan.feed, protectedPosts: protectedPosts.length } } : {}),
 		...(customCss?.css ? { customCss: { decision: overrides.customCss ?? null, source: customCss.source, ...describeCss(customCss.css), ...(customCss.inactive ? { inactive: customCss.inactive } : {}) } } : {}),
 		consent: { found: consentPlan.found, keptWidgets: consentPlan.keptWidgets, mode: config.consent === false ? "off" : (config.consent.mode ?? consentPlan.mode), reason: consentPlan.reason },
 		wpUrls: { rules: wpUrlPlan.explain, attachments: Object.keys(wpUrlPlan.rules.attachments ?? {}).length, feedPending: wpUrlPlan.feedPending },
 	});
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...wpUrlsReport(wpUrlPlan), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...wpUrlsReport(wpUrlPlan), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
+}
+
+/** Words of an entry's field values and body (text conservation): strings, Portable Text spans, repeater rows. */
+function entryWords(e: IrEntry): string {
+	const out: string[] = [];
+	const walk = (v: unknown, key = "") => {
+		if (typeof v === "string") {
+			if (key !== "_type" && key !== "_key" && key !== "url" && key !== "style" && key !== "kind" && !/^https?:/.test(v)) out.push(v);
+			return;
+		}
+		if (typeof v === "number" && key !== "wpId") out.push(String(v));
+		if (Array.isArray(v)) return v.forEach((x) => walk(x, key));
+		if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) if (k !== "_media" && k !== "markDefs") walk(x, k);
+	};
+	walk([e.fields, e.body]);
+	return out.join("\n");
 }
 
 /** Hosts of the WordPress site: its files (theme, plugins, uploads) are WordPress assets, not site-wide snippets. */

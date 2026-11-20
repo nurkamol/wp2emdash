@@ -1,0 +1,508 @@
+{
+	"location": {
+		"downtown.json": {
+			"version": 1,
+			"kind": "entry",
+			"source": {
+				"wpId": 301,
+				"type": "location",
+				"status": "publish",
+				"slug": "downtown",
+				"builder": "empty",
+				"modifiedGmt": "2024-01-05 09:00:00"
+			},
+			"route": {
+				"path": "/location/downtown/"
+			},
+			"title": "Downtown studio",
+			"seo": {
+				"jsonLdTypes": []
+			},
+			"sections": [],
+			"entry": {
+				"collection": "location",
+				"fields": {
+					"address": "1 Main Street\nSpringfield",
+					"website": "/",
+					"open_weekends": true,
+					"phone": "+1 555 0100"
+				},
+				"references": {
+					"services_offered": [
+						"services:201",
+						"services:202"
+					]
+				},
+				"body": [],
+				"publishedAt": "2024-01-05T09:00:00.000Z",
+				"modifiedAt": "2024-01-05T09:00:00.000Z",
+				"terms": {},
+				"bylines": []
+			},
+			"diagnostics": []
+		}
+	},
+	"services": {
+		"group-classes.json": {
+			"version": 1,
+			"kind": "entry",
+			"source": {
+				"wpId": 203,
+				"type": "services",
+				"status": "publish",
+				"slug": "group-classes",
+				"builder": "gutenberg",
+				"modifiedGmt": "2024-01-12 09:00:00"
+			},
+			"route": {
+				"path": "/services/pilates/group-classes/"
+			},
+			"title": "Group classes",
+			"seo": {
+				"jsonLdTypes": []
+			},
+			"sections": [
+				{
+					"type": "rich_text",
+					"theme": {
+						"tone": "light"
+					},
+					"spacing": "normal",
+					"sourceRef": {
+						"adapter": "gutenberg",
+						"path": "blocks[0-1]",
+						"rawHash": "da39a3ee5e"
+					},
+					"fields": {
+						"body": [
+							{
+								"_type": "block",
+								"_key": "5n_0",
+								"style": "h2",
+								"children": [
+									{
+										"_type": "span",
+										"_key": "5n_1",
+										"text": "Group classes",
+										"marks": []
+									}
+								],
+								"markDefs": []
+							},
+							{
+								"_type": "block",
+								"_key": "5n_2",
+								"style": "normal",
+								"children": [
+									{
+										"_type": "span",
+										"_key": "5n_3",
+										"text": "Up to eight people per class.",
+										"marks": []
+									}
+								],
+								"markDefs": []
+							}
+						],
+						"width": "normal",
+						"align": "left",
+						"buttons": []
+					}
+				}
+			],
+			"entry": {
+				"collection": "services",
+				"fields": {
+					"price": 25
+				},
+				"references": {
+					"parent": [
+						"services:201"
+					]
+				},
+				"body": [],
+				"publishedAt": "2024-01-12T09:00:00.000Z",
+				"modifiedAt": "2024-01-12T09:00:00.000Z",
+				"menuOrder": 2,
+				"terms": {},
+				"bylines": []
+			},
+			"diagnostics": []
+		},
+		"pilates.json": {
+			"version": 1,
+			"kind": "entry",
+			"source": {
+				"wpId": 201,
+				"type": "services",
+				"status": "publish",
+				"slug": "pilates",
+				"builder": "classic",
+				"modifiedGmt": "2024-01-10 09:00:00"
+			},
+			"route": {
+				"path": "/services/pilates/"
+			},
+			"title": "Pilates",
+			"seo": {
+				"jsonLdTypes": []
+			},
+			"sections": [],
+			"entry": {
+				"collection": "services",
+				"fields": {
+					"price": 40,
+					"duration": "55 minutes",
+					"photos": [
+						{
+							"image": {
+								"wpId": 35,
+								"kind": "image"
+							}
+						}
+					],
+					"booking_url": "https://book.example.org/pilates"
+				},
+				"references": {},
+				"body": [
+					{
+						"_type": "block",
+						"_key": "5l_b1",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "5l_b0",
+								"text": "Classes for every level."
+							}
+						]
+					},
+					{
+						"_type": "image",
+						"_key": "5l_b2",
+						"asset": {
+							"_type": "reference",
+							"_ref": "35",
+							"url": "https://cpt.example.test/wp-content/uploads/2024/02/class.jpg"
+						},
+						"alt": "A class",
+						"caption": "A class in progress",
+						"_media": {
+							"wpId": 35,
+							"kind": "image",
+							"alt": "A class"
+						}
+					}
+				],
+				"publishedAt": "2024-01-10T09:00:00.000Z",
+				"modifiedAt": "2024-01-10T09:00:00.000Z",
+				"menuOrder": 0,
+				"terms": {},
+				"bylines": []
+			},
+			"diagnostics": []
+		},
+		"private-sessions.json": {
+			"version": 1,
+			"kind": "entry",
+			"source": {
+				"wpId": 202,
+				"type": "services",
+				"status": "publish",
+				"slug": "private-sessions",
+				"builder": "classic",
+				"modifiedGmt": "2024-01-11 09:00:00"
+			},
+			"route": {
+				"path": "/services/pilates/private-sessions/"
+			},
+			"title": "Private sessions",
+			"seo": {
+				"jsonLdTypes": []
+			},
+			"sections": [],
+			"entry": {
+				"collection": "services",
+				"fields": {
+					"price": 90,
+					"duration": "60 minutes"
+				},
+				"references": {
+					"parent": [
+						"services:201"
+					]
+				},
+				"body": [
+					{
+						"_type": "block",
+						"_key": "5m_b1",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "5m_b0",
+								"text": "One to one sessions."
+							}
+						]
+					}
+				],
+				"publishedAt": "2024-01-11T09:00:00.000Z",
+				"modifiedAt": "2024-01-11T09:00:00.000Z",
+				"menuOrder": 1,
+				"terms": {},
+				"bylines": []
+			},
+			"diagnostics": [
+				{
+					"level": "warn",
+					"code": "lossy",
+					"message": "booking_url: \"not a url\" is not a URL EmDash accepts (http, https, mailto, tel or /path); left empty",
+					"path": "fields.booking_url"
+				}
+			]
+		}
+	},
+	"team": {
+		"jane.json": {
+			"version": 1,
+			"kind": "entry",
+			"source": {
+				"wpId": 101,
+				"type": "team",
+				"status": "publish",
+				"slug": "jane",
+				"builder": "classic",
+				"modifiedGmt": "2024-03-01 09:00:00"
+			},
+			"route": {
+				"path": "/team/jane/"
+			},
+			"title": "Jane Doe",
+			"seo": {
+				"jsonLdTypes": []
+			},
+			"featuredImage": {
+				"wpId": 31,
+				"kind": "image"
+			},
+			"sections": [],
+			"entry": {
+				"collection": "team",
+				"fields": {
+					"role": "Lead instructor",
+					"photo": {
+						"wpId": 32,
+						"kind": "image",
+						"alt": "Jane portrait"
+					},
+					"bio": [
+						{
+							"_type": "block",
+							"_key": "2t_bio_3",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "2t_bio_0",
+									"text": "Certified "
+								},
+								{
+									"_type": "span",
+									"_key": "2t_bio_1",
+									"text": "STOTT",
+									"marks": [
+										"strong"
+									]
+								},
+								{
+									"_type": "span",
+									"_key": "2t_bio_2",
+									"text": " instructor."
+								}
+							]
+						}
+					],
+					"start_date": "2020-01-15T00:00:00.000Z",
+					"level": "senior",
+					"accepts_clients": true,
+					"skills": [
+						{
+							"skill": "Reformer",
+							"years": 8
+						},
+						{
+							"skill": "Mat",
+							"years": 12
+						}
+					],
+					"gallery": [
+						{
+							"image": {
+								"wpId": 33,
+								"kind": "image",
+								"alt": "Studio"
+							}
+						},
+						{
+							"image": {
+								"wpId": 34,
+								"kind": "image"
+							}
+						}
+					],
+					"profile_link": {
+						"title": "Profile",
+						"url": "https://example.org/jane",
+						"target": ""
+					},
+					"legacy_code": "JD-01"
+				},
+				"references": {
+					"related": [
+						"team:102"
+					]
+				},
+				"body": [
+					{
+						"_type": "block",
+						"_key": "2t_b1",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "2t_b0",
+								"text": "Jane has taught Pilates for twelve years."
+							}
+						]
+					},
+					{
+						"_type": "block",
+						"_key": "2t_b3",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "2t_b2",
+								"text": "She trained in London."
+							}
+						]
+					}
+				],
+				"excerpt": "Lead instructor.",
+				"publishedAt": "2024-02-01T09:00:00.000Z",
+				"modifiedAt": "2024-03-01T09:00:00.000Z",
+				"menuOrder": 1,
+				"terms": {
+					"department": [
+						"coaching"
+					]
+				},
+				"bylines": [
+					"studio-admin"
+				]
+			},
+			"diagnostics": []
+		},
+		"sam.json": {
+			"version": 1,
+			"kind": "entry",
+			"source": {
+				"wpId": 102,
+				"type": "team",
+				"status": "publish",
+				"slug": "sam",
+				"builder": "classic",
+				"modifiedGmt": "2024-02-02 09:00:00"
+			},
+			"route": {
+				"path": "/team/sam/"
+			},
+			"title": "Sam Lee",
+			"seo": {
+				"jsonLdTypes": []
+			},
+			"sections": [],
+			"entry": {
+				"collection": "team",
+				"fields": {
+					"role": "Front desk",
+					"level": "junior",
+					"accepts_clients": false,
+					"legacy_code": "SL-02"
+				},
+				"references": {
+					"related": [
+						"team:101"
+					]
+				},
+				"body": [
+					{
+						"_type": "block",
+						"_key": "2u_b1",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "2u_b0",
+								"text": "Sam runs the front desk."
+							}
+						]
+					}
+				],
+				"publishedAt": "2024-02-02T09:00:00.000Z",
+				"modifiedAt": "2024-02-02T09:00:00.000Z",
+				"menuOrder": 2,
+				"terms": {
+					"department": [
+						"front-desk"
+					]
+				},
+				"bylines": [
+					"studio-admin"
+				]
+			},
+			"diagnostics": [
+				{
+					"level": "warn",
+					"code": "lossy",
+					"message": "related: points at #999, which the extract does not have (deleted or private)",
+					"path": "fields.related"
+				}
+			]
+		},
+		"team-103.json": {
+			"version": 1,
+			"kind": "entry",
+			"source": {
+				"wpId": 103,
+				"type": "team",
+				"status": "draft",
+				"slug": "team-103",
+				"builder": "empty",
+				"modifiedGmt": "2024-04-01 09:00:00"
+			},
+			"route": {
+				"path": "/team/team-103/"
+			},
+			"title": "New hire",
+			"seo": {
+				"jsonLdTypes": []
+			},
+			"sections": [],
+			"entry": {
+				"collection": "team",
+				"fields": {
+					"role": "Instructor",
+					"accepts_clients": false
+				},
+				"references": {},
+				"body": [],
+				"modifiedAt": "2024-04-01T09:00:00.000Z",
+				"menuOrder": 3,
+				"terms": {},
+				"bylines": []
+			},
+			"diagnostics": []
+		}
+	}
+}

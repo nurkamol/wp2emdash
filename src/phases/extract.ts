@@ -25,7 +25,7 @@ export const MIN_EXPORTER = "1.2.0";
 /** Post types that are WordPress internals or rebuilt from other sources. `custom_css` is read on its own (readCustomCss). */
 const SKIP_TYPES = new Set(["attachment", "nav_menu_item", "wp_template", "wp_template_part", "wp_global_styles", "wp_font_family", "wp_font_face", "revision", "customize_changeset", "oembed_cache", "user_request", "custom_css"]);
 /** Types worth asking for even when no listing advertises them. */
-const EXTRA_TYPES = ["salient_g_sections", "bricks_template", "wp_block", "wp_navigation", "nectar_slider", "home_slider", "portfolio", "popup", "popup_theme", "pum_cta", "rank_math_schema"];
+const EXTRA_TYPES = ["salient_g_sections", "bricks_template", "wp_block", "wp_navigation", "nectar_slider", "home_slider", "portfolio", "popup", "popup_theme", "pum_cta", "rank_math_schema", "acf-field-group", "acf-field", "meta-box", "_pods_pod", "_pods_field"];
 
 export interface ExporterPost {
 	id: number;
@@ -178,6 +178,12 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 
 	// ── Content per post type ─────────────────────────────────────────────────
 	const wpTypes = await client.tryGet<Record<string, unknown>>("wp/v2/types", { context: "edit" }).catch(() => undefined);
+	// Post type registrations (slug, rest_base, hierarchical, has_archive, viewable, supports, taxonomies) for the CPT mapper.
+	rmSync(join(exp, "types.json"), { force: true });
+	if (wpTypes) write(join(exp, "types.json"), Object.fromEntries(Object.entries(wpTypes).map(([k, v]) => {
+		const t = (v ?? {}) as Record<string, unknown>;
+		return [k, Object.fromEntries(["slug", "name", "rest_base", "hierarchical", "has_archive", "viewable", "supports", "taxonomies", "visibility"].filter((f) => t[f] !== undefined).map((f) => [f, t[f]]))];
+	})));
 	const candidateTypes = [...new Set([...probe.post_types.map((t) => t.name), ...analyze.post_types.map((t) => t.name), ...Object.keys(wpTypes ?? {}), ...EXTRA_TYPES])].filter((t) => !SKIP_TYPES.has(t));
 	reporter.emit({ type: "step:start", step: "Content", total: candidateTypes.length });
 	const byType = new Map<string, ExporterPost[]>();
@@ -202,6 +208,24 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 			if (e instanceof WpHttpError && (e.status === 400 || e.status === 404)) continue; // type not exportable / not registered
 			typeErrors++;
 			reporter.emit({ type: "log", level: "error", message: `content ${type}: ${redact((e as Error).message, creds)}` });
+		}
+	}
+	// ACF values over REST (fields with "Show in REST") for entries the Exporter returned without its `acf` object.
+	if (probe.capabilities?.acf) {
+		for (const [type, items] of byType) {
+			const restBase = (wpTypes?.[type] as { rest_base?: string } | undefined)?.rest_base;
+			if (!restBase || items.every((p) => (p as { acf?: unknown }).acf) || ["page", "post", "attachment"].includes(type)) continue;
+			const byId = new Map(items.map((p) => [p.id, p as ExporterPost & { acf?: unknown }]));
+			for (let page = 1; page <= 50; page++) {
+				const rows = await client.tryGet<{ id: number; acf?: unknown }[]>(`wp/v2/${restBase}`, { context: "edit", _fields: "id,acf", per_page: 100, page, status: "any" }).catch(() => undefined);
+				if (!Array.isArray(rows) || !rows.length) break;
+				for (const r of rows) {
+					const p = byId.get(r.id);
+					if (p && !p.acf && r.acf && typeof r.acf === "object" && !Array.isArray(r.acf)) p.acf = r.acf;
+				}
+				if (rows.length < 100) break;
+			}
+			write(join(exp, "content", `${type}.json`), items);
 		}
 	}
 	const totalPosts = [...byType.values()].reduce((n, l) => n + l.length, 0);
@@ -282,6 +306,7 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	}
 	// ── Plugin exports the owner sent (raw/plugin-exports/, any file name; recognised by content) ─────────────
 	const dropDir = join(raw, "plugin-exports");
+	rmSync(join(raw, "field-definitions"), { recursive: true, force: true });
 	const dropped = existsSync(dropDir) ? readdirSync(dropDir).filter((f) => !f.startsWith(".") && statSync(join(dropDir, f)).isFile()) : [];
 	if (dropped.length) {
 		reporter.emit({ type: "step:start", step: "Plugin exports", total: dropped.length });
@@ -298,6 +323,11 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 			if (r.kind === "redirects") {
 				rules.push(...r.rules);
 				unconverted.push(...r.unconverted);
+				continue;
+			}
+			if (r.kind === "fields") {
+				write(join(raw, "field-definitions", `${r.provider}-${file.replace(/\.[a-z]+$/i, "").replace(/[^a-z0-9_-]+/gi, "-")}.json`), { provider: r.provider, file, data: r.data });
+				notes.push(`Field definitions (${r.provider}) read from ${file}: used by the custom post type mapper.`);
 				continue;
 			}
 			for (const f of r.forms) {

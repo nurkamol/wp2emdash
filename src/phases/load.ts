@@ -19,6 +19,7 @@ import { loadSiteEnv } from "../extract/credentials.js";
 import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
 import { menuItemExtras, POSTS_COLLECTION, productionCanonical, routeToSlug } from "../scaffold/seed.js";
 import type { BlogPlan } from "../transform/blog.js";
+import { type CptCollection, type CptPlan, collectionFields } from "../transform/cpt.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { svgToPng } from "../targets/emdash/svg.js";
 import { type ContentItem, EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
@@ -48,8 +49,51 @@ const mimeOf = (f: string) => MIME[extname(f).toLowerCase()] ?? "application/oct
 const mediaKey = (m: MediaRef) => (m.wpId ? `wp:${m.wpId}` : `url:${m.url}`);
 
 /** Builder posts went to `pages` before the blog milestone; blog sites (ir/blog.json) load every post into `posts`. */
-const COLLECTION: Record<IrPage["kind"], string> = { page: "pages", post: "pages", partial: "site_parts", popup: "popups" };
-const collectionOf = (doc: IrPage, blog: boolean) => (doc.kind === "post" && blog && doc.post ? "posts" : COLLECTION[doc.kind]);
+const COLLECTION: Record<IrPage["kind"], string> = { page: "pages", post: "pages", partial: "site_parts", popup: "popups", entry: "" };
+const collectionOf = (doc: IrPage, blog: boolean) => (doc.kind === "entry" && doc.entry ? doc.entry.collection : doc.kind === "post" && blog && doc.post ? "posts" : COLLECTION[doc.kind]);
+
+/** IR references (`<type>:<wpId>` per field) → EmDash entry ids; unknown ones reported and left out. */
+export function resolveReferences(refs: Record<string, string[]>, idOf: (key: string) => string | undefined, missing: (field: string, key: string) => void): Record<string, string[]> {
+	return Object.fromEntries(
+		Object.entries(refs).map(([field, keys]) => [
+			field,
+			keys.flatMap((k) => {
+				const id = idOf(k);
+				if (!id) missing(field, k);
+				return id ? [id] : [];
+			}),
+		]),
+	);
+}
+
+/** Status on the target for an entry of a custom post type: published (with its date), scheduled, or draft. */
+export function entryAction(doc: IrPage, now = Date.now()): "publish" | "schedule" | "draft" {
+	if (doc.source.status === "publish") return "publish";
+	if (doc.source.status === "future") return doc.entry?.publishedAt && Date.parse(doc.entry.publishedAt) > now ? "schedule" : "publish";
+	return "draft";
+}
+
+/**
+ * An entry's EmDash data: core fields and custom fields, media resolved to EmDash media values (image/file fields,
+ * repeater images, media in JSON fields), rich text through `resolvePostBody`. Reference fields are left out: load writes
+ * them in a second pass, once every entry exists (`references`).
+ */
+export function entryFields(doc: IrPage, col: Pick<CptCollection, "fields" | "core">, media: (m: MediaRef) => { provider: string; id: string; alt?: string } | undefined, bodyMedia: (m: MediaRef) => { id: string; url?: string } | undefined): Record<string, unknown> {
+	const e = doc.entry;
+	if (!e) return {};
+	const isRef = (v: unknown): v is MediaRef => !!v && typeof v === "object" && !Array.isArray(v) && ("wpId" in v || "url" in v) && ["image", "file", "video"].includes((v as { kind?: string }).kind ?? "");
+	const deep = (v: unknown): unknown => (isRef(v) ? (media(v) ?? null) : Array.isArray(v) ? v.map(deep) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, deep(x)])) : v);
+	const out: Record<string, unknown> = {};
+	if (col.core.excerpt && e.excerpt) out.excerpt = e.excerpt;
+	if (col.core.body) out.body = resolvePostBody(e.body, bodyMedia);
+	if (col.core.menuOrder && e.menuOrder !== undefined) out.menu_order = e.menuOrder;
+	for (const f of col.fields) {
+		const v = e.fields[f.slug];
+		if (v === undefined || f.type === "reference") continue;
+		out[f.slug] = f.type === "portableText" ? resolvePostBody(v as unknown[], bodyMedia) : deep(v);
+	}
+	return out;
+}
 
 /**
  * A post body for the target: media marked by transform (`_media`) become EmDash media (image asset id + file URL, or
@@ -190,6 +234,10 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 	async function load(): Promise<GateCheck[]> {
 		const site = siteIr;
 		const blogPlan = readJson<BlogPlan>(join(paths.ir, "blog.json"));
+		// Custom post types (ir/collections.json): their collections, fields, taxonomies and bylines.
+		const cptPlan = readJson<CptPlan>(join(paths.ir, "collections.json"));
+		const cptCols = cptPlan?.collections ?? [];
+		const colBySlug = new Map(cptCols.map((c) => [c.slug, c]));
 		// ── Schema on the target ─────────────────────────────────────────────────
 		try {
 			const [bt, cols] = await Promise.all([api.blockTypesFull(), api.collections()]);
@@ -233,7 +281,28 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					schemaErrors.push(`posts: ${err.code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : err.message}`);
 				}
 			}
-			const missingCols = ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : [])].filter((c) => !cols.some((x) => x.slug === c));
+			// Custom post types: every collection first (reference fields need their target), then the fields of the new ones.
+			const madeCols: CptCollection[] = [];
+			for (const c of cptCols) {
+				if (cols.some((x) => x.slug === c.slug)) continue;
+				try {
+					await api.createCollection({ slug: c.slug, label: c.label, labelSingular: c.labelSingular, description: c.description, supports: ["drafts", "revisions", "preview", ...(c.routable ? ["seo", "search"] : [])], ...(c.routable ? { urlPattern: "/{slug}" } : { routable: false }), hasSeo: c.routable, sortOrder: c.sortOrder });
+					cols.push({ slug: c.slug });
+					madeCols.push(c);
+				} catch (e) {
+					const err = e as EmDashHttpError;
+					schemaErrors.push(`${c.slug}: ${err.code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : err.message}`);
+				}
+			}
+			for (const c of madeCols) {
+				try {
+					for (const f of collectionFields(c, BLOCK_TYPES.map((b) => b.slug))) await api.createField(c.slug, { ...f });
+					schemaChanges.push(`collection ${c.slug} created`);
+				} catch (e) {
+					schemaErrors.push(`${c.slug} fields: ${(e as Error).message}`);
+				}
+			}
+			const missingCols = ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.map((c) => c.slug)].filter((c) => !cols.some((x) => x.slug === c));
 			check("schema", "Section library in sync and collections present on the target", schemaErrors.length === 0 && missingCols.length === 0, [...schemaErrors.slice(0, 4), ...missingCols.map((c) => `collection ${c} missing`)].join("; ") || (schemaChanges.length ? schemaChanges.join(", ") : `${bt.length} block types up to date`));
 			if (schemaErrors.length || missingCols.length) return checks;
 		} catch (e) {
@@ -244,7 +313,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 
 		// ── Inputs ───────────────────────────────────────────────────────────────
 		const loadDir = (d: string) => (existsSync(join(paths.ir, d)) ? readdirSync(join(paths.ir, d)).filter((f) => f.endsWith(".json")).map((f) => readJson<IrPage>(join(paths.ir, d, f)) as IrPage) : []);
-		const docs: IrPage[] = [...loadDir("pages"), ...loadDir("posts"), ...site.partials.map((p) => readJson<IrPage>(join(paths.ir, p.file)) as IrPage), ...site.popups.map((p) => readJson<IrPage>(join(paths.ir, p.file)) as IrPage)].filter(Boolean);
+		const docs: IrPage[] = [...loadDir("pages"), ...loadDir("posts"), ...cptCols.flatMap((c) => loadDir(`entries/${c.slug}`)), ...site.partials.map((p) => readJson<IrPage>(join(paths.ir, p.file)) as IrPage), ...site.popups.map((p) => readJson<IrPage>(join(paths.ir, p.file)) as IrPage)].filter(Boolean);
 		const manifest = readJson<MediaEntry[]>(join(paths.raw, "media-manifest.json")) ?? [];
 		const byWpId = new Map(manifest.filter((m) => m.id && m.file).map((m) => [m.id as number, m]));
 		const mapFile = join(paths.root, "load", `id-map.${target}.json`);
@@ -269,7 +338,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			if (("wpId" in o || "url" in o) && (o.kind === "image" || o.kind === "video" || o.kind === "file")) refs.set(mediaKey(o as MediaRef), o as MediaRef);
 			else for (const x of Object.values(o)) collect(x);
 		};
-		for (const d of docs) collect([d.sections, d.featuredImage, d.post?.body ?? []]);
+		for (const d of docs) collect([d.sections, d.featuredImage, d.post?.body ?? [], d.entry?.fields ?? {}, d.entry?.body ?? []]);
 		for (const b of blogPlan?.bylines ?? []) if (b.avatar) refs.set(mediaKey(b.avatar), b.avatar);
 		// Social sharing image (og:image from the SEO plugin): uploaded like any other picture and set as the page's SEO image.
 		const uploadPath = (u: string) => /\/(?:wp-content\/uploads|storage)\/(.+)$/.exec(u.split(/[?#]/)[0] ?? "")?.[1]?.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/i, "").toLowerCase();
@@ -435,12 +504,59 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				check("bylines", "Bylines from the WordPress authors on the target (no user accounts)", bylineErrors.length === 0, bylineErrors.join("; ") || `${blogPlan.bylines.length} bylines (${bylinesCreated} created)`);
 			}
 		}
+		// ── Custom post types: taxonomies only they use (terms parents first), shared blog taxonomies, bylines ──────
+		if (cptPlan && (cptPlan.taxonomies.length || cptCols.some((c) => c.taxonomies.some((t) => t.shared)))) {
+			const taxErrors: string[] = [];
+			let termsCreated = 0;
+			try {
+				const defs = await api.taxonomies();
+				for (const t of cptPlan.taxonomies) {
+					try {
+						const def = defs.find((d) => d.name === t.name);
+						if (!def) await api.createTaxonomy({ name: t.name, label: t.label, labelSingular: t.labelSingular, hierarchical: t.hierarchical, collections: t.collections });
+						else if (t.collections.some((c) => !def.collections.includes(c))) await api.updateTaxonomy(t.name, { collections: [...new Set([...def.collections, ...t.collections])] });
+						const have = new Map((await api.terms(t.name)).map((x) => [x.slug, x]));
+						for (const term of t.terms) {
+							if (have.has(term.slug)) continue;
+							const parentId = term.parent ? have.get(term.parent)?.id : undefined;
+							have.set(term.slug, await api.createTerm(t.name, { slug: term.slug, label: term.label, ...(parentId ? { parentId } : {}), ...(term.description ? { description: term.description } : {}) }));
+							termsCreated++;
+						}
+					} catch (e) {
+						taxErrors.push(`${t.name}: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs content:write (or taxonomies:manage)" : (e as Error).message}`);
+					}
+				}
+				// A blog taxonomy (category, tag…) a post type uses too: add the collection to it.
+				for (const c of cptCols) {
+					for (const t of c.taxonomies.filter((x) => x.shared)) {
+						const def = (await api.taxonomies()).find((d) => d.name === t.name);
+						if (def && !def.collections.includes(c.slug)) await api.updateTaxonomy(t.name, { collections: [...def.collections, c.slug] }).catch((e: Error) => taxErrors.push(`${t.name} + ${c.slug}: ${e.message}`));
+					}
+				}
+			} catch (e) {
+				taxErrors.push((e as Error).message);
+			}
+			check("cpt-taxonomies", "Taxonomies of the custom post types and their terms on the target", taxErrors.length === 0, taxErrors.slice(0, 4).join("; ") || `${cptPlan.taxonomies.map((t) => `${t.name} ${t.terms.length}`).join(", ") || "shared with the blog"} (${termsCreated} terms created)`);
+		}
+		if (cptPlan?.bylines.length) {
+			const bylineErrors: string[] = [];
+			try {
+				const have = new Map((await api.bylines()).map((b) => [b.slug, b]));
+				for (const b of cptPlan.bylines) {
+					const known = have.get(b.slug);
+					bylineIds.set(b.slug, known ? known.id : (await api.createByline({ slug: b.slug, displayName: b.displayName, ...(b.bio ? { bio: b.bio } : {}), isGuest: true })).id);
+				}
+			} catch (e) {
+				bylineErrors.push((e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the admin scope (bylines live under /_emdash/api/admin/bylines)" : (e as Error).message);
+			}
+			check("cpt-bylines", "Bylines of custom post type authors on the target (no user accounts)", bylineErrors.length === 0, bylineErrors.join("; ") || `${cptPlan.bylines.length} bylines`);
+		}
 		const postMedia = (m: MediaRef) => idMap.media[mediaKey(m)];
 
 		// ── Content ──────────────────────────────────────────────────────────────
 		reporter.emit({ type: "step:start", step: "Content", total: docs.length });
 		const existingByCollection = new Map<string, Awaited<ReturnType<typeof api.list>>>();
-		for (const c of ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : [])]) existingByCollection.set(c, await api.list(c));
+		for (const c of ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.map((x) => x.slug)]) existingByCollection.set(c, await api.list(c));
 		const contentErrors: string[] = [];
 		const drops: string[] = [];
 		let created = 0;
@@ -448,14 +564,20 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		let adopted = 0;
 		for (const [i, doc] of docs.entries()) {
 			const collection = collectionOf(doc, !!blogPlan);
-			const slug = doc.kind === "page" || doc.kind === "post" ? routeToSlug(doc.route?.path ?? doc.source.slug) : doc.source.slug;
+			const slug = doc.kind === "page" || doc.kind === "post" || doc.kind === "entry" ? routeToSlug(doc.route?.path ?? doc.source.slug) : doc.source.slug;
+			const col = doc.kind === "entry" ? colBySlug.get(collection) : undefined;
 			const key = `${doc.source.type}:${doc.source.wpId}`;
 			reporter.emit({ type: "step:progress", step: "Content", done: i + 1, total: docs.length, item: `${collection}/${slug}` });
 			try {
 				const sections = fixLinks(doc.sections) as Section[];
 				const content = sections.map((s, j) => sectionToBlock(s, blockKey(doc.source.slug, j, s.type), resolver, (d) => drops.push(`${slug} ${s.type}#${j}: ${d.join(", ")}`)));
-				const data: Record<string, unknown> = { title: doc.title, content };
+				const data: Record<string, unknown> = col ? { title: doc.title, ...(col.core.sections ? { content } : {}) } : { title: doc.title, content };
 				const isPost = collection === "posts" && !!doc.post;
+				if (col) {
+					Object.assign(data, fixLinks(entryFields(doc, col, resolver, postMedia)));
+					const featured = col.core.featuredImage ? resolver(doc.featuredImage) : undefined;
+					if (featured) data.featured_image = featured;
+				}
 				if (isPost && doc.post) {
 					data.body = fixLinks(resolvePostBody(doc.post.body, postMedia));
 					if (doc.post.excerpt) data.excerpt = doc.post.excerpt;
@@ -474,7 +596,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				// (a custom SEO title, with or without the site name).
 				const stripped = doc.seo.title?.replace(new RegExp(`\\s*[${sep}]\\s*${site.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`), "").trim();
 				const seoTitle = stripped && stripped !== doc.title.trim() ? doc.seo.title?.trim() : stripped;
-				const seo = doc.kind === "page" || doc.kind === "post" ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: productionCanonical(doc.seo.canonical, siteHosts, config.target.productionUrl) } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
+				const seo = doc.kind === "page" || doc.kind === "post" || (col?.routable && doc.kind === "entry") ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: productionCanonical(doc.seo.canonical, siteHosts, config.target.productionUrl) } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
 					const r = ogRef(doc);
 					// The file path, not the media id: EmDash expands a bare id to /media/file/<id>, which 404s (files are served by storage key).
 					const url = r ? idMap.media[mediaKey(r)]?.url : undefined;
@@ -493,7 +615,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					}
 				}
 				// Posts: bylines (byline ids), term assignments (taxonomy → term slugs) and the WordPress publish date.
-				const postExtras = isPost && doc.post ? { bylines: doc.post.bylines.flatMap((b) => (bylineIds.get(b) ? [{ bylineId: bylineIds.get(b) as string }] : [])), taxonomies: doc.post.terms, ...(doc.post.publishedAt && doc.source.status === "publish" ? { publishedAt: doc.post.publishedAt } : {}) } : {};
+				const postExtras = isPost && doc.post ? { bylines: doc.post.bylines.flatMap((b) => (bylineIds.get(b) ? [{ bylineId: bylineIds.get(b) as string }] : [])), taxonomies: doc.post.terms, ...(doc.post.publishedAt && doc.source.status === "publish" ? { publishedAt: doc.post.publishedAt } : {}) } : doc.entry ? { ...(doc.entry.bylines.length ? { bylines: doc.entry.bylines.flatMap((b) => (bylineIds.get(b) ? [{ bylineId: bylineIds.get(b) as string }] : [])) } : {}), ...(Object.keys(doc.entry.terms).length ? { taxonomies: doc.entry.terms } : {}), ...(doc.entry.publishedAt && doc.source.status === "publish" ? { publishedAt: doc.entry.publishedAt } : {}) } : {};
 				if (entryId) {
 					const cur = await api.get(collection, entryId);
 					await api.update(collection, entryId, { data, slug, ...(seo ? { seo } : {}), ...postExtras, ...(cur._rev ? { _rev: cur._rev } : {}) });
@@ -505,9 +627,10 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				}
 				idMap.content[key] = { collection, id: entryId, slug };
 				saveMap();
-				const action = isPost ? postAction(doc, overrides.protectedPosts?.as) : doc.source.status === "publish" ? "publish" : "draft";
-				if (action === "publish") await api.publish(collection, entryId, isPost ? doc.post?.publishedAt : undefined);
-				else if (action === "schedule" && doc.post?.publishedAt) await api.schedule(collection, entryId, doc.post.publishedAt);
+				const action = isPost ? postAction(doc, overrides.protectedPosts?.as) : doc.entry ? entryAction(doc) : doc.source.status === "publish" ? "publish" : "draft";
+				const at = isPost ? doc.post?.publishedAt : doc.entry?.publishedAt;
+				if (action === "publish") await api.publish(collection, entryId, isPost || doc.entry ? at : undefined);
+				else if (action === "schedule" && at) await api.schedule(collection, entryId, at);
 				else {
 					const cur = await api.get(collection, entryId);
 					if (cur.status === "published") await api.unpublish(collection, entryId);
@@ -519,6 +642,27 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		reporter.emit({ type: "step:end", step: "Content", ok: contentErrors.length === 0, detail: `${created} created, ${updated} updated${adopted ? `, ${adopted} adopted` : ""}` });
 		for (const d of drops) reporter.emit({ type: "log", level: "info", message: `not stored (no matching field): ${d}` });
 		check("content", "Every IR document written to the target", contentErrors.length === 0, contentErrors.slice(0, 5).join("; ") || `${docs.length} documents (${created} created, ${updated} updated)`);
+
+		// ── References (custom post types): a second pass, now that every entry has its EmDash id ──────────────
+		const withRefs = docs.filter((d) => d.entry && Object.keys(d.entry.references).length);
+		if (withRefs.length) {
+			const refErrors: string[] = [];
+			let links = 0;
+			for (const d of withRefs) {
+				const entry = idMap.content[`${d.source.type}:${d.source.wpId}`];
+				if (!entry) continue; // reported by `content`
+				const references = resolveReferences(d.entry?.references ?? {}, (k) => idMap.content[k]?.id, (field, k) => refErrors.push(`${entry.collection}/${entry.slug} ${field} → ${k}: not on the target (not migrated)`));
+				links += Object.values(references).flat().length;
+				try {
+					await api.update(entry.collection, entry.id, { references });
+					// The links are part of the entry: publish again so the live version carries them.
+					if (entryAction(d) === "publish") await api.publish(entry.collection, entry.id, d.entry?.publishedAt);
+				} catch (e) {
+					refErrors.push(`${entry.collection}/${entry.slug}: ${(e as Error).message}`);
+				}
+			}
+			check("references", "Reference fields and parents point at the migrated entries", refErrors.length === 0, refErrors.slice(0, 5).join("; ") || `${links} links in ${withRefs.length} entries`);
+		}
 
 		// ── Menus & settings ─────────────────────────────────────────────────────
 		const menuErrors: string[] = [];
@@ -674,7 +818,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const dupes: string[] = [];
 		// Posts: the WordPress publish date kept, read back from the target.
 		const dateErrors: string[] = [];
-		for (const c of ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : [])]) {
+		for (const c of ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.map((x) => x.slug)]) {
 			const items = await api.list(c);
 			const expected = docs.filter((d) => collectionOf(d, !!blogPlan) === c).length;
 			if (c === "posts") {
@@ -707,13 +851,13 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 
 		// Every published page renders and shows its first heading.
 		const renderFails: string[] = [];
-		const rendered = docs.filter((x) => (x.kind === "page" && x.source.status === "publish") || (blogPlan && x.kind === "post" && x.post && postAction(x, overrides.protectedPosts?.as) === "publish"));
+		const rendered = docs.filter((x) => (x.kind === "page" && x.source.status === "publish") || (blogPlan && x.kind === "post" && x.post && postAction(x, overrides.protectedPosts?.as) === "publish") || (x.kind === "entry" && x.route && x.source.status === "publish"));
 		for (const d of rendered) {
 			const path = d.route?.path ?? "/";
 			try {
 				const r = await kitFetch(`${api.baseUrl}${path}`, { redirect: "manual" });
 				const html = await r.text();
-				const firstHeading = d.kind === "post" ? d.title : d.sections.flatMap((s) => (Array.isArray((s.fields as { heading?: unknown }).heading) ? ((s.fields as { heading: { children: { text: string }[] }[] }).heading) : [])).flatMap((b) => b.children.map((c) => c.text))[0];
+				const firstHeading = d.kind === "post" || (d.kind === "entry" && !d.sections.length) ? d.title : d.sections.flatMap((s) => (Array.isArray((s.fields as { heading?: unknown }).heading) ? ((s.fields as { heading: { children: { text: string }[] }[] }).heading) : [])).flatMap((b) => b.children.map((c) => c.text))[0];
 				if (r.status !== 200) renderFails.push(`${path} HTTP ${r.status}`);
 				else if (firstHeading && !html.includes(firstHeading.replace(/&/g, "&amp;").slice(0, 30)) && !html.includes(firstHeading.slice(0, 30))) renderFails.push(`${path}: "${firstHeading.slice(0, 30)}" not in HTML`);
 			} catch (e) {
@@ -721,7 +865,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			}
 		}
 		reporter.emit({ type: "step:end", step: "Verify target", ok: renderFails.length === 0 });
-		check("render", "Every published page renders on the target", renderFails.length === 0, renderFails.slice(0, 6).join("; ") || `${rendered.filter((x) => x.kind === "page").length} pages${blogPlan ? `, ${rendered.filter((x) => x.kind === "post").length} posts` : ""}`);
+		check("render", "Every published page renders on the target", renderFails.length === 0, renderFails.slice(0, 6).join("; ") || `${rendered.filter((x) => x.kind === "page").length} pages${blogPlan ? `, ${rendered.filter((x) => x.kind === "post").length} posts` : ""}${cptCols.length ? `, ${rendered.filter((x) => x.kind === "entry").length} entries` : ""}`);
 		return checks;
 	}
 }

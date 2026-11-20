@@ -10,6 +10,7 @@
  * Tools → Export, Fluent Forms JSON, Redirection JSON, Rank Math .htaccess/Nginx, Yoast CSV). Check a parser against the
  * first real file a client sends and add that case to the fixtures.
  */
+import { isAcfExport, isMetaBoxExport, isPodsExport } from "../transform/cpt-fields.js";
 import type { FormDefinitionOut, FormFieldOut } from "../scaffold/forms.js";
 
 type Obj = Record<string, unknown>;
@@ -26,7 +27,7 @@ const AUTOCOMPLETE: Record<string, string> = { first_name: "given-name", last_na
 export interface PluginExportSpec {
 	id: string;
 	name: string;
-	kind: "forms" | "redirects";
+	kind: "forms" | "redirects" | "fields";
 	/** Matched against the audit's plugin names and form providers. */
 	match: RegExp;
 	/** Extract already reads this plugin over REST when the app password is set: the file is only a fallback. */
@@ -43,6 +44,9 @@ export const PLUGIN_EXPORTS: PluginExportSpec[] = [
 	{ id: "formidable", name: "Formidable Forms", kind: "forms", match: /formidable/i, steps: "Formidable → Import/Export → Export → Forms (.xml) — rebuilt by hand from the file" },
 	{ id: "redirection", name: "Redirection", kind: "redirects", match: /^redirection$|redirection plugin|\bredirection\/v1/i, steps: "Tools → Redirection → Import/Export → Export: “Everything”, format “JSON” → Download" },
 	{ id: "rank-math-redirects", name: "Rank Math redirections", kind: "redirects", match: /rank[- ]?math/i, steps: "Rank Math → Redirections → Export → “Apache (.htaccess)” (or Nginx) — only if the Redirections module is on" },
+	{ id: "acf-field-groups", name: "Advanced Custom Fields field groups", kind: "fields", match: /advanced[- ]custom[- ]fields|^acf\b|\bacf pro\b/i, automatic: true, steps: "Custom Fields → Tools → Export Field Groups → select all → Export As JSON (gives the custom post type mapper repeater sub-fields, choices and relationship targets)" },
+	{ id: "meta-box", name: "Meta Box field groups", kind: "fields", match: /meta[- ]?box/i, steps: "Meta Box → Custom Fields → select all field groups → Bulk actions: Export (.json)" },
+	{ id: "pods", name: "Pods", kind: "fields", match: /^pods\b|pods framework/i, steps: "Pods Admin → Components → turn on Migrate: Packages → Pods Admin → Migrate: Packages → Export → select all → Export (.json)" },
 	{ id: "yoast-redirects", name: "Yoast SEO Premium redirects", kind: "redirects", match: /yoast/i, steps: "Yoast SEO → Redirects → Import/Export → Export redirects (.csv) — Premium only" },
 ];
 
@@ -424,6 +428,8 @@ export function parseRedirectCsv(text: string, hosts: string[], from = "csv"): {
 export type Recognised =
 	| { kind: "forms"; provider: string; forms: ImportedForm[] }
 	| { kind: "redirects"; provider: string; rules: RedirectRule[]; unconverted: Unconverted[] }
+	/** Custom field definitions (ACF field groups, Meta Box, Pods): copied to raw/field-definitions/ for the CPT mapper. */
+	| { kind: "fields"; provider: "acf" | "metabox" | "pods"; data: unknown }
 	| { kind: "unknown"; reason: string };
 
 export function recognise(fileName: string, content: string, hosts: string[]): Recognised {
@@ -446,6 +452,9 @@ export function recognise(fileName: string, content: string, hosts: string[]): R
 			const r = parseRedirection(json, hosts);
 			return { kind: "redirects", provider: "redirection", ...r };
 		}
+		if (isAcfExport(json)) return { kind: "fields", provider: "acf", data: json };
+		if (isPodsExport(json)) return { kind: "fields", provider: "pods", data: json };
+		if (isMetaBoxExport(json)) return { kind: "fields", provider: "metabox", data: json };
 		const list = arr(json).map(o);
 		if (list.some((f) => f.form_fields !== undefined)) return { kind: "forms", provider: "fluent-forms", forms: parseFluentFormsExport(json) };
 		if (list.some((f) => f.fields && f.settings && (o(f.settings).form_title !== undefined || o(f.settings).submit_text !== undefined))) return { kind: "forms", provider: "wpforms", forms: parseWpForms(json) };

@@ -227,7 +227,7 @@ describe("transform phase: content types, Additional CSS, WordPress-URL rules", 
 		expect(checks.find((c) => c.id === "content-types-handled")).toMatchObject({ ok: false, detail: "3 need a decision (coverage report → Content types; overrides.ts contentTypes / taxonomies / authors): portfolio (1), taxonomy category (1), authors Admin (1)" });
 		expect(checks.find((c) => c.id === "custom-css")).toMatchObject({ ok: false });
 		const md = readFileSync(join(paths.reports, "transform", "coverage.md"), "utf8");
-		expect(md).toMatch(/## Content types[\s\S]*\| type \| portfolio \| 1 \| 1 \| ❌ undecided \| no collection for this type \| `\/portfolio\/project-a\/` \|/);
+		expect(md).toMatch(/## Content types[\s\S]*\| type \| portfolio \| 1 \| 1 \| ❌ undecided \| no collection for this type; proposed: \{ as: "collection" \} \(the Exporter does not list it as a public type\), "pages" or "skip" \| `\/portfolio\/project-a\/` \|/);
 		expect(md).toMatch(/## Additional CSS \(Customizer\)[\s\S]*`\.site-header \.logo img`/);
 		expect(md).toMatch(/## WordPress URLs[\s\S]*\| feed \| 301 → \/feed\/ \| default \|/);
 		const plan = JSON.parse(readFileSync(join(paths.ir, "wp-urls.json"), "utf8"));

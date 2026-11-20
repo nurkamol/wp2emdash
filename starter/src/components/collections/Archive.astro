@@ -1,0 +1,80 @@
+---
+/**
+ * The archive of a collection migrated from a WordPress custom post type (its `has_archive` address), or a term archive
+ * of one of its taxonomies: heading, intro, a card per entry (featured image, title, excerpt), numbered pages.
+ */
+import { Image } from "emdash/ui";
+import site from "../../site.config.json";
+import { pageHref } from "../../utils/blog";
+import { entryHref } from "../../utils/collections";
+import type { CollectionEntry } from "../../utils/collections-data";
+
+interface Props {
+	heading: string;
+	intro?: string | null;
+	eyebrow?: string;
+	entries: CollectionEntry[];
+	/** The listing's first-page address, current page and whether there is a next one. */
+	listing: string;
+	page: number;
+	hasMore: boolean;
+}
+const { heading, intro, eyebrow, entries, listing, page, hasMore } = Astro.props;
+const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
+---
+
+<section class="section space-normal archive">
+	<div class="container">
+		<header class="archive__header">
+			{eyebrow && <p class="eyebrow">{eyebrow}</p>}
+			<h1 class="heading heading--h1">{heading}</h1>
+			{intro && <p class="lead archive__intro">{intro}</p>}
+		</header>
+		{
+			entries.length ? (
+				<div class="archive__list">
+					{entries.map((e, i) => {
+						const href = entryHref(String(e.data.slug ?? e.id), style);
+						return (
+							<article class="archive-card">
+								{e.data.featured_image && (
+									<a href={href} class="archive-card__media" tabindex="-1" aria-hidden="true">
+										<Image image={e.data.featured_image} sizes="(max-width: 700px) 100vw, 33vw" loading={i === 0 ? "eager" : "lazy"} />
+									</a>
+								)}
+								<h2 class="archive-card__title"><a href={href}>{e.data.title}</a></h2>
+								{typeof e.data.excerpt === "string" && e.data.excerpt.trim() && <p class="archive-card__excerpt">{e.data.excerpt}</p>}
+							</article>
+						);
+					})}
+				</div>
+			) : (
+				<p class="archive__empty">Nothing here yet.</p>
+			)
+		}
+		{
+			(page > 1 || hasMore) && (
+				<nav class="pagination" aria-label="Pages">
+					{page > 1 ? <a class="btn btn--secondary" rel="prev" href={pageHref(listing, page - 1, style)}>Previous</a> : <span />}
+					<span class="pagination__current">Page {page}</span>
+					{hasMore ? <a class="btn btn--secondary" rel="next" href={pageHref(listing, page + 1, style)}>Next</a> : <span />}
+				</nav>
+			)
+		}
+	</div>
+</section>
+
+<style>
+	.archive__header { margin-bottom: clamp(1.5rem, 4vw, 3rem); }
+	.archive__intro { margin-top: 0.5rem; max-width: 60ch; }
+	.archive__list { display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
+	.archive-card { display: grid; gap: 0.75rem; align-content: start; }
+	.archive-card__media { display: block; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radius-media, 0); }
+	.archive-card__media :global(img) { width: 100%; height: 100%; object-fit: cover; }
+	.archive-card__title { margin: 0; font-family: var(--font-display, inherit); font-size: var(--font-size-h4, 1.35rem); line-height: 1.25; }
+	.archive-card__title a { color: inherit; text-decoration: none; }
+	.archive-card__title a:hover, .archive-card__title a:focus-visible { text-decoration: underline; }
+	.archive-card__excerpt { margin: 0; }
+	.pagination { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: clamp(2rem, 5vw, 4rem); }
+	.archive__empty { opacity: 0.8; }
+</style>

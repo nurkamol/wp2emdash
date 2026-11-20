@@ -136,7 +136,8 @@ export class EmDashApi {
 	async create(collection: string, input: { data: Record<string, unknown>; slug?: string; seo?: Record<string, unknown>; bylines?: { bylineId: string }[]; taxonomies?: Record<string, string[]>; publishedAt?: string }): Promise<ContentItem> {
 		return (await this.request<{ item: ContentItem }>("POST", `/content/${encodeURIComponent(collection)}`, input)).item;
 	}
-	async update(collection: string, id: string, input: { data?: Record<string, unknown>; slug?: string; seo?: Record<string, unknown>; _rev?: string; bylines?: { bylineId: string }[]; taxonomies?: Record<string, string[]>; publishedAt?: string }): Promise<ContentItem> {
+	/** `references`: reference field slug → entry ids, in order (EmDash writes them as relation links; emdash 1.5 contentUpdateBody). */
+	async update(collection: string, id: string, input: { data?: Record<string, unknown>; slug?: string; seo?: Record<string, unknown>; _rev?: string; bylines?: { bylineId: string }[]; taxonomies?: Record<string, string[]>; publishedAt?: string; references?: Record<string, string[]> }): Promise<ContentItem> {
 		return (await this.request<{ item: ContentItem }>("PUT", `/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}`, input)).item;
 	}
 	/** `publishedAt` backdates the publish (migration); EmDash requires content:publish_any (Editor role) for it. */
@@ -162,6 +163,10 @@ export class EmDashApi {
 	}
 	async createTaxonomy(input: { name: string; label: string; labelSingular?: string; hierarchical?: boolean; collections?: string[] }): Promise<void> {
 		await this.request("POST", "/taxonomies", input);
+	}
+	/** PUT /taxonomies/{name}: e.g. add a collection to an existing taxonomy (emdash 1.5 updateTaxonomyDefBody). */
+	async updateTaxonomy(name: string, input: { label?: string; labelSingular?: string; collections?: string[] }): Promise<void> {
+		await this.request("PUT", `/taxonomies/${encodeURIComponent(name)}`, input);
 	}
 	async terms(taxonomy: string): Promise<EmDashTerm[]> {
 		return (await this.request<{ terms: EmDashTerm[] }>("GET", `/taxonomies/${encodeURIComponent(taxonomy)}/terms?includeCounts=false`)).terms;

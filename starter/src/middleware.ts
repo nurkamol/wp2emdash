@@ -202,8 +202,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (context.url.pathname.startsWith("/_emdash") || context.url.pathname === "/_image") return response;
 	if (/^\/sitemap(?:-[\w-]+)?\.xml$/.test(context.url.pathname) && response.ok) {
 		let xml = (await response.text()).replace(/<loc>([^<]+)<\/loc>/g, (_m, loc: string) => `<loc>${fixSitemapLoc(loc.trim())}</loc>`);
-		// Blog sites: the archives sitemap (posts page, category/tag/author archives; pages/sitemap/archives.xml.ts) joins the index.
-		if ((site as { blog?: unknown }).blog && context.url.pathname === "/sitemap.xml" && xml.includes("</sitemapindex>")) {
+		// Blog sites and collection archives: the archives sitemap (posts page, category/tag/author archives, collection and
+		// term archives; pages/sitemap/archives.xml.ts) joins the index.
+		if (((site as { blog?: unknown }).blog || ((site as { collections?: { archive?: string; taxonomies: unknown[] }[] }).collections ?? []).some((c) => c.archive || c.taxonomies.length)) && context.url.pathname === "/sitemap.xml" && xml.includes("</sitemapindex>")) {
 			const origin = /<loc>(https?:\/\/[^/<]+)/.exec(xml)?.[1] ?? context.url.origin;
 			xml = xml.replace("</sitemapindex>", `  <sitemap>\n    <loc>${origin}/sitemap/archives.xml</loc>\n  </sitemap>\n</sitemapindex>`);
 		}

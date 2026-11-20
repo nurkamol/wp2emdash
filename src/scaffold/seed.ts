@@ -7,6 +7,7 @@ import type { IrMenuItem, IrPage, IrSite, MediaRef } from "../ir/schema.js";
 import { BLOCK_TYPES, SECTION_SLUGS } from "../starter/library.js";
 import { blockKey, type MediaResolver, sectionToBlock } from "../targets/emdash/blocks.js";
 import type { BlogPlan } from "../transform/blog.js";
+import { type CptPlan, collectionFields } from "../transform/cpt.js";
 import type { FormDefinitionOut } from "./forms.js";
 
 export interface MediaInfo {
@@ -85,6 +86,8 @@ export interface SeedInput {
 	onDrop?: (msg: string) => void;
 	/** Blog sites only (ir/blog.json): the posts collection, taxonomies, bylines and the posts. */
 	blog?: { plan: BlogPlan; posts: IrPage[] };
+	/** Custom post types (ir/collections.json): their collections, taxonomies, bylines and entries. */
+	collections?: { plan: CptPlan; entries: IrPage[] };
 }
 
 /**
@@ -172,6 +175,20 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 		seed.taxonomies = i.blog.plan.taxonomies.map((t) => ({ name: t.name, label: t.label, labelSingular: t.labelSingular, hierarchical: t.hierarchical, collections: ["posts"], terms: t.terms.map((x) => ({ slug: x.slug, label: x.label, ...(x.description ? { description: x.description } : {}), ...(x.parent ? { parent: x.parent } : {}) })) }));
 		if (i.blog.plan.bylines.length) seed.bylines = i.blog.plan.bylines.map((b) => ({ id: bylineId(b.slug), slug: b.slug, displayName: b.displayName, ...(b.bio ? { bio: b.bio } : {}), isGuest: true }));
 	}
+	// Custom post types: their collections after pages (and posts), before the site parts; their taxonomies and bylines.
+	if (i.collections?.plan.collections.length) {
+		const cols = seed.collections as Record<string, unknown>[];
+		const at = cols.findIndex((c) => c.slug === "site_parts");
+		cols.splice(at, 0, ...cptSeedCollections(i.collections.plan));
+		for (const [n, c] of cols.entries()) c.sortOrder = n + 1;
+		const taxes = (seed.taxonomies ?? []) as { name: string; collections: string[] }[];
+		for (const c of i.collections.plan.collections) for (const t of c.taxonomies.filter((x) => x.shared)) taxes.find((x) => x.name === t.name)?.collections.push(c.slug);
+		taxes.push(...i.collections.plan.taxonomies.map((t) => ({ name: t.name, label: t.label, labelSingular: t.labelSingular, hierarchical: t.hierarchical, collections: t.collections, terms: t.terms.map((x) => ({ slug: x.slug, label: x.label, ...(x.description ? { description: x.description } : {}), ...(x.parent ? { parent: x.parent } : {}) })) })));
+		if (taxes.length) seed.taxonomies = taxes;
+		const bylines = (seed.bylines ?? []) as unknown[];
+		bylines.push(...i.collections.plan.bylines.map((b) => ({ id: bylineId(b.slug), slug: b.slug, displayName: b.displayName, ...(b.bio ? { bio: b.bio } : {}), isGuest: true })));
+		if (bylines.length) seed.bylines = bylines;
+	}
 	if (i.includeContent) {
 		seed.content = {
 			pages: i.pages.map((p) => ({ id: routeToSlug(p.route?.path ?? p.source.slug), slug: routeToSlug(p.route?.path ?? p.source.slug), status: p.source.status === "publish" ? "published" : "draft", data: { title: p.title, content: blocksOf(p, i.media) } })),
@@ -193,7 +210,80 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 						}),
 					}
 				: {}),
+			...(i.collections ? cptSeedContent(i.collections, i.media, new Map(i.pages.map((p) => [`page:${p.source.wpId}`, routeToSlug(p.route?.path ?? p.source.slug)])), (p) => blocksOf(p, i.media)) : {}),
 		};
 	}
 	return seed;
+}
+
+/** Seed collections of the custom post types, in an order where a reference's target comes before it. */
+export function cptSeedCollections(plan: CptPlan): Record<string, unknown>[] {
+	return orderByReferences(plan).map((c) => ({
+		slug: c.slug,
+		label: c.label,
+		labelSingular: c.labelSingular,
+		description: c.description,
+		...(c.routable ? { urlPattern: "/{slug}" } : { routable: false }),
+		supports: ["drafts", "revisions", "preview", ...(c.routable ? ["seo", "search"] : [])],
+		...(c.core.menuOrder ? {} : { dateField: "publishedAt" }),
+		fields: collectionFields(c, SECTION_SLUGS),
+	}));
+}
+
+function orderByReferences(plan: CptPlan): CptPlan["collections"] {
+	const out: CptPlan["collections"] = [];
+	const visit = (c: CptPlan["collections"][number], seen: Set<string>) => {
+		if (out.includes(c) || seen.has(c.slug)) return;
+		seen.add(c.slug);
+		for (const f of c.fields) {
+			const t = plan.collections.find((x) => x.slug === f.targetCollection && x.slug !== c.slug);
+			if (t) visit(t, seen);
+		}
+		out.push(c);
+	};
+	for (const c of plan.collections) visit(c, new Set());
+	return out;
+}
+
+/**
+ * Seed content of the custom post types (local preview): fields with `$media` files from the WordPress site, rich text
+ * with file URLs, references as `$ref:<type>:<wpId>` (EmDash resolves them in file order: a reference to an entry later in
+ * the same collection stays unset in the preview; load writes every reference).
+ */
+export function cptSeedContent(input: { plan: CptPlan; entries: IrPage[] }, media: MediaResolver, pageIds: Map<string, string>, blocks: (p: IrPage) => unknown[]): Record<string, unknown[]> {
+	const ref = (k: string) => `$ref:${pageIds.get(k) ?? k}`;
+	const isRef = (v: unknown): v is MediaRef => !!v && typeof v === "object" && !Array.isArray(v) && ("wpId" in v || "url" in v) && ["image", "file", "video"].includes((v as { kind?: string }).kind ?? "");
+	const deep = (v: unknown): unknown => (isRef(v) ? (media(v) ?? null) : Array.isArray(v) ? v.map(deep) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, deep(x)])) : v);
+	const out: Record<string, unknown[]> = {};
+	for (const c of orderByReferences(input.plan)) {
+		out[c.slug] = input.entries
+			.filter((p) => p.entry?.collection === c.slug)
+			.map((p) => {
+				const e = p.entry as NonNullable<IrPage["entry"]>;
+				const data: Record<string, unknown> = { title: p.title };
+				if (c.core.excerpt && e.excerpt) data.excerpt = e.excerpt;
+				const featured = c.core.featuredImage ? media(p.featuredImage) : undefined;
+				if (featured) data.featured_image = featured;
+				if (c.core.body) data.body = seedPostBody(e.body, media);
+				if (c.core.sections) data.content = blocks(p);
+				if (c.core.menuOrder && e.menuOrder !== undefined) data.menu_order = e.menuOrder;
+				for (const f of c.fields) {
+					const v = e.fields[f.slug];
+					if (f.type === "reference") {
+						const keys = e.references[f.slug] ?? [];
+						if (keys.length) data[f.slug] = f.multiple ? keys.map(ref) : ref(keys[0] as string);
+					} else if (v !== undefined) data[f.slug] = f.type === "portableText" ? seedPostBody(v as unknown[], media) : deep(v);
+				}
+				if (e.references.parent?.[0]) data.parent = ref(e.references.parent[0]);
+				return {
+					id: `${p.source.type}:${p.source.wpId}`,
+					slug: routeToSlug(p.route?.path ?? p.source.slug),
+					status: p.source.status === "publish" ? "published" : "draft",
+					data,
+					...(Object.keys(e.terms).length ? { taxonomies: e.terms } : {}),
+					...(e.bylines.length ? { bylines: e.bylines.map((b) => ({ byline: bylineId(b) })) } : {}),
+				};
+			});
+	}
+	return out;
 }

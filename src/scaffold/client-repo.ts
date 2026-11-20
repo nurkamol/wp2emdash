@@ -64,6 +64,8 @@ export interface ClientRepoInput {
 	stack: Record<string, string>;
 	/** Blog sites: the posts page, archive bases and feed (docs/writing-posts.md). */
 	blog?: { index: string; archives: { label: string; base: string }[]; authorBase?: string; feedFull: boolean };
+	/** Collections made from WordPress custom post types (docs/editing-custom-content.md). */
+	collections?: { label: string; labelSingular: string; slug: string; archive?: string; base?: string; fields: { label: string; type: string }[]; hierarchical: boolean; taxonomies: string[] }[];
 }
 
 const md = (body: string) => `<!-- ${MARKER}. Delete this line to take the file over: later scaffold runs then leave it alone. -->\n${body.trim()}\n`;
@@ -411,7 +413,7 @@ until you publish them, and every page keeps its earlier versions.
 | **Header & footer** | The footer's sections (shown on every page). |
 | **Popups** | Popups such as the booking window, and the buttons or links that open them. |
 | **Menus** | \`primary\` (main menu), \`secondary\` and \`footer\` links. A \`secondary\` item with the CSS class \`button\` is a header button; its title attribute is the label it swaps to on hover. |
-${i.blog ? `| **Posts** | Blog posts, with categories, tags and authors. See [writing-posts.md](writing-posts.md). |\n` : ""}| **Media** | Images and videos. Upload in the library or straight from an image field. |
+${i.blog ? `| **Posts** | Blog posts, with categories, tags and authors. See [writing-posts.md](writing-posts.md). |\n` : ""}${(i.collections ?? []).map((c) => `| **${c.label}** | ${c.labelSingular} entries${c.archive ? ` (listed at \`${c.archive}\`)` : ""}. See [editing-custom-content.md](editing-custom-content.md). |\n`).join("")}| **Media** | Images and videos. Upload in the library or straight from an image field. |
 | **Settings** | Site title, tagline, logo and favicon (**General**), social profiles (**Social Links**), title separator, default social image, Google/Bing verification and robots.txt (**SEO**). Filled in from the old site. |
 
 ## Site settings
@@ -529,6 +531,8 @@ ${b.archives.map((a) => `| \`${a.base}<name>/\` | ${a.label}: every post in it |
 A published post shows up in all of them within a moment: publishing clears the cached pages.
 `);
 	}
+
+	if (i.collections?.length) files["docs/editing-custom-content.md"] = md(customContentGuide(i.collections));
 
 	files["docs/forms-and-integrations.md"] = md(`
 # Forms and integrations
@@ -1034,4 +1038,60 @@ export function writeClientRepo(project: string, files: Record<string, string>):
 		writeFileSync(file, content);
 	}
 	return kept;
+}
+
+const FIELD_HELP: Record<string, string> = {
+	string: "a line of text",
+	text: "plain text, several lines",
+	url: "a web address (https://…, mailto:, tel: or a /path on the site)",
+	number: "a number",
+	integer: "a whole number",
+	boolean: "on or off",
+	datetime: "a date (and time)",
+	select: "one choice from a list",
+	multiSelect: "several choices from a list",
+	portableText: "formatted text (headings, lists, links, images)",
+	image: "an image from the media library",
+	file: "a file from the media library",
+	reference: "a link to another entry (picked from a list)",
+	repeater: "a list of rows; add, remove and reorder rows",
+	json: "data kept exactly as WordPress stored it (edit with care, or ask your developer)",
+};
+
+/** docs/editing-custom-content.md: one section per collection made from a WordPress custom post type. */
+export function customContentGuide(cols: NonNullable<ClientRepoInput["collections"]>): string {
+	const parts = cols.map((c) => {
+		const rows = c.fields.map((f) => `| ${f.label} | ${FIELD_HELP[f.type] ?? f.type} |`).join("\n");
+		return `## ${c.label}
+
+${c.archive ? `Listed at \`${c.archive}\` (newest first${c.hierarchical ? "; entries keep their order and parent" : ""}, numbered pages \`${c.archive}page/2/\`). ` : ""}${c.base ? `Each ${c.labelSingular.toLowerCase()} has its own page at \`${c.base}<slug>/\`.` : `${c.label} have no pages of their own: they are shown inside other pages.`}${c.taxonomies.length ? ` Grouped by ${c.taxonomies.join(", ")} (side panel); each group has its own page.` : ""}
+
+| Field | What it holds |
+|---|---|
+| Title | the ${c.labelSingular.toLowerCase()}'s name or heading |
+${rows}`;
+	});
+	return `
+# Editing custom content
+
+Content that WordPress kept as its own type (team members, services, projects…) is a collection here, with the same
+fields it had in WordPress. Every entry is in the admin under the collection's name, at the same address as before.
+
+## A new entry
+
+1. Open the collection in the admin sidebar → **New**. Fill in the title and the fields (below).
+2. **Slug** is the address. Migrated entries keep their WordPress address as their slug (for example \`team/jane-doe\`);
+   do not change it, or old links break. A new entry's slug should start the same way (\`team/new-person\`) so it
+   appears under the same address.
+3. **Featured image**, **Excerpt** and **Order** (where the collection has them): the picture and short text on the
+   listing, and the position among the others.
+4. **SEO** (side panel): title, description and sharing image, as for pages.
+5. **Publish**. The listing and the entry's page update within a moment (publishing clears the cached pages).
+
+Entries built with a page builder on WordPress keep their sections in **Sections**; new entries only need the fields.
+Fields marked *data kept as WordPress stored it* had no matching field type: they show on the page as a list, and your
+developer can turn them into proper fields later.
+
+${parts.join("\n\n")}
+`;
 }
