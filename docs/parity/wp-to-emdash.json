@@ -5,10 +5,10 @@
 	"summary": {
 		"areas": 110,
 		"inScope": 103,
-		"done": 49,
+		"done": 51,
 		"superseded": 6,
 		"partial": 31,
-		"missing": 17,
+		"missing": 15,
 		"outOfScope": 7
 	},
 	"rows": [
@@ -832,7 +832,7 @@
 			"emdashConfidence": "none",
 			"status": "done",
 			"kit": "Blog sites: RSS 2.0 at /feed/ and /<archive>/feed/ (full text or excerpt per `rss_use_excerpt`, `posts_per_rss` items), autodiscovery links, `?feed=rss2`/`/wp-rss2.php` → /feed/; verify `feeds`. Sites without posts: 301 home, comment feeds 410 (docs/spikes/wp-urls-findings.md)",
-			"gap": "Comment feeds stay 410 (comments not migrated).",
+			"gap": "Comment feeds stay 410 (no comment feed is built, also when comments are migrated).",
 			"effort": "",
 			"risk": "",
 			"priority": "",
@@ -842,14 +842,14 @@
 			"id": "comments",
 			"area": "Comments & users",
 			"feature": "Comments (approved, threaded)",
-			"emdash": "`_emdash_comments` (pending/approved/spam/trash, 1-level threading), moderation, Turnstile; no admin bulk-create REST route found",
+			"emdash": "`_emdash_comments` (pending/approved/spam/trash, 1-level threading), moderation, Turnstile; no API creates a comment with its date and author (public route stamps now; admin routes only moderate; site transfer needs an empty site)",
 			"emdashConfidence": "src",
-			"status": "missing",
-			"kit": "extract writes raw/exporter/comments.json; not loaded",
-			"gap": "Spike the write path (site-transfer `comment` records via `emdash site import`, or EmDash's `importCommentsFromPlugin`); deeper threads flattened (reported); emails never logged.",
-			"effort": "M",
-			"risk": "med",
-			"priority": "P1",
+			"status": "done",
+			"kit": "transform/comments.ts → ir/comments.json (approved; pending by decision; spam/trash/pingbacks/orphans counted; deeper replies flattened); load writes pending rows through the kit's admin-only route (@wp2emdash/comments), then approves through EmDash's bulk moderation (cache purge); id-map, counts per entry; starter list + form; verify `comments` (docs/spikes/comments-findings.md)",
+			"gap": "Author URLs not carried (EmDash 1.5 has no column); comment feeds stay 410; tested on a synthetic blog only.",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "0/2"
 		},
 		{
@@ -858,12 +858,12 @@
 			"feature": "Comment open/closed per post, discussion settings",
 			"emdash": "Per collection: `commentsEnabled`, `commentsModeration`, `commentsClosedAfterDays`",
 			"emdashConfidence": "src",
-			"status": "missing",
-			"kit": "—",
-			"gap": "Map site defaults to collection options; per-post closed state needs a field.",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P2",
+			"status": "done",
+			"kit": "Discussion settings (REST `default_comment_status`, backup options via import-options) → collection settings at load; per-entry `comment_status: closed` → field \"Comments closed\" (form hidden, middleware refuses); registered-users-only and sensitive sites: form off unless decided",
+			"gap": "—",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "0/2"
 		},
 		{
@@ -1662,7 +1662,7 @@
 				"comment-settings"
 			],
 			"effort": "M",
-			"notes": "No admin bulk-create route found; site-transfer `comment` records are the likely path."
+			"notes": "Done 2026-11-21 (docs/spikes/comments-findings.md): kit import route writes pending rows, EmDash's bulk moderation approves; settings per collection; starter list + form; tested on a synthetic blog and a local EmDash."
 		},
 		{
 			"rank": 11,
@@ -1834,7 +1834,6 @@
 		"popups",
 		"social",
 		"404",
-		"comment-settings",
 		"users",
 		"form-entries",
 		"redirects",
