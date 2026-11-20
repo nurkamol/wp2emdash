@@ -35,6 +35,10 @@ default (production) build — no bare binding, so nothing is left for Wrangler 
 `cloudflare.json` → `<env>.session`. Scaffold writes `{ "binding": "SESSION", "id": … }` next to `FORM_OUTBOX` at the top
 level and in `env.staging`, and warns when an environment with a database has no session namespace recorded.
 
+**Since 2026-11-20** sessions are on R2 by default (`sessions-findings.md`): the R2 driver makes the adapter add no
+SESSION KV binding at all, and the KV path above applies only to `sessions: "kv"` and to sites whose sessions bucket is
+not provisioned yet.
+
 ## Go-live token
 
 On the pilot launch the token supplied as the go-live token was the build token itself, and it could read every zone of

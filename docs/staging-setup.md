@@ -42,9 +42,11 @@ pnpm wp2emdash provision <slug> --location enam      # production (the default e
 ```
 
 It creates (or reuses) the database `<slug>-db`, the bucket `<slug>-media`, the form outbox (sites that keep one) and
-the `SESSION` namespace for Astro sessions (`<slug>-session`), and records them, the account and the workers.dev
-address in `sites/<slug>/cloudflare.json`. Scaffold binds `SESSION` explicitly, so the first `wrangler deploy`
-provisions nothing on its own (docs/spikes/M8-findings.md). If the client's domain is in their own Cloudflare account,
+the private bucket `<slug>-sessions` for sign-in sessions (with a lifecycle rule deleting sessions after
+`sessions.days`, default 30; never public), and records them, the account and the workers.dev address in
+`sites/<slug>/cloudflare.json`. Scaffold binds every one of them explicitly, so the first `wrangler deploy` provisions
+nothing on its own (docs/spikes/M8-findings.md, docs/spikes/sessions-findings.md). With `sessions: "kv"` the sessions
+store is the `SESSION` KV namespace (`<slug>-session`) instead. If the client's domain is in their own Cloudflare account,
 production must run there (Worker routes only reach a Worker in the zone's account): see *Client-owned Cloudflare
 accounts* in `cloudflare-api-token.md`.
 
@@ -239,6 +241,14 @@ From then on **content lives in production** and is edited in the admin:
   secrets: it is for code and layout review only — edits made through a preview's admin are real, form messages from
   it are tests, and a change that needs a database migration (an EmDash upgrade) is not previewable this way: check it
   locally, then `pnpm deploy:production` (or opt into staging). `npx wrangler rollback` returns to the previous version.
+- **Moving a live site's sign-in sessions from KV to R2** (sites provisioned before 2026-11-20 keep KV until then; the
+  scaffold warning says so): tell the editors first — the deploy **signs everyone out once**, sessions do not move.
+  `pnpm wp2emdash provision <slug>` (creates `<slug>-sessions` and its lifecycle rule, records it), rerun scaffold,
+  check the diff (`astro.config.mjs`: `cloudflareR2Binding` and `sessionKVBindingName: "SESSIONS"`; `wrangler.jsonc`:
+  `SESSIONS` bucket, no `SESSION` KV), then `pnpm deploy:production` with the owner's approval. Sign in once and check
+  the bucket holds an object. The old `<slug>-session` KV namespace stays, unbound, for a switch back (`sessions:
+  "kv"`); delete it in the dashboard once the site has run on R2 for a while. `npx wrangler rollback` to a version from
+  before the switch goes back to the KV sessions (sign-ins made on R2 are not seen there).
 
 ## 8. Opt-in staging
 
@@ -252,7 +262,7 @@ A second Worker (`<slug>-staging`) with its own D1, R2, KV and secrets. Opt in w
 How:
 
 1. `target.staging: true` in `kit.config.ts` (or `{ enabled: true, protection: "access" | "noindex", host: "staging.example.com" }`).
-2. `pnpm wp2emdash provision <slug> staging --location <loc>` → `<slug>-staging-db`, `<slug>-stg-media`, outbox, `<slug>-staging-session`.
+2. `pnpm wp2emdash provision <slug> staging --location <loc>` → `<slug>-staging-db`, `<slug>-stg-media`, outbox, `<slug>-staging-sessions`.
 3. Rerun scaffold: `wrangler.jsonc` gets `env.staging` (`STAGING=1`, form email only to `email.stagingTo` — or held in
    the outbox without it — and Cloudflare's always-pass Turnstile test keys), package.json the `deploy:staging` scripts.
 4. `( set -a && . ../../../.env && set +a && pnpm deploy:staging )` — `CLOUDFLARE_ENV=staging astro build` (the
@@ -289,7 +299,8 @@ Commands below are for production; add `--wrangler-env staging` (emdash) or `--e
 | verify: `page.goto: net::ERR_TUNNEL_CONNECTION_FAILED` while `curl --resolve` to the pinned address works | The machine routes the browser through a proxy auto-config (VPN or a tailnet DNS such as `100.100.100.100`) that cannot resolve the new host; the pinned addresses do not reach Chromium behind that proxy | Flush the DNS cache (above) and retry once `curl https://<host>/` answers 200, or switch the VPN off for the run. Meanwhile, verify against a local load (`WP2EMDASH_LOAD_TARGET=local` load, then `WP2EMDASH_TARGET=local` verify) to check layout changes. |
 | `/_emdash/setup` returns 404 | Wrong path | The setup is at `/_emdash/admin/setup` |
 | Load fails with `INSUFFICIENT_SCOPE` | The API token lacks a scope | Create a token with the scopes in step 4 |
-| First deploy fails (10001), then every retry fails with `10014` "namespace already exists" | Wrangler auto-provisioned the `SESSION` KV namespace before the deploy failed, leaving `<worker>-session` behind | `pnpm wp2emdash provision <slug> [staging]` (reuses that namespace by title and records it), rerun scaffold so `wrangler.jsonc` binds it, deploy again |
+| Admin shows **"Error — Not authenticated"** at random; Retry often lands on the sign-in page (editors signed out) | Sign-in sessions on Workers KV (the Cloudflare adapter's default, or `sessions: "kv"`): KV is eventually consistent and caches reads at the edge (misses too, 60 s), and Astro replaces a session id it cannot find with a new one | Move sessions to R2 (the kit default): `pnpm wp2emdash provision <slug>` (creates `<slug>-sessions` + its lifecycle rule), rerun scaffold (check `astro.config.mjs` has `cloudflareR2Binding` and `wrangler.jsonc` a `SESSIONS` bucket and no `SESSION` KV), deploy. **Everyone is signed out once** and signs in again. Scaffold warns while a bucket is missing (it stays on KV until every environment has one). docs/spikes/sessions-findings.md |
+| First deploy fails (10001), then every retry fails with `10014` "namespace already exists" | Wrangler auto-provisioned the `SESSION` KV namespace before the deploy failed, leaving `<worker>-session` behind (sites with `sessions: "kv"`, or before their sessions bucket exists) | `pnpm wp2emdash provision <slug> [staging]` (R2 sessions: creates the sessions bucket, after which no SESSION KV binding is needed; `"kv"`: reuses that namespace by title and records it), rerun scaffold so `wrangler.jsonc` binds it, deploy again |
 | A form test on workers.dev did not reach the client | By design: messages from any host but the domain are tests | They go to `email.stagingTo` only; test the client's inbox from the domain after go-live |
 | `versions:upload` prints no *Version Preview URL* | Preview URLs off for the Worker | Check `"preview_urls": true` in `wrangler.jsonc` (scaffold writes it for single-environment sites) and deploy once with it |
 | A setting changed in the admin or through the API (Settings → Email, Site URL, the staging flag) still behaves as before on some requests, e.g. "Email is not configured" right after saving SMTP | Running Worker isolates cache site settings and the email provider choice | Redeploy (`pnpm deploy:<env>` in the project, or `wrangler deploy`): new isolates read the saved settings |

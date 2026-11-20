@@ -28,8 +28,8 @@ Dashboard → **My Profile → API Tokens → Create Token → Create Custom Tok
 |---|---|---|---|---|
 | Account | Account Settings | Read | Resolve the account for Wrangler and `emdash migrate` | scaffold, load |
 | Account | Workers Scripts | Edit | Deploy production (and opt-in staging) Workers; `wrangler versions upload` / `versions deploy` (preview URLs); set Worker secrets (email provider key, encryption key) | load, cutover |
-| Account | Workers KV Storage | Edit | `wp2emdash provision` creates the form outbox and the `SESSION` namespace (Astro sessions, bound explicitly in `wrangler.jsonc`) | load |
-| Account | Workers R2 Storage | Edit | Create the media buckets (with the right location) | load |
+| Account | Workers KV Storage | Edit | `wp2emdash provision` creates the form outbox (and, with `sessions: "kv"`, the `SESSION` namespace for sign-in sessions, bound explicitly in `wrangler.jsonc`) | load |
+| Account | Workers R2 Storage | Edit | Create the media buckets (with the right location) and the private sign-in sessions bucket with its lifecycle (expiry) rule | load |
 | Account | D1 | Edit | Create databases; `emdash migrate` (apply, check, release a stuck lock); Time Travel bookmark before `load --force` into a live site, and `wrangler d1 time-travel restore` | load, cutover |
 | Account | Workers Tail | Read | Live logs while verifying (`wrangler tail`) | verify |
 | Account | Turnstile | Edit | Create the bot-protection widget for the site's forms | load |
