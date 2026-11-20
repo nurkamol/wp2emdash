@@ -1,6 +1,6 @@
 # @wp2emdash/health (experimental) — Site health & monthly report
 
-A built-in wp2emdash plugin for EmDash sites on Cloudflare Workers, on by default in every site the wp2emdash kit
+A PixelKraft plugin for EmDash sites on Cloudflare Workers, on by default in every site the wp2emdash kit
 builds (`health: false` in `kit.config.ts` turns it off). Admins only.
 
 ## What it does

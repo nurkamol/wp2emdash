@@ -146,10 +146,10 @@ describe("Site health plugin", () => {
 describe("kit side", () => {
 	const config = (extra: Record<string, unknown> = {}) => kitConfigSchema.parse({ slug: "acme", name: "Acme", source: { url: ORIGIN }, target: { productionUrl: ORIGIN }, email: { to: ["owner@acme.example"], stagingTo: ["team@agency.example"] }, ...extra });
 	it("kit.config: on by default, health: false turns it off, recipients default to email.to / stagingTo", () => {
-		expect(config().health).toEqual({ brand: "", monthlyReport: true, externalLinks: true });
+		expect(config().health).toEqual({ brand: "Prepared by PixelKraft", monthlyReport: true, externalLinks: true });
 		expect(config({ health: false }).health).toBe(false);
 		const o = healthOptions({ config: config(), productionUrl: ORIGIN, live: false, logo: "/brand/logo.png", colors: { accent: "#123456" } });
-		expect(o).toMatchObject({ alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "", logo: `${ORIGIN}/brand/logo.png` }, live: false });
+		expect(o).toMatchObject({ alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "Prepared by PixelKraft", logo: `${ORIGIN}/brand/logo.png` }, live: false });
 		expect(healthOptions({ config: config({ health: { alertsTo: ["ops@agency.example"], reportTo: ["ceo@acme.example"], brand: "Prepared by Studio X", externalLinks: false } }), productionUrl: ORIGIN, live: true, logo: "/brand/logo.svg" })).toMatchObject({ alertsTo: ["ops@agency.example"], reportTo: ["ceo@acme.example"], brand: { footer: "Prepared by Studio X" }, externalLinks: false });
 		expect(healthOptions({ config: config(), productionUrl: ORIGIN, live: false, logo: "/brand/logo.svg" })?.brand.logo).toBeUndefined();
 		expect(healthOptions({ config: config({ health: false }), productionUrl: ORIGIN, live: false })).toBeUndefined();

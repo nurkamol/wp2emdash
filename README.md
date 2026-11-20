@@ -228,7 +228,7 @@ Load and verify targets: `WP2EMDASH_LOAD_TARGET` / `WP2EMDASH_TARGET` = `local`,
 
 ## Plugin suite
 
-Every migrated site ships with built-in EmDash plugins, native admin pages inside the client's
+Every migrated site ships with PixelKraft plugins — built by PixelKraft as native admin pages inside the client's
 own site (no external service, no extra account). Each is switched in the site's `sites/<slug>/kit.config.ts` and
 takes effect at the next `scaffold`.
 
@@ -289,7 +289,7 @@ scaffold adds (a Worker fetching its own address would skip itself). Details: [p
 
 ### Site health & monthly report
 
-Every site gets **Plugins → Site health** (admins only; `@wp2emdash/health`, a built-in wp2emdash plugin) and a
+Every site gets **Plugins → Site health** (admins only; `@wp2emdash/health`, a PixelKraft plugin) and a
 dashboard widget: overall status (Healthy / Attention / Down), one row per check with its last run and a 14-day
 trend, an incidents timeline, the broken-links table, real-visitor Core Web Vitals, 12 months of reports and the email
 settings. To leave it out, or to change the defaults:
@@ -298,7 +298,7 @@ settings. To leave it out, or to change the defaults:
 // sites/<slug>/kit.config.ts
 health: false,
 // or
-health: { alertsTo: ["ops@agency.example"], reportTo: ["owner@client.example"], brand: "Prepared by Example Agency", externalLinks: true, monthlyReport: true },
+health: { alertsTo: ["ops@agency.example"], reportTo: ["owner@client.example"], brand: "Prepared by PixelKraft", externalLinks: true, monthlyReport: true },
 ```
 
 | Check | How often | How |
@@ -352,7 +352,7 @@ details: [packages/consent/README.md](packages/consent/README.md).
 
 ### Backups & restore
 
-Every site gets **Plugins → Backups** (admins only; `@wp2emdash/backups`, a built-in wp2emdash plugin). Every night
+Every site gets **Plugins → Backups** (admins only; `@wp2emdash/backups`, a PixelKraft plugin). Every night
 (01–03 UTC, a minute fixed per site) the Worker writes a read-only export of the site's content to its own R2 bucket
 under `backups/<yyyy-mm-dd>/` (compressed JSON, a few KB to a few MB): every collection (drafts and trash too),
 revisions, menus, site settings, redirects, sections, widgets, taxonomies, bylines, SEO, the media library's records
@@ -383,7 +383,7 @@ details: [packages/backups/README.md](packages/backups/README.md).
 
 ### Media assistant
 
-Every site gets **Plugins → Media** (editors and admins; `@wp2emdash/media`, a built-in wp2emdash plugin): media
+Every site gets **Plugins → Media** (editors and admins; `@wp2emdash/media`, a PixelKraft plugin): media
 health (size by type, oversized originals, images without alt text and where each is used, unused files, duplicates,
 formats, broken references — from a read-only scan of the database), **Optimize** (resize + re-encode in place with
 the Images binding through EmDash's own Replace, old file kept 30 days, undo), reviewed **alt text suggestions**
@@ -442,6 +442,18 @@ Every message is then kept, marked **Emailed**, **Waiting** or **Failed**, until
 wrote stays in the site for the retention period even after it was emailed. Record it in the site's `decisions.md`;
 on sites with `sensitiveData: true` leave it off unless the owner explicitly asks for an inbox. Details:
 [`packages/forms/README.md`](packages/forms/README.md#configuration-wranglerjsonc-per-environment--environments-do-not-inherit).
+
+### Footer credit
+
+Every migrated site gets a small "Website by [PixelKraft](https://pixelkraft.net)" line in its footer, unless the old footer
+already carried a credit ("website by", "designed by", "developed by"…), so a site never shows two. Change or remove it per site:
+
+```ts
+// sites/<slug>/kit.config.ts
+credit: { text: "Website by", name: "Your Studio", url: "https://your.studio" },
+// or
+credit: false,
+```
 
 ## Environments
 

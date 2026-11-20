@@ -5,6 +5,7 @@
  * an owner-approved step (load, M6).
  */
 import { spawn } from "node:child_process";
+import { footerCredit } from "../scaffold/credit.js";
 import { createHash } from "node:crypto";
 import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
@@ -458,6 +459,11 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const elementorAnimations = readJson<{ entranceAnimations?: number }>(join(paths.reports, "transform", "elementor-design.json"))?.entranceAnimations ?? 0;
 	const entranceMotion = config.motion ?? ((bricksDesignOut?.entranceAnimations ?? 0) >= 3 || elementorAnimations >= 3 ? "calm" : undefined);
 	if (entranceMotion === "calm") (siteConfig as { motion?: string }).motion = "calm";
+	// Footer credit (kit.config credit, default "Website by PixelKraft"): only when the migrated footer has none of its own.
+	const footerFile = site.partials.find((p) => p.role === "footer")?.file;
+	const footerText = JSON.stringify((footerFile ? readJson<IrPage>(join(ir, footerFile)) : undefined)?.sections ?? []);
+	const credit = footerCredit(config.credit, footerText);
+	if (credit) (siteConfig as { credit?: unknown }).credit = credit;
 	// Background videos on phones too (owner choice per site; default: phones keep the picture).
 	if (config.performance.phoneVideo) (siteConfig as { phoneVideo?: boolean }).phoneVideo = true;
 	// Sharing cards (@wp2emdash/og, on by default): fonts as TTF, colours from the tokens, the logo; og: { cards: false } turns them off.

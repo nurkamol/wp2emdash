@@ -176,6 +176,20 @@ export const kitConfigSchema = z.object({
 	 * signed-in editors. With the SEO suite on (seo.panel, the default) this is the starting list: admins add, edit and
 	 * switch trackers in SEO & Analytics → Analytics; with seo: { panel: false } the site loads exactly this list.
 	 */
+	/**
+	 * Footer credit on every migrated site: "Website by PixelKraft" linking to the agency (default). Added only when the
+	 * migrated footer has no credit of its own ("website by", "designed by", "developed by", "powered by"…). false: none.
+	 */
+	credit: z
+		.union([
+			z.literal(false),
+			z.object({
+				text: z.string().min(1).max(40).default("Website by"),
+				name: z.string().min(1).max(60).default("PixelKraft"),
+				url: z.string().url().default("https://pixelkraft.net"),
+			}),
+		])
+		.prefault({}),
 	analytics: z
 		.union([
 			z.literal(false),
@@ -250,8 +264,8 @@ export const kitConfigSchema = z.object({
 				alertsTo: z.array(z.string().email()).optional(),
 				/** Monthly report recipients (the client). Default: email.to. The alert recipients get a copy. */
 				reportTo: z.array(z.string().email()).optional(),
-				/** Footer line of the report and alerts, e.g. "Prepared by <your agency>". Empty (default): no footer line. */
-				brand: z.string().max(120).default(""),
+				/** Footer line of the report and alerts. Default "Prepared by PixelKraft"; set your own, or "" for none. */
+				brand: z.string().max(120).default("Prepared by PixelKraft"),
 				/** Email the monthly report (admins can switch it off on the page too). */
 				monthlyReport: z.boolean().default(true),
 				/**

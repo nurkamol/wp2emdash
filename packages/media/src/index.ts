@@ -1,5 +1,5 @@
 /**
- * @wp2emdash/media — Media Assistant for EmDash on Cloudflare Workers (experimental, 0.x). A built-in wp2emdash plugin,
+ * @wp2emdash/media — Media Assistant for EmDash on Cloudflare Workers (experimental, 0.x). A PixelKraft plugin,
  * on by default in every site the wp2emdash kit builds (`media: false` in kit.config.ts turns it off).
  *
  * Plugins → Media (editors and admins): media health (totals, oversized originals, missing alt text with where each

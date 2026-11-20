@@ -74,6 +74,9 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .space-none { padding-block: 0; }
 .space-compact { padding-block: var(--space-compact); }
 .site-footer .columns__col .actions { margin-top: var(--actions-above, 0.75rem); }
+/* Footer credit (kit.config credit): small, quiet, in the site's own colours. */
+.site-footer .site-credit { margin: 0 auto; padding-block: 0 1.25rem; font-size: 0.8125rem; text-align: center; }
+.site-footer .site-credit a { color: inherit; text-decoration: underline; text-underline-offset: 0.15em; }
 .space-normal { padding-block: var(--space-normal); }
 .space-spacious { padding-block: var(--space-spacious); }
 .section--full { min-height: 100svh; display: grid; align-items: center; }

@@ -1,5 +1,5 @@
 /**
- * @wp2emdash/change-requests — Change Requests for EmDash on Cloudflare Workers (experimental, 0.x). A built-in wp2emdash
+ * @wp2emdash/change-requests — Change Requests for EmDash on Cloudflare Workers (experimental, 0.x). A PixelKraft
  * plugin, on by default in every site the wp2emdash kit builds (`changeRequests: false` in kit.config.ts
  * turns it off).
  *

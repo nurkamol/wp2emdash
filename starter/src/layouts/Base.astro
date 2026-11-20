@@ -48,6 +48,8 @@ const { settings, primary, secondary, footer, popups } = chrome;
 const { block: announcement, later: announcementLater } = announcementState(chrome);
 
 const siteTitle = settings.data?.title?.trim() || site.name;
+/** Footer credit (kit.config credit; scaffold leaves it out when the migrated footer already has one). */
+const siteCredit = (site as { credit?: { text: string; name: string; url: string } }).credit;
 // Sharing image on the host serving this page: before go-live the production domain still serves WordPress, which has
 // no /_emdash/ files, so link previews of the workers.dev or staging address would find no image. og:url and the
 // canonical keep the production address.
@@ -164,6 +166,7 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		</main>
 		<footer class="site-footer">
 			{footer.entry ? <Sections value={footerContent} /> : <p class="container">© {new Date().getFullYear()} {siteTitle}</p>}
+			{siteCredit && <p class="site-credit container">{siteCredit.text} <a href={siteCredit.url}>{siteCredit.name}</a></p>}
 		</footer>
 		<Popups popups={popups.entries as any} />
 		<EmDashBodyEnd page={pageCtx} />
