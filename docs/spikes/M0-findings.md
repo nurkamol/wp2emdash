@@ -72,3 +72,7 @@ Trimming admin locales with a build plugin could bring the Worker near 3 MB, but
 - Workers do not run Node.js. They run workerd (V8 isolates); `nodejs_compat` provides `node:*` modules (Buffer, crypto, streams, AsyncLocalStorage…). The spike uses `compatibility_date: "2026-02-24"` + `nodejs_compat`; scaffold will set the date to the day the project is generated.
 - Build/dev tooling: Node 24.21 (spike). EmDash 1.5 declares `engines.node >=22.16`; the kit standardises on Node 24 (`.nvmrc`, `engines`).
 - Astro: npm latest 7.4.12; EmDash 1.5 peer range `astro >=6.0.0-beta.0`, `@astrojs/react >=5`. The spike ran on Astro 7.4 → latest Astro is supported.
+
+## Taxonomy term list is a tree (2026-11-21)
+
+`GET /_emdash/api/taxonomies/{name}/terms` in EmDash 1.5 returns a nested tree (`children`) when the taxonomy is hierarchical, a flat list otherwise (`handleTermList` → `buildTree`). Code that looks terms up by slug must flatten it first (`flattenTerms` in `src/targets/emdash/api.ts`).

@@ -204,8 +204,9 @@ export class EmDashApi {
 	async updateTaxonomy(name: string, input: { label?: string; labelSingular?: string; collections?: string[] }): Promise<void> {
 		await this.request("PUT", `/taxonomies/${encodeURIComponent(name)}`, input);
 	}
+	/** Every term, flat. EmDash 1.5 answers a hierarchical taxonomy as a tree (children nested), so flatten it. */
 	async terms(taxonomy: string): Promise<EmDashTerm[]> {
-		return (await this.request<{ terms: EmDashTerm[] }>("GET", `/taxonomies/${encodeURIComponent(taxonomy)}/terms?includeCounts=false`)).terms;
+		return flattenTerms((await this.request<{ terms: EmDashTerm[] }>("GET", `/taxonomies/${encodeURIComponent(taxonomy)}/terms?includeCounts=false`)).terms);
 	}
 	async createTerm(taxonomy: string, input: { slug: string; label: string; parentId?: string | null; description?: string }): Promise<EmDashTerm> {
 		return (await this.request<{ term: EmDashTerm }>("POST", `/taxonomies/${encodeURIComponent(taxonomy)}/terms`, input)).term;
@@ -301,6 +302,11 @@ export interface EmDashTerm {
 	label: string;
 	parentId: string | null;
 	description?: string;
+	children?: EmDashTerm[];
+}
+
+export function flattenTerms(terms: EmDashTerm[]): EmDashTerm[] {
+	return terms.flatMap(({ children, ...t }) => [t, ...flattenTerms(children ?? [])]);
 }
 
 export interface EmDashByline {

@@ -12,6 +12,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 - Footer credit: "Website by PixelKraft" on every migrated site whose footer has no credit of its own (`credit` in kit.config; `false` turns it off).
 
+### Fixed
+- Blog load reruns: child categories were created again ("term already exists") because EmDash returns a hierarchical taxonomy as a tree; the term list is now flattened.
+
 ### Changed
 - Site health report footer defaults to "Prepared by PixelKraft"; the kit's plugins are presented as PixelKraft plugins.
 - Form messages (the forms outbox and its admin page) is on by default for sites that are not `sensitiveData`; `forms: { outbox: false }` turns it off.
