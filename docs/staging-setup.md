@@ -120,6 +120,10 @@ password. EmDash never sees that PIN or biometric.
 **Add a second passkey right away** (Settings → Security → Passkeys) on another device or in your
 password manager, so losing one device does not lock you out.
 
+**Passkeys belong to one domain.** A passkey made on the workers.dev address only works there. After the switch to
+the real domain, sign in there with a magic link and add a new passkey in **Settings → Security**
+(`https://<domain>/_emdash/admin/settings/security`); `golive` reminds you. Keep or delete the workers.dev one.
+
 #### Other ways to sign in (optional)
 
 | Method | How to enable |
