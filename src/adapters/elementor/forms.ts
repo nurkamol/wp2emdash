@@ -4,13 +4,17 @@
  * the submit text (`button_text`), the success message (`success_message`).
  * Never copied: recipients (`email_to`, `email_to_cc`, `email_to_bcc`, `email_from`), webhooks, API keys. Actions other
  * than email (`submit_actions`: redirect, mailchimp, webhook, …) become warnings.
+ * Since forms 1.7: `upload` fields (file_sizes MB, file_types, allow_multiple_upload, max_files) become file fields and
+ * `step` fields split the form into steps (titled by the step's label). Elementor Pro forms have no conditional logic of
+ * their own (add-ons that add it are not read).
  */
+import { extensionsFrom, fileField, megabytes, withSteps } from "../../extract/form-logic.js";
 import type { FormDefinitionOut, FormFieldOut } from "../../scaffold/forms.js";
 import { obj, str } from "./site.js";
 
 const TYPE: Record<string, FormFieldOut["type"]> = { text: "text", email: "email", tel: "tel", number: "number", url: "url", textarea: "textarea", select: "select", radio: "radio", checkbox: "checkbox", acceptance: "consent", date: "date" };
 /** Not inputs, or anti-spam the starter replaces with Turnstile: left out without a warning. */
-const SKIP = new Set(["html", "recaptcha", "recaptcha_v3", "honeypot", "step"]);
+const SKIP = new Set(["html", "recaptcha", "recaptcha_v3", "honeypot"]);
 /** Elementor Pro's default success message. */
 export const ELEMENTOR_SUCCESS = "Your submission was successful.";
 
@@ -36,10 +40,26 @@ export function elementorFormToDefinition(id: string, settings: Record<string, u
 	const fields: FormFieldOut[] = [];
 	const used = new Set<string>();
 	const raw = (Array.isArray(settings.form_fields) ? (settings.form_fields as unknown[]) : []).map(obj).filter((f): f is Record<string, unknown> => !!f);
+	// A `step` field starts a step; one before any input titles the first step.
+	const stepTitles: string[] = [];
+	let step = -1;
 	for (const f of raw) {
 		const etype = str(f.field_type) ?? "text";
 		const label = stripHtml(str(f.field_label) ?? "") || str(f.placeholder) || "";
+		if (etype === "step") {
+			step = fields.length || step >= 0 ? step + 1 : 0;
+			stepTitles[step] = label;
+			continue;
+		}
 		if (SKIP.has(etype)) continue;
+		if (etype === "upload") {
+			let name = str(f.custom_id)?.trim() || slug(label) || `file_${fields.length}`;
+			while (used.has(name)) name = `${name}_${fields.length}`;
+			used.add(name);
+			const multiple = f.allow_multiple_upload === "yes" || f.allow_multiple_upload === true;
+			fields.push({ ...fileField(name, label || name, { required: f.required === true || f.required === "true" || f.required === "yes", accept: extensionsFrom(str(f.file_types)), maxMb: megabytes(str(f.file_sizes)), maxFiles: multiple ? Number(str(f.max_files)) || 5 : 1 }), ...(step > 0 ? { step } : {}) });
+			continue;
+		}
 		if (etype === "hidden") {
 			warnings.push(`hidden field "${str(f.custom_id) ?? label}" not rebuilt (its value is set by the page); add it by hand if the receiver needs it`);
 			continue;
@@ -56,7 +76,7 @@ export function elementorFormToDefinition(id: string, settings: Record<string, u
 		const width = Number(str(f.width));
 		const required = f.required === true || f.required === "true" || f.required === "yes";
 		const autocomplete = type === "email" ? "email" : type === "tel" ? "tel" : undefined;
-		fields.push({ name, label: label || name, type, ...(required ? { required: true } : {}), ...(str(f.placeholder) ? { placeholder: str(f.placeholder) } : {}), ...(options.length ? { options } : {}), ...(width > 0 && width <= 50 ? { half: true } : {}), ...(autocomplete ? { autocomplete } : {}) });
+		fields.push({ name, label: label || name, type, ...(required ? { required: true } : {}), ...(str(f.placeholder) ? { placeholder: str(f.placeholder) } : {}), ...(options.length ? { options } : {}), ...(width > 0 && width <= 50 ? { half: true } : {}), ...(autocomplete ? { autocomplete } : {}), ...(step > 0 ? { step } : {}) });
 	}
 	const actions = Array.isArray(settings.submit_actions) ? (settings.submit_actions as unknown[]).map(String) : ["email"];
 	const other = actions.filter((a) => a !== "email" && a !== "email2");
@@ -65,5 +85,6 @@ export function elementorFormToDefinition(id: string, settings: Record<string, u
 	if (str(settings.email_to)) warnings.push("recipient set in Elementor: set it in the admin (Forms → recipients), it is not copied");
 	if (!fields.some((f) => f.type === "email" || f.type === "tel")) warnings.push("no email or phone field to reply to");
 	const success = str(settings.success_message);
-	return { id: `elementor-${id}`, title: str(settings.form_name) || title, submitLabel: stripHtml(str(settings.button_text) ?? "") || "Send", successMessage: success ? stripHtml(success) : ELEMENTOR_SUCCESS, fields, warnings };
+	const stepped = withSteps(fields, stepTitles);
+	return { id: `elementor-${id}`, title: str(settings.form_name) || title, submitLabel: stripHtml(str(settings.button_text) ?? "") || "Send", successMessage: success ? stripHtml(success) : ELEMENTOR_SUCCESS, fields: stepped.fields, ...(stepped.steps ? { steps: stepped.steps } : {}), warnings };
 }

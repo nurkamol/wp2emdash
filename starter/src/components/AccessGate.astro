@@ -1,0 +1,38 @@
+---
+/**
+ * The password page of a protected page or post (utils/access.ts): one labelled password field, errors announced to
+ * screen readers and tied to the field, works without JavaScript (the form posts to /api/access and comes back).
+ */
+interface Props {
+	title: string;
+	collection: "pages" | "posts";
+	slug: string;
+	back: string;
+	state?: string | null;
+}
+const { title, collection, slug, back, state } = Astro.props;
+const error = state === "wrong" ? "That password is not right. Please try again." : state === "limited" ? "Too many tries in a short time. Please wait a minute and try again." : state === "error" ? "Something went wrong. Please try again." : undefined;
+---
+
+<section class="section container access-gate" data-access-gate>
+	<h1 class="heading heading--h2">{title}</h1>
+	<p>This content is password protected. To view it, enter the password below.</p>
+	<form class="form access-gate__form" method="post" action="/api/access">
+		<input type="hidden" name="collection" value={collection} />
+		<input type="hidden" name="slug" value={slug} />
+		<input type="hidden" name="back" value={back} />
+		<label class="field">
+			<span class="field__label">Password</span>
+			<input type="password" name="password" required autocomplete="current-password" aria-invalid={error ? "true" : undefined} aria-describedby={error ? "access-error" : undefined} autofocus={!!error} maxlength="200" />
+		</label>
+		{error && <p class="field__error access-gate__error" id="access-error" role="alert">{error}</p>}
+		<button type="submit" class="btn btn--primary">Enter</button>
+	</form>
+</section>
+
+<style>
+	.access-gate { max-width: 34rem; padding-block: clamp(3rem, 10vw, 6rem); }
+	.access-gate__form { grid-template-columns: minmax(0, 1fr); margin-top: 1.5rem; }
+	.access-gate__form > * { grid-column: 1 / -1; }
+	.access-gate__error { margin: 0; }
+</style>

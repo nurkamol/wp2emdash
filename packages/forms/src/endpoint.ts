@@ -16,7 +16,10 @@
  * until it is emailed or the retention period ends — or, with keep sent (FORM_OUTBOX_KEEP_SENT="1"), every message,
  * marked emailed once delivered, until the retention period ends); with the outbox, a count per day and form is kept
  * for the admin's charts.
- * Field values never reach logs — signatures included: a drawn signature (checked PNG) is emailed as an attachment
+ * Conditional fields (`showIf`) are judged on the submitted values (logic.ts): a hidden field is neither required nor
+ * sent on. File fields (uploads.ts) are checked after Turnstile and validation, stored privately in R2 and emailed as
+ * one-time download links.
+ * Field values never reach logs — signatures and file names included: a drawn signature (checked PNG) is emailed as an attachment
  * (inline for EMAIL_PROVIDER=emdash), and the email records the submission time and the exact text the visitor was
  * shown (terms, consent) with its SHA-256 (buildEmail). A form generated for a site with
  * sensitive data only has the fields the owner approved (e.g. contact details), so that is all this can send.
@@ -29,8 +32,10 @@ import { countMessage, emailConfigured, enqueue, isTestRequest, keepsSent, type 
 import { contentToHtml, contentToText, partsToHtml, partsToText } from "./rich.js";
 import { type Attachment, checkSignaturePng, checkTypedSignature, typedName } from "./signature.js";
 import type { FormDefinition, FormField } from "./types.js";
+import { visibility } from "./logic.js";
+import { checkUpload, maxFilesOf, type StoredUpload, storeUpload, type UploadEnv, uploadLine, uploadsReady } from "./uploads.js";
 
-interface Env extends OutboxEnv {
+interface Env extends OutboxEnv, UploadEnv {
 	EMAIL_PROVIDER?: string;
 	EMAIL_API_KEY?: string;
 	MAILGUN_REGION?: string;
@@ -40,7 +45,7 @@ interface Env extends OutboxEnv {
 	FORM_LIMITER?: { limit(o: { key: string }): Promise<{ success: boolean }> };
 }
 
-const MAX: Record<FormField["type"], number> = { text: 200, email: 254, tel: 40, number: 40, url: 500, date: 40, select: 500, radio: 500, checkbox: 10, consent: 10, textarea: 5000, signature: 200, content: 0 };
+const MAX: Record<FormField["type"], number> = { text: 200, email: 254, tel: 40, number: 40, url: 500, date: 40, select: 500, radio: 500, checkbox: 10, consent: 10, textarea: 5000, signature: 200, content: 0, file: 0 };
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TEL = /^[+()\-.\s\d]{5,40}$/;
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
@@ -98,12 +103,43 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	if (!e.TURNSTILE_SECRET_KEY) return fail(503, "The form is not available right now. Please call or email us instead.", "turnstile not configured");
 	if (!(await turnstileOk(e.TURNSTILE_SECRET_KEY, String(data.get("cf-turnstile-response") ?? ""), ip))) return fail(403, "Please confirm you are not a robot and send the form again.", "turnstile failed");
 
-	// Validation: only the definition's fields are read.
+	// Validation: only the definition's fields are read. A conditional field the visitor could not see is skipped.
 	const values: { field: FormField; value: string }[] = [];
 	const errors: Record<string, string> = {};
 	const attachments: Attachment[] = [];
+	const shown = visibility(form.fields, (f) => (f.type === "checkbox" && f.options?.length ? data.getAll(f.name).map(String) : f.type === "checkbox" || f.type === "consent" ? (data.get(f.name) ? ["yes"] : []) : [String(data.get(f.name) ?? "")]));
+	type Checked = Extract<Awaited<ReturnType<typeof checkUpload>>, { ok: true }>;
+	const uploads: { field: FormField; checked: Checked[] }[] = [];
 	for (const field of form.fields) {
 		if (field.type === "content") continue; // text shown on the form, not an input
+		if (shown.get(field.name) === false) continue;
+		if (field.type === "file") {
+			const sent = data.getAll(field.name).filter((v): v is File => typeof v === "object" && v !== null && "arrayBuffer" in v && (v as File).size > 0);
+			if (!sent.length) {
+				if (field.required) errors[field.name] = `${field.label} is required. Choose a file.`;
+				continue;
+			}
+			if (!uploadsReady(e)) {
+				errors[field.name] = `${field.label}: files cannot be sent right now. Please email them to us instead.`;
+				continue;
+			}
+			const most = maxFilesOf(field);
+			if (sent.length > most) {
+				errors[field.name] = `${field.label}: at most ${most} file${most > 1 ? "s" : ""}.`;
+				continue;
+			}
+			const checked: Checked[] = [];
+			for (const f of sent) {
+				const c = await checkUpload(f, field);
+				if (!c.ok) {
+					errors[field.name] = c.reason;
+					break;
+				}
+				checked.push(c);
+			}
+			if (!errors[field.name]) uploads.push({ field, checked });
+			continue;
+		}
 		if (field.type === "signature") {
 			// A drawn signature (PNG data URL) or a typed name; never logged, only emailed (and kept by the outbox).
 			const drawn = String(data.get(field.name) ?? "");
@@ -138,6 +174,19 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 		values.push({ field, value: field.type === "consent" ? `Accepted: “${partsToText(field.labelParts) || field.label}”` : raw });
 	}
 	if (Object.keys(errors).length) return fail(422, "Please check the highlighted fields.", "invalid", errors);
+	// Files: stored only now, after Turnstile and every check passed; each becomes a one-time link in the email.
+	for (const { field, checked } of uploads) {
+		const stored: StoredUpload[] = [];
+		try {
+			for (const c of checked) stored.push(await storeUpload(e, form.id, c, new URL(request.url).origin));
+		} catch (err) {
+			return fail(502, "Your files could not be saved. Please try again, or email them to us instead.", `upload: ${(err as Error).name}`);
+		}
+		const at = values.findIndex((v) => form.fields.indexOf(v.field) > form.fields.indexOf(field));
+		const entry = { field, value: stored.map(uploadLine).join("\n") };
+		if (at < 0) values.push(entry);
+		else values.splice(at, 0, entry);
+	}
 
 	const viaEmDash = usesEmDashEmail(e);
 	const provider = viaEmDash ? "emdash" : (e.EMAIL_PROVIDER ?? "brevo");

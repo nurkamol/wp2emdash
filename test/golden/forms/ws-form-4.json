@@ -1,0 +1,74 @@
+[
+  {
+    "provider": "ws-form",
+    "id": "4",
+    "title": "Membership enquiry",
+    "status": "publish",
+    "definition": {
+      "id": "ws-form-4",
+      "title": "Membership enquiry",
+      "submitLabel": "Send enquiry",
+      "successMessage": "Thank you — we will be in touch.",
+      "fields": [
+        {
+          "name": "full_name",
+          "label": "Full name",
+          "type": "text",
+          "required": true,
+          "placeholder": "Your name",
+          "autocomplete": "name"
+        },
+        {
+          "name": "email",
+          "label": "Email address",
+          "type": "email",
+          "required": true,
+          "autocomplete": "email"
+        },
+        {
+          "name": "phone",
+          "label": "Phone",
+          "type": "tel",
+          "autocomplete": "tel"
+        },
+        {
+          "name": "plan",
+          "label": "Plan",
+          "type": "radio",
+          "required": true,
+          "options": [
+            "Monthly",
+            "Yearly"
+          ],
+          "step": 1
+        },
+        {
+          "name": "id_document",
+          "label": "ID document",
+          "type": "file",
+          "accept": [
+            "pdf",
+            "png"
+          ],
+          "maxMb": 6,
+          "step": 1
+        }
+      ],
+      "steps": [
+        {
+          "title": "Contact"
+        },
+        {
+          "title": "Membership"
+        }
+      ],
+      "warnings": [
+        "payment field \"Total\" (price) is out of scope: the rebuilt form takes no payments — keep the plugin's checkout elsewhere, or drop the form (overrides.ts integrations \"form:<provider>:<id>\")"
+      ],
+      "notes": [
+        "WS Form conditional logic (form-level rules) not carried: every field is always shown"
+      ]
+    },
+    "recipients": []
+  }
+]

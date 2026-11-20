@@ -1,0 +1,20 @@
+{
+	"type": "form",
+	"status": "publish",
+	"version": "1.30.0",
+	"data": {
+		"fields": [
+			{ "id": "name-1", "element_id": "name-1", "type": "name", "field_label": "Name", "required": "true" },
+			{ "id": "email-1", "element_id": "email-1", "type": "email", "field_label": "Email", "required": true },
+			{ "id": "select-1", "element_id": "select-1", "type": "select", "field_label": "Reason", "options": [{ "label": "Question", "value": "question" }, { "label": "Complaint", "value": "complaint" }] },
+			{ "id": "textarea-1", "element_id": "textarea-1", "type": "textarea", "field_label": "What happened?", "required": "true", "conditions": [{ "element_id": "select-1", "rule": "is", "value": "Complaint" }], "condition_action": "show", "condition_rule": "all" },
+			{ "id": "upload-1", "element_id": "upload-1", "type": "upload", "field_label": "Photo", "filetypes": ["jpg", "png"], "upload-limit": "2", "filesize": "MB", "conditions": [{ "element_id": "select-1", "rule": "is", "value": "Complaint" }, { "element_id": "email-1", "rule": "contains", "value": "@" }], "condition_action": "show", "condition_rule": "all" },
+			{ "id": "page-break-1", "element_id": "page-break-1", "type": "page-break", "field_label": "Consent" },
+			{ "id": "gdprcheckbox-1", "element_id": "gdprcheckbox-1", "type": "gdprcheckbox", "field_label": "I agree to the privacy policy", "required": "true" },
+			{ "id": "stripe-1", "element_id": "stripe-1", "type": "stripe", "field_label": "Deposit" }
+		],
+		"settings": { "formName": "Feedback", "submitData": { "custom-submit-text": "Submit feedback" } },
+		"notifications": [{ "recipients": "care@studio.example" }],
+		"behaviors": [{ "submission-behaviour": "behaviour-thankyou", "thankyou-message": "<p>Thanks for the feedback.</p>" }]
+	}
+}

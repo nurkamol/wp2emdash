@@ -1,0 +1,35 @@
+{
+	"id": 4,
+	"label": "Membership enquiry",
+	"status": "publish",
+	"identifier": "wsform",
+	"meta": { "conditional": { "groups": [{ "label": "Show company" }] } },
+	"groups": [
+		{
+			"label": "Contact",
+			"sections": [
+				{
+					"fields": [
+						{ "id": 11, "label": "Full name", "type": "text", "meta": { "required": "on", "placeholder": "Your name" } },
+						{ "id": 12, "label": "Email address", "type": "email", "meta": { "required": "on" } },
+						{ "id": 13, "label": "Phone", "type": "tel", "meta": {} },
+						{ "id": 14, "label": "", "type": "tab_next", "meta": {} }
+					]
+				}
+			]
+		},
+		{
+			"label": "Membership",
+			"sections": [
+				{
+					"fields": [
+						{ "id": 15, "label": "Plan", "type": "radio", "meta": { "required": "on", "data_grid_radio": { "groups": [{ "rows": [{ "data": ["Monthly"] }, { "data": ["Yearly"] }] }] } } },
+						{ "id": 16, "label": "ID document", "type": "file", "meta": { "file_types": "pdf,png", "file_max_size": "6" } },
+						{ "id": 17, "label": "Total", "type": "price", "meta": {} },
+						{ "id": 18, "label": "Send enquiry", "type": "submit", "meta": {} }
+					]
+				}
+			]
+		}
+	]
+}

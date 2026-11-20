@@ -24,6 +24,9 @@ import type { BlogPlan } from "../transform/blog.js";
 import { type CptCollection, type CptPlan, collectionFields } from "../transform/cpt.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { svgToPng } from "../targets/emdash/svg.js";
+import { ACCESS_BODY_FIELD, ACCESS_FIELD, pageAction, protectedData } from "../targets/emdash/access.js";
+import { hashPassword, PROTECTED_FILE, type ProtectedEntry } from "../transform/protected.js";
+import { DOC_MIME, DOCUMENT_FIELD, globallyAllowed, isDocument, lostMetadata, manifestIndex, plainCaption, uploadLinks } from "../targets/emdash/documents.js";
 import { type ContentItem, EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
 import { type CommentMapEntry, type CommentsFile, loadComments } from "../targets/emdash/comments.js";
 import { blockKey, sectionToBlock } from "../targets/emdash/blocks.js";
@@ -49,7 +52,7 @@ export interface IdMap {
 	comments?: Record<string, CommentMapEntry>;
 }
 
-const MIME: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".avif": "image/avif", ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm", ".pdf": "application/pdf", ".ico": "image/x-icon" };
+const MIME: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".avif": "image/avif", ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".m4v": "video/mp4", ".ico": "image/x-icon", ...DOC_MIME };
 const mimeOf = (f: string) => MIME[extname(f).toLowerCase()] ?? "application/octet-stream";
 const mediaKey = (m: MediaRef) => (m.wpId ? `wp:${m.wpId}` : `url:${m.url}`);
 
@@ -120,6 +123,12 @@ export function resolvePostBody(body: unknown[], media: (m: MediaRef) => { id: s
 
 /** Status on the target for a post: published (with its date), scheduled, or draft (overrides.ts protectedPosts). */
 export function postAction(doc: IrPage, protectedDecision: "draft" | "skip" | "publish" | undefined, now = Date.now()): "publish" | "schedule" | "draft" {
+	// Transform's decision (src/transform/protected.ts): protect = published behind the password page.
+	if (doc.access) {
+		if (doc.access.as === "draft") return "draft";
+		if (doc.source.status === "publish" || doc.source.status === "private") return "publish";
+		return doc.source.status === "future" && doc.post?.publishedAt && Date.parse(doc.post.publishedAt) > now ? "schedule" : "draft";
+	}
 	const visibility = doc.post?.visibility ?? "public";
 	if (visibility !== "public") return protectedDecision === "publish" && (doc.source.status === "publish" || doc.source.status === "private") ? "publish" : "draft";
 	if (doc.source.status === "publish") return "publish";
@@ -249,6 +258,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const commentsFile = readJson<CommentsFile>(join(paths.ir, "comments.json"));
 		const commentForm = new Set((commentsFile?.collections ?? []).filter((c) => c.form).map((c) => c.slug));
 		const commentsClosed = new Set((commentsFile?.entries ?? []).filter((e) => e.closed).map((e) => e.key));
+		const irDocs = ["pages", "posts"].flatMap((d) => (existsSync(join(paths.ir, d)) ? readdirSync(join(paths.ir, d)).filter((f) => f.endsWith(".json")).map((f) => readJson<IrPage>(join(paths.ir, d, f)) as IrPage) : []));
 		// ── Schema on the target ─────────────────────────────────────────────────
 		try {
 			const [bt, cols] = await Promise.all([api.blockTypesFull(), api.collections()]);
@@ -311,6 +321,24 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					schemaChanges.push(`collection ${c.slug} created`);
 				} catch (e) {
 					schemaErrors.push(`${c.slug} fields: ${(e as Error).message}`);
+				}
+			}
+			// Password-protected content kept behind the password page: an `access_password` field on its collection (and
+			// `access_body` on posts, a body the search index does not read). Created only when the site has such content.
+			const protectCols = [...new Set(irDocs.filter((d) => d.access?.as === "protect").map((d) => collectionOf(d, !!blogPlan)))];
+			for (const c of protectCols) {
+				try {
+					const have = new Set((await api.fields(c)).map((f) => f.slug));
+					if (!have.has(ACCESS_FIELD.slug)) {
+						await api.createField(c, { ...ACCESS_FIELD });
+						schemaChanges.push(`${c}.${ACCESS_FIELD.slug} created`);
+					}
+					if (c === "posts" && !have.has(ACCESS_BODY_FIELD.slug)) {
+						await api.createField(c, { ...ACCESS_BODY_FIELD });
+						schemaChanges.push(`${c}.${ACCESS_BODY_FIELD.slug} created`);
+					}
+				} catch (e) {
+					schemaErrors.push(`${c} access fields: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
 				}
 			}
 			const missingCols = ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.map((c) => c.slug)].filter((c) => !cols.some((x) => x.slug === c));
@@ -390,6 +418,32 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			const r = ogRef(d);
 			if (r) refs.set(mediaKey(r), r);
 		}
+		// Files linked from content (PDFs, Word, Excel, ZIP… and pictures opened by a link): uploaded too, so the links can
+		// point at the media library (src/targets/emdash/documents.ts). Extract downloaded every one it could (raw/media).
+		const isSiteUrl = (u: string) => {
+			try {
+				return u.startsWith("/") || siteHosts.has(new URL(u).host.replace(/^www\./, ""));
+			} catch {
+				return false;
+			}
+		};
+		const localFile = manifestIndex(manifest);
+		const linked = new Map<string, string>(); // upload address → media key
+		const linkedMissing: string[] = [];
+		for (const u of uploadLinks(docs.map((d) => [d.sections, d.post?.body ?? [], d.entry?.fields ?? {}, d.entry?.body ?? []]), isSiteUrl)) {
+			const m = localFile(new URL(u, config.source.url).href);
+			if (!m) {
+				linkedMissing.push(u);
+				continue;
+			}
+			const ref: MediaRef = m.id ? { kind: "file", wpId: m.id } : { kind: "file", url: m.url };
+			linked.set(u, mediaKey(ref));
+			if (!refs.has(mediaKey(ref)) && !refs.has(`wp:${m.id}`)) refs.set(mediaKey(ref), ref);
+		}
+		// Library files nobody links from the content (overrides.ts media.library): documents by default, so old links to
+		// them from emails and other sites still find the file.
+		const library = overrides.media.library;
+		if (library !== "referenced") for (const m of manifest) if (m.id && m.inLibrary && m.file && m.status !== "failed" && (library === "all" || isDocument(m.file)) && !refs.has(`wp:${m.id}`)) refs.set(`wp:${m.id}`, { kind: isDocument(m.file) ? "file" : "image", wpId: m.id });
 
 		reporter.emit({ type: "step:start", step: "Media", total: refs.size });
 		const existing = await api.mediaList();
@@ -402,6 +456,19 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const slowVideos: string[] = [];
 		const svgConverted: string[] = [];
 		let svgBrowser: import("playwright").Browser | undefined;
+		// Word, Excel, ZIP…: EmDash takes them only for a file field that allows them (documents.ts DOCUMENT_FIELD).
+		let docField: Promise<string> | undefined;
+		const documentFieldId = () =>
+			(docField ??= (async () => {
+				const have = (await api.fields("pages")).find((f) => f.slug === DOCUMENT_FIELD.slug);
+				if (have) return have.id;
+				await api.createField("pages", { ...DOCUMENT_FIELD });
+				const made = (await api.fields("pages")).find((f) => f.slug === DOCUMENT_FIELD.slug);
+				if (!made) throw new Error(`could not create the ${DOCUMENT_FIELD.slug} field on pages`);
+				return made.id;
+			})());
+		const uploadedEntries: MediaEntry[] = [];
+		let duplicates = 0;
 		for (const [key, ref] of refs) {
 			reporter.emit({ type: "step:progress", step: "Media", done: ++n, total: refs.size, item: key });
 			const known = idMap.media[key];
@@ -410,11 +477,12 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			try {
 				let bytes: Buffer;
 				let filename: string;
-				if (ref.wpId) {
-					const m = byWpId.get(ref.wpId);
-					if (!m?.file) throw new Error("not in raw/media (rerun extract)");
-					bytes = readFileSync(join(paths.raw, "media", m.file));
-					filename = m.file.split("/").pop() as string;
+				// A file of this site extract downloaded: from the library (wpId) or linked from content without being in it.
+				const local = ref.wpId ? byWpId.get(ref.wpId) : ref.url && isSiteUrl(ref.url) ? localFile(new URL(ref.url, config.source.url).href) : undefined;
+				if (ref.wpId && !local?.file) throw new Error("not in raw/media (rerun extract)");
+				if (local?.file) {
+					bytes = readFileSync(join(paths.raw, "media", local.file));
+					filename = local.file.split("/").pop() as string;
 				} else {
 					const url = ref.url as string;
 					const decision = externalMediaDecision(overrides, url);
@@ -444,11 +512,17 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				const sha1 = createHash("sha1").update(bytes).digest("hex");
 				if (known && known.sha1 === sha1 && existingIds.has(known.id)) continue;
 				let item: MediaItem | undefined = bySha.get(sha1);
-				if (item) reused++;
-				else {
-					item = await api.mediaUpload(bytes, filename, mimeOf(filename), ref.alt);
+				if (item) {
+					reused++;
+					// The same file twice in the WordPress library (uploaded again under another name): one media item.
+					if (Object.values(idMap.media).some((e) => e.sha1 === sha1)) duplicates++;
+				} else {
+					const mime = mimeOf(filename);
+					const caption = plainCaption(local?.caption).slice(0, 1000);
+					item = await api.mediaUpload(bytes, filename, mime, ref.alt ?? (local?.alt || undefined), { ...(caption ? { caption } : {}), ...(!globallyAllowed(mime) ? { fieldId: await documentFieldId() } : {}) });
 					bySha.set(sha1, item);
 					uploaded++;
+					if (local) uploadedEntries.push(local);
 				}
 				const mime = item.mimeType ?? mimeOf(filename);
 				idMap.media[key] = { id: item.id, sha1, mime, ...(item.url ? { url: item.url } : {}), ...(mime === "video/mp4" && !needsFaststart(bytes) ? { faststart: true } : {}) };
@@ -461,7 +535,14 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		if (svgBrowser) await svgBrowser.close().catch(() => {});
 		if (svgConverted.length) reporter.emit({ type: "log", level: "info", message: `SVG drawn to PNG (EmDash's media library takes no SVG): ${svgConverted.join(", ")}` });
 		reporter.emit({ type: "step:end", step: "Media", ok: mediaErrors.length === 0, detail: `${uploaded} uploaded, ${reused} reused, ${refs.size} referenced` });
-		check("media", "Every referenced media item is on the target", mediaErrors.length === 0, mediaErrors.slice(0, 6).join("; ") || `${refs.size} items (${uploaded} uploaded, ${reused} already there)`);
+		check("media", "Every referenced media item is on the target", mediaErrors.length === 0, mediaErrors.slice(0, 6).join("; ") || `${refs.size} items (${uploaded} uploaded, ${reused} already there${duplicates ? `, ${duplicates} duplicate file(s) of the WordPress library share one media item` : ""})`);
+		// Files linked from content: each one in the media library (the links are rewritten below); a link to an upload
+		// extract could not download was already broken on the live site (extract's brokenUploads).
+		const linkProblems = [...[...linked].filter(([, key]) => !idMap.media[key]).map(([u]) => `${u}: not uploaded`), ...linkedMissing.map((u) => `${u}: not in raw/media (broken on the live site, or rerun extract)`)];
+		if (linked.size || linkedMissing.length) check("documents", "Every file linked from content (PDFs, documents) is in the media library", linkProblems.length === 0, linkProblems.slice(0, 6).join("; ") || `${linked.size} linked file(s)`);
+		// What EmDash media cannot hold: alt and caption are carried, titles and descriptions are not (reported).
+		const lost = lostMetadata(uploadedEntries);
+		if (lost.titles.length || lost.descriptions.length) reporter.emit({ type: "log", level: "info", message: `media: EmDash keeps alt text and captions only — not carried: ${lost.titles.length} attachment title(s) (${lost.titles.slice(0, 3).join(", ")}${lost.titles.length > 3 ? ", …" : ""}), ${lost.descriptions.length} description(s) (${lost.descriptions.slice(0, 3).join(", ")}${lost.descriptions.length > 3 ? ", …" : ""})` });
 
 		const resolver = (m: MediaRef | undefined) => {
 			if (!m) return undefined;
@@ -476,7 +557,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				if (siteHosts.has(u.host.replace(/^www\./, ""))) {
 					if (uploadsRe.test(u.pathname)) {
 						const key = [...byWpId.values()].find((m) => m.file && u.pathname.toLowerCase().endsWith(m.file.toLowerCase()));
-						const mapped = key?.id ? idMap.media[`wp:${key.id}`]?.url : undefined;
+						const local = key ?? localFile(u.href);
+						const mapped = local?.id ? idMap.media[`wp:${local.id}`]?.url : local ? idMap.media[`url:${local.url}`]?.url : undefined;
 						if (mapped) return mapped;
 					}
 					if (/^https?:/i.test(href)) return `${u.pathname}${u.search}${u.hash}`;
@@ -486,7 +568,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		};
 		const fixLinks = <T>(v: T): T => {
 			if (Array.isArray(v)) return v.map(fixLinks) as T;
-			if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, k === "href" && typeof x === "string" ? fixHref(x) : fixLinks(x)])) as T;
+			// Raw HTML (legacy sections, embeds): upload links in its href/src attributes point at the media library too.
+			if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, k === "href" && typeof x === "string" ? fixHref(x) : k === "html" && typeof x === "string" ? x.replace(/\b(href|src)(\s*=\s*["'])([^"']+\/(?:wp-content\/uploads|storage)\/\d{4}\/\d{2}\/[^"']+)(["'])/gi, (m, a: string, q: string, url: string, e: string) => { const to = fixHref(url); return to !== url && to.startsWith("/_emdash/") ? `${a}${q}${to}${e}` : m; }) : fixLinks(x)])) as T;
 			return v;
 		};
 
@@ -589,6 +672,10 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			check("cpt-bylines", "Bylines of custom post type authors on the target (no user accounts)", bylineErrors.length === 0, bylineErrors.join("; ") || `${cptPlan.bylines.length} bylines`);
 		}
 		const postMedia = (m: MediaRef) => idMap.media[mediaKey(m)];
+		// Password hashes from extract (raw/protected.json); the site's fallback password (.env) is hashed here, once.
+		const protectedHashes = new Map((readJson<ProtectedEntry[]>(join(paths.raw, PROTECTED_FILE)) ?? []).flatMap((e) => (e.hash ? [[`${e.type}:${e.id}`, e.hash] as const] : [])));
+		let fallback: string | undefined;
+		const fallbackHash = () => (env.WP2EMDASH_PROTECTED_PASSWORD ? (fallback ??= hashPassword(env.WP2EMDASH_PROTECTED_PASSWORD)) : undefined);
 
 		// ── Content ──────────────────────────────────────────────────────────────
 		reporter.emit({ type: "step:start", step: "Content", total: docs.length });
@@ -634,13 +721,26 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				// (a custom SEO title, with or without the site name).
 				const stripped = doc.seo.title?.replace(new RegExp(`\\s*[${sep}]\\s*${site.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`), "").trim();
 				const seoTitle = stripped && stripped !== doc.title.trim() ? doc.seo.title?.trim() : stripped;
-				const seo = doc.kind === "page" || doc.kind === "post" || (col?.routable && doc.kind === "entry") ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: productionCanonical(doc.seo.canonical, siteHosts, config.target.productionUrl) } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
+				const seo: Record<string, unknown> | undefined = doc.kind === "page" || doc.kind === "post" || (col?.routable && doc.kind === "entry") ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: productionCanonical(doc.seo.canonical, siteHosts, config.target.productionUrl) } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
 					const r = ogRef(doc);
 					// The file path, not the media id: EmDash expands a bare id to /media/file/<id>, which 404s (files are served by storage key).
 					const url = r ? idMap.media[mediaKey(r)]?.url : undefined;
 					return url?.startsWith("/_emdash/api/media/file/") ? { image: url } : {};
 				})() } : undefined;
 
+				// Behind the password page: the password hash (kept when the owner changed it in the admin), posts' body moved
+				// out of the searchable field, no description, noindex (src/targets/emdash/access.ts).
+				if (doc.access?.as === "protect") {
+					const known = idMap.content[key]?.id;
+					const current = known && (existingByCollection.get(collection) ?? []).some((e) => e.id === known) ? ((await api.get(collection, known)).data as Record<string, unknown>)[ACCESS_FIELD.slug] : undefined;
+					const hash = protectedHashes.get(`${doc.source.type}:${doc.source.wpId}`) ?? fallbackHash();
+					if (!hash && !current) throw new Error("password-protected, but no password: extract with an editor's application password, or set WP2EMDASH_PROTECTED_PASSWORD in .env");
+					Object.assign(data, protectedData(data, { hash: typeof current === "string" && current ? current : (hash as string), post: isPost }));
+					if (seo) {
+						delete seo.description;
+						seo.noIndex = true;
+					}
+				}
 				let entryId = idMap.content[key]?.id;
 				const list = existingByCollection.get(collection) ?? [];
 				if (entryId && !list.some((e) => e.id === entryId)) entryId = undefined; // deleted on the target
@@ -665,7 +765,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				}
 				idMap.content[key] = { collection, id: entryId, slug };
 				saveMap();
-				const action = isPost ? postAction(doc, overrides.protectedPosts?.as) : doc.entry ? entryAction(doc) : doc.source.status === "publish" ? "publish" : "draft";
+				const action = isPost ? postAction(doc, overrides.protectedPosts?.as) : doc.entry ? entryAction(doc) : pageAction(doc);
 				const at = isPost ? doc.post?.publishedAt : doc.entry?.publishedAt;
 				if (action === "publish") await api.publish(collection, entryId, isPost || doc.entry ? at : undefined);
 				else if (action === "schedule" && at) await api.schedule(collection, entryId, at);
@@ -950,7 +1050,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 
 		// Every published page renders and shows its first heading.
 		const renderFails: string[] = [];
-		const rendered = docs.filter((x) => (x.kind === "page" && x.source.status === "publish") || (blogPlan && x.kind === "post" && x.post && postAction(x, overrides.protectedPosts?.as) === "publish") || (x.kind === "entry" && x.route && x.source.status === "publish"));
+		const rendered = docs.filter((x) => (x.kind === "page" && pageAction(x) === "publish") || (blogPlan && x.kind === "post" && x.post && postAction(x, overrides.protectedPosts?.as) === "publish") || (x.kind === "entry" && x.route && x.source.status === "publish"));
 		for (const d of rendered) {
 			const path = d.route?.path ?? "/";
 			try {
@@ -958,7 +1058,12 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				const html = await r.text();
 				const firstHeading = d.kind === "post" || (d.kind === "entry" && !d.sections.length) ? d.title : d.sections.flatMap((s) => (Array.isArray((s.fields as { heading?: unknown }).heading) ? ((s.fields as { heading: { children: { text: string }[] }[] }).heading) : [])).flatMap((b) => b.children.map((c) => c.text))[0];
 				if (r.status !== 200) renderFails.push(`${path} HTTP ${r.status}`);
-				else if (firstHeading && !html.includes(firstHeading.replace(/&/g, "&amp;").slice(0, 30)) && !html.includes(firstHeading.slice(0, 30))) renderFails.push(`${path}: "${firstHeading.slice(0, 30)}" not in HTML`);
+				else if (d.access?.as === "protect") {
+					// Behind the password page: the form, never the content, never stored by a cache.
+					if (!html.includes("data-access-gate")) renderFails.push(`${path}: password page missing (protected content)`);
+					else if (firstHeading && firstHeading !== d.title && html.includes(firstHeading.slice(0, 30))) renderFails.push(`${path}: protected content visible without the password`);
+					else if (!/no-store/.test(r.headers.get("cache-control") ?? "")) renderFails.push(`${path}: protected page without Cache-Control: no-store`);
+				} else if (firstHeading && !html.includes(firstHeading.replace(/&/g, "&amp;").slice(0, 30)) && !html.includes(firstHeading.slice(0, 30))) renderFails.push(`${path}: "${firstHeading.slice(0, 30)}" not in HTML`);
 			} catch (e) {
 				renderFails.push(`${path}: ${(e as Error).message}`);
 			}

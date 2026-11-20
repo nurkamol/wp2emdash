@@ -235,7 +235,8 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 	}
 	if (i.includeContent) {
 		seed.content = {
-			pages: i.pages.map((p) => ({ id: routeToSlug(p.route?.path ?? p.source.slug), slug: routeToSlug(p.route?.path ?? p.source.slug), status: p.source.status === "publish" ? "published" : "draft", data: { title: p.title, content: blocksOf(p, i.media) } })),
+			// Password-protected pages stay drafts in the seed (local preview has no password page data).
+			pages: i.pages.map((p) => ({ id: routeToSlug(p.route?.path ?? p.source.slug), slug: routeToSlug(p.route?.path ?? p.source.slug), status: p.source.status === "publish" && !p.access ? "published" : "draft", data: { title: p.title, content: blocksOf(p, i.media) } })),
 			site_parts: i.partials.map((p) => ({ id: p.source.slug, slug: p.source.slug, status: "published", data: { title: p.title, content: blocksOf(p, i.media) } })),
 			popups: i.popups.map((p) => ({ id: p.source.slug, slug: p.source.slug, status: "published", data: { title: p.title, content: blocksOf(p, i.media), selectors: p.popup?.selectors.filter((s) => !s.includes("popmake")).join(", ") || undefined, auto_open_delay: p.popup?.autoOpen?.delayMs } })),
 			...(i.blog

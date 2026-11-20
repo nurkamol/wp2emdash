@@ -16,7 +16,8 @@ import { WpClient, WpHttpError, versionAtLeast } from "../extract/client.js";
 import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.js";
 import { bricksMediaRefs, bricksOptionsNote, readBricksOptions, usesBricks } from "../extract/bricks.js";
 import { elementorMediaRefs, elementorNote, readElementorOptions, usesElementor } from "../extract/elementor.js";
-import { type RedirectRule, recognise, type Unconverted } from "../extract/plugin-exports.js";
+import { formFromSnapshot, type RedirectRule, recognise, type Unconverted } from "../extract/plugin-exports.js";
+import { hashPassword, PROTECTED_FILE, type ProtectedEntry } from "../transform/protected.js";
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
 import { type CustomCss, customCssFromHtml } from "../transform/custom-css.js";
 import type { PhaseContext } from "./index.js";
@@ -92,6 +93,8 @@ export interface MediaEntry {
 	alt?: string;
 	title?: string;
 	caption?: string;
+	/** The attachment's description (EmDash media has no field for it: reported by load). */
+	description?: string;
 	width?: number;
 	height?: number;
 	inLibrary: boolean;
@@ -190,6 +193,7 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	const candidateTypes = [...new Set([...probe.post_types.map((t) => t.name), ...analyze.post_types.map((t) => t.name), ...Object.keys(wpTypes ?? {}), ...EXTRA_TYPES])].filter((t) => !SKIP_TYPES.has(t));
 	reporter.emit({ type: "step:start", step: "Content", total: candidateTypes.length });
 	const byType = new Map<string, ExporterPost[]>();
+	const passwordsFromExporter = new Map<string, string>();
 	const typeSummaries: ExtractSummary["types"] = [];
 	let typeErrors = 0;
 	for (const [i, type] of candidateTypes.entries()) {
@@ -200,6 +204,11 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 			for (const p of r.items) {
 				// Strip author emails (PII not needed for the rebuild).
 				if (p.author && typeof p.author === "object") delete (p.author as Record<string, unknown>).email;
+				// A post password never reaches raw/ in clear text: hashed into raw/protected.json below.
+				const pw = (p as { password?: unknown; post_password?: unknown }).password ?? (p as { post_password?: unknown }).post_password;
+				if (typeof pw === "string" && pw) passwordsFromExporter.set(`${p.post_type}:${p.id}`, pw);
+				delete (p as { password?: unknown }).password;
+				delete (p as { post_password?: unknown }).post_password;
 			}
 			byType.set(type, r.items);
 			write(join(exp, "content", `${type}.json`), r.items);
@@ -229,6 +238,36 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 				if (rows.length < 100) break;
 			}
 			write(join(exp, "content", `${type}.json`), items);
+		}
+	}
+	// ── Password-protected content (src/transform/protected.ts): which posts/pages have a password, as a hash ────────
+	// REST `context=edit` returns `password` to an editor's application password; without it, `content.protected`
+	// still says which ones are protected (the password then comes from the site's fallback, at load).
+	{
+		const out: ProtectedEntry[] = [];
+		for (const type of ["page", "post"]) {
+			const restBase = (wpTypes?.[type] as { rest_base?: string } | undefined)?.rest_base ?? `${type}s`;
+			if (!byType.get(type)?.length) continue;
+			for (let page = 1; page <= 100; page++) {
+				const edit = await client.tryGet<{ id: number; password?: string; content?: { protected?: boolean } }[]>(`wp/v2/${restBase}`, { context: "edit", _fields: "id,password", per_page: 100, page, status: "publish,future,draft,pending,private" }).catch(() => undefined);
+				const rows = Array.isArray(edit) ? edit : await client.tryGet<{ id: number; content?: { protected?: boolean } }[]>(`wp/v2/${restBase}`, { _fields: "id,content", per_page: 100, page }).catch(() => undefined);
+				if (!Array.isArray(rows) || !rows.length) break;
+				for (const r of rows as { id: number; password?: string; content?: { protected?: boolean } }[]) {
+					const pw = r.password || passwordsFromExporter.get(`${type}:${r.id}`);
+					if (pw) out.push({ type, id: r.id, hash: hashPassword(pw) });
+					else if (r.content?.protected) out.push({ type, id: r.id });
+				}
+				if (rows.length < 100) break;
+			}
+		}
+		for (const [key, pw] of passwordsFromExporter) {
+			const [type = "", id = ""] = key.split(":");
+			if (!out.some((e) => e.type === type && e.id === Number(id))) out.push({ type, id: Number(id), hash: hashPassword(pw) });
+		}
+		rmSync(join(raw, PROTECTED_FILE), { force: true });
+		if (out.length) {
+			write(join(raw, PROTECTED_FILE), out);
+			notes.push(`Password-protected content: ${out.length} item(s)${out.some((e) => !e.hash) ? `, ${out.filter((e) => !e.hash).length} without a readable password (REST access as an editor needed, or WP2EMDASH_PROTECTED_PASSWORD in .env)` : ""}; passwords kept as hashes only (raw/${PROTECTED_FILE}).`);
 		}
 	}
 	const totalPosts = [...byType.values()].reduce((n, l) => n + l.length, 0);
@@ -378,6 +417,11 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 				const out = f.raw ? { ...f.raw, recipients: f.recipients ?? [], source: file } : { provider: f.provider, id: f.id, title: f.title, status: f.status, definition: f.definition, recipients: f.recipients ?? [], source: file };
 				write(join(raw, "forms", f.provider, `${f.id}.json`), out);
 				formsSummary.push({ provider: f.provider, id: f.id, title: f.title, status: f.status, fields: f.definition?.fields.length ?? 0, notifications: f.recipients?.length ?? 0, ok: true });
+				// The same form under the other id pages embed it with (CF7 5.8+ short hash): its own definition file.
+				for (const alias of f.aliases ?? []) {
+					write(join(raw, "forms", f.provider, `${alias}.json`), { ...out, id: alias, aliasOf: f.id, ...(f.definition ? { definition: { ...f.definition, id: `${f.provider}-${alias}` } } : {}) });
+					formsSummary.push({ provider: f.provider, id: alias, title: f.title, status: f.status, fields: f.definition?.fields.length ?? 0, notifications: f.recipients?.length ?? 0, ok: true });
+				}
 			}
 		}
 		// Later files win for the same source (an owner may send an updated export).
@@ -389,6 +433,17 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 		reporter.emit({ type: "step:end", step: "Plugin exports", ok: unread.length === 0, detail: `${dropped.length} files, ${formsSummary.length} forms, ${bySource.size} redirects` });
 	}
 
+	// Rendered-HTML fallback: a live form without a plugin export is rebuilt from the audit's view of its HTML, with a
+	// warning that keeps scaffold's forms gate red until someone checks it against the live form (formFromSnapshot).
+	for (const af of auditIntegrations.filter((i) => i.kind === "form" && i.form).map((i) => i.form as Parameters<typeof formFromSnapshot>[0])) {
+		if (!["ninja-forms", "formidable", "ws-form", "forminator", "contact-form-7", "wpforms", "gravity-forms"].includes(af.provider) || !af.providerFormId) continue;
+		if (formsSummary.some((f) => f.ok && f.provider === af.provider && f.id === af.providerFormId)) continue;
+		const f = formFromSnapshot(af);
+		if (!f?.definition) continue;
+		write(join(raw, "forms", f.provider, `${f.id}.json`), { provider: f.provider, id: f.id, title: f.title, status: f.status, definition: f.definition, recipients: [], source: "rendered-html" });
+		formsSummary.push({ provider: f.provider, id: f.id, title: f.title, status: f.status, fields: f.definition.fields.length, notifications: 0, ok: true });
+		notes.push(`${f.provider} form #${f.id}: no plugin export, rebuilt from the live page's HTML (${f.definition.fields.length} fields): check it against the live form; recipients come from kit.config.`);
+	}
 	const missingForms = auditForms.filter((af) => !formsSummary.some((f) => f.ok && f.provider === af.provider && f.id === af.providerFormId));
 	check(
 		"forms",
@@ -494,7 +549,7 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 		const rel = key ? (/\/(?:wp-content\/uploads|storage)\/(.+)$/i.exec(job.url.split(/[?#]/)[0] ?? "")?.[1] ?? key) : `external/${createHash("sha1").update(job.url).digest("hex").slice(0, 12)}`;
 		const file = join(mediaDir, decodeURIComponent(rel));
 		const base: MediaEntry = {
-			...(job.media ? { id: job.media.id, mime: job.media.mime_type, alt: job.media.alt, title: job.media.title, caption: job.media.caption, width: job.media.width, height: job.media.height } : {}),
+			...(job.media ? { id: job.media.id, mime: job.media.mime_type, alt: job.media.alt, title: job.media.title, caption: job.media.caption, ...(job.media.description ? { description: job.media.description } : {}), width: job.media.width, height: job.media.height } : {}),
 			url: job.url,
 			inLibrary: !!job.media,
 			referencedBy: job.referencedBy,

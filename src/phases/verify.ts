@@ -139,7 +139,10 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		// Custom post types: published entries with an address are compared like pages too (check `entries`).
 		const cptIr = readJson<CptPlan>(join(paths.ir, "collections.json"));
 		const irEntries = (cptIr?.collections ?? []).flatMap((c) => (existsSync(join(paths.ir, "entries", c.slug)) ? readdirSync(join(paths.ir, "entries", c.slug)).map((f) => readJson<IrPage>(join(paths.ir, "entries", c.slug, f)) as IrPage) : [])).filter((p) => p.entry && p.route && p.source.status === "publish");
-		const published = new Set([...irPages.filter((p) => p.source.status === "publish"), ...irPosts, ...irEntries].map((p) => p.route?.path));
+		// Password-protected pages and posts (src/transform/protected.ts) are checked on their own (protected-pages): noindex,
+		// so not in the sitemap, and their live snapshot is WordPress's password form, not the content.
+		const irProtected = [...irPages, ...(blogIr && existsSync(join(paths.ir, "posts")) ? readdirSync(join(paths.ir, "posts")).map((f) => readJson<IrPage>(join(paths.ir, "posts", f)) as IrPage) : [])].filter((p) => p.access?.as === "protect" && p.route);
+		const published = new Set([...irPages.filter((p) => p.source.status === "publish" && !p.access), ...irPosts, ...irEntries].map((p) => p.route?.path));
 		const pagesToCheck = baseline.filter((u) => published.has(u.path) || published.has(u.path.replace(/\/$/, "")) || u.path === "/");
 		const outDir = join(paths.reports, "verify");
 		rmSync(join(outDir, "screens"), { recursive: true, force: true });
@@ -322,7 +325,10 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 
 		// Every address the old site answered (pages, entries, terms, authors, attachment pages, feeds, search, query
 		// forms, upload files the pages used): 200, one 301 to a 200, or 404/410 only by decision (src/verify/urls-accounted.ts).
-		const ov = await loadOverrides(paths.overrides);
+		const ovLoaded = await loadOverrides(paths.overrides);
+		// Protected content decided draft or skip: its old address is gone by that decision.
+		const decidedGone = Object.fromEntries([...irPages, ...(existsSync(join(paths.ir, "posts")) ? readdirSync(join(paths.ir, "posts")).map((f) => readJson<IrPage>(join(paths.ir, "posts", f)) as IrPage) : [])].filter((p) => p.access?.as === "draft" && p.route?.path).map((p) => [p.route?.path as string, `${p.access?.kind === "private" ? "private" : "password-protected"} on WordPress, kept as a draft (overrides.ts protectedContent)`]));
+		const ov = { ...ovLoaded, gone: { ...decidedGone, ...ovLoaded.gone } };
 		const wpRules = readJson<{ rules: WpUrlRules }>(join(paths.ir, "wp-urls.json"))?.rules;
 		const universe = accountUniverse({
 			urls: readJson<UniverseInput["urls"]>(join(paths.snapshot, "urls.json")) ?? [],
@@ -447,6 +453,29 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		}
 		const listed = new Set(sitemapLocs.map((l) => new URL(l).pathname));
 		const unlisted = [...published].filter((r): r is string => !!r && r !== "/" && !listed.has(r)).concat(published.has("/") && !listed.has("/") ? ["/"] : []);
+
+		// Password-protected pages and posts: the password page (200), never the content, never cached, noindex, not in
+		// the sitemap (src/transform/protected.ts, starter utils/access.ts).
+		if (irProtected.length) {
+			const problems: string[] = [];
+			for (const p of irProtected) {
+				const path = p.route?.path as string;
+				try {
+					const res = await kitFetch(`${base}${path}`, { redirect: "manual" });
+					const html = await res.text();
+					const secret = p.sections.flatMap((s) => (Array.isArray((s.fields as { heading?: unknown }).heading) ? (s.fields as { heading: { children: { text: string }[] }[] }).heading : [])).flatMap((b) => b.children.map((c) => c.text)).find((t) => t.trim().length > 8 && t !== p.title);
+					if (res.status !== 200) problems.push(`${path} HTTP ${res.status}`);
+					else if (!html.includes("data-access-gate")) problems.push(`${path}: no password page`);
+					else if (secret && html.includes(secret.slice(0, 30))) problems.push(`${path}: content visible without the password`);
+					if (!/no-store/.test(res.headers.get("cache-control") ?? "")) problems.push(`${path}: Cache-Control is "${res.headers.get("cache-control") ?? ""}" (no-store expected)`);
+					if (!/noindex/.test(`${res.headers.get("x-robots-tag") ?? ""} ${/<meta[^>]+name="robots"[^>]+content="([^"]*)"/.exec(html)?.[1] ?? ""}`)) problems.push(`${path}: not noindex`);
+					if (listed.has(path)) problems.push(`${path}: listed in the sitemap`);
+				} catch (e) {
+					problems.push(`${path}: ${(e as Error).message}`);
+				}
+			}
+			check("protected-pages", "Password-protected pages show the password page only (no-store, noindex, not in the sitemap)", problems.length === 0, problems.slice(0, 6).join("; ") || `${irProtected.length} page(s)/post(s)`);
+		}
 
 		// Form endpoints (the starter posts to /api/forms/<id>).
 		const formEndpoints: VerifyResult["forms"] = [];

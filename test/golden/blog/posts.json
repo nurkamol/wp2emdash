@@ -376,6 +376,10 @@
 			],
 			"visibility": "private"
 		},
+		"access": {
+			"kind": "private",
+			"as": "draft"
+		},
 		"diagnostics": []
 	},
 	"post-13.json": {

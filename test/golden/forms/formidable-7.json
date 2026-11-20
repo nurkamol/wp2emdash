@@ -1,0 +1,87 @@
+[
+  {
+    "provider": "formidable",
+    "id": "7",
+    "title": "Contact us",
+    "status": "publish",
+    "definition": {
+      "id": "formidable-7",
+      "title": "Contact us",
+      "submitLabel": "Send it",
+      "successMessage": "Got it, thank you.",
+      "fields": [
+        {
+          "name": "your_name",
+          "label": "Your name",
+          "type": "text",
+          "required": true,
+          "placeholder": "Jane Doe",
+          "autocomplete": "name"
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "autocomplete": "email"
+        },
+        {
+          "name": "contact_me_by",
+          "label": "Contact me by",
+          "type": "select",
+          "options": [
+            "Email",
+            "Phone"
+          ]
+        },
+        {
+          "name": "phone",
+          "label": "Phone",
+          "type": "tel",
+          "required": true,
+          "autocomplete": "tel",
+          "showIf": {
+            "field": "contact_me_by",
+            "equals": [
+              "Phone"
+            ]
+          }
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "textarea",
+          "step": 1
+        },
+        {
+          "name": "fl7",
+          "label": "Floor plan",
+          "type": "file",
+          "accept": [
+            "pdf",
+            "jpg",
+            "jpeg",
+            "jpe"
+          ],
+          "maxMb": 8,
+          "maxFiles": 3,
+          "step": 1
+        }
+      ],
+      "steps": [
+        {
+          "title": "Step 1"
+        },
+        {
+          "title": "Details"
+        }
+      ],
+      "warnings": [
+        "payment field \"Card\" (credit_card) is out of scope: the rebuilt form takes no payments — keep the plugin's checkout elsewhere, or drop the form (overrides.ts integrations \"form:<provider>:<id>\")"
+      ]
+    },
+    "recipients": [
+      "office@studio.example"
+    ]
+  }
+]

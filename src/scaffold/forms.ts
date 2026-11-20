@@ -8,11 +8,12 @@
  * (Fluent `custom_html`, `section_break`), sanitised to paragraphs, lists, headings, bold/italic and safe links.
  */
 import { type ContentBlock, htmlToContent, htmlToParts, type InlinePart } from "../../packages/forms/src/rich.js";
+import { extensionsFrom, megabytes, PAYMENT_FIELD, paymentWarning, showIfFrom, withSteps } from "../extract/form-logic.js";
 
 export interface FormFieldOut {
 	name: string;
 	label: string;
-	type: "text" | "email" | "tel" | "number" | "url" | "date" | "textarea" | "select" | "checkbox" | "radio" | "consent" | "signature" | "content";
+	type: "text" | "email" | "tel" | "number" | "url" | "date" | "textarea" | "select" | "checkbox" | "radio" | "consent" | "signature" | "content" | "file";
 	/** Visible lines of a message box, as the source form set them. */
 	rows?: number;
 	required?: boolean;
@@ -24,6 +25,14 @@ export interface FormFieldOut {
 	autocomplete?: string;
 	labelParts?: InlinePart[];
 	content?: ContentBlock[];
+	/** file: allowed extensions (no dot), largest file in MB, how many files. */
+	accept?: string[];
+	maxMb?: number;
+	maxFiles?: number;
+	/** Shown only when another field has one of the values (or, with `not`, none of them). */
+	showIf?: { field: string; equals: string[]; not?: boolean };
+	/** Multi-step forms: the step (0-based). */
+	step?: number;
 }
 
 /** Shown above the submit button of a form with a signature field (unless the form has its own notice). */
@@ -38,7 +47,11 @@ export interface FormDefinitionOut {
 	notice?: string;
 	/** After a successful send: hide the form and show the message (Fluent "Hide Form"), or reset it. */
 	afterSubmit?: "hide" | "reset";
+	/** Multi-step forms: a title per step (fields carry `step`). */
+	steps?: { title: string }[];
 	warnings: string[];
+	/** What the WordPress form did that the rebuilt form does not (payments, complex conditions…): reported, not blocking. */
+	notes?: string[];
 	/** Fields of the WordPress form left out by the site's sensitive-form policy (reported, never silent). */
 	withheld?: string[];
 }
@@ -49,17 +62,29 @@ export function isContactField(f: FormFieldOut): boolean {
 	return f.type === "text" && (/(^|[-_])name($|[-_])|^names?$/i.test(f.name) || /name/.test(f.autocomplete ?? ""));
 }
 
-/** Apply a sensitive site's form policy to a definition. */
+/**
+ * File upload fields under the site's upload policy (kit.config forms.uploads): left out when uploads are off, or on a
+ * sensitiveData site unless the owner allowed them; otherwise given the site's size limit when the source set none.
+ */
+export function applyUploadPolicy(def: FormDefinitionOut, uploads: false | { maxMb: number; sensitive: boolean }, sensitiveData: boolean): FormDefinitionOut {
+	const files = def.fields.filter((f) => f.type === "file");
+	if (!files.length) return def;
+	const off = uploads === false ? "forms.uploads is false" : sensitiveData && !uploads.sensitive ? "sensitiveData site: file uploads are off unless forms.uploads.sensitive (owner decision)" : undefined;
+	if (off) return { ...def, fields: def.fields.filter((f) => f.type !== "file"), withheld: [...(def.withheld ?? []), ...files.map((f) => `${f.label || f.name} (file upload: ${off})`)] };
+	return { ...def, fields: def.fields.map((f) => (f.type === "file" && !f.maxMb && uploads ? { ...f, maxMb: uploads.maxMb } : f)) };
+}
+
+/** Apply a sensitive site's form policy to a definition. File fields the owner allowed (applyUploadPolicy) stay. */
 export function applySensitivePolicy(def: FormDefinitionOut, policy: "contact-only" | "contact-and-message" | undefined, notice: string): FormDefinitionOut {
 	if (!def.sensitive) return def;
 	if (!policy) return { ...def, warnings: [...def.warnings, "site has sensitiveData: set forms.sensitive in kit.config (owner decision) before this form can be rebuilt"] };
 	// contact-and-message keeps the first free-text box too (the notice above it asks for no health details).
 	const message = policy === "contact-and-message" ? def.fields.find((f) => f.type === "textarea") : undefined;
-	const kept = (f: FormFieldOut) => isContactField(f) || f === message;
+	const kept = (f: FormFieldOut) => isContactField(f) || f === message || f.type === "file";
 	const keep = def.fields.filter(kept);
 	const withheld = def.fields.filter((f) => !kept(f)).map((f) => f.label || f.name);
 	if (!keep.some((f) => f.type === "email" || f.type === "tel")) return { ...def, warnings: [...def.warnings, "contact-only policy leaves no email or phone field to reply to"] };
-	return { ...def, fields: keep, notice, ...(withheld.length ? { withheld } : {}) };
+	return { ...def, fields: keep, notice, ...(withheld.length || def.withheld?.length ? { withheld: [...(def.withheld ?? []), ...withheld] } : {}) };
 }
 
 type Obj = Record<string, unknown>;
@@ -83,17 +108,37 @@ const TYPE: Record<string, FormFieldOut["type"]> = {
 	terms_and_condition: "consent",
 	// The "Fluent Forms Signature Addon" (fluentform-signature) element.
 	signature: "signature",
+	input_file: "file",
+	input_image: "file",
 };
 const AUTOCOMPLETE: Record<string, string> = { first_name: "given-name", last_name: "family-name", middle_name: "additional-name", email: "email", phone: "tel" };
 
 export function fluentFormToDefinition(raw: { id: string; title: string; form: { form_fields?: Obj }; settings?: Obj }, sensitive: boolean): FormDefinitionOut {
 	const warnings: string[] = [];
+	const notes: string[] = [];
 	const fields: FormFieldOut[] = [];
+	// Conditional logic is resolved once every field is known (rules name fields by their `name` attribute).
+	const rules: { field: FormFieldOut; logic: Obj }[] = [];
 	let customSubmit: string | undefined;
+	let step = 0;
 	const visit = (f: Obj, half: boolean) => {
 		const el = str(f.element) ?? "";
 		const s = o(f.settings);
 		const a = o(f.attributes);
+		// Multi-step forms: a `form_step` element ends a step.
+		if (el === "form_step") {
+			step++;
+			return;
+		}
+		const before = fields.length;
+		visitField(f, el, s, a, half);
+		for (const added of fields.slice(before)) {
+			if (step) added.step = step;
+			const logic = o(s.conditional_logics);
+			if (logic.status === true || logic.status === "yes" || logic.status === 1) rules.push({ field: added, logic });
+		}
+	};
+	const visitField = (f: Obj, el: string, s: Obj, a: Obj, half: boolean) => {
 		if (el === "container") {
 			const cols = Array.isArray(f.columns) ? (f.columns as Obj[]) : [];
 			for (const c of cols) for (const x of (Array.isArray(c.fields) ? c.fields : []) as Obj[]) visit(x, cols.length > 1);
@@ -120,10 +165,21 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 		}
 		const type = TYPE[el];
 		if (!type) {
-			if (!["recaptcha", "hcaptcha", "turnstile", "input_hidden"].includes(el)) warnings.push(`field "${el}" not supported; rebuild by hand`);
+			if (PAYMENT_FIELD.test(el)) warnings.push(paymentWarning(el, str(s.label) ?? ""));
+			else if (!["recaptcha", "hcaptcha", "turnstile", "input_hidden"].includes(el)) warnings.push(`field "${el}" not supported; rebuild by hand`);
 			return;
 		}
 		const name = str(a.name) ?? el;
+		if (type === "file") {
+			// Fluent upload settings: allowed types under validation_rules.allowed_file_types (or allowed_image_types), max_file_size (MB), max_file_count.
+			const vr = o(s.validation_rules);
+			const accept = extensionsFrom(o(vr.allowed_file_types).value ?? o(vr.allowed_image_types).value) ?? (el === "input_image" ? ["jpg", "jpeg", "png", "gif", "webp"] : undefined);
+			const maxMb = megabytes(o(vr.max_file_size).value ?? o(vr.max_file_size)._valueFrom);
+			const maxFiles = Number(o(vr.max_file_count).value) || undefined;
+			const required = o(vr.required).value === true;
+			fields.push({ name, label: str(s.label) || name, type, ...(required ? { required } : {}), ...(accept ? { accept } : {}), ...(maxMb ? { maxMb } : {}), ...(maxFiles && maxFiles > 1 ? { maxFiles: Math.min(5, maxFiles) } : {}) });
+			return;
+		}
 		const placeholder = type === "signature" ? str(s.sign_instruction) : str(a.placeholder) ?? (type === "select" ? str(s.placeholder) : undefined);
 		const required = o(o(s.validation_rules).required).value === true || el === "gdpr_agreement";
 		if (type === "consent") {
@@ -149,5 +205,15 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 	const success = str(confirmation.messageToShow);
 	const afterSubmit = str(confirmation.samePageFormBehavior) === "hide_form" ? "hide" : str(confirmation.samePageFormBehavior) === "reset_form" ? "reset" : undefined;
 	const signed = fields.some((f) => f.type === "signature");
-	return { id: `fluent-forms-${raw.id}`, title: raw.title, submitLabel, successMessage: success ? stripHtml(success) : "Thank you — we will be in touch.", fields, ...(signed ? { notice: SIGNATURE_NOTICE } : {}), ...(afterSubmit ? { afterSubmit } : {}), ...(sensitive ? { sensitive: true } : {}), warnings };
+	// Fluent conditional_logics: { status, type: "any" | "all", conditions: [{ field, operator: "=" | "!=" | …, value }] }.
+	const names = new Set(fields.map((f) => f.name));
+	for (const { field, logic } of rules) {
+		const conditions = (Array.isArray(logic.conditions) ? logic.conditions : []).map((c) => o(c)).filter((c) => str(c.field));
+		const r = showIfFrom(field.label, conditions.map((c) => ({ field: names.has(str(c.field) as string) ? str(c.field) : undefined, op: str(c.operator) ?? "=", value: str(c.value) ?? String(c.value ?? "") })), str(logic.type) === "all" ? "all" : "any");
+		if (r.showIf) field.showIf = r.showIf;
+		if (r.note) notes.push(r.note);
+	}
+	const stepTitles = (Array.isArray(o(o(o(ff.stepsWrapper).stepStart).settings).step_titles) ? (o(o(o(ff.stepsWrapper).stepStart).settings).step_titles as unknown[]) : []).map((t) => str(t) ?? "");
+	const stepped = withSteps(fields, stepTitles);
+	return { id: `fluent-forms-${raw.id}`, title: raw.title, submitLabel, successMessage: success ? stripHtml(success) : "Thank you — we will be in touch.", fields: stepped.fields, ...(stepped.steps ? { steps: stepped.steps } : {}), ...(signed ? { notice: SIGNATURE_NOTICE } : {}), ...(afterSubmit ? { afterSubmit } : {}), ...(sensitive ? { sensitive: true } : {}), warnings, ...(notes.length ? { notes } : {}) };
 }

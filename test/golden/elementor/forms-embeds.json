@@ -88,7 +88,7 @@
           }
         ],
         "formRef": {
-          "provider": "cf7",
+          "provider": "contact-form-7",
           "id": "12"
         },
         "aside": []
@@ -149,7 +149,7 @@
     {
       "level": "warn",
       "code": "lossy",
-      "message": "[form] hidden field \"src\" not rebuilt (its value is set by the page); add it by hand if the receiver needs it; field \"Attachment\" (upload) not supported; rebuild by hand; Elementor form actions not rebuilt: mailchimp; recipient set in Elementor: set it in the admin (Forms → recipients), it is not copied",
+      "message": "[form] hidden field \"src\" not rebuilt (its value is set by the page); add it by hand if the receiver needs it; Elementor form actions not rebuilt: mailchimp; recipient set in Elementor: set it in the admin (Forms → recipients), it is not copied",
       "path": "container#ea00001/form#ea00003",
       "tag": "form"
     },
@@ -218,11 +218,15 @@
           "name": "consent",
           "label": "I agree to be contacted",
           "type": "consent"
+        },
+        {
+          "name": "cv",
+          "label": "Attachment",
+          "type": "file"
         }
       ],
       "warnings": [
         "hidden field \"src\" not rebuilt (its value is set by the page); add it by hand if the receiver needs it",
-        "field \"Attachment\" (upload) not supported; rebuild by hand",
         "Elementor form actions not rebuilt: mailchimp",
         "recipient set in Elementor: set it in the admin (Forms → recipients), it is not copied"
       ]

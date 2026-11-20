@@ -29,7 +29,7 @@ The package is not on npm. Copy `packages/forms` into the project (for example t
 "dependencies": { "@wp2emdash/forms": "link:./packages/forms" }
 ```
 
-Or build a tarball from the kit (`pnpm --dir packages/forms pack`) and `pnpm add ./wp2emdash-forms-1.6.0.tgz`.
+Or build a tarball from the kit (`pnpm --dir packages/forms pack`) and `pnpm add ./wp2emdash-forms-1.7.0.tgz`.
 The package ships TypeScript source; the site's Astro/Vite build compiles it.
 
 ## Wire it up
@@ -58,6 +58,13 @@ A form definition (`FormDefinition`): `id`, `title`, `submitLabel`, `successMess
 | consent | a checkbox whose label is `labelParts` (text runs; links kept only when http(s) or site-relative — `safeHref`) | anything = accepted | required → must be ticked |
 | signature | a signature pad plus "type your full name" (below) | `<name>` PNG data URL and/or `<name>_typed` | PNG or typed name |
 | content | `content` blocks (paragraphs, list items, headings, rules; bold, italic, safe links) — not an input | nothing | — |
+| file (1.7) | a file input (`accept`, `maxMb` ≤ 25, `maxFiles` ≤ 5) | the file(s) | extension in `accept` ∩ the built-in list, size, first bytes; stored privately, emailed as a one-time link (below) |
+
+Any field can have `showIf: { field, equals: [...], not? }` (shown only while another field has — or, with `not`, has not
+— one of the values; a ticked single checkbox counts as `"yes"`) and `step` (0-based; the definition's `steps: [{ title }]`
+names them). The page script shows one step at a time with Back/Next and hides conditional fields (their inputs are
+disabled, so not sent); without JavaScript everything shows. The endpoint judges the conditions on the submitted values
+(`logic.ts`): a hidden field is neither required nor emailed. Conditional fields are never `required` in the HTML.
 
 Rich text (`labelParts`, `content`) is data, never HTML: pages render it as elements (`@wp2emdash/forms/rich` has
 `safeHref` and the converters), so nothing in a definition is inserted as markup.
@@ -113,6 +120,8 @@ with `"triggers": { "crons": ["*/5 * * * *"] }`.
 | `FORM_OUTBOX_DAYS` | var | Retention, 1–90 days (default 30) |
 | `FORM_OUTBOX_HOLD` | var | `"1"`: keep every message, send none |
 | `FORM_OUTBOX_KEEP_SENT` | var | `"1"`: keep every message, also once emailed (a full inbox, below). Needs `FORM_OUTBOX` |
+| `FORM_FILE_SECRET` | secret | File upload fields (1.7): signs the one-time download links (16+ random characters). Without it (or without the `MEDIA` R2 binding) forms refuse files and ask the visitor to email them |
+| `FORM_UPLOAD_DAYS` | var | Days a sent file and its link are kept (1–90; default `FORM_OUTBOX_DAYS`, else 30) |
 
 Without working email (no `EMAIL_API_KEY`, or with `emdash` no provider selected in Settings → Email, or no
 recipients) and without `FORM_OUTBOX` the endpoint answers 503 ("not available") rather than accept a message it cannot
@@ -160,6 +169,29 @@ visitor's address. When no provider is selected the message is kept in the outbo
 one). EmDash's `email:beforeSend`/`email:afterSend` hook plugins see these messages with source `site-forms`: on a site
 with sensitive forms, do not install plugins that hook those events. Turnstile test keys (always pass): site `1x00000000000000000000AA`, secret
 `1x0000000000000000000000000000000AA` — for staging and `.dev.vars` only.
+
+## File uploads (1.7)
+
+A `file` field's files are checked after Turnstile and validation (extension, size, the first bytes: a `.pdf` must start
+with `%PDF`, a `.docx` is a ZIP…; the stored content type comes from the extension table, never the browser), then stored
+in the site's R2 bucket (`MEDIA`) under `backups/form-uploads/<form>/<day>/<random>/<name>` — EmDash's public media route
+never serves `backups/`. The email gets one line per file: name, size and a link
+`/api/forms/file?k=…&e=…&s=…` (HMAC-SHA256 with `FORM_FILE_SECRET`). Opening it shows a Download button; the download
+(a POST) works once, then the link answers 410 (`<key>.used` marks it). Serve the route from
+`src/pages/api/forms/file.ts`:
+
+```ts
+import { env } from "cloudflare:workers";
+import { createDownloadHandlers, type UploadEnv } from "@wp2emdash/forms/uploads";
+export const prerender = false;
+const h = createDownloadHandlers(() => env as unknown as UploadEnv);
+export const GET = h.GET;
+export const POST = h.POST;
+```
+
+and call `purgeUploads(env)` from the Worker's cron (the kit's starter does it hourly on sites with file fields): files
+older than `FORM_UPLOAD_DAYS` are deleted. Sites with sensitive data get no file fields unless the owner allowed them
+(the kit's `forms.uploads.sensitive`). File names and contents never reach logs.
 
 ## Signatures, consent and the emailed record
 

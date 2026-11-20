@@ -34,6 +34,9 @@ import { type CommentsPlan, type CommentTarget, commentsGate, commentsReport, di
 import { type BlogByline, blogIndexPath, type BlogPlan, blogReport, blogTaxonomies, bylineSlug, convertPostBody, feedSettings, permalinkPath, type WpTaxonomy, wpGmtToIso } from "../transform/blog.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
+import { shortcodeSummary, shortcodesReport } from "../transform/shortcodes.js";
+import { loadSiteEnv } from "../extract/credentials.js";
+import { decide, isPasswordFormHtml, PROTECTED_FILE, type ProtectedEntry, type ProtectedKind } from "../transform/protected.js";
 import { announcementDoc, describeBar, detectAnnouncement } from "../transform/announcement.js";
 import { emdashMenuNames, isMegaClass, megaItems, megaMenuIds, menusReport, ownClasses, type WpMenuItemRest } from "../transform/menus.js";
 import { breadcrumbsOf, headerSearch, maintenancePlugin, notFoundContent, notFoundDoc, type SiteFeatures, siteFeaturesReport } from "../transform/site-features.js";
@@ -316,15 +319,36 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		reporter.emit({ type: "step:progress", step: "Adapt content", done: ++done, item: file });
 	};
 
+	// ── Password-protected and private content (src/transform/protected.ts) ───────────────────────────────────────
+	const protectedRaw = new Map((readJson<ProtectedEntry[]>(join(paths.raw, PROTECTED_FILE)) ?? []).map((e) => [`${e.type}:${e.id}`, e]));
+	const passwordFormOnLive = (id: number) => {
+		const snap = snapPages.get(id);
+		const f = snap ? join(paths.snapshot, "html", `${snap.name}.html`) : undefined;
+		return !!f && existsSync(f) && isPasswordFormHtml(readFileSync(f, "utf8"));
+	};
+	const protectedKind = (p: ExporterPost): ProtectedKind | undefined => (p.status === "private" ? "private" : protectedRaw.has(`${p.post_type}:${p.id}`) || !!(p as { password?: unknown }).password || !!(p as { post_password?: unknown }).post_password || passwordFormOnLive(p.id) ? "password" : undefined);
+	const protectedDocs: { slug: string; type: string; kind: ProtectedKind; as: ReturnType<typeof decide>; hash: boolean }[] = [];
+	const accessOf = (p: ExporterPost, legacy?: { as: "draft" | "skip" | "publish" }): IrPage["access"] | "skip" | undefined => {
+		const kind = protectedKind(p);
+		if (!kind) return undefined;
+		const as = decide(kind, overrides.protectedContent, legacy);
+		protectedDocs.push({ slug: p.slug || String(p.id), type: p.post_type, kind, as, hash: !!protectedRaw.get(`${p.post_type}:${p.id}`)?.hash });
+		return as === "skip" ? "skip" : { kind, as };
+	};
 	for (const p of pages) {
+		const access = accessOf(p);
+		if (access === "skip") {
+			notTransformed.push(`page ${p.slug}: ${p.status === "private" ? "private" : "password-protected"}, skipped by decision (overrides.ts protectedContent)`);
+			continue;
+		}
 		const { builder, sections, diagnostics } = adapt(p, "page");
 		paddedEdges += applyMeasuredPadding(sections, boxesFor(routeOf(p)), false);
 		const template = typeof p.meta._wp_page_template === "string" && p.meta._wp_page_template !== "default" ? p.meta._wp_page_template : undefined;
 		const parentPath = p.parent && byId.get(p.parent) ? routeOf(byId.get(p.parent) as ExporterPost) : undefined;
 		emit(
-			{ version: IR_VERSION, kind: "page", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder, modifiedGmt: p.modified_gmt }, route: { path: routeOf(p), ...(parentPath ? { parentPath } : {}), ...(template ? { template } : {}), ...(p.id === frontId ? { isFrontPage: true } : {}) }, title: p.title, seo: seoOf(p), ...(p.featured_image?.id ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}), sections, diagnostics },
+			{ version: IR_VERSION, kind: "page", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder, modifiedGmt: p.modified_gmt }, route: { path: routeOf(p), ...(parentPath ? { parentPath } : {}), ...(template ? { template } : {}), ...(p.id === frontId ? { isFrontPage: true } : {}) }, title: p.title, seo: seoOf(p), ...(p.featured_image?.id ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}), sections, ...(access ? { access } : {}), diagnostics },
 			`pages/${p.slug}.json`,
-			p.status === "publish",
+			p.status === "publish" && access?.as !== "draft",
 		);
 	}
 	// Post types decided "pages" (overrides.ts contentTypes): every entry becomes a page at its WordPress address.
@@ -341,8 +365,12 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const discovery = readJson<Omit<NonNullable<WpUrlInput["discovery"]>, "authors"> & { items?: { type: string; link: string }[]; authors?: { id: number; slug: string; link: string; name?: string; description?: string; avatar?: string }[] }>(join(paths.snapshot, "discovery.json"));
 	const postsDecided = asPages("post") || overrides.contentTypes.post?.as === "skip";
 	const POST_STATUSES = new Set(["publish", "future", "draft", "pending", "private"]);
-	const isProtected = (p: ExporterPost) => p.status === "private" || !!(p as { password?: unknown; post_password?: unknown }).password || !!(p as { post_password?: unknown }).post_password;
-	const blogPosts = postsDecided || config.blog === false ? [] : posts.filter((p) => POST_STATUSES.has(p.status) && !(isProtected(p) && overrides.protectedPosts?.as === "skip"));
+	const isProtected = (p: ExporterPost) => !!protectedKind(p);
+	const skippedPost = (p: ExporterPost) => {
+		const kind = protectedKind(p);
+		return !!kind && decide(kind, overrides.protectedContent, overrides.protectedPosts) === "skip";
+	};
+	const blogPosts = postsDecided || config.blog === false ? [] : posts.filter((p) => POST_STATUSES.has(p.status) && !skippedPost(p));
 	const blogOn = !postsDecided && config.blog !== false && (blogPosts.length > 0 || config.blog === true);
 	const protectedPosts = blogOn ? posts.filter((p) => POST_STATUSES.has(p.status) && isProtected(p)) : [];
 	const stickyIds = new Set((Array.isArray(options.sticky_posts) ? options.sticky_posts : typeof options.sticky_posts === "object" && options.sticky_posts ? Object.values(options.sticky_posts) : []).map(Number));
@@ -404,6 +432,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const terms = Object.fromEntries(Object.entries(p.taxonomies ?? {}).flatMap(([wp, list]) => (taxName.get(wp) && list.length ? [[taxName.get(wp) as string, list.map((t) => t.slug)]] : [])));
 		const excerpt = (p.excerpt ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 		const visibility = p.status === "private" ? "private" : isProtected(p) ? "password" : "public";
+		const postAccess = visibility === "public" ? undefined : accessOf(p, overrides.protectedPosts);
 		const doc: IrPage = {
 			version: IR_VERSION,
 			kind: "post",
@@ -428,9 +457,10 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 						},
 					}
 				: {}),
+			...(postAccess && postAccess !== "skip" ? { access: postAccess } : {}),
 			diagnostics: [...(adapted?.diagnostics ?? []), ...(converted?.diagnostics ?? [])],
 		};
-		emit(doc, `posts/${p.slug || `post-${p.id}`}.json`, p.status === "publish" && visibility === "public");
+		emit(doc, `posts/${p.slug || `post-${p.id}`}.json`, p.status === "publish" && (visibility === "public" || (postAccess !== "skip" && postAccess?.as !== "draft")));
 	}
 	const blogPlan: BlogPlan | undefined = blogOn
 		? {
@@ -840,7 +870,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const formText = [...readFormText(join(paths.raw, "forms")), ...[...bricksForms.values()].flatMap((f) => [f.submitLabel, ...f.fields.flatMap((x) => [x.label, ...(x.placeholder ? [x.placeholder] : []), ...(x.options ?? [])])])];
 	const footerDocs = results.filter((r) => r.doc.kind === "partial" && r.published).map((r) => r.doc);
 	const lowPages: string[] = [];
-	for (const r of results.filter((x) => (x.doc.kind === "page" || x.doc.kind === "entry") && x.published)) {
+	for (const r of results.filter((x) => (x.doc.kind === "page" || x.doc.kind === "entry") && x.published && !x.doc.access)) {
 		const snap = snapPages.get(r.doc.source.wpId);
 		const htmlFile = snap ? join(paths.snapshot, "html", `${snap.name}.html`) : undefined;
 		if (!htmlFile || !existsSync(htmlFile)) continue;
@@ -903,8 +933,16 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	check("content-types-handled", "Every post type, taxonomy in use and author with posts is migrated or decided", !inventory.some((r) => r.status === "undecided"), inventoryDetail(inventory));
 	// Custom fields of migrated post types: every meta key is a mapped field, a decided one, or WordPress's own.
 	if (cpt.plan) check("cpt-fields", "Every custom field of a migrated post type is mapped or decided (overrides.ts contentTypes.<type>.fields)", cpt.unknownMeta.length === 0, cpt.unknownMeta.length ? `${cpt.unknownMeta.length} meta key(s) without a field definition (coverage report → Custom post types): ${cpt.unknownMeta.slice(0, 6).join(", ")}${cpt.unknownMeta.length > 6 ? ", …" : ""}` : `${cpt.plan.collections.map((c) => `${c.slug}: ${c.fields.length} field(s)`).join(", ")}`);
-	// Private and password-protected posts: EmDash has no such status, so each needs the owner's decision.
-	if (protectedPosts.length) check("protected-posts", "Private and password-protected posts decided (overrides.ts protectedPosts)", !!overrides.protectedPosts, overrides.protectedPosts ? `${overrides.protectedPosts.as}: ${protectedPosts.length} post(s) (${overrides.protectedPosts.reason})` : `${protectedPosts.length} post(s) need a decision: ${protectedPosts.slice(0, 5).map((p) => `${p.slug || p.id} (${p.status === "private" ? "private" : "password"})`).join(", ")}; overrides.ts protectedPosts: { as: "draft" | "skip" | "publish", reason }`);
+	// Private and password-protected pages and posts: EmDash has no such status. Defaults: password → protect (the
+	// WordPress password, hashed), private → draft; a "protect" item needs its password hash (or the .env fallback).
+	for (const p of protectedPosts) if (!protectedDocs.some((d) => d.type === p.post_type && d.slug === (p.slug || String(p.id)))) protectedDocs.push({ slug: p.slug || String(p.id), type: p.post_type, kind: protectedKind(p) ?? "password", as: decide(protectedKind(p) ?? "password", overrides.protectedContent, overrides.protectedPosts), hash: !!protectedRaw.get(`${p.post_type}:${p.id}`)?.hash });
+	if (protectedDocs.length) {
+		const fallback = !!loadSiteEnv(paths.root).WP2EMDASH_PROTECTED_PASSWORD;
+		const noPassword = protectedDocs.filter((d) => d.as === "protect" && !d.hash && !fallback);
+		const by = (as: string) => protectedDocs.filter((d) => d.as === as);
+		const decided = overrides.protectedPosts ? `protectedPosts: ${overrides.protectedPosts.as} (${overrides.protectedPosts.reason})` : overrides.protectedContent ? `overrides.ts protectedContent` : "defaults: password → protect, private → draft";
+		check("protected-content", "Password-protected and private content carried by decision (overrides.ts protectedContent)", noPassword.length === 0, noPassword.length ? `${noPassword.length} protected item(s) without a readable WordPress password: ${noPassword.slice(0, 5).map((d) => `${d.type} ${d.slug}`).join(", ")} — give extract an editor's application password, set WP2EMDASH_PROTECTED_PASSWORD in sites/${config.slug}/.env (the owner's new password, hashed at load), or decide draft/skip/publish` : `${protectedDocs.length} item(s), ${decided}: ${["protect", "draft", "publish", "skip"].filter((a) => by(a).length).map((a) => `${a} ${by(a).length}`).join(", ")}`);
+	}
 
 	// ── Customizer Additional CSS: reported, carried only by decision ───────────────────────────────────────
 	const customCss: CustomCss | undefined = readJson<CustomCss>(join(paths.raw, "custom-css.json")) ?? (() => {
@@ -1018,7 +1056,11 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		consent: { found: consentPlan.found, keptWidgets: consentPlan.keptWidgets, mode: config.consent === false ? "off" : (config.consent.mode ?? consentPlan.mode), reason: consentPlan.reason },
 		wpUrls: { rules: wpUrlPlan.explain, attachments: Object.keys(wpUrlPlan.rules.attachments ?? {}).length, feedPending: wpUrlPlan.feedPending },
 	});
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	// Plugin/theme shortcodes met in content (registry src/adapters/shortcodes.ts): written only when there are any.
+	const shortcodes = shortcodeSummary(results);
+	rmSync(join(paths.ir, "shortcodes.json"), { force: true });
+	if (shortcodes.used.length) write(join(paths.ir, "shortcodes.json"), shortcodes);
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

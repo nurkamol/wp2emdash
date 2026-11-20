@@ -31,6 +31,12 @@ export const overridesSchema = z.object({
 		.object({
 			/** External media URL (or host) → copy into R2 during load, or keep hotlinked. */
 			external: z.record(z.string(), z.enum(["copy", "hotlink"])).default({}),
+			/**
+			 * Which media-library files load uploads besides the ones content uses (and the files content links to, always):
+			 * "documents" (default) = every PDF, Word, Excel, ZIP… file in the library too, so links from emails and other
+			 * sites keep working through the old upload address; "referenced" = only what content uses; "all" = every file.
+			 */
+			library: z.enum(["referenced", "documents", "all"]).default("documents"),
 		})
 		.prefault({}),
 	redirects: z
@@ -74,6 +80,18 @@ export const overridesSchema = z.object({
 	 * (password-protected only: the password is dropped). A reason is required.
 	 */
 	protectedPosts: decision(["draft", "skip", "publish"]).optional(),
+	/**
+	 * Password-protected and private pages and posts (src/transform/protected.ts; coverage report → "Protected content").
+	 * Unset = the defaults: password → "protect" (published behind the starter's password page with the WordPress password,
+	 * hashed; noindex, not in the sitemap, never cached), private → "draft" (editors only, as on WordPress).
+	 * `protectedPosts`, when set, still decides posts.
+	 */
+	protectedContent: z
+		.object({
+			password: decision(["protect", "draft", "skip", "publish"]).optional(),
+			private: decision(["draft", "skip", "publish"]).optional(),
+		})
+		.optional(),
 	/**
 	 * Old addresses the owner decided are gone: path patterns (`*` = any characters, query included when the pattern has
 	 * one) → reason. Verify accepts 404/410 for them (urls-accounted).

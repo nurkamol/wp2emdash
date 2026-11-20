@@ -39,6 +39,12 @@ export interface ClientRepoInput {
 	productionReady: boolean;
 	sections: { slug: string; label: string; description: string }[];
 	forms: { id: string; title: string; fields: string[]; withheld: string[] }[];
+	/** Forms with file upload fields: how long files and their download links are kept (days). */
+	formUploads?: number;
+	/** Some form has conditional fields or steps. */
+	formLogic?: boolean;
+	/** Password-protected pages/posts carried behind the password page (src/transform/protected.ts). */
+	protectedPages?: number;
 	email: { provider: string; from?: string; to: string[] };
 	turnstileProduction: boolean;
 	/** Messages kept in Workers KV when email cannot be sent (days kept; hold = keep all, send none). */
@@ -471,7 +477,8 @@ site defaults. Buttons can link to a page, an outside address, or open a popup (
 - **Links** inside text open in the same tab; buttons have an "Open in new tab" switch.
 - **Preview** a draft before publishing with the preview button in the editor.
 - **Page titles** in search results: a page shows "Page title – Site name" unless its SEO title says something else; an SEO title different from the page title is shown exactly as written (add the site name yourself if you want it).
-- **Addresses** of pages are kept from the old site. Changing a page's slug creates a redirect from the old address.${i.routeCache ? `
+- **Addresses** of pages are kept from the old site. Changing a page's slug creates a redirect from the old address.${i.protectedPages ? `
+- **Password-protected pages** (${i.protectedPages} carried from the old site) ask visitors for a password before they show anything. The password is the page's **Access password** field: type a new one to change it (visitors who already entered the old one must enter the new one), clear the field to make the page public. These pages are never cached, never shown in search engines and not in the sitemap.` : ""}${i.routeCache ? `
 - **Changes appear within seconds** after you publish — pages, menus, settings, header & footer, popups and the announcement bar alike: the site keeps a cached copy of each page and empties it when you save. If a page still looks old after a minute, publish it again; see docs/deployment.md (Speed).
 - **Announcement bar schedules** (start/end) are checked in the visitor's browser, so a bar appears and disappears on time even on a cached page.` : ""}
 ${i.ogCards ? `
@@ -579,6 +586,10 @@ ${i.productionUrl} — the workers.dev address before go-live, a preview link af
 ${testTo.length ? testTo.join(", ") : "the test inbox (none set: it is kept in the outbox unsent, or refused without an outbox)"} (\`FORM_TEST_TO\`), with "[Test]" in the subject, and the outbox never
 sends it anywhere else, also after the switch. The Form messages recipients setting applies to real messages only.
 Messages from ${new URL(i.productionUrl).host} are real as soon as the domain points at this site; nothing has to be redeployed (\`FORM_LIVE_HOST\`).
+
+` : ""}${i.formUploads ? `**Files visitors attach** (file upload fields) are checked (type, size, the file's first bytes), stored privately in the site's R2 bucket (\`backups/form-uploads/\`, never public) and **not** attached to the email: the email has a download link per file that works once, until it expires after ${i.formUploads} days, when the file is deleted too. Opening the link shows a Download button (so mail scanners do not use it up). The links are signed with the Worker secret \`FORM_FILE_SECRET\` (\`npx wrangler secret put FORM_FILE_SECRET\`, any random text of 16+ characters); without it the forms refuse files and ask visitors to email them instead.
+
+` : ""}${i.formLogic ? `Some forms show a field only after a choice (for example *Group size* after *Group visit*), or come in steps with Back and Next; without JavaScript every field shows at once and the site still checks only what applies.
 
 ` : ""}Recipients and sender are the \`FORM_TO\` / \`FORM_FROM\` settings in \`wrangler.jsonc\`; the ${i.email.provider} API key is the
 Worker secret \`EMAIL_API_KEY\`. The sender address must be verified in the ${i.email.provider} account.

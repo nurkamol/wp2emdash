@@ -1,0 +1,84 @@
+[
+  {
+    "provider": "forminator",
+    "id": "12",
+    "title": "Feedback",
+    "status": "publish",
+    "definition": {
+      "id": "forminator-12",
+      "title": "Feedback",
+      "submitLabel": "Submit feedback",
+      "successMessage": "Thanks for the feedback.",
+      "fields": [
+        {
+          "name": "name_1",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "autocomplete": "email"
+        },
+        {
+          "name": "select_1",
+          "label": "Reason",
+          "type": "select",
+          "options": [
+            "Question",
+            "Complaint"
+          ]
+        },
+        {
+          "name": "textarea_1",
+          "label": "What happened?",
+          "type": "textarea",
+          "required": true,
+          "showIf": {
+            "field": "select_1",
+            "equals": [
+              "Complaint"
+            ]
+          }
+        },
+        {
+          "name": "upload_1",
+          "label": "Photo",
+          "type": "file",
+          "accept": [
+            "jpg",
+            "png"
+          ],
+          "maxMb": 2
+        },
+        {
+          "name": "gdprcheckbox_1",
+          "label": "I agree to the privacy policy",
+          "type": "checkbox",
+          "required": true,
+          "step": 1
+        }
+      ],
+      "steps": [
+        {
+          "title": "Step 1"
+        },
+        {
+          "title": "Consent"
+        }
+      ],
+      "warnings": [
+        "payment field \"Deposit\" (stripe) is out of scope: the rebuilt form takes no payments — keep the plugin's checkout elsewhere, or drop the form (overrides.ts integrations \"form:<provider>:<id>\")"
+      ],
+      "notes": [
+        "“Photo”: conditional logic not carried (more than one field: show when select_1 is \"Complaint\" and email contains \"@\"); the field is always shown"
+      ]
+    },
+    "recipients": [
+      "care@studio.example"
+    ]
+  }
+]

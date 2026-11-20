@@ -261,7 +261,8 @@ export const HANDLERS: Record<string, Handler> = {
 		const l = decodeVcLink(n.attrs.link);
 		return buttonFrom(n.attrs.title ?? l.title, l.url, ctx, { style: /outline|transparent/i.test(n.attrs.style ?? "") ? "secondary" : "primary", newTab: l.target?.includes("_blank") ?? false, ...(n.attrs.el_class ? { classes: n.attrs.el_class } : {}) });
 	},
-	button: (n, ctx) => buttonFrom(n.attrs.text, n.attrs.url, ctx, { newTab: n.attrs.open_new_tab === "true" }),
+	// Salient [button text url]; other themes' [button link|href="…"]Label[/button] (label from the content).
+	button: (n, ctx) => buttonFrom(n.attrs.text ?? (n.children.map((c) => (c.type === "text" ? c.text : "")).join("").replace(/<[^>]+>/g, "").trim() || undefined), n.attrs.url ?? n.attrs.link ?? n.attrs.href, ctx, { newTab: n.attrs.open_new_tab === "true" || n.attrs.target === "_blank" }),
 
 	// Images & media
 	image_with_animation: (n, ctx) => {
@@ -308,7 +309,7 @@ export const HANDLERS: Record<string, Handler> = {
 
 	// Forms
 	fluentform: (n) => [{ kind: "form", provider: "fluent-forms", id: n.attrs.id ?? n.args[0] ?? "" }],
-	"contact-form-7": (n) => [{ kind: "form", provider: "cf7", id: n.attrs.id ?? "" }],
+	"contact-form-7": (n) => [{ kind: "form", provider: "contact-form-7", id: n.attrs.id ?? "" }],
 	wpforms: (n) => [{ kind: "form", provider: "wpforms", id: n.attrs.id ?? "" }],
 	gravityform: (n) => [{ kind: "form", provider: "gravity-forms", id: n.attrs.id ?? "" }],
 	ninja_form: (n) => [{ kind: "form", provider: "ninja-forms", id: n.attrs.id ?? "" }],

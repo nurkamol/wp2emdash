@@ -6,7 +6,7 @@
  */
 import { spawn } from "node:child_process";
 import { footerCredit } from "../scaffold/credit.js";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
 import { backupsOptions } from "../scaffold/backups.js";
@@ -30,7 +30,7 @@ import type { IrPage, IrSite } from "../ir/schema.js";
 import { resolveGoogleHref, selfHostGoogleFonts } from "../scaffold/fonts.js";
 import { clientRepoFiles, deployScripts, writeClientRepo } from "../scaffold/client-repo.js";
 import { loadOverrides } from "../config/overrides.js";
-import { applySensitivePolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
+import { applySensitivePolicy, applyUploadPolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
 import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras, stackBreakpoint } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
 import { astroSessions, sessionsBucketBinding, sessionStore } from "../scaffold/sessions.js";
@@ -103,7 +103,7 @@ const TURNSTILE_TEST = { TURNSTILE_SITE_KEY: "1x00000000000000000000AA", TURNSTI
  *   Cloudflare's always-pass Turnstile test keys (developers.cloudflare.com/turnstile/troubleshooting/testing).
  */
 export function workerVars(config: Pick<KitConfig, "email" | "forms">, o: { staging: boolean; productionHost: string }): { production: Record<string, string>; staging: Record<string, string> } {
-	const formVars: Record<string, string> = { ...outboxVars(config.forms.outbox), EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
+	const formVars: Record<string, string> = { ...outboxVars(config.forms.outbox), ...(config.forms.uploads && config.forms.uploads.days !== 30 ? { FORM_UPLOAD_DAYS: String(config.forms.uploads.days) } : {}), EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
 	const single = o.staging ? {} : { FORM_LIVE_HOST: o.productionHost.replace(/^www\./, ""), ...(config.email.stagingTo.length ? { FORM_TEST_TO: config.email.stagingTo.join(",") } : {}) };
 	const production = { ...formVars, ...single, ...(config.forms.turnstileSiteKey ? { TURNSTILE_SITE_KEY: config.forms.turnstileSiteKey } : {}) };
 	const stagingMail = config.email.stagingTo.length ? { FORM_TO: config.email.stagingTo.join(",") } : { FORM_TO: "", ...(config.forms.outbox ? { FORM_OUTBOX_HOLD: "1" } : {}) };
@@ -606,7 +606,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			}
 			const base: FormDefinitionOut | undefined = raw.definition ? { ...raw.definition, warnings: raw.definition.warnings ?? [], ...(config.sensitiveData ? { sensitive: true } : {}) } : raw.form ? fluentFormToDefinition({ ...raw, form: raw.form }, config.sensitiveData) : undefined;
 			if (!base) continue;
-			const def = applySensitivePolicy(base, config.forms.sensitive, config.forms.notice);
+			const def = applySensitivePolicy(applyUploadPolicy(base, config.forms.uploads, config.sensitiveData), config.forms.sensitive, config.forms.notice);
 			forms.push(def);
 			if (def.withheld?.length) reporter.emit({ type: "log", level: "info", message: `${def.id}: not collected under forms.sensitive="${config.forms.sensitive}": ${def.withheld.join(", ")}` });
 			const { warnings: _w, withheld: _h, ...out } = def;
@@ -618,12 +618,25 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	for (const f of existsSync(irForms) ? readdirSync(irForms).filter((x) => x.endsWith(".json")) : []) {
 		const raw = readJson<FormDefinitionOut>(join(irForms, f));
 		if (!raw) continue;
-		const def = applySensitivePolicy({ ...raw, ...(config.sensitiveData ? { sensitive: true } : {}) }, config.forms.sensitive, config.forms.notice);
+		const def = applySensitivePolicy(applyUploadPolicy({ ...raw, ...(config.sensitiveData ? { sensitive: true } : {}) }, config.forms.uploads, config.sensitiveData), config.forms.sensitive, config.forms.notice);
 		forms.push(def);
 		if (def.withheld?.length) reporter.emit({ type: "log", level: "info", message: `${def.id}: not collected under forms.sensitive="${config.forms.sensitive}": ${def.withheld.join(", ")}` });
 		const { warnings: _w, withheld: _h, ...out } = def;
 		write(join(project, "src", "forms", `${def.id}.json`), out);
 	}
+
+	// File upload fields (@wp2emdash/forms uploads.ts): the download route and the hourly clean-up only on sites that
+	// have them; the Worker secret FORM_FILE_SECRET signs the one-time links (a random one in .dev.vars for local runs).
+	const formUploads = forms.some((f) => f.fields.some((x) => x.type === "file"));
+	if (formUploads) {
+		write(join(project, "src", "site.config.json"), { ...siteConfig, formUploads: true });
+		reporter.emit({ type: "log", level: "warn", message: `forms with file uploads: set the Worker secret that signs the download links before testing them (npx wrangler secret put FORM_FILE_SECRET — any random text of 16+ characters, in every environment); files are kept ${config.forms.uploads ? config.forms.uploads.days : 30} days under backups/form-uploads/ in the MEDIA bucket` });
+	} else rmSync(join(project, "src", "pages", "api", "forms", "file.ts"), { force: true });
+	// The password form's endpoint, only on sites with password-protected pages or posts (src/transform/protected.ts).
+	const protectedDocs = [...pages, ...posts].filter((d) => d.access?.as === "protect");
+	if (protectedDocs.length) reporter.emit({ type: "log", level: "info", message: `${protectedDocs.length} password-protected page(s)/post(s) behind the password page (noindex, never cached); optional Worker secret ACCESS_SECRET strengthens the unlock cookies` });
+	else rmSync(join(project, "src", "pages", "api", "access.ts"), { force: true });
+	for (const f of forms) for (const n of f.notes ?? []) reporter.emit({ type: "log", level: "info", message: `${f.id}: ${n}` });
 
 	// Seed (with the migrated content for local preview)
 	const sep = /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-";
@@ -679,7 +692,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		devDependencies: { "@astrojs/check": STACK["@astrojs/check"], "@cloudflare/workers-types": STACK["@cloudflare/workers-types"], typescript: STACK.typescript, wrangler: STACK.wrangler, ...(changeRequests ? { "@types/react": "19.2.18" } : {}) }, // @types/react: the change-requests upload page is a React admin page (astro check needs its types)
 	});
 	writePerfFiles(project, config.performance);
-	const pagePaths = pages.flatMap((p) => (p.source.status === "publish" && p.route?.path ? [p.route.path] : []));
+	// Password-protected pages never get a route-cache rule (the page itself refuses every cache: utils/access.ts).
+	const pagePaths = pages.flatMap((p) => (p.source.status === "publish" && !p.access && p.route?.path ? [p.route.path] : []));
 	// Sign-in sessions: R2 once every environment has its bucket (provision), else KV as before (src/scaffold/sessions.ts).
 	const builtEnvs = envs.staging ? (["staging", "production"] as const) : (["production"] as const);
 	const sessions = sessionStore(config.sessions, cf, [...builtEnvs]);
@@ -732,6 +746,10 @@ ${sess.options}${ap.options}	integrations: [
 	// Local dev: Turnstile's always-pass test keys so forms work under `astro dev` (kept if the developer edited the file).
 	const devVars = join(project, ".dev.vars");
 	if (!existsSync(devVars)) write(devVars, "# Local only (gitignored). Turnstile always-pass test keys; add EMAIL_API_KEY and FORM_FROM to test real delivery.\nTURNSTILE_SITE_KEY=1x00000000000000000000AA\nTURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA\n");
+	if (formUploads) {
+		const dv = readFileSync(devVars, "utf8");
+		if (!/^FORM_FILE_SECRET=/m.test(dv)) write(devVars, `${dv}${dv.endsWith("\n") ? "" : "\n"}FORM_FILE_SECRET=${randomBytes(24).toString("hex")}\n`);
+	}
 	// Client repository: README, docs, CI, .env.example.
 	const used = new Set([...pages, ...posts, ...entries, ...partials, ...popups].flatMap((d) => d.sections.map((s) => `section_${s.type}`)));
 	const keptDocs = writeClientRepo(
@@ -753,6 +771,9 @@ ${sess.options}${ap.options}	integrations: [
 			productionReady: !!cf.production?.live,
 			sections: BLOCK_TYPES.filter((b) => used.has(b.slug)).map((b) => ({ slug: b.slug, label: b.label, description: b.description ?? "" })),
 			forms: forms.map((f) => ({ id: f.id, title: f.title, fields: f.fields.map((x) => x.label), withheld: f.withheld ?? [] })),
+			...(formUploads ? { formUploads: config.forms.uploads ? config.forms.uploads.days : 30 } : {}),
+			...(protectedDocs.length ? { protectedPages: protectedDocs.length } : {}),
+			...(forms.some((f) => f.steps?.length || f.fields.some((x) => x.showIf)) ? { formLogic: true } : {}),
 			email: { provider: config.email.provider, ...(config.email.from ? { from: config.email.from } : {}), to: config.email.to },
 			turnstileProduction: !!config.forms.turnstileSiteKey,
 			...(config.forms.outbox ? { outbox: { days: config.forms.outbox.days, hold: config.forms.outbox.hold, keepSent: config.forms.outbox.keepSent } } : {}),

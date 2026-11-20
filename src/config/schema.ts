@@ -413,6 +413,23 @@ export const kitConfigSchema = z.object({
 				.transform((v) => (v === false ? undefined : v)),
 			/** Production Turnstile site key (public). Staging uses Cloudflare's always-pass test key. */
 			turnstileSiteKey: z.string().optional(),
+			/**
+			 * File upload fields of the WordPress forms (@wp2emdash/forms uploads.ts): the files go to the site's R2 bucket under
+			 * a private prefix and the email carries a one-time download link (Worker secret FORM_FILE_SECRET). `false`: file
+			 * fields are left out (reported). On a sensitiveData site they are left out unless `sensitive: true` (an owner
+			 * decision: visitors may attach health, legal or financial documents, which then sit in R2 for `days`).
+			 */
+			uploads: z
+				.object({
+					/** Largest file in MB when the WordPress field set none (at most 25). */
+					maxMb: z.number().int().min(1).max(25).default(10),
+					/** Days a file and its link are kept (1–90); default 30. */
+					days: z.number().int().min(1).max(90).default(30),
+					/** Keep file fields on a sensitiveData site (owner decision, decisions.md). */
+					sensitive: z.boolean().default(false),
+				})
+				.or(z.literal(false))
+				.prefault({}),
 		})
 		.prefault({}),
 

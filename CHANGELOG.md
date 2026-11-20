@@ -17,6 +17,11 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - Footer credit: "Website by PixelKraft" on every migrated site whose footer has no credit of its own (`credit` in kit.config; `false` turns it off).
 
 - **Faster pages:** pages stay in Cloudflare's cache for 7 days (`performance.pageMaxAge`; EmDash purges them on every publish, menu, settings and widget change; posts and collections keep 1 hour because byline edits do not purge), and a page starts loading when a visitor hovers over, focuses or touches its link (`performance.prefetch`; site pages only, never files, off on data saver).
+- **Password-protected and private content:** protected pages and posts are published behind a password page with the WordPress password (hashed by extract, never stored in clear; noindex, never cached, out of the sitemap and the search index); private ones become drafts. `overrides.ts protectedContent`; gates `protected-content` (transform), `protected-pages` (verify). See docs/spikes/content-forms-findings.md.
+- **Linked documents:** PDFs, Word, Excel, ZIP… linked from content go into the media library and the links point at them (Word/Excel/ZIP through a `wp_documents` file field's allowlist); library documents are uploaded too (`overrides.ts media.library`); captions carried, duplicates collapsed, lost titles/descriptions reported; load gate `documents`.
+- **More form plugins:** Ninja Forms, Formidable, WS Form and Forminator exports; a live form without an export is rebuilt from the page's HTML (flagged).
+- **`@wp2emdash/forms` 1.7:** file upload fields (private R2 storage, one-time signed download links, retention), conditional fields (`showIf`) and multi-step forms; kit config `forms.uploads`.
+- **Shortcode registry** (`src/adapters/shortcodes.ts`): forms, breadcrumbs, layout wrappers, widgets and core media shortcodes; unknown plugin shortcodes block; coverage report "Shortcodes".
 
 ### Fixed
 - Coming-soon mode now purges cached pages when it is saved (a cached page never reaches the middleware), and the middleware reads the switch on every render so a stale isolate cannot re-cache the public page.
@@ -24,6 +29,8 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ### Changed
 - Site health report footer defaults to "Prepared by PixelKraft"; the kit's plugins are presented as PixelKraft plugins.
+- Private posts no longer need a decision: they become drafts by default (as private pages already did); password-protected posts are protected by default. `protectedPosts` still works.
+- Form sections from `[contact-form-7]` now match their definitions (they used the provider name `cf7`).
 - Form messages (the forms outbox and its admin page) is on by default for sites that are not `sensitiveData`; `forms: { outbox: false }` turns it off.
 
 ## 2026-11-21 — Change requests, custom post types

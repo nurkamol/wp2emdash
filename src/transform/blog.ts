@@ -11,6 +11,7 @@
 import { gutenbergToPortableText, htmlToPortableText } from "@emdash-cms/gutenberg-to-portable-text";
 import { autop } from "../ir/portable-text.js";
 import type { Diagnostic, MediaRef } from "../ir/schema.js";
+import { shortcodeAction } from "../adapters/shortcodes.js";
 import type { BlogConfig } from "../../starter/src/utils/blog.js";
 
 export type PtNode = { _type: string; _key: string; [k: string]: unknown };
@@ -69,6 +70,15 @@ export function shortcodePass(html: string): string {
 		const src = attr(a, "src") ?? attr(a, "mp4") ?? attr(a, "mp3") ?? attr(a, "m4a") ?? attr(a, "webm") ?? attr(a, "ogg");
 		if (!src) return m;
 		return block(kind.toLowerCase(), {}, kind.toLowerCase() === "audio" ? `<figure class="wp-block-audio"><audio controls src="${esc(src)}"></audio></figure>` : `<figure class="wp-block-video"><video controls src="${esc(src)}"></video></figure>`);
+	});
+	// Registry (src/adapters/shortcodes.ts): layout/styling wrappers lose their tags (content kept; a title becomes a bold
+	// line), the SEO plugins' breadcrumb trails go (flagged by the transform). Everything else stays for the report.
+	out = out.replace(/\[(\/?)([a-zA-Z][\w-]*)((?:\s[^\]]*)?)\]/g, (m, close: string, tag: string, a: string) => {
+		const action = shortcodeAction(tag)?.do;
+		if (action === "breadcrumbs") return "";
+		if (action !== "strip") return m;
+		const title = close ? undefined : (attr(a, "title") ?? attr(a, "heading"));
+		return title ? `<p><strong>${esc(title)}</strong></p>` : "";
 	});
 	// A bare oEmbed URL on its own line (WordPress auto-embeds it).
 	out = out.replace(/(^|\n)[ \t]*(https?:\/\/[^\s<]+)[ \t]*(?=\n|$)/g, (m, lead: string, url: string) => (OEMBED.test(url) ? `${lead}${block("embed", { url }, `<figure class="wp-block-embed"><div class="wp-block-embed__wrapper">${esc(url)}</div></figure>`)}` : m));
@@ -216,7 +226,10 @@ export function convertPostBody(content: string, builder: "gutenberg" | "classic
 				case "block": {
 					const text = ((b.children as { text?: string }[] | undefined) ?? []).map((c) => c.text ?? "").join("");
 					const sc = shortcode.exec(text);
-					if (sc && /^\[\/?(?:[a-z_]+_[a-z_]+|vc_|et_pb|fusion|contact-form|wpforms|fluentform|gravityform|ninja_form|caption|gallery|embed|audio|video|playlist|shortcode)/i.test(sc[0])) diagnostics.push({ level: "error", code: "flagged", message: `shortcode kept as text: ${sc[0].slice(0, 80)}`, path: at, carriesContent: true, tag: "shortcode" });
+					const name = sc ? (/^\[\/?([a-zA-Z][\w-]*)/.exec(sc[0])?.[1] ?? "") : "";
+					const action = name ? shortcodeAction(name) : undefined;
+					if (action?.do === "widget" && !action.content) diagnostics.push({ level: "warn", code: "flagged", message: `shortcode [${name}]: ${action.what} kept as text (not rebuilt; a site widget can bring it back)`, path: at, tag: "shortcode" });
+					else if (sc && (action || /^\[\/?(?:[a-z_]+_[a-z_]+|vc_|et_pb|fusion|contact-form|wpforms|fluentform|gravityform|ninja_form|caption|gallery|embed|audio|video|playlist|shortcode)/i.test(sc[0]))) diagnostics.push({ level: "error", code: "flagged", message: `shortcode kept as text: ${sc[0].slice(0, 80)}${action?.do === "form" ? " (a form in a post: put the form on a page, or decide)" : ""}`, path: at, carriesContent: true, tag: "shortcode" });
 					break;
 				}
 			}

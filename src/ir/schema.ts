@@ -512,6 +512,11 @@ export const irPage = z.object({
 	post: irPost.optional(),
 	/** Entry-only (custom post type collections). */
 	entry: irEntry.optional(),
+	/**
+	 * Password-protected or private on WordPress, and what migration does with it (src/transform/protected.ts):
+	 * protect = published behind the password page (the hash stays in raw/protected.json, never in the IR); draft; publish.
+	 */
+	access: z.object({ kind: z.enum(["password", "private"]), as: z.enum(["protect", "draft", "publish"]) }).optional(),
 	diagnostics: z.array(diagnostic),
 });
 export type IrPage = z.infer<typeof irPage>;

@@ -4,7 +4,9 @@ import Heading from "../Heading.astro";
 import Rich from "../Rich.astro";
 import { env } from "cloudflare:workers";
 import { safeHref, type InlinePart } from "@wp2emdash/forms/rich";
-import { getForm } from "../../forms";
+import { stepsOf } from "@wp2emdash/forms/logic";
+import { acceptedOf, maxFilesOf, maxMbOf, UPLOAD_TYPES } from "@wp2emdash/forms/uploads";
+import { getForm, type FormField } from "../../forms";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const form = getForm(v.form_id);
 // Turnstile site key (public): a Worker var, the Cloudflare test key on staging.
@@ -14,6 +16,14 @@ const run = (p: InlinePart) => {
 	const href = safeHref(p.href);
 	return { href, external: !!href && !href.startsWith("/"), text: p.text, strong: !!p.strong, em: !!p.em };
 };
+// Multi-step forms: one group per step (all shown without JavaScript; the page script shows one at a time).
+const steps = form?.steps?.length && form.steps.length > 1 ? form.steps : undefined;
+const groups = form ? stepsOf(form.fields, steps?.length ?? 0) : [];
+// A conditional field is never `required` in the HTML (without JavaScript it is always shown): the server checks it when it applies.
+const need = (f: FormField) => !!f.required && !f.showIf;
+const cond = (f: FormField) => (f.showIf ? JSON.stringify(f.showIf) : undefined);
+const acceptAttr = (f: FormField) => acceptedOf(f).flatMap((x) => [`.${x}`, UPLOAD_TYPES[x]?.type ?? ""]).filter(Boolean).join(",");
+const fileHint = (f: FormField) => `${acceptedOf(f).map((x) => x.toUpperCase()).join(", ")} · up to ${maxMbOf(f)} MB${maxFilesOf(f) > 1 ? ` each, ${maxFilesOf(f)} files` : ""}`;
 ---
 
 <Section value={v} type="form">
@@ -25,9 +35,13 @@ const run = (p: InlinePart) => {
 		</div>
 		{
 			form ? (
-				<form class="form" method="post" action={`/api/forms/${form.id}`} data-form={form.id} data-after={form.afterSubmit ?? "reset"} aria-labelledby={`form-name-${form.id}`} novalidate>
+				<form class="form" method="post" action={`/api/forms/${form.id}`} data-form={form.id} data-after={form.afterSubmit ?? "reset"} data-steps={steps ? steps.length : undefined} enctype={form.fields.some((f) => f.type === "file") ? "multipart/form-data" : undefined} aria-labelledby={`form-name-${form.id}`} novalidate>
 					<span class="visually-hidden" id={`form-name-${form.id}`}>{form.title}</span>
-					{form.fields.map((f) => {
+					{steps && <p class="form__progress" data-form-progress aria-live="polite" hidden />}
+					{groups.map((group, gi) => (
+					<div class="form__step" data-step={steps ? gi : undefined} role={steps ? "group" : undefined} aria-label={steps ? steps[gi]?.title : undefined}>
+					{steps && steps[gi]?.title && <p class="form__step-title">{steps[gi]?.title}</p>}
+					{group.map((f) => {
 						const req = f.required && <span aria-hidden="true"> *</span>;
 						const parts = (list: InlinePart[] | undefined) =>
 							(list ?? []).map(run).map((p) => {
@@ -36,23 +50,23 @@ const run = (p: InlinePart) => {
 							});
 						if (f.type === "content")
 							return (
-								<div class="form__content" data-field={f.name}>
+								<div class="form__content" data-field={f.name} data-show-if={cond(f)}>
 									{(f.content ?? []).map((b) => (b.kind === "hr" ? <hr /> : b.kind === "h" ? <p class="form__content-heading">{parts(b.parts)}</p> : b.kind === "li" ? <p class="form__content-item">{parts(b.parts)}</p> : <p>{parts(b.parts)}</p>))}
 								</div>
 							);
 						if (f.type === "radio")
 							return (
-								<fieldset class="field field--radio" data-field={f.name}>
+								<fieldset class="field field--radio" data-field={f.name} data-show-if={cond(f)}>
 									<legend class="field__label">{f.label}{req}</legend>
 									{(f.options ?? []).map((o) => (
-										<label class="choice"><input type="radio" name={f.name} value={o} required={f.required} /> <span>{o}</span></label>
+										<label class="choice"><input type="radio" name={f.name} value={o} required={need(f)} /> <span>{o}</span></label>
 									))}
 									<span class="field__error" aria-live="polite" />
 								</fieldset>
 							);
 						if (f.type === "checkbox" && f.options?.length)
 							return (
-								<fieldset class="field field--checkbox-group" data-field={f.name}>
+								<fieldset class="field field--checkbox-group" data-field={f.name} data-show-if={cond(f)}>
 									<legend class="field__label">{f.label}{req}</legend>
 									{f.options.map((o) => (
 										<label class="choice"><input type="checkbox" name={f.name} value={o} /> <span>{o}</span></label>
@@ -62,14 +76,23 @@ const run = (p: InlinePart) => {
 							);
 						if (f.type === "consent")
 							return (
-								<div class="field field--consent" data-field={f.name}>
-									<label class="choice"><input type="checkbox" name={f.name} value="yes" required={f.required} /> <span>{f.labelParts?.length ? parts(f.labelParts) : f.label}{req}</span></label>
+								<div class="field field--consent" data-field={f.name} data-show-if={cond(f)}>
+									<label class="choice"><input type="checkbox" name={f.name} value="yes" required={need(f)} /> <span>{f.labelParts?.length ? parts(f.labelParts) : f.label}{req}</span></label>
 									<span class="field__error" aria-live="polite" />
 								</div>
 							);
+						if (f.type === "file")
+							return (
+								<label class="field field--file" data-field={f.name} data-show-if={cond(f)}>
+									<span class="field__label">{f.label}{req}</span>
+									<input type="file" name={f.name} required={need(f)} accept={acceptAttr(f)} multiple={maxFilesOf(f) > 1} data-max-mb={maxMbOf(f)} data-max-files={maxFilesOf(f)} aria-describedby={`${form.id}-${f.name}-hint`} />
+									<span class="field__hint" id={`${form.id}-${f.name}-hint`}>{fileHint(f)}</span>
+									<span class="field__error" aria-live="polite" />
+								</label>
+							);
 						if (f.type === "signature")
 							return (
-								<fieldset class="field field--signature" data-field={f.name} data-signature data-required={f.required ? "" : undefined}>
+								<fieldset class="field field--signature" data-field={f.name} data-signature data-required={need(f) ? "" : undefined} data-show-if={cond(f)}>
 									<legend class="field__label">{f.label}{req}</legend>
 									<div class="signature" data-signature-pad hidden>
 										<canvas class="signature__canvas" role="img" aria-label="Signature box: draw your signature with a mouse, finger or pen. To use the keyboard, type your full name in the field below instead." />
@@ -79,25 +102,33 @@ const run = (p: InlinePart) => {
 									<input type="hidden" name={f.name} data-signature-value />
 									<label class="signature__typed">
 										<span class="signature__typed-label"><span class="signature__or">Or type</span><span class="signature__alone">Type</span> your full name as your signature</span>
-										<input type="text" name={`${f.name}_typed`} required={f.required} autocomplete="name" maxlength={200} />
+										<input type="text" name={`${f.name}_typed`} required={need(f)} autocomplete="name" maxlength={200} />
 									</label>
 									<span class="field__error" aria-live="polite" />
 								</fieldset>
 							);
 						return (
-							<label class:list={["field", `field--${f.type}`, { "field--half": f.half }]} data-field={f.name}>
+							<label class:list={["field", `field--${f.type}`, { "field--half": f.half }]} data-field={f.name} data-show-if={cond(f)}>
 								<span class="field__label">{f.label}{req}</span>
 								{f.type === "textarea" ? (
-									<textarea name={f.name} required={f.required} placeholder={f.placeholder} rows={typeof f.rows === "number" && f.rows >= 2 && f.rows <= 20 ? f.rows : 5} />
+									<textarea name={f.name} required={need(f)} placeholder={f.placeholder} rows={typeof f.rows === "number" && f.rows >= 2 && f.rows <= 20 ? f.rows : 5} />
 								) : f.type === "select" ? (
-									<select name={f.name} required={f.required}><option value="" selected>{f.placeholder ?? "Choose…"}</option>{(f.options ?? []).map((o) => <option value={o}>{o}</option>)}</select>
+									<select name={f.name} required={need(f)}><option value="" selected>{f.placeholder ?? "Choose…"}</option>{(f.options ?? []).map((o) => <option value={o}>{o}</option>)}</select>
 								) : (
-									<input type={f.type === "date" && f.time ? "datetime-local" : f.type} name={f.name} required={f.required} placeholder={f.placeholder} autocomplete={f.autocomplete} />
+									<input type={f.type === "date" && f.time ? "datetime-local" : f.type} name={f.name} required={need(f)} placeholder={f.placeholder} autocomplete={f.autocomplete} />
 								)}
 								<span class="field__error" aria-live="polite" />
 							</label>
 						);
 					})}
+					{steps && (
+						<div class="form__nav" data-form-nav hidden>
+							{gi > 0 && <button type="button" class="btn btn--secondary" data-step-back>Back</button>}
+							{gi < steps.length - 1 && <button type="button" class="btn btn--primary" data-step-next>Next</button>}
+						</div>
+					)}
+					</div>
+					))}
 					<input type="text" name="_hp" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true" />
 					{form.notice && <p class="form__notice">{form.notice}</p>}
 					{siteKey && <div class="cf-turnstile" data-sitekey={siteKey} data-theme="light" />}

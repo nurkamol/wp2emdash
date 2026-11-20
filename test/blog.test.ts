@@ -57,7 +57,7 @@ describe("blog transform", () => {
 		const checks = await run(paths);
 		expect(checks.find((c) => c.id === "content-types-handled")).toMatchObject({ ok: true });
 		expect(checks.find((c) => c.id === "content-types-handled")?.detail).toMatch(/migrated: .*post/);
-		expect(checks.find((c) => c.id === "protected-posts")).toMatchObject({ ok: true });
+		expect(checks.find((c) => c.id === "protected-content")).toMatchObject({ ok: true });
 		expect(checks.find((c) => c.id === "ir-valid")).toMatchObject({ ok: true });
 		expect(checks.find((c) => c.id === "unmapped")).toMatchObject({ ok: true });
 		expect(checks.find((c) => c.id === "media-refs")).toMatchObject({ ok: true });
@@ -101,10 +101,12 @@ describe("blog transform", () => {
 		]);
 	});
 
-	it("private posts need a decision; skip leaves them out (reported)", async () => {
-		const open = await run(blogWorkspace("open"));
-		expect(open.find((c) => c.id === "protected-posts")).toMatchObject({ ok: false });
-		expect(open.find((c) => c.id === "protected-posts")?.detail).toMatch(/members-only \(private\)/);
+	it("private posts become drafts by default (reported); skip leaves them out", async () => {
+		const openPaths = blogWorkspace("open");
+		const open = await run(openPaths);
+		expect(open.find((c) => c.id === "protected-content")).toMatchObject({ ok: true });
+		expect(open.find((c) => c.id === "protected-content")?.detail).toMatch(/defaults: password → protect, private → draft: draft 1/);
+		expect(JSON.parse(readFileSync(join(openPaths.ir, "posts", "members-only.json"), "utf8"))).toMatchObject({ access: { kind: "private", as: "draft" } });
 		const paths = blogWorkspace("skip", `export default { protectedPosts: { as: "skip", reason: "owner: not needed" } };\n`);
 		await run(paths);
 		expect(existsSync(join(paths.ir, "posts", "members-only.json"))).toBe(false);

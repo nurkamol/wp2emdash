@@ -10,6 +10,7 @@ import type { Keys } from "../../ir/portable-text.js";
 import { colourValue, columnFraction, isDarkColour, parseVcCss, spacingFromPadding, texturize } from "./decode.js";
 import { type BoxHeight, type Col, CONTAINERS, DECORATIVE, type Fragment, GROUPS, HANDLERS, type HandlerCtx, LINE_LEADING, linkBlock, mediaFrom, richFromHtml } from "./elements.js";
 import { type AstNode, parseShortcodes, serialise, type ShortcodeNode } from "./parser.js";
+import { formIdOf, shortcodeAction } from "../shortcodes.js";
 
 export interface AdaptOptions {
 	kind: "page" | "post" | "partial" | "popup";
@@ -37,6 +38,9 @@ export interface Row {
 	raw: string;
 	adapter?: "wpbakery" | "gutenberg" | "classic" | "bricks" | "elementor";
 }
+
+/** Page-builder element families (WPBakery and its add-ons, Salient, Divi, Avada, other themes' builders): unknown ones keep the "No handler" report. */
+const BUILDER_TAG = /^(vc_|nectar|et_pb_|fusion_|cs_|x_|ux_|av_|tm_|mk_|ult_|ultimate_|bsf-|stm_|rs_|ts_|us_|mpc_|templatera|trx_|qode_|edgtf_|eltd_|mkdf_|qodef_|thb_|tatsu_)/;
 
 /** Shortcodes that render inline text inside a paragraph; kept as a token the starter fills in. */
 const INLINE_TOKENS: Record<string, string> = { nectar_current_year: "{year}", year: "{year}", current_year: "{year}" };
@@ -67,9 +71,91 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		if (h) return h(n, ctx);
 		if (n.tag === "vc_row_inner") return subrowFragments(n, path);
 		if (n.tag === "vc_text_separator") return n.attrs.title ? [{ kind: "rich", blocks: richFromHtml(`<h4>${n.attrs.title}</h4>`, ctx).flatMap((f) => (f.kind === "rich" ? f.blocks : [])) }] : [];
+		// Plugin and theme shortcodes no builder handler knows: the registry (src/adapters/shortcodes.ts) says what to do.
+		const known = pluginShortcode(n, path, ctx);
+		if (known) return known;
 		const carries = carriesContent(n);
-		diag({ level: carries ? "error" : "warn", code: "unmapped", message: `No handler for [${n.tag}]${carries ? " (carries content)" : ""}`, path, carriesContent: carries, tag: n.tag });
+		// A plugin shortcode (not a page-builder element) renders something on the live site even without attributes.
+		const plugin = !BUILDER_TAG.test(n.tag);
+		diag({ level: carries || plugin ? "error" : "warn", code: "unmapped", message: plugin ? `shortcode [${n.tag}]: unknown plugin shortcode, its output is not rebuilt (add it to the shortcode registry or a handler, or decide in overrides.ts)` : `No handler for [${n.tag}]${carries ? " (carries content)" : ""}`, path, carriesContent: carries || plugin, tag: n.tag });
 		return processChildren(n.children, path);
+	}
+
+	function pluginShortcode(n: ShortcodeNode, path: string, ctx: HandlerCtx): Fragment[] | undefined {
+		const a = shortcodeAction(n.tag);
+		if (!a) return undefined;
+		const note = (level: Diagnostic["level"], message: string, carries = false) => diag({ level, code: carries ? "unmapped" : "lossy", message: `shortcode [${n.tag}]: ${message}`, path, ...(carries ? { carriesContent: true } : {}), tag: n.tag });
+		switch (a.do) {
+			case "form": {
+				const id = formIdOf(n.attrs, n.args);
+				if (!id) {
+					note("error", "form shortcode without a form id", true);
+					return [];
+				}
+				return [{ kind: "form", provider: a.provider, id }];
+			}
+			case "breadcrumbs":
+				note("info", "breadcrumb trail of the SEO plugin, left out of the content (flagged: breadcrumbs)");
+				return [];
+			case "strip": {
+				note("info", "layout/styling wrapper removed, its content kept");
+				const title = (n.attrs.title ?? n.attrs.heading ?? "").trim();
+				return [...(title ? richFromHtml(`<p><strong>${title.replace(/</g, "&lt;")}</strong></p>`, ctx) : []), ...processChildren(n.children, path)];
+			}
+			case "widget":
+				note(a.content ? "error" : "warn", `${a.what} not rebuilt in the content${a.content ? " (it shows the site's content: replace it with a section, or decide in overrides.ts)" : " (a site widget can bring it back)"}`, a.content);
+				return processChildren(n.children, path);
+			case "media":
+				return mediaShortcode(n, path, ctx, note);
+		}
+	}
+
+	/** WordPress core media shortcodes in page content: [gallery], [caption], [embed], [video], [audio], [playlist]. */
+	function mediaShortcode(n: ShortcodeNode, path: string, ctx: HandlerCtx, note: (level: Diagnostic["level"], message: string, carries?: boolean) => void): Fragment[] {
+		const inner = n.children.map((c) => (c.type === "text" ? c.text : serialise(c))).join("").trim();
+		switch (n.tag) {
+			case "gallery": {
+				const images = (n.attrs.ids ?? n.attrs.include ?? "").split(",").map((x) => Number(x.trim())).filter((x) => x > 0).map((id) => ({ wpId: id, kind: "image" as const }));
+				if (!images.length) {
+					note("error", "gallery without image ids (the post's attached images): choose the images by hand", true);
+					return [];
+				}
+				return [{ kind: "gallery", images, layout: "grid" }];
+			}
+			case "caption":
+			case "wp_caption":
+				note("info", "captioned image: the picture and its caption text kept, in order");
+				return processChildren(n.children, path);
+			case "embed": {
+				const url = (inner.replace(/<[^>]+>/g, "").trim() || n.attrs.src || "").trim();
+				if (/youtube\.com|youtu\.be|vimeo\.com/i.test(url)) return [{ kind: "video", embedUrl: url }];
+				note("warn", "embed of a provider without a video section: kept as a link");
+				return url ? richFromHtml(`<p><a href="${url.replace(/"/g, "&quot;")}">${url.replace(/</g, "&lt;")}</a></p>`, ctx) : [];
+			}
+			case "video": {
+				const src = n.attrs.src ?? n.attrs.mp4 ?? n.attrs.webm ?? n.attrs.ogv ?? inner.replace(/<[^>]+>/g, "").trim();
+				const video = mediaFrom(src, "video");
+				const poster = mediaFrom(n.attrs.poster);
+				if (!video) {
+					note("error", "video without a source", true);
+					return [];
+				}
+				return [{ kind: "video", ...(/youtube|vimeo/i.test(src) ? { embedUrl: src } : { video }), ...(poster ? { poster } : {}) }];
+			}
+			case "audio": {
+				const src = n.attrs.src ?? n.attrs.mp3 ?? n.attrs.m4a ?? n.attrs.ogg ?? n.attrs.wav ?? "";
+				if (!src) {
+					note("error", "audio without a source", true);
+					return [];
+				}
+				note("warn", "audio player rebuilt as a link to the file (no audio section)");
+				const name = decodeURIComponent(src.split(/[?#]/)[0]?.split("/").pop() ?? "Listen");
+				return richFromHtml(`<p><a href="${src.replace(/"/g, "&quot;")}">${name.replace(/</g, "&lt;")}</a></p>`, ctx);
+			}
+			default:
+				note("error", "media playlist not rebuilt", true);
+				return [];
+		}
 	}
 
 	function processChildren(children: AstNode[], path: string): Fragment[] {
