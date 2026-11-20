@@ -12,7 +12,7 @@
   <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/nurkamol/wp2emdash?color=F6821F"></a>
   <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
-  <img alt="Tests: 1171 passing" src="https://img.shields.io/badge/tests-1171%20passing-1F9D6B">
+  <img alt="Tests: 1213 passing" src="https://img.shields.io/badge/tests-1213%20passing-1F9D6B">
 </p>
 
 wp2emdash is an open-source kit, built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net), that migrates WordPress sites to
