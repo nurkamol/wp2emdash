@@ -77,6 +77,10 @@ describe("scaffold output without staging", () => {
 		expect(w.vars).not.toHaveProperty("STAGING");
 		expect(w.kv_namespaces).toEqual([{ binding: "FORM_OUTBOX", id: "kv-out" }, { binding: "SESSION", id: "kv-sess" }]);
 	});
+	it("after go-live the workers.dev copy is off (preview URLs stay); keepWorkersDev keeps it", () => {
+		expect(parseJsonc(wranglerJsonc({ ...base, config: config(), staging: false, live: true }))).toMatchObject({ workers_dev: false, preview_urls: true });
+		expect(parseJsonc(wranglerJsonc({ ...base, config: config(), staging: false, live: true, keepWorkersDev: true }))).toMatchObject({ workers_dev: true, preview_urls: true });
+	});
 	it("with opt-in staging: env.staging as before, no test-message vars on production", () => {
 		const w = parseJsonc(wranglerJsonc({ ...base, config: config({ staging: true }), staging: true }));
 		expect(w.env.staging).toMatchObject({ name: "acme-staging", vars: { STAGING: "1", FORM_TO: "dev@agency.example" } });

@@ -114,6 +114,8 @@ export const kitConfigSchema = z.object({
 		template: z.string().default("cloudflare:marketing"),
 		trailingSlash: z.enum(["always", "never", "preserve"]).default("preserve"),
 		canonicalHost: z.enum(["apex", "www"]).default("apex"),
+		/** After go-live the workers.dev address is switched off (the domain serves the site; no second public copy). true keeps it. */
+		keepWorkersDev: z.boolean().default(false),
 		/**
 		 * Other domains that become a permanent, path-preserving 301 to the production domain (e.g. a second WordPress
 		 * install merged into this site). Apex hostnames; `www.` is covered automatically. Each zone must be in Cloudflare:
