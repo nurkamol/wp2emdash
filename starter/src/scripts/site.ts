@@ -205,7 +205,9 @@ if (!reduce && "IntersectionObserver" in window) {
 	);
 	// The footer and popups are never held back: the last footer row can't rise 10% above the screen's bottom edge.
 	const revealable = [...document.querySelectorAll<HTMLElement>("[data-reveal]")].filter((el) => !el.closest(".site-footer, dialog"));
-	for (const el of revealable) io.observe(el);
+	// Calm motion: what is already on screen at load is shown as it is (no entrance), so the largest paint is not held back.
+	if (document.documentElement.classList.contains("motion-calm")) for (const el of revealable) if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add("is-visible");
+	for (const el of revealable) if (!el.classList.contains("is-visible")) io.observe(el);
 	// At the end of the page, anything still waiting is shown.
 	const atEnd = () => {
 		if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) for (const el of revealable) el.classList.add("is-visible");
