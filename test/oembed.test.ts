@@ -22,7 +22,7 @@ const CASES: [string, string][] = [
 	["https://open.spotify.com/intl-de/track/4rOoJ6Egrf8K2IrywzwOMk", "spotify"],
 	["https://www.loom.com/share/0123456789abcdef0123456789abcdef", "loom"],
 	["https://www.mixcloud.com/studio/morning-mix/", "mixcloud"],
-	["https://www.reddit.com/r/pilates/comments/abc123/a_thread/", "reddit"],
+	["https://www.reddit.com/r/example/comments/abc123/a_thread/", "reddit"],
 	["https://www.pinterest.com/pin/123456789/", "pinterest"],
 ];
 
