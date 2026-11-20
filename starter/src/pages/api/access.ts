@@ -34,7 +34,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 		const { success } = await limiter.limit({ key: `access:${collection}:${slug}:${request.headers.get("cf-connecting-ip") ?? "unknown"}` });
 		if (!success) return redirect(to("limited"), 303);
 	}
-	const { entry } = await getEmDashEntry(collection, slug);
+	const entry = await getEmDashEntry(collection, slug).then((r) => r.entry).catch(() => undefined);
 	const data = (entry?.data ?? {}) as { id?: string; access_password?: unknown };
 	const stored = typeof data.access_password === "string" ? data.access_password.trim() : "";
 	if (!entry || !stored || !data.id) return redirect(back, 303);
