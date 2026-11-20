@@ -74,6 +74,9 @@ export async function accessibility(browser: Browser, url: string): Promise<A11y
 	await page.addInitScript(NAME_SHIM);
 	try {
 		await page.goto(url, { waitUntil: "load", timeout: 60_000 });
+		// The site's consent banner is part of the page under test: in mode "auto" it appears once the region answer is
+		// back, so wait for it briefly (a fresh page has no stored choice).
+		if (await page.locator('meta[name="site-consent"]').count()) await page.waitForSelector("[data-consent-banner]:not([hidden])", { timeout: 3000 }).catch(() => {});
 		await page.addScriptTag({ content: AXE_SOURCE() });
 		type Axe = { run: (ctx: unknown, opts: unknown) => Promise<{ violations: { id: string; impact: string; help: string; nodes: unknown[] }[] }> };
 		const opts = { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"] };
