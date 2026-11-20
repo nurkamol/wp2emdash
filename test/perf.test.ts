@@ -240,7 +240,7 @@ describe("starter: route cache, CSP, announcement schedule, background video", (
 		expect(slug).toContain("<Base chrome={chrome}");
 		const chrome = starter("utils/chrome.ts");
 		for (const call of ["getSiteSettingsWithCacheHint()", 'getMenuWithCacheHint("primary")', 'getMenuWithCacheHint("secondary")', 'getEmDashEntry("site_parts", "footer")', 'getEmDashCollection("popups", { status: "published" })', 'getEmDashEntry("site_parts", "announcement")']) expect(chrome).toContain(call);
-		expect(chrome).toContain("for (const r of Object.values(chrome)) if (r?.cacheHint) cache.set(r.cacheHint);");
+		expect(chrome).toContain("for (const r of Object.values(chrome)) if (r && \"cacheHint\" in r && r.cacheHint) cache.set(r.cacheHint);");
 	});
 
 	it("keeps 404s, redirects and editors out of the route cache; sends HTML no-cache to browsers", () => {

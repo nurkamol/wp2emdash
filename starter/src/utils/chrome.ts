@@ -9,6 +9,7 @@ import type { AstroGlobal } from "astro";
 import { CACHE_TAG as ANALYTICS_TAG } from "@wp2emdash/seo/analytics/store";
 import { getEmDashCollection, getEmDashEntry, getMenuWithCacheHint, getSiteSettingsWithCacheHint, getWidgetAreaWithCacheHint } from "emdash";
 import site from "../site.config.json";
+import { loadMotion, motionPanelOn } from "./motion";
 
 /** Where the old theme showed widget areas (site.config.json `widgetAreas`, from the migration) and whether a classic footer menu is shown. */
 const areasConfig = (site as { widgetAreas?: { footer?: string[]; sidebar?: string[] } }).widgetAreas;
@@ -23,7 +24,7 @@ async function loadAreas(names: string[]): Promise<{ data: Areas; cacheHint: { t
 }
 
 export async function loadChrome() {
-	const [settings, primary, secondary, footer, popups, announcementPart, footerWidgets, sidebar, footerMenu] = await Promise.all([
+	const [settings, primary, secondary, footer, popups, announcementPart, footerWidgets, sidebar, footerMenu, motion] = await Promise.all([
 		getSiteSettingsWithCacheHint(),
 		getMenuWithCacheHint("primary"),
 		getMenuWithCacheHint("secondary"),
@@ -33,9 +34,12 @@ export async function loadChrome() {
 		areasConfig?.footer?.length ? loadAreas(areasConfig.footer) : undefined,
 		areasConfig?.sidebar?.length ? loadAreas(areasConfig.sidebar) : undefined,
 		footerMenuOn ? getMenuWithCacheHint("footer") : undefined,
+		// Motion settings (Plugins → Motion): one options row, only when the panel is on. No cache hint of its own —
+		// saving purges every page through the analytics/settings tags set below.
+		motionPanelOn ? loadMotion() : undefined,
 	]);
 	// Optional parts only when the site has them: a brochure site's chrome (and its cache tags) is unchanged.
-	return { settings, primary, secondary, footer, popups, announcementPart, ...(footerWidgets ? { footerWidgets } : {}), ...(sidebar ? { sidebar } : {}), ...(footerMenu ? { footerMenu } : {}) };
+	return { settings, primary, secondary, footer, popups, announcementPart, ...(footerWidgets ? { footerWidgets } : {}), ...(sidebar ? { sidebar } : {}), ...(footerMenu ? { footerMenu } : {}), ...(motion ? { motion } : {}) };
 }
 export type Chrome = Awaited<ReturnType<typeof loadChrome>>;
 
@@ -61,7 +65,7 @@ export function announcementState(chrome: Chrome, now = Date.now()) {
  */
 export function cacheChrome(cache: AstroGlobal["cache"] | undefined, chrome: Chrome, now = Date.now()): void {
 	if (!cache?.enabled) return;
-	for (const r of Object.values(chrome)) if (r?.cacheHint) cache.set(r.cacheHint);
+	for (const r of Object.values(chrome)) if (r && "cacheHint" in r && r.cacheHint) cache.set(r.cacheHint);
 	cache.set({ tags: [ANALYTICS_TAG] });
 	const next = announcementState(chrome, now).nextChange;
 	const maxAge = cache.options.maxAge;

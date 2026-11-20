@@ -45,6 +45,9 @@
       ],
       "@wp2emdash/consent/*": [
         "./packages/consent/src/*.ts"
+      ],
+      "@wp2emdash/motion/*": [
+        "./packages/motion/src/*.ts"
       ]
     }
   },

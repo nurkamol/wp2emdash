@@ -1,0 +1,21 @@
+{
+  "name": "@wp2emdash/motion",
+  "version": "0.1.0",
+  "description": "Motion for EmDash: an admin page (admins only) to switch on a first-visit logo preloader, page transitions (cross-document View Transitions), entrance animations, hover lift, smooth anchor scrolling, image fade-in, parallax and a scroll progress bar — all off by default, reduced motion always respected",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/plugin/index.ts",
+    "./settings": "./src/settings.ts",
+    "./store": "./src/store.ts"
+  },
+  "files": ["src", "README.md"],
+  "peerDependencies": {
+    "emdash": ">=1.5 <2",
+    "@wp2emdash/seo": ">=0.2"
+  },
+  "engines": { "node": ">=24" }
+}
