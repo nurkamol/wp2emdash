@@ -77,7 +77,7 @@ describe("provision", () => {
 		writeFileSync(cfFile(), JSON.stringify({ accountId: "agency", accountName: "Agency", production: { d1: { name: "acme-db", id: "old-d1", location: "weur" }, r2: { bucket: "acme-media", location: "weur" }, worker: { name: "acme" } } }));
 		const api = fakeApi();
 		const r = await provision("acme", "production", { sitesDir: dir, vars }, api.fetcher);
-		expect(r).toMatchObject({ accountId: "client-acct", accountName: "Client", movedFrom: "agency", created: ["D1 acme-db", "R2 acme-media", "R2 acme-sessions"] });
+		expect(r).toMatchObject({ accountId: "client-acct", accountName: "Client", movedFrom: "agency", created: ["D1 acme-db", "R2 acme-media", "R2 acme-sessions", "KV acme-form-outbox"] });
 		const cf = JSON.parse(readFileSync(cfFile(), "utf8"));
 		expect(cf.accountId).toBe("agency");
 		expect(cf.production).toMatchObject({ accountId: "client-acct", d1: { id: "new-d1", location: "weur" }, r2: { bucket: "acme-media" }, worker: { url: "https://acme.client.workers.dev" } });
@@ -87,10 +87,10 @@ describe("provision", () => {
 
 	it("is idempotent: existing resources are reused, nothing created twice", async () => {
 		const rule = { id: "wp2emdash-sessions-expire", enabled: true, conditions: {}, deleteObjectsTransition: { condition: { type: "Age", maxAge: 30 * 86400 } } };
-		const api = fakeApi({ d1: ["acme-db"], r2: ["acme-media", "acme-sessions"], lifecycle: { "acme-sessions": [rule] } });
+		const api = fakeApi({ d1: ["acme-db"], r2: ["acme-media", "acme-sessions"], kv: ["acme-form-outbox"], lifecycle: { "acme-sessions": [rule] } });
 		const r = await provision("acme", "production", { sitesDir: dir, vars }, api.fetcher);
 		expect(r.created).toEqual([]);
-		expect(r.reused).toEqual(["D1 acme-db", "R2 acme-media", "R2 acme-sessions"]);
+		expect(r.reused).toEqual(["D1 acme-db", "R2 acme-media", "R2 acme-sessions", "KV acme-form-outbox"]);
 		expect(JSON.parse(readFileSync(cfFile(), "utf8")).production.d1.id).toBe("uuid-acme-db");
 		expect(api.calls.filter((c) => !c.startsWith("GET"))).toEqual([]);
 	});
@@ -98,7 +98,7 @@ describe("provision", () => {
 	it("sessions on R2 (default): creates a private <worker>-sessions bucket next to the media bucket, with an expiry rule, and no SESSION KV", async () => {
 		const api = fakeApi();
 		const r = await provision("acme", "production", { sitesDir: dir, vars, location: "weur" }, api.fetcher);
-		expect(r.created).toEqual(["D1 acme-db", "R2 acme-media", "R2 acme-sessions"]);
+		expect(r.created).toEqual(["D1 acme-db", "R2 acme-media", "R2 acme-sessions", "KV acme-form-outbox"]);
 		expect(api.bodies["POST /client/v4/accounts/client-acct/r2/buckets"]).toEqual({ name: "acme-sessions", locationHint: "weur" });
 		// Lifecycle: read first, the default multipart rule kept, the kit's rule added (30 days by default).
 		expect(api.bodies["PUT /client/v4/accounts/client-acct/r2/buckets/acme-sessions/lifecycle"]).toEqual({
@@ -110,7 +110,7 @@ describe("provision", () => {
 		// Never made public: no write to its domains, no lifecycle rule on the media bucket, no KV session namespace.
 		expect(api.calls.filter((c) => c.includes("/domains/") && !c.startsWith("GET"))).toEqual([]);
 		expect(api.calls.some((c) => c.includes("acme-media/lifecycle"))).toBe(false);
-		expect(api.calls.some((c) => c.startsWith("POST") && c.includes("/storage/kv/"))).toBe(false);
+		expect(r.created.filter((x) => x.startsWith("KV ") && /session/.test(x))).toEqual([]);
 		const cf = JSON.parse(readFileSync(cfFile(), "utf8"));
 		expect(cf.production.sessions).toEqual({ bucket: "acme-sessions", location: "weur", days: 30 });
 		expect(cf.production.session).toBeUndefined();

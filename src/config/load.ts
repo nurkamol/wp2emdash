@@ -9,5 +9,16 @@ export async function loadConfig(file: string): Promise<KitConfig> {
 		const issues = result.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
 		throw new Error(`Invalid config in ${file}:\n${issues}`);
 	}
-	return result.data;
+	return withDefaults(result.data, mod.default);
+}
+
+/**
+ * Defaults that depend on more than one field. Form messages (the forms outbox) is on by default — messages that could
+ * not be emailed are kept and retried, and the admin gets Plugins → Form messages — except on sensitiveData sites, where
+ * storing visitors' text is an owner decision; `forms: { outbox: false }` turns it off anywhere.
+ */
+export function withDefaults(c: KitConfig, raw: unknown): KitConfig {
+	const rawOutbox = (raw as { forms?: { outbox?: unknown } } | undefined)?.forms?.outbox;
+	if (rawOutbox === undefined && !c.sensitiveData && !c.forms.outbox) c.forms.outbox = { days: 30, hold: false, keepSent: false };
+	return c;
 }

@@ -372,7 +372,8 @@ export const kitConfigSchema = z.object({
 			/**
 			 * Keep messages in Workers KV when email cannot be sent (not configured, or the provider refuses) and retry
 			 * them from the cron; deleted once emailed, or after `days`. An owner decision (decisions.md): it stores the
-			 * form's fields — on a sensitive site only the contact fields the policy allows.
+			 * form's fields — on a sensitive site only the contact fields the policy allows. On by default (Form messages in the
+			 * admin) for sites that are not sensitiveData; `outbox: false` turns it off.
 			 */
 			outbox: z
 				.object({
@@ -387,7 +388,10 @@ export const kitConfigSchema = z.object({
 					 */
 					keepSent: z.boolean().default(false),
 				})
-				.optional(),
+				// false: no outbox and no Form messages page. Unset: on (30 days) unless the site is sensitiveData (loadConfig).
+				.or(z.literal(false))
+				.optional()
+				.transform((v) => (v === false ? undefined : v)),
 			/** Production Turnstile site key (public). Staging uses Cloudflare's always-pass test key. */
 			turnstileSiteKey: z.string().optional(),
 		})

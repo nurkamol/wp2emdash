@@ -241,10 +241,10 @@ takes effect at the next `scaffold`.
 | Backups & restore | `@wp2emdash/backups` | Plugins → Backups (admins) | On | `backups: false` |
 | Media assistant | `@wp2emdash/media` | Plugins → Media (editors and admins) | On | `media: false` |
 | Change requests | `@wp2emdash/change-requests` | Plugins → Change requests (editors and admins) | On | `changeRequests: false` |
-| Form messages | `@wp2emdash/forms` | Plugins → Form messages (admins) | With the form outbox (an owner decision) | leave `forms.outbox` unset |
+| Form messages | `@wp2emdash/forms` | Plugins → Form messages (admins) | On (off by default on `sensitiveData` sites: storing visitor text is an owner decision there) | `forms: { outbox: false }` |
 
 The form endpoint itself (`@wp2emdash/forms`: Turnstile, rate limit, validation, email delivery) is part of every
-site; the Form messages page comes with the outbox, which stores visitors' messages and so is opted into per site.
+site. Form messages (the outbox and its admin page) is on by default too — only messages that could not be emailed are kept, for 30 days — except on `sensitiveData` sites, where storing visitors' text stays an owner decision; `forms: { outbox: false }` turns it off.
 
 ### Sharing images
 
