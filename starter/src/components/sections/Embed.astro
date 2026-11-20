@@ -5,12 +5,12 @@ import Rich from "../Rich.astro";
 import Buttons from "../Buttons.astro";
 import Md from "../Md.astro";
 import { sanitizeEmbed } from "../../utils/embed";
+import { PROVIDER_BY_ID } from "../../utils/providers";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const html = sanitizeEmbed(String(v.html ?? ""), String(v.provider ?? ""));
-// Booking/schedule widgets draw themselves after load and end up taller than the screen: reserve a screen's height
-// meanwhile so the sections below don't show up and then jump away (layout shift).
-const SCHEDULERS = new Set(["marianatek", "momence", "janeapp", "calendly", "acuity", "mindbody", "simplepractice"]);
-const widget = SCHEDULERS.has(String(v.provider ?? "")) && /<script\b/i.test(html);
+// Booking/schedule widgets (registry category "booking") draw themselves after load and end up taller than the screen:
+// reserve a screen's height meanwhile so the sections below don't show up and then jump away (layout shift).
+const widget = PROVIDER_BY_ID[String(v.provider ?? "")]?.category === "booking" && /<script\b/i.test(html);
 ---
 
 <Section value={v} type="embed">

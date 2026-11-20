@@ -1,0 +1,648 @@
+{
+  "pages": 2,
+  "items": [
+    {
+      "id": "sn-2e15584d",
+      "tag": "markup",
+      "kind": "unknown",
+      "status": "decision",
+      "label": "inline markup: <div class=\"promo-ribbon\">Spring offer: first class free</div>",
+      "note": "unrecognised site-wide code: never carried automatically — rebuild it (embed section, site widget, analytics) or drop it, then record the choice in overrides.ts snippets",
+      "where": [
+        "code manager: Promo ribbon (footer)"
+      ],
+      "pages": [],
+      "sample": "<div class=\"promo-ribbon\">Spring offer: first class free</div>"
+    },
+    {
+      "id": "sn-6538c692",
+      "tag": "script",
+      "kind": "unknown",
+      "status": "decision",
+      "label": "inline script: (function(){ var w = window; w.fixtureCounter = (w.fixtureCounter || 0…",
+      "note": "unrecognised site-wide code: never carried automatically — rebuild it (embed section, site widget, analytics) or drop it, then record the choice in overrides.ts snippets",
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<script>(function(){ var w = window; w.fixtureCounter = (w.fixtureCounter || 0) + 1; fetch('https://stats.fixture-vendor.test/hit?site=42'); })();</script>"
+    },
+    {
+      "id": "sn-7ea89405",
+      "tag": "meta",
+      "kind": "unknown",
+      "status": "decision",
+      "label": "meta fixture-custom-flag",
+      "note": "unrecognised meta tag: carry by hand (Settings → SEO or the starter's head) or drop",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<meta name=\"fixture-custom-flag\" content=\"on\">"
+    },
+    {
+      "id": "sn-79eeaf43",
+      "tag": "script",
+      "kind": "unknown",
+      "status": "decision",
+      "label": "script cdn.fixture-unknown-vendor.test/widget.js",
+      "note": "unrecognised site-wide code: never carried automatically — rebuild it (embed section, site widget, analytics) or drop it, then record the choice in overrides.ts snippets",
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<script src=\"https://cdn.fixture-unknown-vendor.test/widget.js\" async=\"\"></script>"
+    },
+    {
+      "id": "sn-8a77a2de",
+      "tag": "script",
+      "kind": "unknown",
+      "status": "decision",
+      "label": "theme custom script /wp-content/themes/fixture-child/js/custom.js",
+      "note": "child-theme / custom script: check what it does; rebuild it (section, site widget) or drop",
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<script id=\"child-custom-js\" src=\"https://fixture-studio.test/wp-content/themes/fixture-child/js/custom.js?ver=1.0\"></script>"
+    },
+    {
+      "id": "sn-173da2d1",
+      "tag": "script",
+      "kind": "widget",
+      "status": "carried",
+      "label": "CookieYes (0123456789abcdef01234567)",
+      "note": "carried as a site widget (kit.config siteWidgets, by ID)",
+      "provider": "cookieyes",
+      "widget": {
+        "provider": "cookieyes",
+        "id": "0123456789abcdef01234567"
+      },
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<script id=\"cookieyes\" type=\"text/javascript\" src=\"https://cdn-cookieyes.com/client_data/0123456789abcdef01234567/script.js\"></script>"
+    },
+    {
+      "id": "sn-6b389e6b",
+      "tag": "script",
+      "kind": "widget",
+      "status": "carried",
+      "label": "Crisp chat (01234567-89ab-cdef-0123-456789abcdef)",
+      "note": "carried as a site widget (kit.config siteWidgets, by ID)",
+      "provider": "crisp",
+      "widget": {
+        "provider": "crisp",
+        "id": "01234567-89ab-cdef-0123-456789abcdef"
+      },
+      "where": [
+        "code manager: Crisp chat (footer)"
+      ],
+      "pages": [],
+      "sample": "<script type=\"text/javascript\">window.$crisp=[];window.CRISP_WEBSITE_ID=\"01234567-89ab-cdef-0123-456789abcdef\";(function(){d=document;s=d.createElement(\"script\");s.src=\"https://client.crisp.chat/l.js\";s.async=1;d.getElem…"
+    },
+    {
+      "id": "sn-0f8a5d1a",
+      "tag": "script",
+      "kind": "widget",
+      "status": "carried",
+      "label": "Elfsight widget (01234567-89ab-cdef-0123-456789abcdef)",
+      "note": "carried as a site widget (kit.config siteWidgets, by ID)",
+      "provider": "elfsight",
+      "widget": {
+        "provider": "elfsight",
+        "id": "01234567-89ab-cdef-0123-456789abcdef"
+      },
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<script src=\"https://elfsightcdn.com/platform.js\" async=\"\"></script>"
+    },
+    {
+      "id": "sn-1ad2aee0",
+      "tag": "script",
+      "kind": "widget",
+      "status": "decision",
+      "label": "iubenda Cookie Solution: inline script: var _iub = _iub || []; _iub.csConfiguration = {\"siteId\":1234567,\"cooki…",
+      "note": "iubenda Cookie Solution recognised, but this form of its snippet carries no ID the starter can load: add { provider: \"iubenda\", id } to kit.config siteWidgets, or drop",
+      "provider": "iubenda",
+      "where": [
+        "code manager: iubenda legacy (header)"
+      ],
+      "pages": [],
+      "sample": "<script type=\"text/javascript\">var _iub = _iub || []; _iub.csConfiguration = {\"siteId\":1234567,\"cookiePolicyId\":7654321,\"lang\":\"en\"};</script>"
+    },
+    {
+      "id": "sn-40716ada",
+      "tag": "script",
+      "kind": "widget",
+      "status": "decision",
+      "label": "iubenda Cookie Solution: script cdn.iubenda.com/cs/iubenda_cs.js",
+      "note": "iubenda Cookie Solution recognised, but this form of its snippet carries no ID the starter can load: add { provider: \"iubenda\", id } to kit.config siteWidgets, or drop",
+      "provider": "iubenda",
+      "where": [
+        "code manager: iubenda legacy (header)"
+      ],
+      "pages": [],
+      "sample": "<script type=\"text/javascript\" src=\"//cdn.iubenda.com/cs/iubenda_cs.js\" charset=\"UTF-8\" async=\"\"></script>"
+    },
+    {
+      "id": "sn-e6909257",
+      "tag": "script",
+      "kind": "widget",
+      "status": "carried",
+      "label": "Tawk.to chat (0123456789abcdef01234567/1abcdefgh)",
+      "note": "carried as a site widget (kit.config siteWidgets, by ID)",
+      "provider": "tawkto",
+      "widget": {
+        "provider": "tawkto",
+        "id": "0123456789abcdef01234567/1abcdefgh"
+      },
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<script type=\"text/javascript\"> var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date(); (function(){ var s1=document.createElement(\"script\"),s0=document.getElementsByTagName(\"script\")[0]; s1.async=true; s1.src='https://emb…"
+    },
+    {
+      "id": "sn-9e3c8db0",
+      "tag": "script",
+      "kind": "provider-loader",
+      "status": "carried",
+      "label": "Mariana Tek: script fixturestudio.marianaiframes.com/js",
+      "note": "carried with the Mariana Tek embed sections (their loader is added per section)",
+      "provider": "marianatek",
+      "srcs": [
+        "https://fixturestudio.marianaiframes.com/js"
+      ],
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<script src=\"https://fixturestudio.marianaiframes.com/js\"></script>"
+    },
+    {
+      "id": "sn-997a8abb",
+      "tag": "script",
+      "kind": "tracker",
+      "status": "carried",
+      "label": "tracker G-FIXTURE01 (inline script: window.dataLayer = window.dataLayer || []; fu)",
+      "note": "carried by SEO & Analytics → Analytics (by ID)",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-FIXTURE01');</script>"
+    },
+    {
+      "id": "sn-9e0b2bb3",
+      "tag": "script",
+      "kind": "tracker",
+      "status": "carried",
+      "label": "tracker G-FIXTURE01 (script www.googletagmanager.com/gtag/js)",
+      "note": "carried by SEO & Analytics → Analytics (by ID)",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<script async=\"\" src=\"https://www.googletagmanager.com/gtag/js?id=G-FIXTURE01\"></script>"
+    },
+    {
+      "id": "sn-cfb7ac0d",
+      "tag": "noscript",
+      "kind": "tracker",
+      "status": "carried",
+      "label": "tracker GTM-FIXT001 (inline noscript: <iframe src=\"https://www.googletagmanager.c)",
+      "note": "carried by SEO & Analytics → Analytics (by ID)",
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<noscript><iframe src=\"https://www.googletagmanager.com/ns.html?id=GTM-FIXT001\" height=\"0\" width=\"0\" style=\"display:none;visibility:hidden\"></iframe></noscript>"
+    },
+    {
+      "id": "sn-6cbd5a98",
+      "tag": "meta",
+      "kind": "verification",
+      "status": "carried",
+      "label": "meta google-site-verification",
+      "note": "carried → Settings → SEO",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<meta name=\"google-site-verification\" content=\"fixture-verification-token-000\">"
+    },
+    {
+      "id": "sn-a7dd193c",
+      "tag": "meta",
+      "kind": "verification",
+      "status": "carried",
+      "label": "meta msvalidate.01",
+      "note": "carried → Settings → SEO",
+      "where": [
+        "code manager: Bing verification (header)"
+      ],
+      "pages": [],
+      "sample": "<meta name=\"msvalidate.01\" content=\"FIXTUREBINGTOKEN000\">"
+    },
+    {
+      "id": "sn-8933f299",
+      "tag": "link",
+      "kind": "page-meta",
+      "status": "carried",
+      "label": "fonts fonts.googleapis.com/css2",
+      "note": "fonts: self-hosted by scaffold from the design capture",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<link rel=\"stylesheet\" id=\"google-fonts-css\" href=\"https://fonts.googleapis.com/css2?family=Inter:wght@400;700&amp;display=swap\" media=\"all\">"
+    },
+    {
+      "id": "sn-30374481",
+      "tag": "link",
+      "kind": "page-meta",
+      "status": "carried",
+      "label": "link canonical",
+      "note": "rebuilt by the starter (canonical, favicons)",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<link rel=\"canonical\" href=\"https://fixture-studio.test/\">"
+    },
+    {
+      "id": "sn-de54552a",
+      "tag": "link",
+      "kind": "page-meta",
+      "status": "carried",
+      "label": "link icon",
+      "note": "rebuilt by the starter (canonical, favicons)",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<link rel=\"icon\" href=\"https://fixture-studio.test/wp-content/uploads/2025/01/icon-32x32.png\" sizes=\"32x32\">"
+    },
+    {
+      "id": "sn-e7b20a88",
+      "tag": "meta",
+      "kind": "page-meta",
+      "status": "carried",
+      "label": "meta charset",
+      "note": "rebuilt per page by the starter and the SEO plugin",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<meta charset=\"UTF-8\">"
+    },
+    {
+      "id": "sn-7d359365",
+      "tag": "meta",
+      "kind": "page-meta",
+      "status": "carried",
+      "label": "meta description",
+      "note": "rebuilt per page by the starter and the SEO plugin",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<meta name=\"description\" content=\"A synthetic studio used by the kit's tests.\">"
+    },
+    {
+      "id": "sn-5cc5a3f2",
+      "tag": "meta",
+      "kind": "page-meta",
+      "status": "carried",
+      "label": "meta og:title",
+      "note": "rebuilt per page by the starter and the SEO plugin",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<meta property=\"og:title\" content=\"Fixture Studio\">"
+    },
+    {
+      "id": "sn-3fe8d07c",
+      "tag": "meta",
+      "kind": "page-meta",
+      "status": "carried",
+      "label": "meta viewport",
+      "note": "rebuilt per page by the starter and the SEO plugin",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+    },
+    {
+      "id": "sn-6344b01d",
+      "tag": "script",
+      "kind": "page-meta",
+      "status": "carried",
+      "label": "structured data (JSON-LD)",
+      "note": "rebuilt by the starter (StructuredData) from the site's business details",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<script type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@type\":\"LocalBusiness\",\"name\":\"Fixture Studio\"}</script>"
+    },
+    {
+      "id": "sn-f8fe955d",
+      "tag": "script",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "Cloudflare edge: script fixture-studio.test/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js",
+      "note": "added by Cloudflare itself (zone features: email obfuscation, bot checks, Web Analytics): not needed in the code",
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<script data-cfasync=\"false\" src=\"/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js\"></script>"
+    },
+    {
+      "id": "sn-9840f39e",
+      "tag": "script",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "inline script #fixture-theme-js-extra",
+      "note": "WordPress / theme / plugin settings code: not needed",
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<script id=\"fixture-theme-js-extra\">var fixtureTheme = {\"ajaxurl\":\"https:\\/\\/fixture-studio.test\\/wp-admin\\/admin-ajax.php\",\"nonce\":\"a1b2c3\"};</script>"
+    },
+    {
+      "id": "sn-30bda415",
+      "tag": "script",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "inline script: document.documentElement.className = document.documentElement.classNam…",
+      "note": "WordPress / theme / plugin settings code: not needed",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<script>document.documentElement.className = document.documentElement.className.replace('no-js', 'js');</script>"
+    },
+    {
+      "id": "sn-63fa0b7e",
+      "tag": "script",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "inline script: window._wpemojiSettings = {\"baseUrl\":\"https:\\/\\/s.w.org\\/images\\/core\\…",
+      "note": "WordPress / theme / plugin settings code: not needed",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<script>window._wpemojiSettings = {\"baseUrl\":\"https:\\/\\/s.w.org\\/images\\/core\\/emoji\\/15.0.3\\/72x72\\/\"};</script>"
+    },
+    {
+      "id": "sn-98b80c5e",
+      "tag": "link",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "library cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css",
+      "note": "library the theme or a plugin used: not needed",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<link rel=\"stylesheet\" id=\"fa-css\" href=\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css\" media=\"all\">"
+    },
+    {
+      "id": "sn-fc7a0c4f",
+      "tag": "link",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "link /wp-content/themes/fixture/style.css",
+      "note": "WordPress / theme / plugin file: not needed (the starter brings its own)",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<link rel=\"stylesheet\" id=\"theme-style-css\" href=\"https://fixture-studio.test/wp-content/themes/fixture/style.css?ver=1.2\" media=\"all\">"
+    },
+    {
+      "id": "sn-d8c6c25f",
+      "tag": "link",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "link alternate fixture-studio.test/feed/",
+      "note": "WordPress feed / API / resource hint: not needed",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<link rel=\"alternate\" type=\"application/rss+xml\" title=\"Fixture Studio » Feed\" href=\"https://fixture-studio.test/feed/\">"
+    },
+    {
+      "id": "sn-3abee0bf",
+      "tag": "link",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "link dns-prefetch fonts.googleapis.com/",
+      "note": "WordPress feed / API / resource hint: not needed",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<link rel=\"dns-prefetch\" href=\"//fonts.googleapis.com\">"
+    },
+    {
+      "id": "sn-1bb9519a",
+      "tag": "link",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "link https://api.w.org/ fixture-studio.test/wp-json/",
+      "note": "WordPress feed / API / resource hint: not needed",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<link rel=\"https://api.w.org/\" href=\"https://fixture-studio.test/wp-json/\">"
+    },
+    {
+      "id": "sn-b23a4453",
+      "tag": "link",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "link shortlink fixture-studio.test/",
+      "note": "WordPress feed / API / resource hint: not needed",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<link rel=\"shortlink\" href=\"https://fixture-studio.test/?p=2\">"
+    },
+    {
+      "id": "sn-c3c95643",
+      "tag": "meta",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "meta generator",
+      "note": "WordPress / builder version tag: not needed",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<meta name=\"generator\" content=\"WordPress 6.8\">"
+    },
+    {
+      "id": "sn-c78a9c76",
+      "tag": "script",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "script /wp-content/themes/fixture/js/theme.js",
+      "note": "WordPress / theme / plugin file: not needed (the starter brings its own)",
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<script id=\"fixture-theme-js\" src=\"https://fixture-studio.test/wp-content/themes/fixture/js/theme.js?ver=1.2\"></script>"
+    },
+    {
+      "id": "sn-815010b4",
+      "tag": "script",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "script /wp-includes/js/jquery/jquery.min.js",
+      "note": "WordPress / theme / plugin file: not needed (the starter brings its own)",
+      "where": [
+        "head"
+      ],
+      "pages": [
+        "home",
+        "about"
+      ],
+      "sample": "<script id=\"jquery-core-js\" src=\"https://fixture-studio.test/wp-includes/js/jquery/jquery.min.js?ver=3.7.1\"></script>"
+    },
+    {
+      "id": "sn-106707bd",
+      "tag": "script",
+      "kind": "wordpress",
+      "status": "not-needed",
+      "label": "script /wp-includes/js/wp-embed.min.js",
+      "note": "WordPress / theme / plugin file: not needed (the starter brings its own)",
+      "where": [
+        "body"
+      ],
+      "pages": [
+        "home"
+      ],
+      "sample": "<script id=\"wp-embed-js\" src=\"https://fixture-studio.test/wp-includes/js/wp-embed.min.js?ver=6.8\"></script>"
+    }
+  ],
+  "widgets": [
+    {
+      "provider": "cookieyes",
+      "id": "0123456789abcdef01234567"
+    },
+    {
+      "provider": "crisp",
+      "id": "01234567-89ab-cdef-0123-456789abcdef"
+    },
+    {
+      "provider": "elfsight",
+      "id": "01234567-89ab-cdef-0123-456789abcdef"
+    },
+    {
+      "provider": "tawkto",
+      "id": "0123456789abcdef01234567/1abcdefgh"
+    }
+  ],
+  "counts": {
+    "carried": 18,
+    "not-needed": 14,
+    "decision": 7
+  }
+}

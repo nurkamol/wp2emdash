@@ -8,6 +8,7 @@ import Sections from "../components/Sections.astro";
 import Popups from "../components/Popups.astro";
 import StructuredData from "../components/StructuredData.astro";
 import Analytics from "../components/Analytics.astro";
+import SiteWidgets from "../components/SiteWidgets.astro";
 import site from "../site.config.json";
 import { announcementState, type Chrome, loadChrome } from "../utils/chrome";
 import "../styles/fonts.css";
@@ -110,6 +111,8 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		{/* Favicons sized for their use (performance package); the captured file when there are none. */}
 		{(site as { icons?: { rel: string; href: string; type: string; sizes?: string }[] }).icons?.map((i) => <link rel={i.rel} href={i.href} type={i.type} sizes={i.sizes} />) ?? (site.favicon && <link rel="icon" href={site.favicon} />)}
 		{Object.entries((site as { verification?: Record<string, string> }).verification ?? {}).map(([name, content]) => <meta name={name} content={content} />)}
+		{/* Site widgets before analytics: a consent tool starts first (both scripts are deferred, run in order). */}
+		<SiteWidgets />
 		<Analytics />
 	</head>
 	<body class:list={{ "over-hero": overHero }}>

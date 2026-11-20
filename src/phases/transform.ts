@@ -17,6 +17,7 @@ import type { GateCheck } from "../core/state.js";
 import { Keys } from "../ir/portable-text.js";
 import { businessFromJsonLd } from "../transform/business.js";
 import { completeMarianaEmbeds, marianaTenant } from "../transform/embeds.js";
+import { collectSnippets, completeProviderLoaders, providerLoaders, settleLoaders } from "../transform/snippets.js";
 import { type Diagnostic, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
 import { conservation, irText, missingContext, sourceText } from "../transform/coverage.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
@@ -196,6 +197,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 
 	// ── Adapt every document ─────────────────────────────────────────────────
 	rmSync(paths.ir, { recursive: true, force: true });
+	// The live pages' raw HTML (audit): announcement bar, site-wide snippets, text conservation.
+	const snapHtmlDir = join(paths.snapshot, "html");
+	const snapshotHtml = existsSync(snapHtmlDir) ? readdirSync(snapHtmlDir).filter((f) => f.endsWith(".html")).sort().map((f) => ({ name: f.replace(/\.html$/, ""), html: readFileSync(join(snapHtmlDir, f), "utf8") })) : [];
+	// Site-wide snippets (head / body-level code, Header Footer Code Manager export): classified once; provider
+	// loaders are added to the embed sections that need them while adapting (src/transform/snippets.ts).
+	const siteSnippets = collectSnippets({ pages: snapshotHtml, codeManager: readJson<unknown>(join(paths.raw, "code-snippets.json")), siteHosts: siteHostsOf(config), decisions: overrides.snippets });
+	const loaders = providerLoaders(siteSnippets);
 	const results: DocResult[] = [];
 	const invalid: string[] = [];
 	const notTransformed: string[] = [];
@@ -230,6 +238,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			diagnostics.push({ level: "error", code: "parse", message: `Adapter crashed: ${(e as Error).message}`, carriesContent: true });
 		}
 		diagnostics.push(...completeMarianaEmbeds(sections, sections.some((s) => s.type === "embed" && s.fields.provider === "marianatek") ? marianaTenantOfSite() : undefined));
+		for (const provider of new Set(completeProviderLoaders(sections, loaders))) diagnostics.push({ level: "info", code: "lossy", message: `${provider} embed got the site-wide loader script (it had none of its own)` });
 		// legacy_html approved by overrides is downgraded to info.
 		for (const s of sections) {
 			if (s.type === "legacy_html" && overrides.approvedLegacy.includes(`${p.slug}:${s.sourceRef.path}`)) {
@@ -298,8 +307,6 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		partials.push({ role, file: `partials/${p.slug}.json` });
 	}
 	// Announcement bar: rebuilt from the live pages' HTML (plugins such as Announcer keep it outside REST).
-	const snapHtmlDir = join(paths.snapshot, "html");
-	const snapshotHtml = existsSync(snapHtmlDir) ? readdirSync(snapHtmlDir).filter((f) => f.endsWith(".html")).sort().map((f) => ({ name: f.replace(/\.html$/, ""), html: readFileSync(join(snapHtmlDir, f), "utf8") })) : [];
 	const announcement = detectAnnouncement(snapshotHtml);
 	const bar = announcement.best;
 	const announcementReport: AnnouncementReport = { decision: overrides.announcement, all: announcement.all.map(describeBar), scriptOnly: announcement.scriptOnly };
@@ -496,16 +503,37 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const measured = results.filter((r) => r.conservation);
 	check("text-conservation", `Live page text found in the IR ≥ ${(config.gates.textConservation * 100).toFixed(0)}%`, lowPages.length === 0 && measured.length > 0, lowPages.join(", ") || (measured.length ? `${measured.length} pages, lowest ${(Math.min(...measured.map((r) => r.conservation?.ratio ?? 1)) * 100).toFixed(1)}%` : "no audit HTML snapshots to compare against — run audit"));
 
+	// ── Site-wide snippets ────────────────────────────────────────────────────────
+	const embedProviders = new Set(results.flatMap((r) => r.doc.sections.flatMap((s) => (s.type === "embed" ? [s.fields.provider] : []))));
+	settleLoaders(siteSnippets, embedProviders, overrides.snippets);
+	write(join(paths.ir, "site-snippets.json"), siteSnippets);
+	const undecided = siteSnippets.items.filter((s) => s.status === "decision");
+	check("site-snippets", "Site-wide snippets carried, not needed, or decided", undecided.length === 0, undecided.length ? `${undecided.length} need a decision (coverage report → Site-wide snippets; overrides.ts snippets): ${undecided.slice(0, 5).map((s) => `${s.id} ${s.label}`).join("; ")}` : snapshotHtml.length ? `${siteSnippets.counts.carried} carried${siteSnippets.widgets.length ? ` (site widgets: ${siteSnippets.widgets.map((w) => w.provider).join(", ")})` : ""}, ${siteSnippets.counts["not-needed"]} not needed` : "no audit HTML snapshots — run audit");
+	if (siteSnippets.widgets.length) reporter.emit({ type: "log", level: "info", message: `site widgets recognised: ${siteSnippets.widgets.map((w) => `${w.provider} ${w.id}`).join(", ")}` });
+
 	// ── Report ─────────────────────────────────────────────────────────────────
 	const reportDir = join(paths.reports, "transform");
 	write(join(reportDir, "coverage.json"), {
 		documents: results.map((r) => ({ file: r.file, published: r.published, builder: r.doc.source.builder, sections: r.doc.sections.map((s) => `${s.type}${s.variant ? `:${s.variant}` : ""}`), diagnostics: r.doc.diagnostics, conservation: r.conservation && { ratio: r.conservation.ratio, missing: r.conservation.missing } })),
 		notTransformed,
 		announcement: announcementReport,
+		snippets: { counts: siteSnippets.counts, widgets: siteSnippets.widgets, items: siteSnippets.items.map(({ id, kind, status, label, note, where, pages }) => ({ id, kind, status, label, note, where, pages: pages.length })) },
 	});
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
+}
+
+/** Hosts of the WordPress site: its files (theme, plugins, uploads) are WordPress assets, not site-wide snippets. */
+function siteHostsOf(config: { source: { url: string; alternateHosts: string[] }; target: { productionUrl: string } }): string[] {
+	const host = (u: string) => {
+		try {
+			return [new URL(u).host];
+		} catch {
+			return [];
+		}
+	};
+	return [...new Set([...host(config.source.url), ...config.source.alternateHosts, ...host(config.target.productionUrl)])];
 }
 
 function hostOf(url: string, base: string): string {
