@@ -156,7 +156,7 @@ describe("golive", () => {
 		const r = await run({ yes: true, now: () => new Date("2026-11-21T10:00:00Z") });
 		expect(r.ok).toBe(true);
 		expect(w.routes.map((x) => `${x.pattern}→${x.script}`)).toEqual(["acme.example/*→acme", "www.acme.example/*→acme"]);
-		expect(r.checks.map((c) => `${c.id}:${c.ok}`)).toEqual(["indexable:true", "smoke:true", "no-noindex:true", "dns-unchanged:true"]);
+		expect(r.checks.map((c) => `${c.id}:${c.ok}`)).toEqual(["indexable:true", "smoke:true", "no-noindex:true", "dns-unchanged:true", "site-url:true"]);
 		expect(cf().production).toMatchObject({ live: true, liveSince: "2026-11-21" });
 		expect(readFileSync(join(paths().root, "cloudflare.json"), "utf8")).toContain('\n\t"production"'); // tabs kept
 		expect(record().routes.map((x: { id: string; adopted: boolean }) => `${x.id}:${x.adopted}`)).toEqual(["r1:false", "r2:false"]);

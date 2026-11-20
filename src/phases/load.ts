@@ -86,6 +86,8 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 	// ── Target ─────────────────────────────────────────────────────────────────
 	let api: EmDashApi;
 	let stop = () => {};
+	/** The address the site answers on now (workers.dev before the switch, the real domain after it): EmDash's Site URL. */
+	let siteOrigin: string | undefined;
 	if (target !== "local") {
 		const t = remoteTarget(paths.root, config, env, target);
 		const tokenName = target === "staging" ? "EMDASH_TOKEN" : "EMDASH_TOKEN_PRODUCTION";
@@ -93,6 +95,7 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 			check("target", `${target} target configured`, false, "error" in t ? t.error : `Set ${tokenName} (an EmDash API token from that site's admin) in .env`);
 			return checks;
 		}
+		siteOrigin = new URL(t.url).origin;
 		// Optional pinned addresses for a fresh workers.dev host (see docs/staging-setup.md → DNS).
 		if (t.addresses.length) {
 			pinHost(new URL(t.url).hostname, t.addresses);
@@ -390,7 +393,13 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 			await api.updateSettings({ title: site.title, ...(site.tagline ? { tagline: site.tagline } : {}), /* EmDash's staging flag puts noindex on every page. Production must not carry it, or the launched domain is
 			   noindexed (seen at a go-live). Pre-launch hosts are still kept out of search: the starter middleware sends
 			   X-Robots-Tag noindex on any host that is not the production hostname, and staging sets STAGING=1. */
-			staging: target !== "production", seo: { titleSeparator: sep } });
+			staging: target !== "production", seo: { titleSeparator: sep },
+			/* Site URL (site:url): sign-in links, invites and password resets are built from it. Without it EmDash
+			   falls back to the address recorded at first setup — usually the workers.dev host — so a launched site
+			   sent people back to workers.dev after a magic-link sign-in. Before the switch it is the workers.dev address
+			   (the real domain still serves WordPress); `golive` sets the real domain. */
+			...(siteOrigin ? { url: siteOrigin } : {}),
+		});
 		} catch (e) {
 			menuErrors.push(`settings: ${(e as Error).message}`);
 		}

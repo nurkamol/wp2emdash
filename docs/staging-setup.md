@@ -191,6 +191,9 @@ The client project's `docs/deployment.md` repeats this for whoever maintains the
 | `/_emdash/setup` returns 404 | Wrong path | The setup is at `/_emdash/admin/setup` |
 | Load fails with `INSUFFICIENT_SCOPE` | The API token lacks a scope | Create a token with the scopes in step 4 |
 | First deploy fails (10001), then every retry fails with `10014` "namespace already exists" | Wrangler auto-provisioned the `SESSION` KV namespace before the deploy failed, leaving `<worker>-session` behind | `pnpm wp2emdash provision <slug> <env>` (reuses that namespace by title and records it), rerun scaffold so `wrangler.jsonc` binds it, deploy again |
+| A setting changed in the admin or through the API (Settings → Email, Site URL, the staging flag) still behaves as before on some requests, e.g. "Email is not configured" right after saving SMTP | Running Worker isolates cache site settings and the email provider choice | Redeploy (`pnpm deploy:<env>` in the project, or `wrangler deploy`): new isolates read the saved settings |
+| After a magic-link sign-in the browser lands on the workers.dev address | EmDash builds sign-in links from **Site URL**; without it, from the address recorded at first setup (workers.dev) | `load` sets Site URL to the address the site answers on, and `golive` sets the real domain after the switch; by hand: admin → Settings → Site URL, then redeploy |
+| "Email is not configured. Magic link authentication requires an email provider." | EmDash's own email (sign-in links, invites, password resets) has no provider; form email is separate | Admin → Settings → Email: SMTP with the site's provider (Brevo: `smtp-relay.brevo.com`, 587, STARTTLS, the Brevo SMTP login and SMTP key), sender on the authenticated domain; then redeploy |
 
 ## 7. Production before the switch
 

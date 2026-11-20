@@ -439,6 +439,17 @@ async function primarySwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult>
 		record.liveSince = (readJson<CfFile>(c.cfFile)?.production?.liveSince as string | undefined) ?? at().slice(0, 10);
 		record.history.push({ at: at(), action: "production.live = true" });
 		c.log("✔ cloudflare.json → production.live = true");
+		// EmDash's Site URL builds sign-in links, invites and password resets; before the switch it pointed at
+		// workers.dev, so a magic-link sign-in landed there instead of on the real domain.
+		const t = remoteTarget(c.paths.root, c.config, c.merged as Record<string, string>, "production");
+		if (!("error" in t) && t.token) {
+			try {
+				const res = await c.f(`https://${c.canonical}/_emdash/api/settings`, { method: "POST", headers: { Authorization: `Bearer ${t.token}`, "Content-Type": "application/json", "X-EmDash-Request": "1" }, body: JSON.stringify({ url: `https://${c.canonical}` }) });
+				checks.push({ id: "site-url", label: `EmDash Site URL is https://${c.canonical} (sign-in links)`, ok: res.ok, ...(res.ok ? {} : { detail: `settings: HTTP ${res.status}; set it in the admin (Settings → Site URL)` }) });
+			} catch (e) {
+				checks.push({ id: "site-url", label: `EmDash Site URL is https://${c.canonical} (sign-in links)`, ok: false, detail: (e as Error).message });
+			}
+		} else next.push(`Set EmDash's Site URL to https://${c.canonical} (admin → Settings), so sign-in links use the real domain`);
 		next.push(
 			`pnpm wp2emdash run ${c.slug} scaffold, then pnpm deploy:production in the project (IndexNow and the client docs pick up "live")`,
 			`WP2EMDASH_TARGET=production pnpm wp2emdash run ${c.slug} verify --preview (now against https://${c.canonical})`,
