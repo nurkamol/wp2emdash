@@ -55,6 +55,16 @@ Dashboard → **My Profile → API Tokens → Create Token → Create Custom Tok
 Cloudflare Images (the Worker's `IMAGES` binding works without token access), Pages, Workers AI,
 Zone and DNS permissions (those belong to token B).
 
+### Shared Turnstile widgets
+
+The free plan allows 20 widgets per account and 10 hostnames per widget, and a hostname also authorises all of its
+subdomains ([hostname management](https://developers.cloudflare.com/turnstile/additional-configuration/hostname-management/),
+checked 2026-11-20). So one managed widget can serve several sites: name it `sites-1`, `sites-2`… and list one
+apex per site (`example.com` covers `www.example.com`), plus your `<subdomain>.workers.dev` once for every preview
+and pre-launch production Worker. Each site sets the shared site key in `forms.turnstileSiteKey` and the shared
+secret as its `TURNSTILE_SECRET_KEY_PRODUCTION`. An alias domain that only redirects needs no hostname. When a
+widget is full, start the next one. Rotating a shared secret means redeploying every site on that widget.
+
 ## Token B — go-live (per launch)
 
 Create it when a site is ready to launch, scoped to that client's zone only, with an expiry a few
