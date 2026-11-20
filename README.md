@@ -39,6 +39,7 @@ pnpm wp2emdash ui          # local dashboard in the browser (--no-open to only p
 | `wp2emdash init --slug … --name … --source …` | Create `sites/<slug>/` (`--from <slug>` to start from another site's settings) |
 | `wp2emdash run <slug> <phase> [--json] [--preview]` | Run a phase; exit 0 pass · 2 gate failed · 3 not built yet · 1 error |
 | `wp2emdash run <slug> load --force` | Load into a **live** production (after go-live): records a D1 Time Travel bookmark first and prints the restore command; refused without `--force` |
+| `wp2emdash run <slug> load --overwrite-settings` | Also replace site settings (logo, favicon, social links, SEO) an editor changed in the admin since the last load; without it those are kept and reported |
 | `wp2emdash accept <slug> <phase> --reason "…" --by "…"` | Record the owner's acceptance of a failed gate |
 | `wp2emdash status [slug] [--json]` | Phase timeline |
 | `wp2emdash doctor` | Local prerequisites, verifies the Cloudflare token |
@@ -380,6 +381,24 @@ cards replace every page's image or only fill in where a page has none (the defa
 them. Verify downloads every og:image and fails on any that does not load. Details:
 [packages/og/README.md](packages/og/README.md).
 
+## Site settings (EmDash's Settings screens)
+
+EmDash's own **Settings → General, Social Links and SEO** come prefilled from the WordPress site, and the starter reads
+them on every page, so editors change the logo, favicon, social profiles, verification tags, default social image and
+robots.txt in the admin and the live site follows within seconds (the save purges cached pages):
+
+| Setting | From WordPress | The starter |
+|---|---|---|
+| Logo, favicon | brand files captured from the live header (`public/brand`), else `custom_logo` / `site_icon` | header, menu sheet, structured data; favicon + apple-touch icon. While the setting is the migrated file, the optimized brand files stay (hashed WebP, sized favicons, light logo over the hero) |
+| Posts per page, date format, timezone | `posts_per_page`, `date_format` (→ date-fns), `timezone_string` / `gmt_offset` | (EmDash's own use) |
+| Social Links | Rank Math / Yoast social options, home-page JSON-LD `sameAs`, social links in the header/footer | footer social links/icons and the menu sheet's icons point at them; a network missing from the footer's icon row is added; JSON-LD `sameAs` |
+| Default social image | Rank Math / Yoast default, else the og:image most pages share | og:image of pages without their own (EmDash's head) with its size |
+| Google / Bing verification | audited page head, else the SEO plugin | printed by EmDash's head; `site.config.json` → `verification` is the fallback and keeps other services' tags |
+| robots.txt | the live file's own rules (WordPress-only rules dropped, sitemap at the new domain); none → EmDash's default | served by EmDash |
+
+Every value and its source is in the transform coverage report. `load` never overwrites a value an editor changed
+after the previous load (`--overwrite-settings` does). Facts and limits: [settings findings](docs/spikes/settings-findings.md).
+
 ## SEO suite (on by default)
 
 Technical SEO is part of every migration (titles, descriptions, canonicals, robots, sitemap, structured data, old
@@ -397,7 +416,7 @@ seo: { panel: false },
 | **SEO dashboard** | Plugins → SEO, dashboard widget (editors and admins) | Average score and a score per page, the most common issues and where they are, every page with a link to fix it, every image without a description with a form that writes alt text to the media library, robots.txt / sitemap / indexability checks (environment-aware). |
 | **Google Search Console** | SEO dashboard → Google | Connected once with a service account (key stored encrypted): clicks, impressions, click rate, position, daily chart, top searches and pages, sitemaps (submit), index status per page. Works before go-live. |
 | **IndexNow** | SEO dashboard → IndexNow | After go-live, publishing a page notifies Bing, Yandex and the other IndexNow engines; key file at the domain root; notification log; notify-all button. |
-| **Analytics** | SEO & Analytics → Analytics (changes: admins) | Tracking codes by ID only — GA4, Google tag, Google Ads, Tag Manager, Meta Pixel, Microsoft Clarity, Hotjar, Cloudflare Web Analytics — prefilled with everything the audit found on the old site (retired `UA-` listed, never loaded); on/off, edit, remove; conversion events as switches (form sent, phone/email, booking links, outbound) with no visitor data; consent mode (off; hook for a future banner); carried-over verification tags read-only. Saving purges cached pages: live within seconds. The site loads trackers on the production domain only, never for signed-in editors, and its CSP allows exactly the switched-on services (one host table, `packages/seo/src/analytics/csp.ts`). |
+| **Analytics** | SEO & Analytics → Analytics (changes: admins) | Tracking codes by ID only — GA4, Google tag, Google Ads, Tag Manager, Meta Pixel, Microsoft Clarity, Hotjar, Cloudflare Web Analytics — prefilled with everything the audit found on the old site (retired `UA-` listed, never loaded); on/off, edit, remove; conversion events as switches (form sent, phone/email, booking links, outbound) with no visitor data; consent mode (off; hook for a future banner); Google/Bing verification points to EmDash's Settings → SEO, other carried tags listed read-only. Saving purges cached pages: live within seconds. The site loads trackers on the production domain only, never for signed-in editors, and its CSP allows exactly the switched-on services (one host table, `packages/seo/src/analytics/csp.ts`). |
 | **Visits** | SEO & Analytics → Visits, dashboard widget (admins), page editor | Cloudflare Web Analytics, last 7 days: visits, page views, daily chart, top pages, referrers; each page's views in its SEO box. Needs the Worker secret `CF_ANALYTICS_TOKEN` (Account Analytics: Read); the site tag is looked up at scaffold. |
 
 No effect on visitors and negligible Worker size. The site checks call the Worker through a `SELF` service binding the
@@ -444,7 +463,7 @@ Smart Placement stays off (`performance: { smartPlacement: true }` to try it): s
 ## Docs
 
 - [Plan](docs/PLAN.md)
-- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md) · [Analytics in the SEO suite (storage, purge, CSP hosts, GraphQL)](docs/spikes/analytics-findings.md) · [Provider registry hosts and site widgets](docs/spikes/providers-findings.md)
+- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md) · [Analytics in the SEO suite (storage, purge, CSP hosts, GraphQL)](docs/spikes/analytics-findings.md) · [Provider registry hosts and site widgets](docs/spikes/providers-findings.md) · [Site settings (schema, head tags, robots.txt, brand files)](docs/spikes/settings-findings.md)
 - [Site workspaces](sites/README.md)
 - [Environment setup](docs/staging-setup.md) — production on `workers.dev` (default) and opt-in staging: resources, build → migrate → deploy, first admin sign-in (passkeys), API token, CI, after go-live (`load --force`, preview URLs), troubleshooting
 - [Single-environment findings](docs/spikes/single-env-findings.md) — D1 Time Travel and Workers preview URLs checked against Wrangler 4.163.0

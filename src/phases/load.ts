@@ -23,6 +23,8 @@ import { svgToPng } from "../targets/emdash/svg.js";
 import { EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
 import { blockKey, sectionToBlock } from "../targets/emdash/blocks.js";
 import { faststart, needsFaststart } from "../targets/emdash/faststart.js";
+import { desiredSettings, planSettings, type SettingsRecord } from "../targets/emdash/settings.js";
+import type { IrSettings } from "../transform/settings.js";
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
@@ -74,7 +76,7 @@ export async function ensureDevServer(project: string, port: number, log: (m: st
 	throw new Error("dev server did not start within 90 s");
 }
 
-export async function runLoad({ config, paths, reporter, force }: PhaseContext): Promise<GateCheck[]> {
+export async function runLoad({ config, paths, reporter, force, overwriteSettings }: PhaseContext): Promise<GateCheck[]> {
 	const checks: GateCheck[] = [];
 	const check = (id: string, label: string, ok: boolean, detail?: string) => checks.push({ id, label, ok, ...(detail ? { detail } : {}) });
 	// Default target: local for a site with opt-in staging; production (workers.dev before go-live) for a single-environment
@@ -105,6 +107,8 @@ export async function runLoad({ config, paths, reporter, force }: PhaseContext):
 	let stop = () => {};
 	/** The address the site answers on now (workers.dev before the switch, the real domain after it): EmDash's Site URL. */
 	let siteOrigin: string | undefined;
+	/** Production after go-live: settings already there without a load record are an editor's (kept). */
+	let remoteLive = false;
 	if (target !== "local") {
 		const t = remoteTarget(paths.root, config, env, target);
 		if ("error" in t || !t.token) {
@@ -124,6 +128,7 @@ export async function runLoad({ config, paths, reporter, force }: PhaseContext):
 			}
 		}
 		siteOrigin = new URL(t.url).origin;
+		remoteLive = !!t.live;
 		// Optional pinned addresses for a fresh workers.dev host (see docs/staging-setup.md → DNS).
 		if (t.addresses.length) {
 			pinHost(new URL(t.url).hostname, t.addresses);
@@ -418,20 +423,97 @@ export async function runLoad({ config, paths, reporter, force }: PhaseContext):
 			}
 		}
 		try {
-			await api.updateSettings({ title: site.title, ...(site.tagline ? { tagline: site.tagline } : {}), /* EmDash's staging flag puts noindex on every page. Production must not carry it, or the launched domain is
+			await api.updateSettings({
+				/* EmDash's staging flag puts noindex on every page. Production must not carry it, or the launched domain is
 			   noindexed (seen at a go-live). Pre-launch hosts are still kept out of search: the starter middleware sends
 			   X-Robots-Tag noindex on any host that is not the production hostname, and staging sets STAGING=1. */
-			staging: target !== "production", seo: { titleSeparator: sep },
-			/* Site URL (site:url): sign-in links, invites and password resets are built from it. Without it EmDash
+				staging: target !== "production",
+				/* Site URL (site:url): sign-in links, invites and password resets are built from it. Without it EmDash
 			   falls back to the address recorded at first setup — usually the workers.dev host — so a launched site
 			   sent people back to workers.dev after a magic-link sign-in. Before the switch it is the workers.dev address
 			   (the real domain still serves WordPress); `golive` sets the real domain. */
-			...(siteOrigin ? { url: siteOrigin } : {}),
-		});
+				...(siteOrigin ? { url: siteOrigin } : {}),
+			});
 		} catch (e) {
 			menuErrors.push(`settings: ${(e as Error).message}`);
 		}
-		check("menus", "Menus and site settings written", menuErrors.length === 0, menuErrors.join("; ") || site.menus.map((m) => `${m.role} ${m.items.length}`).join(", "));
+		check("menus", "Menus written", menuErrors.length === 0, menuErrors.join("; ") || site.menus.map((m) => `${m.role} ${m.items.length}`).join(", "));
+
+		// ── Site settings (Settings → General, Social Links, SEO) from ir/settings.json ──────────────────────
+		// What load wrote is remembered per setting: a value an editor changed in the admin since is kept
+		// (src/targets/emdash/settings.ts) unless --overwrite-settings.
+		{
+			const irS = readJson<IrSettings>(join(paths.ir, "settings.json"));
+			const settingsFile = join(paths.root, "load", `settings.${target}.json`);
+			const errors: string[] = [];
+			const media: Record<string, { mediaId: string; alt?: string } | undefined> = {};
+			// Logo and favicon: the brand files scaffold put in public/brand (what the header shows; the starter keeps serving
+			// their optimized copies while the setting points at them), else the WordPress attachment.
+			const projectConfig = readJson<{ header?: { logo?: string }; favicon?: string; icons?: { href: string; type: string; sizes?: string }[] }>(join(paths.project, "src", "site.config.json")) ?? {};
+			const brandBytes = (p: string | undefined) => (p?.startsWith("/brand/") && existsSync(join(paths.project, "public", p)) ? readFileSync(join(paths.project, "public", p)) : undefined);
+			const uploadable = (f: string) => /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(f);
+			const settingMedia = async (name: "logo" | "favicon" | "og", brandPath: string | undefined, ref: MediaRef | undefined, alt: string) => {
+				try {
+					const original = brandBytes(brandPath);
+					let bytes: Buffer | undefined;
+					let file: string | undefined;
+					if (original && brandPath) {
+						// Named after the original's hash: the starter recognises the migrated file even when it had to be converted (sharp PNG of an SVG, PNG icon of an .ico).
+						const mark = `wp2emdash-${name}-${createHash("sha1").update(original).digest("hex").slice(0, 10)}`;
+						if (uploadable(brandPath)) [bytes, file] = [original, `${mark}${extname(brandPath).toLowerCase()}`];
+						else {
+							const icon = (projectConfig.icons ?? []).filter((i) => /image\/(png|webp)/.test(i.type)).sort((a, b) => Number.parseInt(b.sizes ?? "0", 10) - Number.parseInt(a.sizes ?? "0", 10))[0];
+							const b = brandBytes(icon?.href);
+							if (b && icon) [bytes, file] = [b, `${mark}${extname(icon.href).toLowerCase()}`];
+						}
+					}
+					if (!bytes && ref?.wpId) {
+						const m = byWpId.get(ref.wpId);
+						if (m?.file && uploadable(m.file)) [bytes, file] = [readFileSync(join(paths.raw, "media", m.file)), m.file.split("/").pop() as string];
+					}
+					if (!bytes && ref?.url && /^https?:/.test(ref.url)) {
+						const known = idMap.media[mediaKey(ref)];
+						if (known && (await mediaIdsNow()).has(known.id)) return { mediaId: known.id, alt };
+					}
+					if (!bytes || !file) return undefined;
+					if (/\.svg$/i.test(file)) {
+						const b = await (await import("playwright")).chromium.launch();
+						try {
+							bytes = await svgToPng(bytes, b);
+						} finally {
+							await b.close().catch(() => {});
+						}
+						file = file.replace(/\.svg$/i, ".png");
+					}
+					const sha1 = createHash("sha1").update(bytes).digest("hex");
+					const item = bySha.get(sha1) ?? (await api.mediaUpload(bytes, file, mimeOf(file), alt));
+					bySha.set(sha1, item);
+					idMap.media[`settings:${name}`] = { id: item.id, sha1, mime: item.mimeType ?? mimeOf(file), ...(item.url ? { url: item.url } : {}) };
+					return { mediaId: item.id, alt };
+				} catch (e) {
+					errors.push(`${name}: ${(e as Error).message}`);
+					return undefined;
+				}
+			};
+			let mediaIdsCache: Set<string> | undefined;
+			const mediaIdsNow = async () => (mediaIdsCache ??= new Set((await api.mediaList()).map((m) => m.id)));
+			media.logo = await settingMedia("logo", projectConfig.header?.logo, irS?.logo, site.title);
+			media.favicon = await settingMedia("favicon", projectConfig.favicon, irS?.favicon, site.title);
+			media.og = irS?.seo.defaultOgImage ? await settingMedia("og", undefined, irS.seo.defaultOgImage, site.title) : undefined;
+			saveMap();
+			const desired = desiredSettings(site, irS, { titleSeparator: sep, logo: media.logo, favicon: media.favicon, defaultOgImage: media.og });
+			try {
+				const current = await api.settings();
+				const plan = planSettings({ desired, current, ...(existsSync(settingsFile) ? { record: readJson<SettingsRecord>(settingsFile) } : {}), overwrite: !!overwriteSettings, live: target === "production" && remoteLive });
+				if (Object.keys(plan.payload).length) await api.updateSettings(plan.payload);
+				write(settingsFile, plan.record);
+				if (plan.staleRecord) reporter.emit({ type: "log", level: "info", message: `settings: load/settings.${target}.json matched nothing on the target (a new or reset database): written as a first load` });
+				for (const k of plan.kept) reporter.emit({ type: "log", level: "warn", message: `settings: kept editor's value for ${k} (changed in the admin since the last load; --overwrite-settings replaces it)` });
+				check("settings", "Site settings written (General, Social Links, SEO)", errors.length === 0, [errors.length ? `media: ${errors.join("; ")}` : "", `${plan.written.length} written${plan.written.length ? ` (${plan.written.join(", ")})` : ""}, ${plan.unchanged.length} unchanged${plan.kept.length ? `, kept editor's value: ${plan.kept.join(", ")}` : ""}`].filter(Boolean).join("; "));
+			} catch (e) {
+				check("settings", "Site settings written (General, Social Links, SEO)", false, (e as Error).message);
+			}
+		}
 
 		// Redirects from the plugin exports (raw/redirects.json, made by extract). Kit rules are tagged with a group so a
 		// rerun updates them and never touches redirects someone added in the admin.

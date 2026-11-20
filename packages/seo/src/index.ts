@@ -22,7 +22,7 @@ export interface AnalyticsOptions {
 	zoneBeacon?: boolean;
 	/** The kit's last browser check of the live site (verify `analytics-runtime`), dated. */
 	lastCheck?: { at: string; ok: boolean; detail?: string };
-	/** Ownership verification tags carried over (site.config.json `verification`): shown read-only. */
+	/** Ownership verification tags carried over (site.config.json `verification`): listed read-only; Google/Bing are edited in Settings → SEO. */
 	verification?: Record<string, string>;
 }
 

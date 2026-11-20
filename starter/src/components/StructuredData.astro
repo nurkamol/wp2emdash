@@ -13,8 +13,12 @@ interface Props {
 	/** The page's own title (without the site name). */
 	pageTitle: string;
 	description?: string | null;
+	/** The business's profiles with Settings → Social Links applied (utils/settings.ts sameAsWithSocial). */
+	sameAs?: string[];
+	/** The logo an editor picked in Settings → General (else the migrated brand logo). */
+	logo?: string;
 }
-const { canonical, pageTitle, description } = Astro.props;
+const { canonical, pageTitle, description, sameAs: sameAsProp, logo: logoProp } = Astro.props;
 
 type Business = { type: string; name: string; description?: string; url?: string; email?: string; telephone?: string; priceRange?: string; address?: Record<string, string>; geo?: { latitude: string; longitude: string }; hasMap?: string; openingHours?: string[]; sameAs?: string[] };
 const sd = (site as { structuredData?: { business?: Business; pageTypes?: Record<string, string> } }).structuredData ?? {};
@@ -22,7 +26,7 @@ const origin = new URL(site.productionUrl).origin;
 const path = new URL(canonical).pathname;
 const isHome = path === "/";
 const orgId = `${origin}/#organization`;
-const logo = (site as { header?: { logo?: string } }).header?.logo;
+const logo = logoProp ?? (site as { header?: { logo?: string } }).header?.logo;
 const b = sd.business;
 
 const graph: Record<string, unknown>[] = [];
@@ -47,7 +51,7 @@ if (b) {
 		...(b.geo && local ? { geo: { "@type": "GeoCoordinates", ...b.geo } } : {}),
 		...(b.hasMap ? { hasMap: b.hasMap } : {}),
 		...(b.openingHours?.length && b.type !== "Organization" ? { openingHours: b.openingHours } : {}),
-		...(b.sameAs?.length ? { sameAs: b.sameAs } : {}),
+		...((sameAsProp ?? b.sameAs)?.length ? { sameAs: sameAsProp ?? b.sameAs } : {}),
 	});
 }
 graph.push({

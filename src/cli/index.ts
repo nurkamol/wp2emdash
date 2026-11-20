@@ -55,10 +55,12 @@ program
 	.option("--json", "stream progress events as JSON lines")
 	.option("--preview", "read-only phases: run out of order, don't record the gate")
 	.option("--force", "load: write to a live production (after go-live); a D1 Time Travel bookmark is recorded first and the restore command printed")
+	.option("--overwrite-settings", "load: replace site settings (logo, social links, SEO…) an editor changed in the admin since the last load")
 	.action(async (slug: string, phase: string, o) => {
 		if (!isPhaseId(phase)) fail(`Unknown phase "${phase}". Phases: ${PHASE_IDS.join(", ")}`);
 		if (o.force && phase !== "load") fail("--force only applies to load");
-		const result = await runPhase(slug, phase as never, { json: o.json, preview: o.preview, ...(o.force ? { force: true } : {}) }).catch((e: Error) => fail(e.message));
+		if (o.overwriteSettings && phase !== "load") fail("--overwrite-settings only applies to load");
+		const result = await runPhase(slug, phase as never, { json: o.json, preview: o.preview, ...(o.force ? { force: true } : {}), ...(o.overwriteSettings ? { overwriteSettings: true } : {}) }).catch((e: Error) => fail(e.message));
 		if (o.json) console.log(JSON.stringify({ type: "result", ...result }));
 		process.exit(result.ok ? 0 : result.notImplemented ? 3 : 2);
 	});

@@ -350,6 +350,21 @@ export function writePerfFiles(project: string, perf: PerfConfig): void {
 }
 
 /**
+ * site.config.json `brandSha1`: the sha1 of the original logo and favicon files. Load sets them as EmDash's logo and
+ * favicon settings; the starter compares the setting's media (content hash, or a `wp2emdash-<name>-<sha1:10>` file
+ * name when load had to convert it) with these to keep serving the optimized brand files until an editor picks
+ * another image (starter/src/utils/settings.ts).
+ */
+export function brandHashes(publicDir: string, brand: { logo?: string; favicon?: string }): { brandSha1?: { logo?: string; favicon?: string } } {
+	const out: { logo?: string; favicon?: string } = {};
+	for (const k of ["logo", "favicon"] as const) {
+		const p = brand[k];
+		if (p?.startsWith("/brand/") && existsSync(join(publicDir, p))) out[k] = createHash("sha1").update(readFileSync(join(publicDir, p))).digest("hex");
+	}
+	return Object.keys(out).length ? { brandSha1: out } : {};
+}
+
+/**
  * Site config additions (src/site.config.json): route-cache defaults, the header's hashed logo files with their size,
  * and the favicon links. Called by the scaffold phase once the brand files are in public/brand.
  */

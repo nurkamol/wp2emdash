@@ -15,6 +15,8 @@ export interface RunOptions {
 	quiet?: boolean;
 	/** load: allow writing to a live production (a D1 Time Travel bookmark is recorded first). */
 	force?: boolean;
+	/** load: replace site settings an editor changed in the admin since the last load. */
+	overwriteSettings?: boolean;
 }
 
 /** Phases that only read from WordPress (GET) or local files, write only inside the site workspace, and never touch Cloudflare. */
@@ -51,7 +53,7 @@ export async function runPhase(slug: string, phase: PhaseId, opts: RunOptions = 
 	let checks: GateCheck[];
 	let notImplemented = false;
 	try {
-		checks = await RUNNERS[phase]({ config, paths, reporter, ...(opts.force ? { force: true } : {}) });
+		checks = await RUNNERS[phase]({ config, paths, reporter, ...(opts.force ? { force: true } : {}), ...(opts.overwriteSettings ? { overwriteSettings: true } : {}) });
 	} catch (err) {
 		notImplemented = err instanceof NotImplementedError;
 		const message = err instanceof Error ? err.message : String(err);
