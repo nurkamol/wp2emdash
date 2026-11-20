@@ -92,7 +92,7 @@ and `sessionKVBindingName = "SESSIONS"`.
 
 `wrangler dev --local` on the built copy, with a probe route doing `session.set("probe", …)` / `session.get("probe")`:
 the first request set the cookie `astro-session=<uuid>`; a second request with only the cookie read the value back
-from storage; the local `studio-a-sessions` bucket held one object keyed by that uuid; the KV list had only
+from storage; the local `<worker>-sessions` bucket held one object keyed by that uuid; the KV list had only
 `FORM_OUTBOX`. Not checked: a deployed Worker (real R2 latency, multi-location), a real EmDash passkey sign-in on R2.
 
 ## What the kit does
