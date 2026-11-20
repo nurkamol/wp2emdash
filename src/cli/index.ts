@@ -145,11 +145,15 @@ program
 	.option("--rollback", "delete exactly the routes / alias rules recorded in cutover/golive.json and set production.live = false (with --aliases: only the alias rules)")
 	.option("--yes", "apply — only after the owner's explicit go-ahead in the current conversation")
 	.option("--limit <n>", "smoke-test only the first n audited paths")
+	.option("--approved-by <name>", "with --yes: who approved this step (recorded in cutover/golive.json → approvals)")
+	.option("--approval <text>", "with --yes: the owner's written approval as given (name, date, where), recorded with it")
+	.option("--via <channel>", "where the approval was recorded from (default: cli)")
 	.option("--json")
-	.action(async (slug: string, o: { aliases?: boolean; rollback?: boolean; yes?: boolean; limit?: string; json?: boolean }) => {
+	.action(async (slug: string, o: { aliases?: boolean; rollback?: boolean; yes?: boolean; limit?: string; json?: boolean; approvedBy?: string; approval?: string; via?: string }) => {
 		const { golive } = await import("../commands/golive.js");
 		try {
-			const r = await golive(slug, { aliases: !!o.aliases, rollback: !!o.rollback, yes: !!o.yes, ...(o.limit ? { limit: Number(o.limit) } : {}), ...(o.json ? {} : { log: (l: string) => console.log(l) }) });
+			const approval = o.approvedBy && o.approval ? { approval: { by: o.approvedBy, text: o.approval, via: o.via ?? "cli" } } : {};
+			const r = await golive(slug, { aliases: !!o.aliases, rollback: !!o.rollback, yes: !!o.yes, ...approval, ...(o.limit ? { limit: Number(o.limit) } : {}), ...(o.json ? {} : { log: (l: string) => console.log(l) }) });
 			if (o.json) console.log(JSON.stringify(r, null, 2));
 			else {
 				for (const c of r.checks) console.log(`${c.ok ? pc.green("✔") : pc.red("✖")} ${c.label}${c.detail ? pc.dim(` — ${c.detail}`) : ""}`);
@@ -168,10 +172,12 @@ program
 	.argument("<slug>")
 	.option("--repo <owner/name>", "repository (default: the production domain, under your GitHub account)")
 	.option("--yes", "apply")
-	.action(async (slug: string, o: { repo?: string; yes?: boolean }) => {
+	.option("--json", "print the result (plan, blockers, file list, secret-scan findings by file name) as JSON")
+	.action(async (slug: string, o: { repo?: string; yes?: boolean; json?: boolean }) => {
 		const { publish } = await import("../commands/publish.js");
 		try {
-			const r = await publish(slug, { ...(o.repo ? { repo: o.repo } : {}), yes: !!o.yes, log: (l: string) => console.log(l) });
+			const r = await publish(slug, { ...(o.repo ? { repo: o.repo } : {}), yes: !!o.yes, ...(o.json ? {} : { log: (l: string) => console.log(l) }) });
+			if (o.json) console.log(JSON.stringify(r, null, 2));
 			process.exit(r.applied ? 0 : 1);
 		} catch (e) {
 			fail((e as Error).message);

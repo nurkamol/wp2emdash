@@ -13,6 +13,7 @@ import { PHASE_IDS, PHASES, type PhaseId } from "../core/phases.js";
 import { listProposals } from "../core/proposals.js";
 import { type GateCheck, nextPhase, phaseState, readState, type SiteState } from "../core/state.js";
 import type { VerifyResult } from "../phases/verify.js";
+import { deriveStage, latestRunsByPhase, liveEvidence, type SiteStage } from "./stage.js";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
 const RUN_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/;
@@ -39,6 +40,9 @@ export interface SiteMeta {
 	name: string;
 	visualLimit: number;
 	sourceUrl?: string;
+	monitorDays: number;
+	aliasDomains: string[];
+	domain?: string;
 }
 const metaCache = new Map<string, Promise<SiteMeta>>();
 
@@ -47,8 +51,8 @@ export function siteMeta(slug: string, sitesDir = SITES_DIR): Promise<SiteMeta> 
 	let p = metaCache.get(key);
 	if (!p) {
 		p = loadConfig(sitePaths(slug, sitesDir).config)
-			.then((c) => ({ name: c.name, visualLimit: c.gates.visualDiff, sourceUrl: c.source.url }))
-			.catch(() => ({ name: slug, visualLimit: DEFAULT_VISUAL_LIMIT }));
+			.then((c) => ({ name: c.name, visualLimit: c.gates.visualDiff, sourceUrl: c.source.url, monitorDays: c.target.cutover.monitorDays, aliasDomains: c.target.aliasDomains, domain: new URL(c.target.productionUrl).hostname.replace(/^www\./, "") }))
+			.catch(() => ({ name: slug, visualLimit: DEFAULT_VISUAL_LIMIT, monitorDays: 14, aliasDomains: [] }));
 		metaCache.set(key, p);
 	}
 	return p;
@@ -254,6 +258,9 @@ export interface SiteSummary {
 	lastRun?: RunSummary;
 	/** Proposals waiting in the approval queue. */
 	pendingProposals: number;
+	/** Where the site really is: recorded gates + latest runs (previews included) + live state (src/ui/stage.ts). */
+	stage?: SiteStage;
+	domain?: string;
 	error?: string;
 }
 
@@ -286,9 +293,24 @@ export async function siteSummary(slug: string, sitesDir = SITES_DIR): Promise<S
 		const next = nextPhase(state) ?? null;
 		const r = readiness(slug, sitesDir);
 		const curId = next ?? "cutover";
+		const ev = liveEvidence(sitePaths(slug, sitesDir).root);
+		const stage = deriveStage({
+			slug,
+			recorded: Object.fromEntries(PHASE_IDS.map((id) => [id, phaseState(state, id).status])),
+			latest: latestRunsByPhase(slug, sitesDir),
+			live: ev.live,
+			...(ev.liveSince ? { liveSince: ev.liveSince } : {}),
+			monitorDays: meta.monitorDays,
+			aliasDomains: meta.aliasDomains,
+			aliasRules: ev.aliasRules,
+			...(ev.aliasCheck ? { aliasCheck: ev.aliasCheck } : {}),
+			now: new Date(),
+		});
 		return {
 			slug,
 			name: meta.name,
+			stage,
+			...(meta.domain ? { domain: meta.domain } : {}),
 			phases: phaseList(state),
 			next,
 			current: { id: curId, status: phaseState(state, curId).status },
@@ -464,7 +486,7 @@ export interface DecisionInput {
 }
 
 /** One table cell: no pipes, no newlines, no control characters. */
-const cell = (s: string) =>
+export const cell = (s: string) =>
 	s
 		// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control characters is the point
 		.replace(/[\u0000-\u001f\u007f]+/g, " ")

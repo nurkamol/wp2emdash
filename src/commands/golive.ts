@@ -51,6 +51,11 @@ export interface GoliveOptions {
 	/** Environment: `site` = sites/<slug>/.env only (the go-live token), `merged` = kit .env + site .env + process. */
 	vars?: { site: Record<string, string>; merged: Record<string, string | undefined> };
 	now?: () => Date;
+	/**
+	 * The owner's written approval for this step (who approved, and the approval as given: name, date, channel). Recorded
+	 * in cutover/golive.json → approvals when the step is applied (`--yes`). Never a substitute for the approval itself.
+	 */
+	approval?: { by: string; text: string; via?: string };
 }
 
 export interface RecordedRoute {
@@ -81,6 +86,17 @@ export interface GoliveRecord {
 	liveSince?: string;
 	smoke?: { at: string; ok: boolean; checked: number; failures: string[] };
 	history: { at: string; action: string }[];
+	/** Owner approvals recorded with each applied step (golive --approved-by/--approval, or the dashboard). */
+	approvals?: GoliveApproval[];
+	/** The checks of the last applied primary / alias step (smoke, noindex, DNS comparison, Site URL). */
+	lastChecks?: { at: string; step: "primary" | "aliases"; checks: GateCheck[] };
+}
+export interface GoliveApproval {
+	at: string;
+	step: "primary" | "aliases" | "rollback" | "rollback-aliases";
+	by: string;
+	approval: string;
+	via: string;
 }
 
 export interface GoliveResult {
@@ -278,6 +294,18 @@ function saveRecord(c: Ctx, r: GoliveRecord) {
 	mkdirSync(c.outDir, { recursive: true });
 	writeJson(c.recordFile, r);
 }
+/** Writes the owner's approval into the record before anything is changed (only with --yes). */
+function noteApproval(c: Ctx, record: GoliveRecord, opts: GoliveOptions, step: GoliveApproval["step"]) {
+	const a = opts.approval;
+	if (!opts.yes || !a?.by.trim() || !a.text.trim()) return;
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control characters is the point
+	const one = (v: string, max: number) => v.replace(/[\u0000-\u001f\u007f]+/g, " ").trim().slice(0, max);
+	const entry: GoliveApproval = { at: c.now().toISOString(), step, by: one(a.by, 120), approval: one(a.text, 1000), via: one(a.via ?? "cli", 40) };
+	record.approvals = [...(record.approvals ?? []), entry];
+	record.history.push({ at: entry.at, action: `${step} approved by ${entry.by} (${entry.via})` });
+	saveRecord(c, record);
+}
+
 function setLive(c: Ctx, live: boolean) {
 	const cf = readJson<CfFile>(c.cfFile) ?? {};
 	const indent = indentOf(c.cfFile);
@@ -383,6 +411,7 @@ async function primarySwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult>
 	plan.push(`Smoke-test https://${c.canonical}: audited paths answer 200, ${c.other} and http redirect to it, no robots noindex (up to ${c.attempts} attempts)`);
 	plan.push("Compare the zone's DNS with cutover/dns-before.json (nothing may be added, removed or changed)");
 	plan.push("Set cloudflare.json → production.live = true and liveSince (remote targets switch to the real domain; IndexNow turns live on the next scaffold)");
+	plan.push(`Set EmDash's Site URL to https://${c.canonical} (sign-in links; needs EMDASH_TOKEN_PRODUCTION, otherwise listed as a next step)`);
 	plan.push("Record route ids and times in cutover/golive.json (rollback: wp2emdash golive <slug> --rollback --yes)");
 	const idx = await indexableCheck(c);
 	checks.push(idx);
@@ -396,6 +425,7 @@ async function primarySwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult>
 	const record = loadRecord(c);
 	record.zoneId = zone.id;
 	record.worker = c.worker;
+	noteApproval(c, record, opts, "primary");
 	const at = () => c.now().toISOString();
 	for (const r of adopt) if (!record.routes.some((x) => x.id === r.id)) record.routes.push({ id: r.id, pattern: r.pattern, adopted: true, at: at() });
 	saveRecord(c, record);
@@ -469,6 +499,7 @@ async function primarySwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult>
 		record.history.push({ at: at(), action: "smoke failed; production.live not set" });
 		next.push(`Routes are in place but the smoke test failed: fix and rerun \`wp2emdash golive ${c.slug} --yes\`, or roll back now: wp2emdash golive ${c.slug} --rollback --yes`);
 	}
+	record.lastChecks = { at: at(), step: "primary", checks };
 	saveRecord(c, record);
 	return { applied: true, ok: checks.every((x) => x.ok), plan, blockers: [], checks, next, record };
 }
@@ -508,6 +539,7 @@ async function aliasSwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult> {
 	if (!opts.yes) return notApproved(c, plan, [], " --aliases");
 
 	const record = loadRecord(c);
+	noteApproval(c, record, opts, "aliases");
 	const at = () => c.now().toISOString();
 	const checks: GateCheck[] = [];
 	for (const t of targets) {
@@ -545,6 +577,7 @@ async function aliasSwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult> {
 	const res = probe?.result;
 	checks.push({ id: "alias-redirects", label: `Every audited path on the alias domains answers 301 to the same path on ${c.canonical}`, ok: !!res?.ok, detail: res ? (res.ok ? `${res.checked} requests; report cutover/aliases-check.md` : `${res.failures.length} failing, e.g. ${res.failures.slice(0, 3).map((x) => `${x.url}: ${x.problem}`).join("; ")} (cutover/aliases-check.md)`) : "not run" });
 	for (const t of targets) checks.push(await aliasDnsCheck(c.call, t.zoneId, t.alias, c.outDir));
+	record.lastChecks = { at: at(), step: "aliases", checks };
 	saveRecord(c, record);
 	return {
 		applied: true,
@@ -571,6 +604,7 @@ async function rollback(c: Ctx, opts: GoliveOptions): Promise<GoliveResult> {
 	for (const p of plan) c.log(`  - ${p}`);
 	if (!plan.length) return refuse(c, plan, ["Nothing to roll back"]);
 	if (!opts.yes) return notApproved(c, plan, [], ` --rollback${opts.aliases ? " --aliases" : ""}`);
+	noteApproval(c, record, opts, opts.aliases ? "rollback-aliases" : "rollback");
 	const at = () => c.now().toISOString();
 	const checks: GateCheck[] = [];
 	for (const r of [...rules]) {

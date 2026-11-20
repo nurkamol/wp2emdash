@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readState } from "../src/core/state.js";
 import { appendVisualDecision, portfolio, readiness, visualDecisions, visualReport } from "../src/ui/data.js";
-import { resolveServable, startUiServer, type UiServer } from "../src/ui/server.js";
+import { csrfFor, resolveServable, startUiServer, type UiServer } from "../src/ui/server.js";
 
 const FIXTURE = new URL("./fixtures/ui/sites", import.meta.url).pathname;
 
@@ -170,7 +170,7 @@ describe("visual diff viewer", () => {
 	it("appends approve/reject decisions to decisions.md without accepting the gate", async () => {
 		const before = readFileSync(join(dir, "demo", "decisions.md"), "utf8");
 		const post = (body: unknown, headers: Record<string, string> = {}) =>
-			fetch(`${base()}/api/sites/demo/visual-decisions`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
+			fetch(`${base()}/api/sites/demo/visual-decisions`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json", Origin: base(), "X-WP2EMDASH-CSRF": csrfFor("test-token-0123456789"), ...headers }, body: JSON.stringify(body) });
 
 		const ok = await post({ path: "/", viewport: "mobile", decision: "approve", reason: "Owner: new hero | photo is fine\nas is", by: "Jane Owner" });
 		expect(ok.status).toBe(200);

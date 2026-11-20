@@ -34,6 +34,10 @@ export interface PublishResult {
 	blockers: string[];
 	/** Files that would be committed. */
 	files: number;
+	/** Their paths, relative to the project (names only). */
+	fileList: string[];
+	/** Secret scan: local secret files, and files with credential-like content (`path (labels)` — never the match). */
+	scan: { forbidden: string[]; flagged: string[] };
 	next: string[];
 }
 
@@ -167,11 +171,11 @@ export async function publish(slug: string, opts: PublishOptions = {}): Promise<
 	if (blockers.length) {
 		for (const b of blockers) log(`✖ ${b}`);
 		log("Nothing changed.");
-		return { applied: false, repo, plan, blockers, files: files.length, next: [] };
+		return { applied: false, repo, plan, blockers, files: files.length, fileList: files, scan: { forbidden, flagged }, next: [] };
 	}
 	if (!opts.yes) {
 		log(`\nNothing changed. Rerun with --yes to publish: wp2emdash publish ${slug}${opts.repo ? ` --repo ${opts.repo}` : ""} --yes`);
-		return { applied: false, repo, plan, blockers, files: files.length, next: [] };
+		return { applied: false, repo, plan, blockers, files: files.length, fileList: files, scan: { forbidden, flagged }, next: [] };
 	}
 
 	if (!hasGit) sh("git", ["init", "-q", "-b", "main"], project);
@@ -203,5 +207,5 @@ export async function publish(slug: string, opts: PublishOptions = {}): Promise<
 		"GitHub → Settings → Environments: production limited to main, the owner as required reviewer (docs/deployment.md in the project)",
 	];
 	for (const n of next) log(`  → ${n}`);
-	return { applied: true, repo: target, plan, blockers, files: files.length, next };
+	return { applied: true, repo: target, plan, blockers, files: files.length, fileList: files, scan: { forbidden, flagged }, next };
 }

@@ -6,29 +6,40 @@
  *   (DNS-rebinding guard);
  * - a random token per server run is required on every request: `?t=<token>` on the first load sets an
  *   HttpOnly, SameSite=Strict cookie, every later request must carry the cookie (or the query token);
- * - POSTs also need a same-origin Origin header (when the browser sends one) and a JSON body;
+ * - POSTs (every mutating endpoint) also need: a same-origin Origin header (required), the per-run CSRF header
+ *   X-WP2EMDASH-CSRF (derived from the token, delivered in the page's meta tag), a JSON body, and no cross-site
+ *   Sec-Fetch-Site;
  * - files are served only from inside the site's reports/ and snapshot/screens/ (no traversal, no symlinks out);
  * - POSTs also refuse a cross-site Sec-Fetch-Site;
  * - writes are limited to: visual decisions appended to decisions.md; approving / rejecting proposals in
  *   sites/<slug>/proposals/ (approve applies the proposal's patch to overrides.ts or decisions.md); new proposals from
  *   the section inspector; one allow-listed key at a time in sites/<slug>/.env (values are write-only: never returned,
  *   logged or streamed). After an approval it may start a *preview* run of transform, scaffold or verify — never load,
- *   never cutover, never Cloudflare, routes or DNS.
+ *   never cutover.
+ * - owner-approved launch actions (src/ui/launch.ts, repo.ts, environment.ts): `wp2emdash golive [--aliases|--rollback]
+ *   --yes`, `wp2emdash publish --yes` and `wrangler secret put` — each only with the typed production domain (and, for
+ *   golive / publish, the owner's written approval, recorded in decisions.md and golive.json), one at a time per site
+ *   (single-flight), logged to runs/<runId>.jsonl. Never DNS, never a gate.
  */
 import { spawn } from "node:child_process";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { closeSync, createReadStream, existsSync, openSync, readSync, realpathSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import { KIT_ROOT, SITES_DIR, sitePaths } from "../core/paths.js";
 import { isProposalId } from "../core/proposals.js";
-import { loadSiteEnv, scrubSecrets } from "../extract/credentials.js";
+import { phaseState, readState } from "../core/state.js";
+import { scrubSecrets } from "../extract/credentials.js";
+import { type ActionDeps, BusyError, defaultDeps, mergedEnv, SiteLocks } from "./actions.js";
 import { checklistView, cockpitView } from "./cockpit.js";
 import { appendVisualDecision, isRunId, isSiteSlug, listRuns, portfolio, readiness, runFile, runHistory, SERVABLE_ROOTS, siteMeta, siteSummary, UserError, visualReport } from "./data.js";
+import { environmentView, startSecretPut, workerSecretsView } from "./environment.js";
 import { inspectorView, proposeSectionChange } from "./inspector.js";
+import { golivePlan, isGoliveMode, launchView, siteContext, startGolive } from "./launch.js";
 import { appCss, appJs, indexHtml } from "./page.js";
 import { canStartFromDashboard, type DashboardRerun, decideProposal, proposalsView } from "./queue.js";
+import { publishPlan, publishStatus, startPublish } from "./repo.js";
 import { secretsStatus, writeSecret } from "./secrets.js";
 
 export interface UiServerOptions {
@@ -39,7 +50,12 @@ export interface UiServerOptions {
 	pollMs?: number;
 	/** Starts a preview run after an approval (tests inject a stub). Default: a child `wp2emdash run <slug> <phase> --preview`. */
 	startRun?: (slug: string, phase: DashboardRerun, sitesDir: string) => Promise<{ runId?: string }>;
+	/** Child processes, fetch and .env reading for the launch / publish / Worker-secret actions (tests replace them). */
+	actions?: Partial<ActionDeps>;
 }
+
+/** The CSRF value the page sends back in X-WP2EMDASH-CSRF: derived from the session token, never the token itself. */
+export const csrfFor = (token: string) => createHmac("sha256", token).update("wp2emdash-ui-csrf").digest("base64url");
 
 /** Spawns `wp2emdash run <slug> <phase> --preview` and waits briefly for its run log to appear. */
 export async function spawnPreviewRun(slug: string, phase: DashboardRerun, sitesDir: string): Promise<{ runId?: string }> {
@@ -132,10 +148,21 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 	const cookieName = () => `wp2emdash_ui_${port}`;
 	const streams = new Set<() => void>();
 	const startRun = opts.startRun ?? spawnPreviewRun;
+	const deps: ActionDeps = { ...defaultDeps(), ...(opts.actions ?? {}) };
+	const locks = new SiteLocks();
+	const csrf = csrfFor(token);
 	/** Deep scrubber with the site's current env values (kit .env + site .env), read per request. */
 	const scrubFor = (slug: string) => {
-		const env = loadSiteEnv(sitePaths(slug, sitesDir).root);
+		const env = mergedEnv(deps, sitePaths(slug, sitesDir).root);
 		return <T>(data: T): T => scrubDeep(data, env);
+	};
+	const preflightOf = (slug: string) => {
+		try {
+			const c = phaseState(readState(sitePaths(slug, sitesDir).state), "cutover");
+			return { status: c.status, ...(c.finishedAt ? { ranAt: c.finishedAt } : {}) };
+		} catch {
+			return { status: "pending" };
+		}
 	};
 	/** Sites with a dashboard-started run in its first seconds (one at a time per site). */
 	const running = new Set<string>();
@@ -178,10 +205,13 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 		});
 
 		if (req.method === "POST") {
+			// Every mutating endpoint: same-origin Origin (required), the CSRF header, JSON only.
 			const origin = req.headers.origin;
-			if (origin && origin !== `http://127.0.0.1:${port}` && origin !== `http://localhost:${port}`) return text(res, 403, "Cross-origin request refused");
+			if (!origin || (origin !== `http://127.0.0.1:${port}` && origin !== `http://localhost:${port}`)) return text(res, 403, "Cross-origin request refused");
 			const fetchSite = req.headers["sec-fetch-site"];
 			if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") return text(res, 403, "Cross-site request refused");
+			const sentCsrf = req.headers["x-wp2emdash-csrf"];
+			if (!sameToken(typeof sentCsrf === "string" ? sentCsrf : undefined, csrf)) return text(res, 403, "Missing or wrong CSRF header. Reload the dashboard.");
 			if (!(req.headers["content-type"] ?? "").startsWith("application/json")) return text(res, 415, "JSON only");
 			if (parts[0] !== "api" || parts[1] !== "sites" || parts[2] === undefined) return text(res, 404, "Not found");
 			const slug = parts[2];
@@ -200,9 +230,47 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 					await fn();
 				} catch (e) {
 					if (e instanceof UserError) return json(res, 400, { error: e.message });
+					if (e instanceof BusyError) return json(res, 409, { error: e.message, busy: e.info });
 					throw e;
 				}
 			};
+			/** Launch actions: the site config is needed for the typed-domain check. */
+			const ctxOr400 = async () => {
+				try {
+					return await siteContext(slug, sitesDir);
+				} catch (e) {
+					throw new UserError(`kit.config.ts could not be read: ${(e as Error).message.split("\n")[0]}`);
+				}
+			};
+			// POST /api/sites/:slug/golive  { mode, confirmDomain, approved, approval, by }
+			if (parts.length === 4 && parts[3] === "golive") {
+				const b = await body();
+				if (!b) return json(res, 400, { error: "Invalid JSON" });
+				return guarded(async () => {
+					if (!isGoliveMode(b.mode)) throw new UserError("mode must be primary, aliases, rollback or rollback-aliases.");
+					const started = startGolive(await ctxOr400(), b.mode, b, deps, locks);
+					json(res, 202, { ok: true, runId: started.runId });
+				});
+			}
+			// POST /api/sites/:slug/publish  { confirmDomain, approved, approval, by, repo? }
+			if (parts.length === 4 && parts[3] === "publish") {
+				const b = await body();
+				if (!b) return json(res, 400, { error: "Invalid JSON" });
+				return guarded(async () => {
+					const started = startPublish(await ctxOr400(), b, deps, locks);
+					json(res, 202, { ok: true, runId: started.runId });
+				});
+			}
+			// POST /api/sites/:slug/worker-secrets  { env, name, confirm, by, confirmDomain? } — the value comes from .env, never from the browser.
+			if (parts.length === 4 && parts[3] === "worker-secrets") {
+				const b = await body();
+				if (!b) return json(res, 400, { error: "Invalid JSON" });
+				return guarded(async () => {
+					if ("value" in b) throw new UserError("Values are not accepted here: save the value in the Secrets tab (.env) first.");
+					const started = startSecretPut(await ctxOr400(), b, deps, locks);
+					json(res, 202, { ok: true, runId: started.runId });
+				});
+			}
 			// POST /api/sites/:slug/visual-decisions
 			if (parts.length === 4 && parts[3] === "visual-decisions") {
 				const b = await body();
@@ -251,7 +319,7 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 		if (req.method !== "GET" && req.method !== "HEAD") return text(res, 405, "Method not allowed");
 
 		// ── Static shell ──
-		if (url.pathname === "/") return send(res, 200, indexHtml(), "text/html; charset=utf-8", { "Content-Security-Policy": CSP });
+		if (url.pathname === "/") return send(res, 200, indexHtml(csrf), "text/html; charset=utf-8", { "Content-Security-Policy": CSP });
 		if (url.pathname === "/app.js") return send(res, 200, appJs(), "text/javascript; charset=utf-8");
 		if (url.pathname === "/app.css") return send(res, 200, appCss(), "text/css; charset=utf-8");
 
@@ -270,6 +338,34 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 				if (parts.length === 4 && parts[3] === "secrets") return out(secretsStatus(slug, sitesDir));
 				if (parts.length === 4 && parts[3] === "cockpit") return out(cockpitView(slug, sitesDir));
 				if (parts.length === 4 && parts[3] === "checklist") return out(checklistView(slug, sitesDir));
+				// ── Launch, publish, environments, Worker secrets ──
+				if (parts.length >= 4 && ["launch", "golive", "publish", "environment", "worker-secrets"].includes(parts[3] as string)) {
+					let ctx: Awaited<ReturnType<typeof siteContext>>;
+					try {
+						ctx = await siteContext(slug, sitesDir);
+					} catch (e) {
+						return json(res, 422, scrubFor(slug)({ error: `kit.config.ts could not be read: ${(e as Error).message.split("\n")[0]}` }));
+					}
+					const busy = locks.get(slug);
+					const flag = (k: string) => url.searchParams.get(k) === "1";
+					if (parts.length === 4 && parts[3] === "launch") return out({ ...launchView(ctx, preflightOf(slug)), ...(busy ? { busy } : {}) });
+					if (parts.length === 5 && parts[3] === "golive" && parts[4] === "plan") {
+						const mode = url.searchParams.get("mode") ?? "primary";
+						if (!isGoliveMode(mode)) return json(res, 400, { error: "Unknown mode" });
+						return out(await golivePlan(ctx, mode, deps));
+					}
+					if (parts.length === 4 && parts[3] === "publish") return out({ ...(await publishStatus(ctx, deps, { ci: !flag("noci") })), ...(busy ? { busy } : {}) });
+					if (parts.length === 5 && parts[3] === "publish" && parts[4] === "plan") {
+						try {
+							return out(await publishPlan(ctx, deps, url.searchParams.get("repo") ?? undefined));
+						} catch (e) {
+							if (e instanceof UserError) return json(res, 400, { error: e.message });
+							throw e;
+						}
+					}
+					if (parts.length === 4 && parts[3] === "environment") return out(environmentView(ctx));
+					if (parts.length === 4 && parts[3] === "worker-secrets") return out({ ...(await workerSecretsView(ctx, deps, { remote: !flag("local"), verify: flag("verify") })), ...(busy ? { busy } : {}) });
+				}
 				if (parts.length === 6 && parts[3] === "inspect") {
 					const v = await inspectorView(slug, parts[4] as string, parts[5] as string, sitesDir, (await siteMeta(slug, sitesDir)).visualLimit);
 					return v ? out(v) : json(res, 404, { error: "Unknown page or viewport" });

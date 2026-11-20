@@ -8,7 +8,7 @@ import { checklistView, cockpitView, parseAccess } from "../src/ui/cockpit.js";
 import { inspectorView, setElementOverride } from "../src/ui/inspector.js";
 import { unifiedDiff } from "../src/ui/queue.js";
 import { fingerprint, secretsStatus } from "../src/ui/secrets.js";
-import { startUiServer, type UiServer } from "../src/ui/server.js";
+import { csrfFor, startUiServer, type UiServer } from "../src/ui/server.js";
 
 const FIXTURE = new URL("./fixtures/ui/sites", import.meta.url).pathname;
 const PENDING = "p-20260103-a1b2c3";
@@ -23,7 +23,7 @@ const runs: { slug: string; phase: string }[] = [];
 const base = () => `http://127.0.0.1:${ui.port}`;
 const get = (path: string) => fetch(`${base()}${path}`, { headers: { Cookie: cookie } });
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
-	fetch(`${base()}${path}`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json", ...headers }, body: typeof body === "string" ? body : JSON.stringify(body) });
+	fetch(`${base()}${path}`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json", Origin: base(), "X-WP2EMDASH-CSRF": csrfFor("test-token-0123456789"), ...headers }, body: typeof body === "string" ? body : JSON.stringify(body) });
 
 beforeAll(async () => {
 	dir = mkdtempSync(join(tmpdir(), "wp2emdash-ui2-"));
@@ -82,7 +82,7 @@ describe("approval queue", () => {
 		expect(noCookie.status).toBe(401);
 		expect((await post(`/api/sites/demo/proposals/${PENDING}/approve`, { by: "x" }, { Origin: "http://evil.example" })).status).toBe(403);
 		expect((await post(`/api/sites/demo/proposals/${PENDING}/approve`, { by: "x" }, { "Sec-Fetch-Site": "cross-site" })).status).toBe(403);
-		const form = await fetch(`${base()}/api/sites/demo/proposals/${PENDING}/approve`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/x-www-form-urlencoded" }, body: "by=x" });
+		const form = await fetch(`${base()}/api/sites/demo/proposals/${PENDING}/approve`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/x-www-form-urlencoded", Origin: base(), "X-WP2EMDASH-CSRF": csrfFor("test-token-0123456789") }, body: "by=x" });
 		expect(form.status).toBe(415);
 		expect((await post("/api/sites/demo/proposals/..%2F..%2Fstate/approve", { by: "x" })).status).toBe(404);
 		expect((await post("/api/sites/demo/proposals/nope/approve", { by: "x" })).status).toBe(404);
@@ -265,7 +265,7 @@ describe("launch cockpit and owner checklist", () => {
 		expect(c.prerequisites.find((p) => p.id === "verify")?.ok).toBe(false);
 		expect(c.prerequisites.find((p) => p.id === "access")).toMatchObject({ ok: false, detail: expect.stringContaining("2 open") });
 		expect(c.commands.map((x) => x.command)).toContain("pnpm wp2emdash run demo cutover --preview");
-		expect(c.note).toMatch(/owner from the terminal/);
+		expect(c.note).toMatch(/owner.s written approval/);
 		expect(JSON.stringify(c)).not.toMatch(/ec_live_SECRET/);
 		// Read-only: there is no POST for the cockpit.
 		expect((await post("/api/sites/demo/cockpit", {})).status).toBe(404);
