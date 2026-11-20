@@ -601,6 +601,10 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		write(join(project, "src", "site.config.json"), { ...siteConfig, formUploads: true });
 		reporter.emit({ type: "log", level: "warn", message: `forms with file uploads: set the Worker secret that signs the download links before testing them (npx wrangler secret put FORM_FILE_SECRET — any random text of 16+ characters, in every environment); files are kept ${config.forms.uploads ? config.forms.uploads.days : 30} days under backups/form-uploads/ in the MEDIA bucket` });
 	} else rmSync(join(project, "src", "pages", "api", "forms", "file.ts"), { force: true });
+	// The password form's endpoint, only on sites with password-protected pages or posts (src/transform/protected.ts).
+	const protectedDocs = [...pages, ...posts].filter((d) => d.access?.as === "protect");
+	if (protectedDocs.length) reporter.emit({ type: "log", level: "info", message: `${protectedDocs.length} password-protected page(s)/post(s) behind the password page (noindex, never cached); optional Worker secret ACCESS_SECRET strengthens the unlock cookies` });
+	else rmSync(join(project, "src", "pages", "api", "access.ts"), { force: true });
 	for (const f of forms) for (const n of f.notes ?? []) reporter.emit({ type: "log", level: "info", message: `${f.id}: ${n}` });
 
 	// Seed (with the migrated content for local preview)
@@ -656,7 +660,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		devDependencies: { "@astrojs/check": STACK["@astrojs/check"], "@cloudflare/workers-types": STACK["@cloudflare/workers-types"], typescript: STACK.typescript, wrangler: STACK.wrangler, ...(changeRequests ? { "@types/react": "19.2.18" } : {}) }, // @types/react: the change-requests upload page is a React admin page (astro check needs its types)
 	});
 	writePerfFiles(project, config.performance);
-	const pagePaths = pages.flatMap((p) => (p.source.status === "publish" && p.route?.path ? [p.route.path] : []));
+	// Password-protected pages never get a route-cache rule (the page itself refuses every cache: utils/access.ts).
+	const pagePaths = pages.flatMap((p) => (p.source.status === "publish" && !p.access && p.route?.path ? [p.route.path] : []));
 	// Sign-in sessions: R2 once every environment has its bucket (provision), else KV as before (src/scaffold/sessions.ts).
 	const builtEnvs = envs.staging ? (["staging", "production"] as const) : (["production"] as const);
 	const sessions = sessionStore(config.sessions, cf, [...builtEnvs]);

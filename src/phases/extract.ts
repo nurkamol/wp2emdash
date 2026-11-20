@@ -17,6 +17,7 @@ import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.
 import { bricksMediaRefs, bricksOptionsNote, readBricksOptions, usesBricks } from "../extract/bricks.js";
 import { elementorMediaRefs, elementorNote, readElementorOptions, usesElementor } from "../extract/elementor.js";
 import { formFromSnapshot, type RedirectRule, recognise, type Unconverted } from "../extract/plugin-exports.js";
+import { hashPassword, PROTECTED_FILE, type ProtectedEntry } from "../transform/protected.js";
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
 import { type CustomCss, customCssFromHtml } from "../transform/custom-css.js";
 import type { PhaseContext } from "./index.js";
@@ -190,6 +191,7 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	const candidateTypes = [...new Set([...probe.post_types.map((t) => t.name), ...analyze.post_types.map((t) => t.name), ...Object.keys(wpTypes ?? {}), ...EXTRA_TYPES])].filter((t) => !SKIP_TYPES.has(t));
 	reporter.emit({ type: "step:start", step: "Content", total: candidateTypes.length });
 	const byType = new Map<string, ExporterPost[]>();
+	const passwordsFromExporter = new Map<string, string>();
 	const typeSummaries: ExtractSummary["types"] = [];
 	let typeErrors = 0;
 	for (const [i, type] of candidateTypes.entries()) {
@@ -200,6 +202,11 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 			for (const p of r.items) {
 				// Strip author emails (PII not needed for the rebuild).
 				if (p.author && typeof p.author === "object") delete (p.author as Record<string, unknown>).email;
+				// A post password never reaches raw/ in clear text: hashed into raw/protected.json below.
+				const pw = (p as { password?: unknown; post_password?: unknown }).password ?? (p as { post_password?: unknown }).post_password;
+				if (typeof pw === "string" && pw) passwordsFromExporter.set(`${p.post_type}:${p.id}`, pw);
+				delete (p as { password?: unknown }).password;
+				delete (p as { post_password?: unknown }).post_password;
 			}
 			byType.set(type, r.items);
 			write(join(exp, "content", `${type}.json`), r.items);
@@ -229,6 +236,36 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 				if (rows.length < 100) break;
 			}
 			write(join(exp, "content", `${type}.json`), items);
+		}
+	}
+	// ── Password-protected content (src/transform/protected.ts): which posts/pages have a password, as a hash ────────
+	// REST `context=edit` returns `password` to an editor's application password; without it, `content.protected`
+	// still says which ones are protected (the password then comes from the site's fallback, at load).
+	{
+		const out: ProtectedEntry[] = [];
+		for (const type of ["page", "post"]) {
+			const restBase = (wpTypes?.[type] as { rest_base?: string } | undefined)?.rest_base ?? `${type}s`;
+			if (!byType.get(type)?.length) continue;
+			for (let page = 1; page <= 100; page++) {
+				const edit = await client.tryGet<{ id: number; password?: string; content?: { protected?: boolean } }[]>(`wp/v2/${restBase}`, { context: "edit", _fields: "id,password", per_page: 100, page, status: "publish,future,draft,pending,private" }).catch(() => undefined);
+				const rows = Array.isArray(edit) ? edit : await client.tryGet<{ id: number; content?: { protected?: boolean } }[]>(`wp/v2/${restBase}`, { _fields: "id,content", per_page: 100, page }).catch(() => undefined);
+				if (!Array.isArray(rows) || !rows.length) break;
+				for (const r of rows as { id: number; password?: string; content?: { protected?: boolean } }[]) {
+					const pw = r.password || passwordsFromExporter.get(`${type}:${r.id}`);
+					if (pw) out.push({ type, id: r.id, hash: hashPassword(pw) });
+					else if (r.content?.protected) out.push({ type, id: r.id });
+				}
+				if (rows.length < 100) break;
+			}
+		}
+		for (const [key, pw] of passwordsFromExporter) {
+			const [type = "", id = ""] = key.split(":");
+			if (!out.some((e) => e.type === type && e.id === Number(id))) out.push({ type, id: Number(id), hash: hashPassword(pw) });
+		}
+		rmSync(join(raw, PROTECTED_FILE), { force: true });
+		if (out.length) {
+			write(join(raw, PROTECTED_FILE), out);
+			notes.push(`Password-protected content: ${out.length} item(s)${out.some((e) => !e.hash) ? `, ${out.filter((e) => !e.hash).length} without a readable password (REST access as an editor needed, or WP2EMDASH_PROTECTED_PASSWORD in .env)` : ""}; passwords kept as hashes only (raw/${PROTECTED_FILE}).`);
 		}
 	}
 	const totalPosts = [...byType.values()].reduce((n, l) => n + l.length, 0);

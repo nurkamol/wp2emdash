@@ -81,6 +81,18 @@ export const overridesSchema = z.object({
 	 */
 	protectedPosts: decision(["draft", "skip", "publish"]).optional(),
 	/**
+	 * Password-protected and private pages and posts (src/transform/protected.ts; coverage report → "Protected content").
+	 * Unset = the defaults: password → "protect" (published behind the starter's password page with the WordPress password,
+	 * hashed; noindex, not in the sitemap, never cached), private → "draft" (editors only, as on WordPress).
+	 * `protectedPosts`, when set, still decides posts.
+	 */
+	protectedContent: z
+		.object({
+			password: decision(["protect", "draft", "skip", "publish"]).optional(),
+			private: decision(["draft", "skip", "publish"]).optional(),
+		})
+		.optional(),
+	/**
 	 * Old addresses the owner decided are gone: path patterns (`*` = any characters, query included when the pattern has
 	 * one) → reason. Verify accepts 404/410 for them (urls-accounted).
 	 */

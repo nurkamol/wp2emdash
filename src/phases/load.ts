@@ -22,6 +22,8 @@ import type { BlogPlan } from "../transform/blog.js";
 import { type CptCollection, type CptPlan, collectionFields } from "../transform/cpt.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { svgToPng } from "../targets/emdash/svg.js";
+import { ACCESS_BODY_FIELD, ACCESS_FIELD, pageAction, protectedData } from "../targets/emdash/access.js";
+import { hashPassword, PROTECTED_FILE, type ProtectedEntry } from "../transform/protected.js";
 import { DOC_MIME, DOCUMENT_FIELD, globallyAllowed, isDocument, lostMetadata, manifestIndex, plainCaption, uploadLinks } from "../targets/emdash/documents.js";
 import { type ContentItem, EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
 import { blockKey, sectionToBlock } from "../targets/emdash/blocks.js";
@@ -116,6 +118,12 @@ export function resolvePostBody(body: unknown[], media: (m: MediaRef) => { id: s
 
 /** Status on the target for a post: published (with its date), scheduled, or draft (overrides.ts protectedPosts). */
 export function postAction(doc: IrPage, protectedDecision: "draft" | "skip" | "publish" | undefined, now = Date.now()): "publish" | "schedule" | "draft" {
+	// Transform's decision (src/transform/protected.ts): protect = published behind the password page.
+	if (doc.access) {
+		if (doc.access.as === "draft") return "draft";
+		if (doc.source.status === "publish" || doc.source.status === "private") return "publish";
+		return doc.source.status === "future" && doc.post?.publishedAt && Date.parse(doc.post.publishedAt) > now ? "schedule" : "draft";
+	}
 	const visibility = doc.post?.visibility ?? "public";
 	if (visibility !== "public") return protectedDecision === "publish" && (doc.source.status === "publish" || doc.source.status === "private") ? "publish" : "draft";
 	if (doc.source.status === "publish") return "publish";
@@ -239,6 +247,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const cptPlan = readJson<CptPlan>(join(paths.ir, "collections.json"));
 		const cptCols = cptPlan?.collections ?? [];
 		const colBySlug = new Map(cptCols.map((c) => [c.slug, c]));
+		const irDocs = ["pages", "posts"].flatMap((d) => (existsSync(join(paths.ir, d)) ? readdirSync(join(paths.ir, d)).filter((f) => f.endsWith(".json")).map((f) => readJson<IrPage>(join(paths.ir, d, f)) as IrPage) : []));
 		// ── Schema on the target ─────────────────────────────────────────────────
 		try {
 			const [bt, cols] = await Promise.all([api.blockTypesFull(), api.collections()]);
@@ -301,6 +310,24 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					schemaChanges.push(`collection ${c.slug} created`);
 				} catch (e) {
 					schemaErrors.push(`${c.slug} fields: ${(e as Error).message}`);
+				}
+			}
+			// Password-protected content kept behind the password page: an `access_password` field on its collection (and
+			// `access_body` on posts, a body the search index does not read). Created only when the site has such content.
+			const protectCols = [...new Set(irDocs.filter((d) => d.access?.as === "protect").map((d) => collectionOf(d, !!blogPlan)))];
+			for (const c of protectCols) {
+				try {
+					const have = new Set((await api.fields(c)).map((f) => f.slug));
+					if (!have.has(ACCESS_FIELD.slug)) {
+						await api.createField(c, { ...ACCESS_FIELD });
+						schemaChanges.push(`${c}.${ACCESS_FIELD.slug} created`);
+					}
+					if (c === "posts" && !have.has(ACCESS_BODY_FIELD.slug)) {
+						await api.createField(c, { ...ACCESS_BODY_FIELD });
+						schemaChanges.push(`${c}.${ACCESS_BODY_FIELD.slug} created`);
+					}
+				} catch (e) {
+					schemaErrors.push(`${c} access fields: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
 				}
 			}
 			const missingCols = ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.map((c) => c.slug)].filter((c) => !cols.some((x) => x.slug === c));
@@ -608,6 +635,10 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			check("cpt-bylines", "Bylines of custom post type authors on the target (no user accounts)", bylineErrors.length === 0, bylineErrors.join("; ") || `${cptPlan.bylines.length} bylines`);
 		}
 		const postMedia = (m: MediaRef) => idMap.media[mediaKey(m)];
+		// Password hashes from extract (raw/protected.json); the site's fallback password (.env) is hashed here, once.
+		const protectedHashes = new Map((readJson<ProtectedEntry[]>(join(paths.raw, PROTECTED_FILE)) ?? []).flatMap((e) => (e.hash ? [[`${e.type}:${e.id}`, e.hash] as const] : [])));
+		let fallback: string | undefined;
+		const fallbackHash = () => (env.WP2EMDASH_PROTECTED_PASSWORD ? (fallback ??= hashPassword(env.WP2EMDASH_PROTECTED_PASSWORD)) : undefined);
 
 		// ── Content ──────────────────────────────────────────────────────────────
 		reporter.emit({ type: "step:start", step: "Content", total: docs.length });
@@ -652,13 +683,26 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				// (a custom SEO title, with or without the site name).
 				const stripped = doc.seo.title?.replace(new RegExp(`\\s*[${sep}]\\s*${site.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`), "").trim();
 				const seoTitle = stripped && stripped !== doc.title.trim() ? doc.seo.title?.trim() : stripped;
-				const seo = doc.kind === "page" || doc.kind === "post" || (col?.routable && doc.kind === "entry") ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: productionCanonical(doc.seo.canonical, siteHosts, config.target.productionUrl) } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
+				const seo: Record<string, unknown> | undefined = doc.kind === "page" || doc.kind === "post" || (col?.routable && doc.kind === "entry") ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: productionCanonical(doc.seo.canonical, siteHosts, config.target.productionUrl) } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
 					const r = ogRef(doc);
 					// The file path, not the media id: EmDash expands a bare id to /media/file/<id>, which 404s (files are served by storage key).
 					const url = r ? idMap.media[mediaKey(r)]?.url : undefined;
 					return url?.startsWith("/_emdash/api/media/file/") ? { image: url } : {};
 				})() } : undefined;
 
+				// Behind the password page: the password hash (kept when the owner changed it in the admin), posts' body moved
+				// out of the searchable field, no description, noindex (src/targets/emdash/access.ts).
+				if (doc.access?.as === "protect") {
+					const known = idMap.content[key]?.id;
+					const current = known && (existingByCollection.get(collection) ?? []).some((e) => e.id === known) ? ((await api.get(collection, known)).data as Record<string, unknown>)[ACCESS_FIELD.slug] : undefined;
+					const hash = protectedHashes.get(`${doc.source.type}:${doc.source.wpId}`) ?? fallbackHash();
+					if (!hash && !current) throw new Error("password-protected, but no password: extract with an editor's application password, or set WP2EMDASH_PROTECTED_PASSWORD in .env");
+					Object.assign(data, protectedData(data, { hash: typeof current === "string" && current ? current : (hash as string), post: isPost }));
+					if (seo) {
+						delete seo.description;
+						seo.noIndex = true;
+					}
+				}
 				let entryId = idMap.content[key]?.id;
 				const list = existingByCollection.get(collection) ?? [];
 				if (entryId && !list.some((e) => e.id === entryId)) entryId = undefined; // deleted on the target
@@ -683,7 +727,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				}
 				idMap.content[key] = { collection, id: entryId, slug };
 				saveMap();
-				const action = isPost ? postAction(doc, overrides.protectedPosts?.as) : doc.entry ? entryAction(doc) : doc.source.status === "publish" ? "publish" : "draft";
+				const action = isPost ? postAction(doc, overrides.protectedPosts?.as) : doc.entry ? entryAction(doc) : pageAction(doc);
 				const at = isPost ? doc.post?.publishedAt : doc.entry?.publishedAt;
 				if (action === "publish") await api.publish(collection, entryId, isPost || doc.entry ? at : undefined);
 				else if (action === "schedule" && at) await api.schedule(collection, entryId, at);
@@ -907,7 +951,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 
 		// Every published page renders and shows its first heading.
 		const renderFails: string[] = [];
-		const rendered = docs.filter((x) => (x.kind === "page" && x.source.status === "publish") || (blogPlan && x.kind === "post" && x.post && postAction(x, overrides.protectedPosts?.as) === "publish") || (x.kind === "entry" && x.route && x.source.status === "publish"));
+		const rendered = docs.filter((x) => (x.kind === "page" && pageAction(x) === "publish") || (blogPlan && x.kind === "post" && x.post && postAction(x, overrides.protectedPosts?.as) === "publish") || (x.kind === "entry" && x.route && x.source.status === "publish"));
 		for (const d of rendered) {
 			const path = d.route?.path ?? "/";
 			try {
@@ -915,7 +959,12 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				const html = await r.text();
 				const firstHeading = d.kind === "post" || (d.kind === "entry" && !d.sections.length) ? d.title : d.sections.flatMap((s) => (Array.isArray((s.fields as { heading?: unknown }).heading) ? ((s.fields as { heading: { children: { text: string }[] }[] }).heading) : [])).flatMap((b) => b.children.map((c) => c.text))[0];
 				if (r.status !== 200) renderFails.push(`${path} HTTP ${r.status}`);
-				else if (firstHeading && !html.includes(firstHeading.replace(/&/g, "&amp;").slice(0, 30)) && !html.includes(firstHeading.slice(0, 30))) renderFails.push(`${path}: "${firstHeading.slice(0, 30)}" not in HTML`);
+				else if (d.access?.as === "protect") {
+					// Behind the password page: the form, never the content, never stored by a cache.
+					if (!html.includes("data-access-gate")) renderFails.push(`${path}: password page missing (protected content)`);
+					else if (firstHeading && firstHeading !== d.title && html.includes(firstHeading.slice(0, 30))) renderFails.push(`${path}: protected content visible without the password`);
+					else if (!/no-store/.test(r.headers.get("cache-control") ?? "")) renderFails.push(`${path}: protected page without Cache-Control: no-store`);
+				} else if (firstHeading && !html.includes(firstHeading.replace(/&/g, "&amp;").slice(0, 30)) && !html.includes(firstHeading.slice(0, 30))) renderFails.push(`${path}: "${firstHeading.slice(0, 30)}" not in HTML`);
 			} catch (e) {
 				renderFails.push(`${path}: ${(e as Error).message}`);
 			}

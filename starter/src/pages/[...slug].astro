@@ -6,7 +6,12 @@
  * WordPress address (the post's slug is its path, as for pages). A page always wins over a post with the same address.
  * Sites with collections migrated from custom post types (site.config.json `collections`) answer here too: each
  * collection's archive (and `/page/N/`), its term archives, and every entry at its WordPress address (after pages and posts).
+ * A page or post with an access password (migrated from WordPress's password protection) shows the password page until
+ * the visitor gives it (utils/access.ts): never cached, never indexed.
  */
+import { env } from "cloudflare:workers";
+import AccessGate from "../components/AccessGate.astro";
+import { accessCookie, isUnlocked, PROTECTED_HEADERS } from "../utils/access";
 import { decodeSlug, getEmDashEntry, getSeoMeta, getSiteSettings } from "emdash";
 import Base from "../layouts/Base.astro";
 import Sections from "../components/Sections.astro";
@@ -148,6 +153,17 @@ if (chrome) cacheChrome(Astro.cache, chrome);
 
 const entry = (page ?? post ?? found?.entry) as any;
 const data = (entry?.data ?? {}) as any;
+// Password-protected page or post: out of every cache, noindex, the password page until unlocked (utils/access.ts).
+const accessStored = (page || post) && typeof data.access_password === "string" ? data.access_password.trim() : "";
+let locked = false;
+if (accessStored) {
+	noCache(Astro.cache);
+	for (const [k, v] of Object.entries(PROTECTED_HEADERS)) Astro.response.headers.set(k, v);
+	locked = !(await isUnlocked((env as { ACCESS_SECRET?: string }).ACCESS_SECRET ?? "", accessStored, String(data.id), Astro.cookies.get(accessCookie(String(data.id)))?.value));
+	// Posts keep the protected text out of the searchable body (wp2emdash load): shown once unlocked.
+	if (!locked && post && Array.isArray(data.access_body)) data.body = data.access_body;
+}
+const accessBack = `${Astro.url.pathname}${(() => { const q = new URLSearchParams(Astro.url.search); q.delete("access"); const s = q.toString(); return s ? `?${s}` : ""; })()}`;
 const blocks = (page ? (data.content ?? []) : []) as any[];
 const seo = entry ? getSeoMeta(entry, { siteUrl: Astro.url.origin, path: slug === "home" ? "/" : Astro.url.pathname }) : listing?.seo;
 const first = blocks[0];
@@ -165,6 +181,10 @@ const byline = post?.data.bylines?.[0]?.byline as { displayName?: string } | und
 	) : archive ? (
 		<Base chrome={chrome} title={archive.page > 1 ? `${archive.heading} – Page ${archive.page}` : archive.heading} pageTitle={archive.heading} description={archive.description} canonical={`${site.productionUrl.replace(/\/$/, "")}${Astro.url.pathname}`}>
 			<Archive heading={archive.heading} intro={archive.intro} eyebrow={archive.eyebrow} entries={archive.entries} listing={archive.listing} page={archive.page} hasMore={archive.hasMore} />
+		</Base>
+	) : locked ? (
+		<Base chrome={chrome} title={`Protected: ${data.title ?? ""}`} pageTitle={data.title} description={null} robots="noindex, nofollow">
+			<AccessGate title={`Protected: ${data.title ?? ""}`} collection={page ? "pages" : "posts"} slug={slug} back={accessBack} state={Astro.url.searchParams.get("access")} />
 		</Base>
 	) : found ? (
 		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: found.collection.slug, id: data.id, slug: found.entry.id }}>
