@@ -20,6 +20,7 @@ import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
 import { COMMENTS_CLOSED_FIELD, menuItemExtras, PAGES_SEARCHABLE, POSTS_COLLECTION, productionCanonical, routeToSlug } from "../scaffold/seed.js";
 import { emdashMenuLabel, emdashMenuNames } from "../transform/menus.js";
 import type { WidgetPlan } from "../transform/widgets.js";
+import { pageData, pageFields } from "../transform/pages.js";
 import type { BlogPlan } from "../transform/blog.js";
 import { type CptCollection, type CptPlan, collectionFields } from "../transform/cpt.js";
 import { BLOCK_TYPES } from "../starter/library.js";
@@ -61,6 +62,17 @@ const COLLECTION: Record<IrPage["kind"], string> = { page: "pages", post: "pages
 const collectionOf = (doc: IrPage, blog: boolean) => (doc.kind === "entry" && doc.entry ? doc.entry.collection : doc.kind === "post" && blog && doc.post ? "posts" : COLLECTION[doc.kind]);
 
 /** IR references (`<type>:<wpId>` per field) → EmDash entry ids; unknown ones reported and left out. */
+/** Reference fields to write in load's second pass: a custom post type entry's references, a page's parent. */
+export function docReferences(d: IrPage): Record<string, string[]> {
+	if (d.entry) return d.entry.references;
+	return d.kind === "page" && d.page?.parent ? { parent: [d.page.parent] } : {};
+}
+
+/** The entry's SEO (sharing) image: the live page's og:image when it is a known file, else the featured image. */
+export function seoImageRef(d: IrPage, ogRef: (d: IrPage) => MediaRef | undefined): MediaRef | undefined {
+	return ogRef(d) ?? (d.featuredImage?.wpId ? d.featuredImage : undefined);
+}
+
 export function resolveReferences(refs: Record<string, string[]>, idOf: (key: string) => string | undefined, missing: (field: string, key: string) => void): Record<string, string[]> {
 	return Object.fromEntries(
 		Object.entries(refs).map(([field, keys]) => [
@@ -259,6 +271,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const commentForm = new Set((commentsFile?.collections ?? []).filter((c) => c.form).map((c) => c.slug));
 		const commentsClosed = new Set((commentsFile?.entries ?? []).filter((e) => e.closed).map((e) => e.key));
 		const irDocs = ["pages", "posts"].flatMap((d) => (existsSync(join(paths.ir, d)) ? readdirSync(join(paths.ir, d)).filter((f) => f.endsWith(".json")).map((f) => readJson<IrPage>(join(paths.ir, d, f)) as IrPage) : []));
+		// Page attributes the site uses (order, parent, excerpt, featured image: src/transform/pages.ts): fields on `pages`.
+		const extraPageFields = pageFields(irDocs.filter((d) => d.kind === "page"));
 		// ── Schema on the target ─────────────────────────────────────────────────
 		try {
 			const [bt, cols] = await Promise.all([api.blockTypesFull(), api.collections()]);
@@ -339,6 +353,18 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					}
 				} catch (e) {
 					schemaErrors.push(`${c} access fields: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
+				}
+			}
+			// Page attribute fields: seeded on a new site; created here on a site set up before them (or before the site used them).
+			if (extraPageFields.length) {
+				try {
+					const have = new Set((await api.fields("pages")).map((f) => f.slug));
+					for (const f of extraPageFields.filter((x) => !have.has(x.slug))) {
+						await api.createField("pages", { ...f });
+						schemaChanges.push(`pages.${f.slug} created`);
+					}
+				} catch (e) {
+					schemaErrors.push(`pages attribute fields: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
 				}
 			}
 			const missingCols = ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.map((c) => c.slug)].filter((c) => !cols.some((x) => x.slug === c));
@@ -711,6 +737,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					data.featured = !!doc.post.sticky;
 					if (doc.post.format) data.format = doc.post.format;
 				}
+				if (doc.kind === "page" && collection === "pages") Object.assign(data, pageData(doc, extraPageFields, resolver));
 				if (doc.kind === "popup") {
 					const sel = doc.popup?.selectors.filter((s) => !s.includes("popmake")).join(", ");
 					if (sel) data.selectors = sel;
@@ -722,7 +749,9 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				const stripped = doc.seo.title?.replace(new RegExp(`\\s*[${sep}]\\s*${site.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`), "").trim();
 				const seoTitle = stripped && stripped !== doc.title.trim() ? doc.seo.title?.trim() : stripped;
 				const seo: Record<string, unknown> | undefined = doc.kind === "page" || doc.kind === "post" || (col?.routable && doc.kind === "entry") ? { ...(seoTitle ? { title: seoTitle } : {}), ...(doc.seo.description ? { description: doc.seo.description.slice(0, 500) } : {}), ...(doc.seo.canonical && /^https?:/.test(doc.seo.canonical) ? { canonical: productionCanonical(doc.seo.canonical, siteHosts, config.target.productionUrl) } : {}), ...(/noindex/i.test(doc.seo.robots ?? "") ? { noIndex: true } : {}), ...(() => {
-					const r = ogRef(doc);
+					// The page's own sharing image, else its featured image (as WordPress SEO plugins do): EmDash lists it as the
+					// entry's <image:image> in its sitemap too (docs/spikes/p2-batch-findings.md).
+					const r = seoImageRef(doc, ogRef);
 					// The file path, not the media id: EmDash expands a bare id to /media/file/<id>, which 404s (files are served by storage key).
 					const url = r ? idMap.media[mediaKey(r)]?.url : undefined;
 					return url?.startsWith("/_emdash/api/media/file/") ? { image: url } : {};
@@ -782,19 +811,19 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		check("content", "Every IR document written to the target", contentErrors.length === 0, contentErrors.slice(0, 5).join("; ") || `${docs.length} documents (${created} created, ${updated} updated)`);
 
 		// ── References (custom post types): a second pass, now that every entry has its EmDash id ──────────────
-		const withRefs = docs.filter((d) => d.entry && Object.keys(d.entry.references).length);
+		const withRefs = docs.filter((d) => Object.keys(docReferences(d)).length);
 		if (withRefs.length) {
 			const refErrors: string[] = [];
 			let links = 0;
 			for (const d of withRefs) {
 				const entry = idMap.content[`${d.source.type}:${d.source.wpId}`];
 				if (!entry) continue; // reported by `content`
-				const references = resolveReferences(d.entry?.references ?? {}, (k) => idMap.content[k]?.id, (field, k) => refErrors.push(`${entry.collection}/${entry.slug} ${field} → ${k}: not on the target (not migrated)`));
+				const references = resolveReferences(docReferences(d), (k) => idMap.content[k]?.id, (field, k) => refErrors.push(`${entry.collection}/${entry.slug} ${field} → ${k}: not on the target (not migrated)`));
 				links += Object.values(references).flat().length;
 				try {
 					await api.update(entry.collection, entry.id, { references });
 					// The links are part of the entry: publish again so the live version carries them.
-					if (entryAction(d) === "publish") await api.publish(entry.collection, entry.id, d.entry?.publishedAt);
+					if ((d.entry ? entryAction(d) : pageAction(d)) === "publish") await api.publish(entry.collection, entry.id, d.entry?.publishedAt);
 				} catch (e) {
 					refErrors.push(`${entry.collection}/${entry.slug}: ${(e as Error).message}`);
 				}

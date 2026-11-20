@@ -1,0 +1,20 @@
+{
+	"options": { "blogname": "Example Studio", "show_on_front": "page", "page_on_front": 1, "permalink_structure": "/%postname%/" },
+	"analyze": { "post_types": [{ "name": "page", "label": "Pages", "label_singular": "Page", "total": 5, "supports": { "title": true, "editor": true, "thumbnail": true, "page-attributes": true }, "taxonomies": [], "hierarchical": true, "has_archive": false, "custom_fields": [] }] },
+	"pages": [
+		{ "id": 1, "post_type": "page", "status": "publish", "slug": "home", "title": "Home", "content": "<!-- wp:paragraph --><p>Welcome to the studio.</p><!-- /wp:paragraph -->", "excerpt": "", "date_gmt": "2024-01-02 10:00:00", "modified_gmt": "2024-01-02 10:00:00", "parent": null, "menu_order": 0, "taxonomies": {}, "meta": {} },
+		{ "id": 4, "post_type": "page", "status": "publish", "slug": "coaches", "title": "Coaches", "content": "<!-- wp:paragraph --><p>Meet the coaches.</p><!-- /wp:paragraph -->", "excerpt": "", "date_gmt": "2024-01-02 10:00:00", "modified_gmt": "2024-01-02 10:00:00", "parent": 2, "menu_order": 2, "taxonomies": {}, "meta": {} },
+		{ "id": 2, "post_type": "page", "status": "publish", "slug": "about", "title": "About", "content": "<!-- wp:paragraph --><p>About the studio.</p><!-- /wp:paragraph -->", "excerpt": "<p>Who we are and how we <strong>teach</strong>.</p>", "date_gmt": "2024-01-02 10:00:00", "modified_gmt": "2024-01-02 10:00:00", "parent": null, "menu_order": 1, "taxonomies": {}, "meta": {}, "featured_image": { "id": 31, "url": "https://pages.example.test/wp-content/uploads/2024/02/studio.jpg" } },
+		{ "id": 3, "post_type": "page", "status": "publish", "slug": "history", "title": "History", "content": "<!-- wp:paragraph --><p>Since 2010.</p><!-- /wp:paragraph -->", "excerpt": "", "date_gmt": "2024-01-02 10:00:00", "modified_gmt": "2024-01-02 10:00:00", "parent": 2, "menu_order": 1, "taxonomies": {}, "meta": {} },
+		{ "id": 5, "post_type": "page", "status": "publish", "slug": "contact", "title": "Contact", "content": "<!-- wp:paragraph --><p>Write to us.</p><!-- /wp:paragraph -->", "excerpt": "", "date_gmt": "2024-01-02 10:00:00", "modified_gmt": "2024-01-02 10:00:00", "parent": 99, "menu_order": 0, "taxonomies": {}, "meta": {} }
+	],
+	"media": [{ "id": 31, "url": "https://pages.example.test/wp-content/uploads/2024/02/studio.jpg", "file": "2024/02/studio.jpg", "inLibrary": true, "referencedBy": [] }],
+	"urls": [
+		{ "url": "https://pages.example.test/", "path": "/", "status": 200, "kind": "page", "wp": { "id": 1, "type": "page" } },
+		{ "url": "https://pages.example.test/about/", "path": "/about/", "status": 200, "kind": "page", "wp": { "id": 2, "type": "page" } },
+		{ "url": "https://pages.example.test/about/history/", "path": "/about/history/", "status": 200, "kind": "page", "wp": { "id": 3, "type": "page" } },
+		{ "url": "https://pages.example.test/about/coaches/", "path": "/about/coaches/", "status": 200, "kind": "page", "wp": { "id": 4, "type": "page" } },
+		{ "url": "https://pages.example.test/contact/", "path": "/contact/", "status": 200, "kind": "page", "wp": { "id": 5, "type": "page" } }
+	],
+	"liveAbout": "<html><body><header></header><main><img width=\"1200\" height=\"600\" src=\"https://pages.example.test/wp-content/uploads/2024/02/studio.jpg\" class=\"attachment-post-thumbnail size-post-thumbnail wp-post-image\" alt=\"\"><p>About the studio.</p></main></body></html>"
+}

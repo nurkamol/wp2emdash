@@ -35,6 +35,7 @@ import { baseOf, buildWpUrlPlan, type WpUrlInput, wpUrlsReport } from "../transf
 import { type CommentsPlan, type CommentTarget, commentsGate, commentsReport, discussionSettings, planComments, type WpComment } from "../transform/comments.js";
 import { type BlogByline, blogIndexPath, type BlogPlan, blogReport, blogTaxonomies, bylineSlug, convertPostBody, feedSettings, permalinkPath, type WpTaxonomy, wpGmtToIso } from "../transform/blog.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
+import { pageAttributes, pageAttributesReport, showsFeaturedImage } from "../transform/pages.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
 import { shortcodeSummary, shortcodesReport } from "../transform/shortcodes.js";
 import { loadSiteEnv } from "../extract/credentials.js";
@@ -352,10 +353,11 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	};
 	const protectedKind = (p: ExporterPost): ProtectedKind | undefined => (p.status === "private" ? "private" : protectedRaw.has(`${p.post_type}:${p.id}`) || !!(p as { password?: unknown }).password || !!(p as { post_password?: unknown }).post_password || passwordFormOnLive(p.id) ? "password" : undefined);
 	const protectedDocs: { slug: string; type: string; kind: ProtectedKind; as: ReturnType<typeof decide>; hash: boolean }[] = [];
-	const accessOf = (p: ExporterPost, legacy?: { as: "draft" | "skip" | "publish" }): IrPage["access"] | "skip" | undefined => {
+	const accessOf = (p: ExporterPost, legacy?: { as: "draft" | "skip" | "publish" }, peek = false): IrPage["access"] | "skip" | undefined => {
 		const kind = protectedKind(p);
 		if (!kind) return undefined;
 		const as = decide(kind, overrides.protectedContent, legacy);
+		if (peek) return as === "skip" ? "skip" : { kind, as };
 		protectedDocs.push({ slug: p.slug || String(p.id), type: p.post_type, kind, as, hash: !!protectedRaw.get(`${p.post_type}:${p.id}`)?.hash });
 		return as === "skip" ? "skip" : { kind, as };
 	};
@@ -369,8 +371,10 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		paddedEdges += applyMeasuredPadding(sections, boxesFor(routeOf(p)), false);
 		const template = typeof p.meta._wp_page_template === "string" && p.meta._wp_page_template !== "default" ? p.meta._wp_page_template : undefined;
 		const parentPath = p.parent && byId.get(p.parent) ? routeOf(byId.get(p.parent) as ExporterPost) : undefined;
+		// Order, parent and excerpt when the page has them (src/transform/pages.ts); a parent skipped by decision is not linked.
+		const attrs = pageAttributes(p, (id) => !!byId.get(id) && accessOf(byId.get(id) as ExporterPost, undefined, true) !== "skip");
 		emit(
-			{ version: IR_VERSION, kind: "page", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder, modifiedGmt: p.modified_gmt }, route: { path: routeOf(p), ...(parentPath ? { parentPath } : {}), ...(template ? { template } : {}), ...(p.id === frontId ? { isFrontPage: true } : {}) }, title: p.title, seo: seoOf(p), ...(p.featured_image?.id ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}), sections, ...(access ? { access } : {}), diagnostics },
+			{ version: IR_VERSION, kind: "page", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder, modifiedGmt: p.modified_gmt }, route: { path: routeOf(p), ...(parentPath ? { parentPath } : {}), ...(template ? { template } : {}), ...(p.id === frontId ? { isFrontPage: true } : {}) }, title: p.title, seo: seoOf(p), ...(p.featured_image?.id ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}), sections, ...(access ? { access } : {}), ...(attrs ? { page: attrs } : {}), diagnostics },
 			`pages/${p.slug}.json`,
 			p.status === "publish" && access?.as !== "draft",
 		);
@@ -1118,7 +1122,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const shortcodes = shortcodeSummary(results);
 	rmSync(join(paths.ir, "shortcodes.json"), { force: true });
 	if (shortcodes.used.length) write(join(paths.ir, "shortcodes.json"), shortcodes);
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }
