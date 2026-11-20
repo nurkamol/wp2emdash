@@ -1,0 +1,88 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "inline",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4efe8"
+        }
+      },
+      "spacing": "normal",
+      "anchorId": "visit",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[0]/et_pb_row[0]",
+        "rawHash": "44b9164850",
+        "row": 0
+      },
+      "fields": {
+        "media": [
+          {
+            "url": "https://fernhill.example/wp-content/uploads/2026/01/door.jpg",
+            "kind": "image",
+            "alt": "The studio door"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Visit the studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Open Tuesday to Sunday, 10 until 6.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Plan your visit",
+            "href": "/visit/",
+            "style": "primary"
+          }
+        ],
+        "mediaSide": "right",
+        "ratio": "1/2"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "Divi 5 block format: read by the best-effort Divi 5 reader (block attributes mapped onto Divi 4 module fields; not yet run on a real Divi 5 site); blocks without a mapping: divi/lottie",
+      "path": "divi5",
+      "tag": "divi5"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "No handler for Divi module [et_pb_lottie] (carries content)",
+      "path": "et_pb_section[1]/et_pb_row[0]/et_pb_column[0]/et_pb_lottie[0]",
+      "carriesContent": true,
+      "tag": "et_pb_lottie"
+    }
+  ],
+  "forms": []
+}

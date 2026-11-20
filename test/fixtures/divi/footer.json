@@ -1,0 +1,8 @@
+{
+	"kind": "partial",
+	"role": "footer",
+	"title": "Footer",
+	"menus": { "9": [{ "label": "Privacy", "href": "/privacy/", "children": [] }] },
+	"options": { "et_global_data": { "global_colors": { "gcid-ink": { "color": "#1d1b19", "active": "yes" } } } },
+	"content": "[et_pb_section fb_built=\"1\" theme_builder_area=\"et_footer_layout\" background_color=\"gcid-ink\" _builder_version=\"4.27.0\"][et_pb_row column_structure=\"1_2,1_2\" _builder_version=\"4.27.0\"][et_pb_column type=\"1_2\"][et_pb_text background_layout=\"dark\"]<p>Fernhill Pottery Studio, 1 Orchard Lane.</p><p>© @ET-DC@eyJkeW5hbWljIjp0cnVlLCJjb250ZW50IjoiY3VycmVudF9kYXRlIiwic2V0dGluZ3MiOnsiZGF0ZV9mb3JtYXQiOiJjdXN0b20iLCJjdXN0b21fZGF0ZV9mb3JtYXQiOiJZIn19@ Fernhill Pottery Studio</p>[/et_pb_text][/et_pb_column][et_pb_column type=\"1_2\"][et_pb_menu menu_id=\"9\" background_layout=\"dark\"][/et_pb_menu][et_pb_social_media_follow][et_pb_social_media_follow_network social_network=\"instagram\" url=\"https://instagram.com/fernhill.example\"][/et_pb_social_media_follow_network][/et_pb_social_media_follow][/et_pb_column][/et_pb_row][/et_pb_section]"
+}

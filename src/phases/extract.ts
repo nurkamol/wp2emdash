@@ -16,6 +16,7 @@ import { WpClient, WpHttpError, versionAtLeast } from "../extract/client.js";
 import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.js";
 import { bricksMediaRefs, bricksOptionsNote, readBricksOptions, usesBricks } from "../extract/bricks.js";
 import { elementorMediaRefs, elementorNote, readElementorOptions, usesElementor } from "../extract/elementor.js";
+import { DIVI_TYPES, diviNote, readDiviOptions, usesDivi } from "../extract/divi.js";
 import { type RedirectRule, recognise, type Unconverted } from "../extract/plugin-exports.js";
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
 import { type CustomCss, customCssFromHtml } from "../transform/custom-css.js";
@@ -26,7 +27,7 @@ export const MIN_EXPORTER = "1.2.0";
 /** Post types that are WordPress internals or rebuilt from other sources. `custom_css` is read on its own (readCustomCss). */
 const SKIP_TYPES = new Set(["attachment", "nav_menu_item", "wp_template", "wp_template_part", "wp_global_styles", "wp_font_family", "wp_font_face", "revision", "customize_changeset", "oembed_cache", "user_request", "custom_css"]);
 /** Types worth asking for even when no listing advertises them. */
-const EXTRA_TYPES = ["salient_g_sections", "bricks_template", "elementor_library", "wp_block", "wp_navigation", "nectar_slider", "home_slider", "portfolio", "popup", "popup_theme", "pum_cta", "rank_math_schema", "acf-field-group", "acf-field", "meta-box", "_pods_pod", "_pods_field"];
+const EXTRA_TYPES = ["salient_g_sections", "bricks_template", "elementor_library", ...DIVI_TYPES, "wp_block", "wp_navigation", "nectar_slider", "home_slider", "portfolio", "popup", "popup_theme", "pum_cta", "rank_math_schema", "acf-field-group", "acf-field", "meta-box", "_pods_pod", "_pods_field"];
 
 export interface ExporterPost {
 	id: number;
@@ -539,6 +540,11 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	// Elementor: Theme Builder parts and the Kit live in elementor_library; the active kit id is an option.
 	if (usesElementor(allPosts)) {
 		const note = elementorNote(allPosts, readElementorOptions(raw, options));
+		if (note) notes.push(note);
+	}
+	// Divi: theme options and global colours are options; Theme Builder layouts are their own post types.
+	if (usesDivi(allPosts)) {
+		const note = diviNote(allPosts, readDiviOptions(raw, options));
 		if (note) notes.push(note);
 	}
 	if (isSalient) {

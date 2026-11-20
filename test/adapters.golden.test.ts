@@ -8,6 +8,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { adaptBricks, type BricksElement, bricksSite, liveVariables } from "../src/adapters/bricks/index.js";
+import { adaptDivi, diviSite } from "../src/adapters/divi/index.js";
 import { adaptElementor, type ElementorElement, elementorKit } from "../src/adapters/elementor/index.js";
 import { adaptGutenberg } from "../src/adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../src/adapters/wpbakery/index.js";
@@ -65,6 +66,24 @@ const adapters = {
 			siteTitle: "Fixture Studio",
 			permalink: (id) => f.permalinks?.[String(id)],
 			popupSlug: (id) => f.popups?.[String(id)],
+			menuItems: (id) => f.menus?.[id],
+		});
+	},
+	// Divi fixtures (hand-written in Divi 4's saved shortcode format / Divi 5's block format, no client data): the raw
+	// post_content (.txt), or { content, kind?, role?, title?, postCount?, menus?: { [menuId]: items }, options?: the
+	// et_divi / et_global_data options } (.json).
+	divi: (src: string) => {
+		const f = (src.trimStart().startsWith("{") ? JSON.parse(src) : { content: src }) as { content: string; kind?: "page" | "partial"; role?: "header" | "footer"; title?: string; postCount?: number; menus?: Record<string, IrMenuItem[]>; options?: Record<string, unknown> };
+		return adaptDivi(f.content, {
+			kind: f.kind ?? "page",
+			...(f.role ? { role: f.role } : {}),
+			keys: new Keys("t"),
+			popupFor,
+			postCount: f.postCount ?? 0,
+			site: diviSite(f.options ?? {}),
+			postId: 10,
+			title: f.title ?? "Fixture page",
+			siteTitle: "Fixture Studio",
 			menuItems: (id) => f.menus?.[id],
 		});
 	},

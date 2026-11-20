@@ -1,0 +1,6 @@
+{
+	"kind": "partial",
+	"role": "header",
+	"menus": { "7": [{ "label": "Classes", "href": "/classes/", "children": [] }, { "label": "Visit", "href": "/visit/", "children": [] }] },
+	"content": "[et_pb_section fb_built=\"1\" theme_builder_area=\"et_header_layout\" background_color=\"#ffffff\" custom_padding=\"12px||12px||false|false\" _builder_version=\"4.27.0\"][et_pb_row column_structure=\"1_4,3_4\" make_fullwidth=\"on\" _builder_version=\"4.27.0\"][et_pb_column type=\"1_4\"][et_pb_image src=\"https://fernhill.example/wp-content/uploads/2026/01/logo.png\" alt=\"Fernhill Pottery Studio\" url=\"/\" _builder_version=\"4.27.0\"][/et_pb_image][/et_pb_column][et_pb_column type=\"3_4\"][et_pb_menu menu_id=\"7\" _builder_version=\"4.27.0\"][/et_pb_menu][et_pb_button button_url=\"/book/\" button_text=\"Book a class\" _builder_version=\"4.27.0\"][/et_pb_button][/et_pb_column][/et_pb_row][/et_pb_section]"
+}

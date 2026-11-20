@@ -1,0 +1,346 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "image",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "image": {
+            "url": "https://fernhill.example/wp-content/uploads/2026/01/studio.jpg",
+            "kind": "image"
+          }
+        }
+      },
+      "spacing": "normal",
+      "fullHeight": true,
+      "width": "full",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[0]/et_pb_fullwidth_header[0]",
+        "rawHash": "17125b99a9",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Fernhill Pottery Studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Clay, fire and good company",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Open studio every Saturday from 10 to 4.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book a taster",
+            "href": "/book/",
+            "style": "primary"
+          },
+          {
+            "label": "Gift cards",
+            "href": "/gift-cards/",
+            "style": "secondary"
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "width": "full",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_fullwidth_slider[0]#0",
+        "rawHash": "2d21dbc608",
+        "row": 1
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Wheel throwing",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Six weeks, one evening a week.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [
+              {
+                "url": "https://fernhill.example/wp-content/uploads/2026/01/slide-wheel.jpg",
+                "kind": "image"
+              }
+            ],
+            "buttons": [
+              {
+                "label": "Learn more",
+                "href": "/classes/wheel/",
+                "style": "primary"
+              }
+            ]
+          },
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Hand building",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Coils, slabs and pinch pots.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [
+              {
+                "url": "https://fernhill.example/wp-content/uploads/2026/01/slide-hand.jpg",
+                "kind": "image"
+              }
+            ],
+            "buttons": [
+              {
+                "label": "Learn more",
+                "href": "/classes/hand-building/",
+                "style": "primary"
+              }
+            ]
+          },
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Glazing day",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Mix your own glazes.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Learn more",
+                "href": "/classes/glazing/",
+                "style": "primary"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "stack",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "width": "full",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_fullwidth_image[1]",
+        "rawHash": "7fe47400cd",
+        "row": 1
+      },
+      "fields": {
+        "images": [
+          {
+            "url": "https://fernhill.example/wp-content/uploads/2026/01/shelves.jpg",
+            "kind": "image",
+            "alt": "Shelves of finished bowls"
+          }
+        ],
+        "layout": "stack",
+        "lightbox": false
+      }
+    },
+    {
+      "type": "cta_banner",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "image": {
+            "url": "https://fernhill.example/wp-content/uploads/2026/01/camp.jpg",
+            "kind": "image"
+          }
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[2]/et_pb_row[0]",
+        "rawHash": "af8ef4e735",
+        "row": 2
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "ti",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tj",
+                "text": "Summer clay camp",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tk",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tl",
+                "text": "Five mornings for ages 8 to 12.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Reserve a place",
+            "href": "/camp/",
+            "style": "primary"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[et_pb_fullwidth_header] scroll-down arrow not reproduced",
+      "path": "et_pb_section[0]/et_pb_fullwidth_header[0]",
+      "tag": "et_pb_fullwidth_header"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[et_pb_fullwidth_slider] 3 slides shown side by side as cards (no slider in the section library)",
+      "path": "et_pb_section[1]/et_pb_fullwidth_slider[0]",
+      "tag": "et_pb_fullwidth_slider"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[et_pb_fullwidth_image] links to /shop/; pictures in the section library carry no link, add it on the page if it matters",
+      "path": "et_pb_section[1]/et_pb_fullwidth_image[1]",
+      "tag": "et_pb_fullwidth_image"
+    }
+  ],
+  "forms": []
+}

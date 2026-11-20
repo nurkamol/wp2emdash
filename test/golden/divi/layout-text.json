@@ -1,0 +1,327 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "inline",
+      "theme": {
+        "tone": "dark"
+      },
+      "spacing": "normal",
+      "anchorId": "welcome",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[0]/et_pb_row[0]",
+        "rawHash": "a0aab5a993",
+        "row": 0
+      },
+      "fields": {
+        "media": [
+          {
+            "url": "https://fernhill.example/wp-content/uploads/2026/01/wheel.jpg",
+            "kind": "image",
+            "alt": "A potter at the wheel"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Hand-thrown pottery classes",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Fernhill Pottery Studio teaches wheel throwing and hand building in small groups.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "See the classes",
+            "href": "/classes/",
+            "style": "primary"
+          }
+        ],
+        "mediaSide": "right",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "gradient": "linear-gradient(135deg, #f4efe8 0%, #e6dccf 100%)"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_row[0]",
+        "rawHash": "7e26ed0e3e",
+        "row": 1
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Our story",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "We opened in a converted barn in 2014 and have fired more than 40,000 pieces since.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Every class ends with tea in the garden.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "Gift a class",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tc",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "td",
+                "text": "Vouchers for any class, valid for a year.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "center",
+        "buttons": [
+          {
+            "label": "Buy a gift card",
+            "href": "https://fernhill.example/gift-cards/",
+            "style": "primary",
+            "newTab": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "image": {
+            "url": "https://fernhill.example/wp-content/uploads/2026/01/kiln.jpg",
+            "kind": "image"
+          },
+          "motion": "parallax"
+        }
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[2]",
+        "rawHash": "926a1d626e",
+        "row": 2
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/3",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "The kiln room",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Two electric kilns and a wood-fired anagama.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/3",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "Stoneware",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "tk",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tl",
+                    "text": "Fired to cone 6.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/3",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tm",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tn",
+                    "text": "Raku",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "to",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tp",
+                    "text": "Pulled glowing from the kiln.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "background global colour gcid-brand-clay not resolved (et_global_data missing from the extract?)",
+      "path": "et_pb_section[0]/et_pb_row[0]"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "[et_pb_divider] dropped (decorative)",
+      "path": "et_pb_section[1]/et_pb_row[0]/et_pb_column[0]/et_pb_divider[1]",
+      "tag": "et_pb_divider"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[et_pb_text] hidden on desktop (shown on smaller screens: usually a phone-only copy); not migrated",
+      "path": "et_pb_section[1]/et_pb_row[0]/et_pb_column[0]/et_pb_text[2]",
+      "tag": "et_pb_text"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "[et_pb_row] is disabled in Divi (not shown on the live site); not migrated",
+      "path": "et_pb_section[1]/et_pb_row[1]",
+      "tag": "et_pb_row"
+    }
+  ],
+  "forms": []
+}

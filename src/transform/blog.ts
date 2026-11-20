@@ -423,7 +423,7 @@ export function blogReport(plan: BlogPlan, posts: { source: { status: string; sl
 		`| Drafts / pending | ${by((p) => p.source.status === "draft" || p.source.status === "pending")} |`,
 		`| Private / password-protected | ${hidden}${protectedDecision ? ` (${protectedDecision.as}: ${protectedDecision.reason})` : hidden ? " ❌ undecided (overrides.ts protectedPosts)" : ""} |`,
 		`| Sticky → featured | ${by((p) => !!p.post?.sticky)} |`,
-		`| Builder posts (sections kept) | ${by((p) => p.source.builder === "wpbakery" || p.source.builder === "bricks")} |`,
+		`| Builder posts (sections kept) | ${by((p) => p.source.builder === "wpbakery" || p.source.builder === "bricks" || p.source.builder === "divi")} |`,
 	);
 	const formats = [...new Set(posts.map((p) => p.post?.format).filter(Boolean))];
 	if (formats.length) L.push("", `Post formats kept as a field (the starter renders every format alike): ${formats.join(", ")}.`);

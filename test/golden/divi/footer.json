@@ -1,0 +1,106 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#1d1b19"
+        }
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[0]/et_pb_row[0]",
+        "rawHash": "00160278d7",
+        "row": 0
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Fernhill Pottery Studio, 1 Orchard Lane.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "© {year} Fernhill Pottery Studio",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Instagram",
+                    "marks": [
+                      "t4"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t4",
+                    "href": "https://instagram.com/fernhill.example",
+                    "blank": true
+                  }
+                ]
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Privacy",
+                "href": "/privacy/",
+                "style": "link"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[et_pb_menu] menu \"9\": its 1 links kept as text links (edit them on the page, not under Menus)",
+      "path": "et_pb_section[0]/et_pb_row[0]/et_pb_column[1]/et_pb_menu[0]",
+      "tag": "et_pb_menu"
+    }
+  ],
+  "forms": []
+}

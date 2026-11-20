@@ -35,7 +35,7 @@ export interface Row {
 	columns: Col[];
 	path: string;
 	raw: string;
-	adapter?: "wpbakery" | "gutenberg" | "classic" | "bricks" | "elementor";
+	adapter?: "wpbakery" | "gutenberg" | "classic" | "bricks" | "elementor" | "divi";
 }
 
 /** Shortcodes that render inline text inside a paragraph; kept as a token the starter fills in. */

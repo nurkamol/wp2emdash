@@ -1,0 +1,153 @@
+{
+  "sections": [
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[0]/et_pb_row[0]",
+        "rawHash": "3ce75c58ea",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Questions",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "Do I need experience?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "No. Taster sessions start from scratch.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "What should I wear?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Clothes that can get muddy.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Can I bring a friend?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Yes, book two places.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "tabs",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_row[0]",
+        "rawHash": "321ce53935",
+        "row": 1
+      },
+      "fields": {
+        "tabs": [
+          {
+            "label": "Weekdays",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Evening classes from 6 to 9.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "label": "Weekends",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Open studio and taster mornings.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [],
+  "forms": []
+}

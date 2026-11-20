@@ -42,7 +42,7 @@ const KNOWN: Record<string, { name: string; action: PluginAction; replacement: s
 	elementor: { name: "Elementor", action: "adapter", replacement: "Elementor adapter (src/adapters/elementor)" },
 	"elementor-pro": { name: "Elementor Pro", action: "adapter", replacement: "Elementor adapter: Theme Builder parts, popups, forms, Pro widgets" },
 	bricks: { name: "Bricks", action: "adapter", replacement: "Bricks adapter (src/adapters/bricks)" },
-	divi: { name: "Divi", action: "out-of-scope", replacement: "Divi adapter (v2)" },
+	divi: { name: "Divi", action: "adapter", replacement: "Divi adapter (src/adapters/divi): Divi 4 modules, Theme Builder header/footer, contact forms; Divi 5 best effort" },
 	"seo-by-rank-math": { name: "Rank Math SEO", action: "migrate-data", replacement: "EmDash SEO fields (via exporter) + generated sitemap/JSON-LD" },
 	rankmath: { name: "Rank Math SEO", action: "migrate-data", replacement: "EmDash SEO fields (via exporter) + generated sitemap/JSON-LD" },
 	"wordpress-seo": { name: "Yoast SEO", action: "migrate-data", replacement: "EmDash SEO fields (via exporter)" },

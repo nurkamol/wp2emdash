@@ -288,7 +288,7 @@ export function planCollections(input: PlanInput): CptPlan {
 				excerpt,
 				featuredImage: supports.has("thumbnail") || entries.some((e) => !!e.featured_image?.id),
 				body: entries.some((e) => ["classic", "html"].includes(input.builderOf(e))),
-				sections: [...builders].some((b) => ["wpbakery", "bricks", "gutenberg"].includes(b)),
+				sections: [...builders].some((b) => ["wpbakery", "bricks", "gutenberg", "divi"].includes(b)),
 				menuOrder: hierarchical || supports.has("page-attributes") || entries.some((e) => e.menu_order),
 				ordered: entries.some((e) => Number(e.menu_order)),
 				parent: hierarchical && entries.some((e) => !!e.parent),
