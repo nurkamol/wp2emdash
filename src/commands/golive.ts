@@ -492,6 +492,7 @@ async function primarySwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult>
 				: []),
 			`WP2EMDASH_TARGET=production pnpm wp2emdash run ${c.slug} verify --preview (now against https://${c.canonical})`,
 			`Submit https://${c.canonical}/sitemap.xml in Search Console; send a test form`,
+			`Passkeys are bound to the domain they were created on: sign in at https://${c.canonical}/_emdash/admin (magic link), then add a new passkey under your account — the one made on workers.dev only works there`,
 			...(c.config.target.aliasDomains.length ? [`Alias domains, a separate step after the owner's go-ahead: pnpm wp2emdash golive ${c.slug} --aliases`] : []),
 			`Rollback at any time during monitoring: pnpm wp2emdash golive ${c.slug} --rollback --yes`,
 		);
