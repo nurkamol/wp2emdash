@@ -18,6 +18,7 @@ import { Keys } from "../ir/portable-text.js";
 import { businessFromJsonLd } from "../transform/business.js";
 import { completeMarianaEmbeds, marianaTenant } from "../transform/embeds.js";
 import { collectSnippets, completeProviderLoaders, providerLoaders, settleLoaders } from "../transform/snippets.js";
+import { consentReport, planConsent } from "../transform/consent.js";
 import { type Diagnostic, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
 import { conservation, irText, missingContext, sourceText } from "../transform/coverage.js";
 import { buildSettings, irSettings, settingsReport } from "../transform/settings.js";
@@ -543,6 +544,10 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const undecided = siteSnippets.items.filter((s) => s.status === "decision");
 	check("site-snippets", "Site-wide snippets carried, not needed, or decided", undecided.length === 0, undecided.length ? `${undecided.length} need a decision (coverage report → Site-wide snippets; overrides.ts snippets): ${undecided.slice(0, 5).map((s) => `${s.id} ${s.label}`).join("; ")}` : snapshotHtml.length ? `${siteSnippets.counts.carried} carried${siteSnippets.widgets.length ? ` (site widgets: ${siteSnippets.widgets.map((w) => w.provider).join(", ")})` : ""}, ${siteSnippets.counts["not-needed"]} not needed` : "no audit HTML snapshots — run audit");
 	if (siteSnippets.widgets.length) reporter.emit({ type: "log", level: "info", message: `site widgets recognised: ${siteSnippets.widgets.map((w) => `${w.provider} ${w.id}`).join(", ")}` });
+	// Consent banner on the old site (plugin or service) → what Privacy & consent starts with (src/transform/consent.ts).
+	const consentPlan = planConsent(snapshotHtml, config.siteWidgets === false ? [] : Array.isArray(config.siteWidgets) ? config.siteWidgets : siteSnippets.widgets);
+	write(join(paths.ir, "consent.json"), consentPlan);
+	if (consentPlan.found.length) reporter.emit({ type: "log", level: "info", message: `consent banner on the old site: ${consentPlan.found.map((f) => f.name).join(", ")} → ${consentPlan.reason}` });
 
 	// ── Content types, taxonomies, authors: everything the extract found is migrated or decided ──────────────
 	const discovery = readJson<WpUrlInput["discovery"] & { items?: { type: string; link: string }[] }>(join(paths.snapshot, "discovery.json"));
@@ -601,9 +606,10 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		settings: { sources: settings.sources, notCarried: settings.notCarried },
 		contentTypes: inventory,
 		...(customCss?.css ? { customCss: { decision: overrides.customCss ?? null, source: customCss.source, ...describeCss(customCss.css), ...(customCss.inactive ? { inactive: customCss.inactive } : {}) } } : {}),
+		consent: { found: consentPlan.found, keptWidgets: consentPlan.keptWidgets, mode: config.consent === false ? "off" : (config.consent.mode ?? consentPlan.mode), reason: consentPlan.reason },
 		wpUrls: { rules: wpUrlPlan.explain, attachments: Object.keys(wpUrlPlan.rules.attachments ?? {}).length, feedPending: wpUrlPlan.feedPending },
 	});
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...wpUrlsReport(wpUrlPlan)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...wpUrlsReport(wpUrlPlan), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

@@ -472,6 +472,34 @@ No form contents or personal data anywhere. Verify gets `health-plugin` (registe
 the last 30 minutes). Cron design, limits and what was verified: [docs/spikes/health-findings.md](docs/spikes/health-findings.md);
 details: [packages/health/README.md](packages/health/README.md).
 
+## Privacy & consent (on by default)
+
+Every site gets a built-in cookie banner and **Plugins → Privacy & consent** (admins only; `@wp2emdash/consent`, an
+in-house PixelKraft plugin). Modes: *off*, *notice* (US style, opt-out), *opt-in* (EU/UK style) and *auto* — the
+default: opt-in for visitors from the EU/EEA, UK, Switzerland and Québec (and unknown regions), a notice elsewhere.
+The SEO & Analytics trackers and the chat/review widgets follow the visitor's choice: Google Consent Mode v2 starts
+denied and Google's scripts load only once allowed; Meta Pixel needs marketing consent (`fbq consent grant/revoke`);
+Clarity (`consentv2`) and Hotjar need analytics consent; Cloudflare Web Analytics (cookieless) always runs; Global
+Privacy Control keeps marketing off. Pages stay one cached HTML for everyone: the choice lives in the visitor's browser
+and the region comes from an uncached `/_consent/region`.
+
+The migration prefills it: a consent service kept as a site widget (CookieYes, Cookiebot, Termly, iubenda) → banner
+off (one banner, not two; the admin can switch); a WordPress consent plugin (Complianz, CookieYes, GDPR Cookie
+Consent, Cookie Notice, Borlabs, Real Cookie Banner, Moove…) → the built-in banner in that plugin's mode with its
+wording (coverage report → Consent banner); the privacy policy page is found by slug.
+
+```ts
+// sites/<slug>/kit.config.ts
+consent: false,
+// or
+consent: { mode: "opt-in", position: "card", policy: "/privacy-policy" },
+```
+
+Verify: `consent-runtime` on a live site (no analytics or marketing request before interaction, trackers after
+"Accept all"; reported as not applicable when the banner shows the notice style from the verifying machine's region);
+the banner is part of the existing `a11y` axe pass. Facts and limits: [docs/spikes/consent-findings.md](docs/spikes/consent-findings.md);
+details: [packages/consent/README.md](packages/consent/README.md).
+
 ## Performance (on by default)
 
 Every generated site ships a performance package (`src/scaffold/perf.ts`; facts and measurements in
@@ -522,6 +550,7 @@ Smart Placement stays off (`performance: { smartPlacement: true }` to try it): s
 - [`@wp2emdash/seo`](packages/seo/README.md) — SEO & Analytics suite: editor panel, dashboard, Google Search Console, IndexNow, tracking codes, conversion events, consent mode, Visits; on by default (`seo: { panel: false }` turns it off; `analytics: false` carries and loads no trackers)
 - [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; on by default (`og: { cards: false }` in a site's `kit.config.ts` turns them off)
 - [`@wp2emdash/health`](packages/health/README.md) — Site health & monthly report: scheduled checks, alerts, a branded monthly report; on by default (`health: false` turns it off)
+- [`@wp2emdash/consent`](packages/consent/README.md) — Privacy & consent: built-in cookie banner (notice / opt-in / by region), Consent Mode v2, Meta and Clarity consent, GPC, consent log; on by default (`consent: false` turns it off)
 - [Agent rules](CLAUDE.md)
 
 Full GitHub docs (configuration reference, adapters, troubleshooting, …) are produced in milestone M8a.

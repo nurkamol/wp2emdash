@@ -12,6 +12,7 @@ import { matchWpUrl, type WpUrlRules } from "./utils/wp-urls";
 import { type CspHosts, cspSources } from "@wp2emdash/seo/analytics/csp";
 import { typesOf } from "@wp2emdash/seo/analytics/trackers";
 import { pageAnalytics } from "./utils/analytics";
+import { REGION_PATH, regionResponse } from "./utils/consent";
 import announcementScript from "./scripts/inline/announcement.js?raw";
 
 /**
@@ -136,6 +137,13 @@ function imageOriginal(url: URL): string | undefined {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
+	// Consent banner, mode "auto": the visitor's opt-in rule from Cloudflare's geolocation of this request. Answered
+	// here, never from the route cache and never stored by a browser or CDN (no-store), so pages stay one cached HTML
+	// for everyone (docs/spikes/consent-findings.md).
+	if (context.url.pathname === REGION_PATH && (context.request.method === "GET" || context.request.method === "HEAD")) {
+		if (context.cache?.enabled) context.cache.set(false);
+		return regionResponse(context.request);
+	}
 	// Redirects answered here are never kept in the route cache (Astro's route rules match by path).
 	const redirect = (to: string, status: 301 | 302) => {
 		if (context.cache?.enabled) context.cache.set(false);

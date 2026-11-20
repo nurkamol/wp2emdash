@@ -8,6 +8,7 @@ import Sections from "../components/Sections.astro";
 import Popups from "../components/Popups.astro";
 import StructuredData from "../components/StructuredData.astro";
 import Analytics from "../components/Analytics.astro";
+import Consent from "../components/Consent.astro";
 import SiteWidgets from "../components/SiteWidgets.astro";
 import site from "../site.config.json";
 import { announcementState, type Chrome, loadChrome } from "../utils/chrome";
@@ -134,7 +135,9 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		{brand.icons.map((i) => <link rel={i.rel} href={i.href} type={i.type || undefined} sizes={i.sizes} />)}
 		{/* Verification tags EmDash's head does not print (Settings → SEO prints Google and Bing). */}
 		{verification.map(([name, content]) => <meta name={name} content={content} />)}
-		{/* Site widgets before analytics: a consent tool starts first (both scripts are deferred, run in order). */}
+		{/* Consent banner, then site widgets, then analytics: deferred scripts run in order, so the visitor's choice (or a
+		    consent tool) is known before anything else starts. */}
+		<Consent />
 		<SiteWidgets />
 		<Analytics />
 	</head>

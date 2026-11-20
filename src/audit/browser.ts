@@ -21,6 +21,8 @@ html { scroll-behavior: auto !important; }
 `;
 
 const CONSENT_BUTTONS = [
+	// The kit's own banner (Privacy & consent) on the migrated site: rejected, so screenshots load no trackers.
+	"[data-consent-banner]:not([hidden]) [data-consent-reject]",
 	"#cookie_action_close_header",
 	".cky-btn-accept",
 	"#onetrust-accept-btn-handler",

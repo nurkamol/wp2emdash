@@ -319,6 +319,25 @@ export const kitConfigSchema = z.object({
 		])
 		.optional(),
 
+	/**
+	 * Privacy & Consent (@wp2emdash/consent): the built-in cookie banner and its admin page (admins only). On by default;
+	 * `consent: false` turns the whole thing off (no banner, no admin page: trackers load as before). The mode is
+	 * prefilled from the old site (transform → ir/consent.json: a consent service kept as a site widget → "off"; a
+	 * WordPress consent plugin → its mode and wording; nothing → "auto"); `mode` here wins over that. Admins can change
+	 * everything in Plugins → Privacy & consent afterwards.
+	 */
+	consent: z
+		.union([
+			z.literal(false),
+			z.object({
+				mode: z.enum(["off", "notice", "opt-in", "auto"]).optional(),
+				position: z.enum(["bar", "card"]).optional(),
+				/** Site path of the privacy policy page (e.g. "/privacy-policy"); else found among the pages by slug. */
+				policy: z.string().regex(/^\/(?!\/)[\w\-./~%]{0,200}$/).optional(),
+			}),
+		])
+		.prefault({}),
+
 	/** Third-party widget settings the page markup does not carry (public values, no secrets). */
 	embeds: z
 		.object({

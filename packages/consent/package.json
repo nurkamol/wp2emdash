@@ -1,0 +1,22 @@
+{
+  "name": "@wp2emdash/consent",
+  "version": "0.1.0",
+  "description": "Privacy & Consent for EmDash: a built-in, accessible cookie banner (notice, opt-in, or by visitor region), Google Consent Mode v2, Meta and Clarity consent signals, Global Privacy Control, and an admin page (admins only)",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/plugin/index.ts",
+    "./settings": "./src/settings.ts",
+    "./region": "./src/region.ts",
+    "./store": "./src/store.ts"
+  },
+  "files": ["src", "README.md"],
+  "peerDependencies": {
+    "emdash": ">=1.5 <2",
+    "@wp2emdash/seo": ">=0.2"
+  },
+  "engines": { "node": ">=24" }
+}
