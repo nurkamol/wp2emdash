@@ -28,6 +28,7 @@ interface CfEnvRecord {
 	r2?: { bucket?: string };
 	worker?: { name?: string; url?: string; deployedAt?: string };
 	session?: { name?: string; id?: string };
+	sessions?: { bucket?: string; days?: number };
 	kv?: { name?: string; id?: string };
 	outbox?: { name?: string; id?: string };
 }
@@ -126,7 +127,9 @@ export function environmentView(ctx: SiteContext): EnvironmentView {
 		if (r?.d1?.name) resources.push({ label: "D1", value: r.d1.name });
 		if (r?.r2?.bucket) resources.push({ label: "R2", value: r.r2.bucket });
 		const session = r?.session ?? (r?.kv as { binding?: string; name?: string } | undefined);
-		if (session?.name) resources.push({ label: "Session KV", value: session.name });
+		const sessions = r?.sessions;
+		if (sessions?.bucket) resources.push({ label: "Sessions R2", value: `${sessions.bucket}${sessions.days ? ` (${sessions.days} days)` : ""}` });
+		else if (session?.name) resources.push({ label: "Session KV", value: session.name });
 		if (r?.outbox?.name) resources.push({ label: "Form outbox KV", value: r.outbox.name });
 		const mk = name === "production" ? lastMarker(ctx) : undefined;
 		if (mk) resources.push({ label: "Last backup marker", value: `${mk.at.slice(0, 16).replace("T", " ")} UTC — ${mk.reason}` });

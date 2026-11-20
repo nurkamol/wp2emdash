@@ -30,6 +30,7 @@ import { loadOverrides } from "../config/overrides.js";
 import { applySensitivePolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
 import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras, stackBreakpoint } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
+import { astroSessions, sessionsBucketBinding, sessionStore } from "../scaffold/sessions.js";
 import { astroPerf, brandHashes, imageHosts, type PerfConfig, perfSite, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { customStylesheet } from "../transform/custom-css.js";
@@ -66,17 +67,18 @@ export const STACK = {
 } as const;
 
 export interface CloudflareResources {
-	staging?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; outbox?: { id: string }; session?: { id: string } };
-	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; live?: boolean; outbox?: { id: string }; session?: { id: string } };
+	staging?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; outbox?: { id: string }; session?: { id: string }; sessions?: { bucket: string } };
+	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; live?: boolean; outbox?: { id: string }; session?: { id: string }; sessions?: { bucket: string } };
 }
 
 /**
  * KV bindings of one environment in wrangler.jsonc: the form outbox (sites that keep one) and SESSION (Astro sessions)
  * once provision recorded its namespace. An explicit SESSION binding keeps the Cloudflare adapter from adding a bare one
- * that Wrangler auto-provisions on the first deploy (docs/spikes/M8-findings.md).
+ * that Wrangler auto-provisions on the first deploy (docs/spikes/M8-findings.md). Sessions on R2 (sessionKv false): no
+ * SESSION binding — the namespace itself stays (recorded in cloudflare.json) for a switch back to KV.
  */
-export function kvBindings(cf: CloudflareResources, e: "staging" | "production", outbox: boolean): { binding: string; id: string }[] {
-	return [...(outbox && cf[e]?.outbox?.id ? [{ binding: "FORM_OUTBOX", id: cf[e]?.outbox?.id as string }] : []), ...(cf[e]?.session?.id ? [{ binding: "SESSION", id: cf[e]?.session?.id as string }] : [])];
+export function kvBindings(cf: CloudflareResources, e: "staging" | "production", outbox: boolean, sessionKv = true): { binding: string; id: string }[] {
+	return [...(outbox && cf[e]?.outbox?.id ? [{ binding: "FORM_OUTBOX", id: cf[e]?.outbox?.id as string }] : []), ...(sessionKv && cf[e]?.session?.id ? [{ binding: "SESSION", id: cf[e]?.session?.id as string }] : [])];
 }
 
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
@@ -108,19 +110,20 @@ export function workerVars(config: Pick<KitConfig, "email" | "forms">, o: { stag
  * preview URL (docs/spikes/single-env-findings.md). Opt-in staging: `env.staging` with its own Worker, data and vars
  * (unchanged from before 2026-11-20).
  */
-export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms">; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; health?: boolean; backups?: boolean; productionHost: string; perf?: PerfConfig; live?: boolean; keepWorkersDev?: boolean }): string {
+export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms">; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; health?: boolean; backups?: boolean; productionHost: string; perf?: PerfConfig; live?: boolean; keepWorkersDev?: boolean; sessions?: "r2" | "kv" }): string {
 	const { config, workerName, cf } = o;
 	// SELF: the SEO dashboard and Site health request the site's own pages through the Worker itself; Backups restores
 	// through EmDash's own API as the admin who confirmed.
 	const self = o.seoPanel || !!o.health || !!o.backups;
 	const loader = (e: "staging" | "production") => o.sandboxedEnvs.some((envs) => envs.includes(e));
 	const d1 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "DB", database_name: cf[env]?.d1?.name ?? fallback, ...(cf[env]?.d1?.id ? { database_id: cf[env]?.d1?.id } : {}) });
-	const r2 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "MEDIA", bucket_name: cf[env]?.r2?.bucket ?? fallback });
+	// R2: media, and the sessions bucket (SESSIONS) when sign-in sessions are on R2 (src/scaffold/sessions.ts).
+	const r2 = (env: "staging" | "production", fallback: string) => [{ binding: "MEDIA", bucket_name: cf[env]?.r2?.bucket ?? fallback }, ...(o.sessions === "r2" ? [sessionsBucketBinding(cf, env)].filter(Boolean) : [])].map((b) => JSON.stringify(b)).join(", ");
 	// KV: the form outbox, and SESSION (Astro sessions) bound explicitly once provision recorded it. Without an id the
 	// Cloudflare adapter adds a bare SESSION binding and Wrangler auto-provisions it on the first deploy, which leaves an
 	// orphan "<worker>-session" namespace when that deploy fails (docs/spikes/M8-findings.md).
 	const kvJson = (e: "staging" | "production") => {
-		const kv = kvBindings(cf, e, !!config.forms.outbox);
+		const kv = kvBindings(cf, e, !!config.forms.outbox, o.sessions !== "r2");
 		return kv.length ? `,\n\t"kv_namespaces": [${kv.map((x) => JSON.stringify(x)).join(", ")}]` : "";
 	};
 	const vars = workerVars(config, { staging: o.staging, productionHost: o.productionHost });
@@ -613,6 +616,10 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	});
 	writePerfFiles(project, config.performance);
 	const pagePaths = pages.flatMap((p) => (p.source.status === "publish" && p.route?.path ? [p.route.path] : []));
+	// Sign-in sessions: R2 once every environment has its bucket (provision), else KV as before (src/scaffold/sessions.ts).
+	const builtEnvs = envs.staging ? (["staging", "production"] as const) : (["production"] as const);
+	const sessions = sessionStore(config.sessions, cf, [...builtEnvs]);
+	const sess = astroSessions(sessions.store, config.sessions.days);
 	const ap = astroPerf(config.performance, pagePaths, imageHosts([siteConfig.productionUrl, cf.staging?.worker?.url, (cf.production as { worker?: { url?: string } } | undefined)?.worker?.url]));
 	write(
 		join(project, "astro.config.mjs"),
@@ -620,7 +627,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
-import { defineConfig } from "astro/config";
+import { defineConfig${sessions.store === "r2" ? ", sessionDrivers" : ""} } from "astro/config";
 import emdash from "emdash/astro";${ap.imports}${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${health ? '\nimport { healthPlugin } from "@wp2emdash/health";' : ""}${consent ? '\nimport { consentPlugin } from "@wp2emdash/consent";' : ""}${backups ? '\nimport { backupsPlugin } from "@wp2emdash/backups";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
 
 export default defineConfig({
@@ -629,8 +636,8 @@ export default defineConfig({
 	// "ignore": EmDash's own routes (/_emdash/…) must match without a slash. The site's URL style
 	// (${trailing}) is enforced for page paths in src/middleware.ts via site.config.json.
 	trailingSlash: "ignore",
-	adapter: cloudflare(),
-${ap.options}	integrations: [
+	adapter: ${sess.adapter},
+${sess.options}${ap.options}	integrations: [
 		react(),
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
@@ -650,9 +657,11 @@ ${ap.options}	integrations: [
 });
 `,
 	);
-	for (const e of envs.staging ? (["staging", "production"] as const) : (["production"] as const)) if (cf[e]?.d1?.id && !cf[e]?.session?.id) reporter.emit({ type: "log", level: "warn", message: `${e}: no SESSION namespace recorded in cloudflare.json; run \`wp2emdash provision ${config.slug} ${e}\` so the first deploy does not auto-provision it` });
+	const sessionsDue = sessions.missing.filter((e) => cf[e]?.d1?.id);
+	if (sessionsDue.length) reporter.emit({ type: "log", level: "warn", message: `sign-in sessions stay on Workers KV (random admin logouts) until every environment has its sessions bucket: run ${sessionsDue.map((e) => `\`wp2emdash provision ${config.slug}${e === "staging" ? " staging" : ""}\``).join(" and ")}, then scaffold again (the switch signs everyone out once)` });
+	for (const e of builtEnvs) if (sessions.store === "kv" && cf[e]?.d1?.id && !cf[e]?.session?.id) reporter.emit({ type: "log", level: "warn", message: `${e}: no SESSION namespace recorded in cloudflare.json; run \`wp2emdash provision ${config.slug} ${e}\` so the first deploy does not auto-provision it` });
 	if (!envs.staging && !config.forms.turnstileSiteKey && forms.length) reporter.emit({ type: "log", level: "warn", message: `single environment: production forms refuse messages until forms.turnstileSiteKey is set (one Turnstile widget for ${new URL(siteConfig.productionUrl).host} and the account's workers.dev subdomain) and its secret is put (wrangler secret put TURNSTILE_SECRET_KEY)` });
-	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, health: !!health, backups: !!backups, productionHost: new URL(siteConfig.productionUrl).host, perf: config.performance, live: !!cf.production?.live, keepWorkersDev: config.target.keepWorkersDev }));
+	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, health: !!health, backups: !!backups, productionHost: new URL(siteConfig.productionUrl).host, perf: config.performance, live: !!cf.production?.live, keepWorkersDev: config.target.keepWorkersDev, sessions: sessions.store }));
 	// Local dev: Turnstile's always-pass test keys so forms work under `astro dev` (kept if the developer edited the file).
 	const devVars = join(project, ".dev.vars");
 	if (!existsSync(devVars)) write(devVars, "# Local only (gitignored). Turnstile always-pass test keys; add EMAIL_API_KEY and FORM_FROM to test real delivery.\nTURNSTILE_SITE_KEY=1x00000000000000000000AA\nTURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA\n");

@@ -43,7 +43,7 @@ pnpm wp2emdash ui          # local dashboard in the browser (--no-open to only p
 | `wp2emdash accept <slug> <phase> --reason "…" --by "…"` | Record the owner's acceptance of a failed gate |
 | `wp2emdash status [slug] [--json]` | Phase timeline |
 | `wp2emdash doctor` | Local prerequisites, verifies the Cloudflare token |
-| `wp2emdash provision <slug> [production\|staging]` | Create or reuse D1, R2, the form outbox and the `SESSION` KV namespace in the environment's account; record them in `cloudflare.json`. Default `production`; `staging` only for sites that opted in (see Environments) |
+| `wp2emdash provision <slug> [production\|staging]` | Create or reuse D1, R2, the form outbox and the sign-in sessions store (private R2 bucket `<worker>-sessions` with an expiry rule; `SESSION` KV with `sessions: "kv"`) in the environment's account; record them in `cloudflare.json`. Default `production`; `staging` only for sites that opted in (see Environments) |
 | `wp2emdash import-dump <slug> [dir]` · `import-options <slug> <dump>` | Sort exported files / read builder settings from a backup's `database.sql` |
 | `wp2emdash compare <a> <b>` | Content diff between two audited sites (read-only) |
 | `wp2emdash publish <slug> [--repo owner/name] [--yes]` | Project → private GitHub repository: secret scan (file names only), commit, `gh repo create --private`, push, `CLOUDFLARE_ACCOUNT_ID` variable. Never sets the token secret (prints the `gh secret set` command). Plan only without `--yes` |
@@ -203,7 +203,7 @@ Worker routes. Staging is opt-in. Details and commands: [docs/staging-setup.md](
 
 | | Single environment (default) | Opt-in staging (`target.staging: true`) |
 |---|---|---|
-| Cloudflare | `<slug>` Worker, `<slug>-db`, `<slug>-media`, outbox + session KV | the same, plus `<slug>-staging` with its own D1/R2/KV/secrets |
+| Cloudflare | `<slug>` Worker, `<slug>-db`, `<slug>-media`, `<slug>-sessions` (sign-in sessions), outbox KV | the same, plus `<slug>-staging` with its own D1/R2/KV/secrets |
 | Before go-live | production on workers.dev: `noindex`, no analytics, form messages are tests | staging for review; production on workers.dev before the switch |
 | `load` / `verify` default | production once provisioned (else local) | load: local; verify: staging |
 | Form test messages | any host but the domain (workers.dev, preview URLs) → `email.stagingTo` only, `[Test]` subject, never the client, also from the outbox after launch | staging → `email.stagingTo` only |
@@ -215,6 +215,15 @@ Worker routes. Staging is opt-in. Details and commands: [docs/staging-setup.md](
 migrations), when the site takes bookings, payments or sensitive data (tests must not touch production records), or
 when many editors share the admin. Sites that already had staging (a `target.stagingUrl`, or staging resources in
 `cloudflare.json`) keep it unchanged; `target.staging: false` turns it off.
+
+**Sign-in sessions** (EmDash admin) live in a private R2 bucket per environment, `<worker>-sessions`
+(`kit.config` `sessions`, default `"r2"`). Workers KV — the Cloudflare adapter's default — is eventually consistent and
+caches reads at the edge, misses included, so editors were signed out at random ("Not authenticated", Retry → sign-in
+page). R2 is strongly consistent. A lifecycle rule deletes session objects after `sessions.days` (default 30) and the
+session lasts as long: editors sign in again every 30 days. The bucket is never public. `sessions: "kv"` keeps the old
+store. Scaffold uses R2 only once every environment has its bucket (`provision`), else KV with a warning.
+**Switching a live site signs everyone out once** (sessions do not move); the old `<worker>-session` KV namespace is
+left unbound, delete it by hand later. Details: [sessions findings](docs/spikes/sessions-findings.md).
 
 ## Two sites, one domain
 
@@ -574,7 +583,7 @@ Smart Placement stays off (`performance: { smartPlacement: true }` to try it): s
 ## Docs
 
 - [Plan](docs/PLAN.md)
-- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md) · [Analytics in the SEO suite (storage, purge, CSP hosts, GraphQL)](docs/spikes/analytics-findings.md) · [Provider registry hosts and site widgets](docs/spikes/providers-findings.md) · [Site settings (schema, head tags, robots.txt, brand files)](docs/spikes/settings-findings.md) · [WordPress URLs, content inventory, Additional CSS](docs/spikes/wp-urls-findings.md)
+- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md) · [Sign-in sessions on R2](docs/spikes/sessions-findings.md) · [Analytics in the SEO suite (storage, purge, CSP hosts, GraphQL)](docs/spikes/analytics-findings.md) · [Provider registry hosts and site widgets](docs/spikes/providers-findings.md) · [Site settings (schema, head tags, robots.txt, brand files)](docs/spikes/settings-findings.md) · [WordPress URLs, content inventory, Additional CSS](docs/spikes/wp-urls-findings.md)
 - [Site workspaces](sites/README.md)
 - [Environment setup](docs/staging-setup.md) — production on `workers.dev` (default) and opt-in staging: resources, build → migrate → deploy, first admin sign-in (passkeys), API token, CI, after go-live (`load --force`, preview URLs), troubleshooting
 - [Single-environment findings](docs/spikes/single-env-findings.md) — D1 Time Travel and Workers preview URLs checked against Wrangler 4.163.0

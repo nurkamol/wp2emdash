@@ -1,7 +1,8 @@
 /**
  * `wp2emdash provision <slug> [production|staging]`: create the Cloudflare resources an environment needs — D1
- * database, R2 media bucket, KV form outbox (when the site keeps one), KV for Astro sessions (`SESSION`) — in the
- * account that environment runs in, and record them in sites/<slug>/cloudflare.json. Idempotent (an existing resource with the same name is reused) and
+ * database, R2 media bucket, KV form outbox (when the site keeps one), the Astro sessions store (EmDash sign-in: a
+ * private R2 bucket `<worker>-sessions` with a lifecycle rule by default, or the `SESSION` KV namespace with kit.config
+ * `sessions: "kv"`; docs/spikes/sessions-findings.md) — in the account that environment runs in, and record them in sites/<slug>/cloudflare.json. Idempotent (an existing resource with the same name is reused) and
  * never deletes anything: when the environment moves to another account, the old entries are kept under `previous`
  * so they can be removed later, once the new environment serves traffic.
  *
@@ -30,6 +31,8 @@ export interface EnvResources {
 	outbox?: { name: string; id: string };
 	/** KV namespace bound as SESSION (Astro sessions); "<worker>-session", the title Wrangler would auto-provision. */
 	session?: { name: string; id: string };
+	/** Private R2 bucket bound as SESSIONS (Astro sessions, kit.config sessions "r2"); objects deleted after `days`. */
+	sessions?: { bucket: string; location?: string; days: number };
 	worker?: { name?: string; url?: string; addresses?: string[] };
 	live?: boolean;
 	previous?: Omit<EnvResources, "previous">[];
@@ -116,6 +119,25 @@ export async function provision(slug: string, env: Env, opts: { location?: strin
 	}
 	next.r2 = { bucket, location };
 
+	// Sessions bucket (kit.config sessions "r2", the default): EmDash sign-in sessions. Private — never public, no
+	// custom domain. Same location as the media bucket. A lifecycle rule deletes objects `days` after their last write
+	// (Astro's session ttl is the same; Astro stores the expiry in the value, R2 has no TTL of its own).
+	const workerName = env === "production" ? slug : `${slug}-staging`;
+	if (config.sessions.store === "r2") {
+		const sBucket = next.sessions?.bucket ?? `${workerName}-sessions`;
+		const days = config.sessions.days;
+		const sExisting = await call("GET", `/accounts/${accountId}/r2/buckets/${encodeURIComponent(sBucket)}`);
+		if (sExisting.ok) result.reused.push(`R2 ${sBucket}`);
+		else {
+			const made = await call("POST", `/accounts/${accountId}/r2/buckets`, { name: sBucket, locationHint: location });
+			if (!made.ok) throw fail(`Creating R2 bucket ${sBucket} (Workers R2 Storage: Edit)`, made);
+			result.created.push(`R2 ${sBucket}`);
+		}
+		await sessionsLifecycle(call, fail, accountId, sBucket, days, result);
+		await keepPrivate(call, fail, accountId, sBucket, result);
+		next.sessions = { bucket: sBucket, location, days };
+	}
+
 	// KV namespaces: every page of the account's list (the title is the only key to find an existing one by).
 	let kvList: { id: string; title: string }[] | undefined;
 	const kvNamespaces = async () => {
@@ -145,12 +167,12 @@ export async function provision(slug: string, env: Env, opts: { location?: strin
 	// KV form outbox (only for sites that keep one)
 	if (config.forms.outbox) next.outbox = await kv(next.outbox?.name ?? names.kv);
 
-	// KV for Astro sessions (binding SESSION). Bound explicitly in wrangler.jsonc so the first `wrangler deploy` does not
+	// KV for Astro sessions (binding SESSION; kit.config sessions "kv"). Bound explicitly in wrangler.jsonc so the first `wrangler deploy` does not
 	// auto-provision it: a deploy that fails after that step leaves "<worker>-session" behind and every retry fails with
 	// 10014 "namespace already exists" (docs/spikes/M8-findings.md). Same title Wrangler uses, so a namespace an earlier
 	// deploy already created is found and reused: nothing changes for an existing site.
-	const workerName = env === "production" ? slug : `${slug}-staging`;
-	next.session = await kv(next.session?.name ?? `${workerName}-session`);
+	// Sessions on R2: no new namespace; one recorded earlier stays in cloudflare.json (a switch back to "kv" reuses it).
+	if (config.sessions.store === "kv") next.session = await kv(next.session?.name ?? `${workerName}-session`);
 
 	// workers.dev subdomain: the Worker's preview address until the switch.
 	const sub = await call<{ subdomain?: string }>("GET", `/accounts/${accountId}/workers/subdomain`);
@@ -163,4 +185,42 @@ export async function provision(slug: string, env: Env, opts: { location?: strin
 	cf[env] = next;
 	writeFileSync(cfFile, `${JSON.stringify(cf, null, 2)}\n`);
 	return result;
+}
+
+type Call = <T>(method: string, path: string, body?: unknown) => Promise<{ ok: boolean; status: number; result?: T; errors?: { code: number; message: string }[] }>;
+type Fail = (what: string, r: { status: number; errors?: { message: string }[] }) => Error;
+/** Lifecycle rule id the kit owns on a sessions bucket; other rules (e.g. R2's default multipart abort) are kept. */
+export const SESSIONS_RULE_ID = "wp2emdash-sessions-expire";
+
+/**
+ * The sessions bucket's expiry rule: objects deleted `days` days after their last write. PUT replaces the whole rule
+ * set, so the current rules are read first and only the kit's own rule (by id) is added or replaced — as
+ * `wrangler r2 bucket lifecycle add` does. No write when the rule is already as wanted.
+ */
+async function sessionsLifecycle(call: Call, fail: Fail, accountId: string, bucket: string, days: number, result: ProvisionResult): Promise<void> {
+	type Rule = { id: string; enabled: boolean; conditions: { prefix?: string }; deleteObjectsTransition?: { condition: { type: string; maxAge?: number } } };
+	const path = `/accounts/${accountId}/r2/buckets/${encodeURIComponent(bucket)}/lifecycle`;
+	const cur = await call<{ rules?: Rule[] }>("GET", path);
+	if (!cur.ok) throw fail(`Reading the lifecycle rules of ${bucket} (Workers R2 Storage: Edit)`, cur);
+	const rules = cur.result?.rules ?? [];
+	const want: Rule = { id: SESSIONS_RULE_ID, enabled: true, conditions: {}, deleteObjectsTransition: { condition: { type: "Age", maxAge: days * 86400 } } };
+	const have = rules.find((r) => r.id === SESSIONS_RULE_ID);
+	if (have && have.enabled && !have.conditions?.prefix && have.deleteObjectsTransition?.condition.type === "Age" && have.deleteObjectsTransition.condition.maxAge === days * 86400) return;
+	const put = await call("PUT", path, { rules: [...rules.filter((r) => r.id !== SESSIONS_RULE_ID), want] });
+	if (!put.ok) throw fail(`Setting the lifecycle rule of ${bucket} (Workers R2 Storage: Edit)`, put);
+	result.notes.push(`${bucket}: sessions deleted ${days} days after their last write (lifecycle rule ${SESSIONS_RULE_ID}).`);
+}
+
+/** Sign-in sessions are never served publicly: r2.dev access is switched off if someone turned it on; a custom domain is refused. */
+async function keepPrivate(call: Call, fail: Fail, accountId: string, bucket: string, result: ProvisionResult): Promise<void> {
+	const base = `/accounts/${accountId}/r2/buckets/${encodeURIComponent(bucket)}/domains`;
+	const managed = await call<{ enabled?: boolean }>("GET", `${base}/managed`);
+	if (managed.ok && managed.result?.enabled) {
+		const off = await call("PUT", `${base}/managed`, { enabled: false });
+		if (!off.ok) throw fail(`${bucket} is public on r2.dev and could not be made private (Workers R2 Storage: Edit)`, off);
+		result.notes.push(`${bucket}: public r2.dev access was on; switched off (sign-in sessions must never be public).`);
+	}
+	const custom = await call<{ domains?: { domain: string }[] }>("GET", `${base}/custom`);
+	const domains = custom.result?.domains ?? [];
+	if (domains.length) throw new Error(`${bucket} holds sign-in sessions but is served on ${domains.map((d) => d.domain).join(", ")}: remove the custom domain in the Cloudflare dashboard (R2 → ${bucket} → Settings), then provision again.`);
 }

@@ -222,6 +222,19 @@ export const kitConfigSchema = z.object({
 			phoneVideo: z.boolean().default(false),
 		})
 		.prefault({}),
+	/**
+	 * Where Astro sessions (EmDash admin sign-in) are stored (docs/spikes/sessions-findings.md). Default "r2": a private
+	 * R2 bucket `<worker>-sessions` per environment (strongly consistent; a lifecycle rule deletes objects after `days`,
+	 * and Astro's session ttl is the same, so editors sign in again after `days` days). "kv": the Cloudflare adapter's
+	 * default Workers KV namespace (eventually consistent, edge-cached reads: random "Not authenticated" logouts).
+	 * Shorthand: sessions: "kv".
+	 */
+	sessions: z
+		.union([
+			z.enum(["r2", "kv"]).transform((store) => ({ store, days: 30 })),
+			z.object({ store: z.enum(["r2", "kv"]).default("r2"), days: z.number().int().min(1).max(365).default(30) }),
+		])
+		.default({ store: "r2", days: 30 }),
 	/** SEO & Analytics suite (@wp2emdash/seo): editor panel, dashboard, Search Console, IndexNow, tracking codes, conversion events and Visits. On by default; { panel: false } turns the whole suite off (the site then loads exactly `analytics`). */
 	seo: z.object({ panel: z.boolean().default(true) }).default({ panel: true }),
 	/**
