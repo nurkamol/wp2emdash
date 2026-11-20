@@ -22,9 +22,16 @@ export async function pageRuntime(browser: Browser, url: string, waitMs = 5000):
 		const u = r.url();
 		if (TRACKERS.test(u)) trackers.add(u.replace(/\?.*$/, ""));
 	});
+	const host = new URL(url).host;
 	page.on("console", (m) => {
 		const t = m.text();
-		if (/Content Security Policy/i.test(t)) csp.push(t.slice(0, 200));
+		// Only the page's own policy: third-party iframes (Turnstile, booking embeds) log violations of their own CSP.
+		const from = m.location().url;
+		let sameHost = true;
+		try {
+			sameHost = !from || new URL(from).host === host;
+		} catch {}
+		if (sameHost && /Content Security Policy/i.test(t)) csp.push(t.slice(0, 200));
 	});
 	try {
 		await page.goto(url, { waitUntil: "load", timeout: 45_000 });
