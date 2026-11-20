@@ -8,6 +8,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ### Added
 - Elementor adapter (`src/adapters/elementor`): containers and legacy sections, Kit globals, Theme Builder header/footer, Pro forms and popups (synthetic fixtures; no real Elementor site yet).
+- Divi adapter (`src/adapters/divi`): Divi 4 regular/specialty/fullwidth sections and ~30 modules (text, image, button, blurb, CTA, slider and fullwidth header as hero, gallery, video, testimonial, team, pricing, accordion/toggle/tabs, contact form → form definition, code through the embed registry, social follow, map, counters, menu), global colours, dynamic content, Theme Builder header/footer as site parts; Divi 5 blocks read best effort and flagged. Built, not yet run on a real Divi site (`docs/spikes/divi-findings.md`). The audit no longer treats Divi as unsupported.
+- Gutenberg block libraries (`src/adapters/gutenberg/libraries.ts`): Kadence Blocks, Spectra, GenerateBlocks, Stackable and CoBlocks layouts and common blocks (advanced heading, buttons, icon list, info box, tabs, accordion, testimonials, team, counters, pricing, maps, galleries) map to sections; their form blocks become form definitions (recipients never copied); unknown library blocks keep their text and are reported. Not yet run on a real site (`docs/spikes/gutenberg-libraries-findings.md`).
+- Extract requests Divi's Theme Builder and Library post types and reads `et_divi` / `et_global_data` (or `raw/divi-options.json`); `gallery_ids` count as media references.
 - Comments migration: approved WordPress comments with dates, authors and threads (`@wp2emdash/comments` admin-only import route; EmDash moderation approves them), threaded display and a moderated comment form.
 
 - Footer credit: "Website by PixelKraft" on every migrated site whose footer has no credit of its own (`credit` in kit.config; `false` turns it off).

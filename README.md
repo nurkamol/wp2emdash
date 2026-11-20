@@ -94,7 +94,7 @@ Nothing the old site had is dropped silently: whatever the kit does not carry is
 
 | WordPress | On the new site |
 |---|---|
-| Pages (WPBakery/Salient, Gutenberg, classic, Bricks, Elementor), header/footer, menus, popups, announcement bar, forms, media in use, SEO meta, JSON-LD, analytics, plugin redirects | Migrated |
+| Pages (WPBakery/Salient, Gutenberg incl. Kadence/Spectra/GenerateBlocks/Stackable/CoBlocks blocks, classic, Bricks, Elementor, Divi), header/footer, menus, popups, announcement bar, forms, media in use, SEO meta, JSON-LD, analytics, plugin redirects | Migrated |
 | Comments (approved, threaded) | EmDash comments with their WordPress date, author name and thread (one level), shown under posts and entries with a moderated comment form (Turnstile, honeypot); pending only with `comments.includePending`; spam, trash and pingbacks counted, not imported; off on `sensitiveData` sites until decided |
 | Blog posts (Gutenberg, classic, WPBakery, Bricks) | A `posts` collection, only on sites that have posts (or `blog: true` in kit.config): Gutenberg/classic bodies as EmDash Portable Text (EmDash's own converter after the kit's shortcode pass: `[caption]`, `[gallery]`, `[embed]`, `[audio]`, `[video]`, oEmbed URLs), builder posts keep their sections; at their WordPress address with the WordPress publish date, excerpt, featured image, sticky → "featured", post format, SEO; scheduled posts scheduled; drafts as drafts; private and password-protected posts need `protectedPosts: { as: "draft" \| "skip" \| "publish", reason }` |
 | Categories, tags, custom taxonomies of posts | EmDash taxonomies with every term (hierarchy and descriptions kept) and each post's assignments |
@@ -113,10 +113,13 @@ Nothing the old site had is dropped silently: whatever the kit does not carry is
 | Source | Status |
 |---|---|
 | WPBakery + Salient (`vc_*`, `nectar_*`) | Supported: ~70 element handlers and row recognisers, measured against a real site |
-| Gutenberg (30 core blocks, reusable blocks) and the classic editor | Supported; third-party block libraries (Kadence, Spectra, GenerateBlocks…) are reported for mapping |
+| Gutenberg (30 core blocks, reusable blocks) and the classic editor | Supported |
+| Gutenberg block libraries: Kadence Blocks, Spectra, GenerateBlocks, Stackable, CoBlocks | Built (row/column/container layouts, advanced heading, buttons, icon list, info box, tabs, accordion, testimonials, team, counters, pricing, maps, galleries, form blocks); not yet run on a real site. Other library blocks keep their text and are reported; Otter and Stackable v2 are not mapped |
 | Bricks 2.4.6 / 2.5 | Supported: elements, templates, global classes, palette, components, forms; measured against a real site |
 | Elementor | Built (containers and legacy sections, Kit globals, Theme Builder, Pro forms and popups); not yet run on a real Elementor site |
-| Divi, Beaver Builder, Oxygen and other builders | Not yet: detected by the audit, which stops for a decision |
+| Divi 4 (`et_pb_*` shortcodes) | Built, not yet run on a real Divi site: regular/specialty/fullwidth sections, ~30 modules (text, image, button, blurb, CTA, slider/fullwidth header, gallery, video, testimonial, team, pricing, accordion/toggle/tabs, contact form, code, social follow, map, counters, menu), global colours, Theme Builder header/footer |
+| Divi 5 (`divi/` blocks) | Best effort: converted to the Divi 4 reader and flagged in the coverage report; unverified on a real Divi 5 site |
+| Beaver Builder, Oxygen and other builders | Not yet: no adapter (their pages take the classic/shortcode path; check the coverage report) |
 
 Comments: in progress (extracted today, not yet loaded).
 

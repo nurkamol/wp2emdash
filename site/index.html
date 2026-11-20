@@ -440,7 +440,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 				<div class="stat"><dt>unmapped content nodes on the real WPBakery/Salient site</dt><dd>0</dd></div>
 				<div class="stat"><dt>of the live site’s page text carried over</dt><dd>100<small>%</small></dd></div>
 				<div class="stat"><dt>in-scope WordPress features done in the parity audit</dt><dd>60<small> / 103</small></dd></div>
-				<div class="stat"><dt>automated tests, golden fixtures per element</dt><dd>982</dd></div>
+				<div class="stat"><dt>automated tests, golden fixtures per element</dt><dd>1015</dd></div>
 			</dl>
 		</div>
 	</div>
@@ -534,8 +534,10 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 					<tbody>
 						<tr><td>WPBakery + Salient</td><td><span class="status s-ok">Supported</span></td><td>~70 element handlers and row recognisers: rows, columns, CTAs, team, testimonials, pricing, marquees, global sections. Spacing and type measured on the live theme.</td></tr>
 						<tr><td>Gutenberg, classic</td><td><span class="status s-ok">Supported</span></td><td>30 core blocks and reusable blocks; classic content paragraph-faithful, its shortcodes through the shortcode parser.</td></tr>
+						<tr><td>Gutenberg block libraries</td><td><span class="status s-built">Built</span></td><td>Kadence, Spectra, GenerateBlocks, Stackable and CoBlocks layouts, headings, buttons, icon lists, info boxes, tabs, accordions, testimonials and form blocks. Not yet run on a real site.</td></tr>
 						<tr><td>Bricks 2.4.6 / 2.5</td><td><span class="status s-ok">Supported</span></td><td>Elements, header/footer/popup templates, global classes, palette, components and forms. Measured against a real Bricks site.</td></tr>
 						<tr><td>Elementor</td><td><span class="status s-built">Built</span></td><td>Containers and legacy sections, Kit globals, Theme Builder header/footer, Pro forms and popups. Not yet run on a real Elementor site.</td></tr>
+						<tr><td>Divi</td><td><span class="status s-built">Built</span></td><td>Divi 4 sections and ~30 modules, global colours, contact forms, Theme Builder header/footer; Divi 5 read best effort. Not yet run on a real Divi site.</td></tr>
 						<tr><td>Blog</td><td><span class="status s-ok">Supported</span></td><td>Posts as Portable Text, categories, tags and custom taxonomies, guest bylines, paginated archives and RSS, all at their WordPress addresses.</td></tr>
 						<tr><td>Custom post types</td><td><span class="status s-ok">Supported</span></td><td>Each public type becomes its own collection with archives; ACF, Meta Box and Pods fields mapped to EmDash fields.</td></tr>
 						<tr><td>Comments</td><td><span class="status s-built">Built</span></td><td>Approved comments with their date, author and thread, moderated comment form with Turnstile. Not yet run on a real site with comments.</td></tr>
@@ -544,7 +546,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 						<tr><td>Redirects, old URLs</td><td><span class="status s-ok">Supported</span></td><td>Redirection, Rank Math and Yoast redirects imported; <code>?p=</code>, <code>?page_id=</code>, upload, feed, search and archive URLs answered by a per-site rule set.</td></tr>
 						<tr><td>Settings, site code</td><td><span class="status s-ok">Supported</span></td><td>EmDash settings prefilled from WordPress; tracking, chat and review widgets recognised from 46 known providers. Unknown code is never carried automatically.</td></tr>
 						<tr><td>Header, menus, popups</td><td><span class="status s-ok">Supported</span></td><td>Header layout and burger-menu motion measured from the live site; popups with their triggers; announcement bars as an editable site part.</td></tr>
-						<tr><td>Divi, shops, memberships</td><td><span class="status s-no">Not yet</span></td><td>Detected by the audit, which stops for a decision.</td></tr>
+						<tr><td>Shops, memberships, other builders</td><td><span class="status s-no">Not yet</span></td><td>Shops and memberships are detected by the audit, which stops for a decision; Beaver Builder, Oxygen and similar have no adapter yet.</td></tr>
 					</tbody>
 				</table>
 			</div>
