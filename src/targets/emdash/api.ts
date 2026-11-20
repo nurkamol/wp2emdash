@@ -269,6 +269,37 @@ export class EmDashApi {
 		const r = await this.request<{ item?: { id: string }; id?: string }>("POST", `/menus/${encodeURIComponent(menu)}/items`, item);
 		return { id: r.item?.id ?? (r.id as string) };
 	}
+	// ── widget areas (EmDash 1.5 /_emdash/api/widget-areas: GET content:read, WRITE content:write + widgets:manage role) ──
+	async widgetAreas(): Promise<{ name: string; widgets?: unknown[] }[]> {
+		return (await this.request<{ items: { name: string; widgets?: unknown[] }[] }>("GET", "/widget-areas")).items;
+	}
+	async createWidgetArea(input: { name: string; label: string; description?: string }): Promise<void> {
+		await this.request("POST", "/widget-areas", input);
+	}
+	async deleteWidgetArea(name: string): Promise<void> {
+		await this.request("DELETE", `/widget-areas/${encodeURIComponent(name)}`);
+	}
+	async createWidget(area: string, widget: { type: string; title?: string; content?: unknown[]; menuName?: string; componentId?: string; componentProps?: Record<string, unknown> }): Promise<void> {
+		await this.request("POST", `/widget-areas/${encodeURIComponent(area)}/widgets`, widget);
+	}
+
+	// ── search (fields marked searchable + POST /search/enable, admin scope) ──
+	async collectionFields(collection: string): Promise<{ slug: string; type: string; searchable?: boolean; validation?: unknown }[]> {
+		const r = await this.request<{ item?: { fields?: { slug: string; type: string; searchable?: boolean; validation?: unknown }[] }; fields?: never[] }>("GET", `/schema/collections/${encodeURIComponent(collection)}?includeFields=true`);
+		return r.item?.fields ?? r.fields ?? [];
+	}
+	/** `validation` is required by the field update body (nullable): the field's own value is sent back unchanged. */
+	async updateField(collection: string, field: string, input: { searchable?: boolean; validation: unknown }): Promise<void> {
+		await this.request("PUT", `/schema/collections/${encodeURIComponent(collection)}/fields/${encodeURIComponent(field)}`, input);
+	}
+	/** Collections with full-text search on (GET /search/stats, admin scope). */
+	async searchStats(): Promise<Record<string, { indexed: number }>> {
+		return (await this.request<{ collections?: Record<string, { indexed: number }> }>("GET", "/search/stats")).collections ?? {};
+	}
+	async enableSearch(collection: string): Promise<void> {
+		await this.request("POST", "/search/enable", { collection, enabled: true });
+	}
+
 	async settings(): Promise<Record<string, unknown>> {
 		return this.request("GET", "/settings");
 	}

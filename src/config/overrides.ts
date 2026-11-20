@@ -109,6 +109,12 @@ export const overridesSchema = z.object({
 		})
 		.refine((c) => (c.migrate === undefined && c.form === undefined) || !!c.reason, { message: "give the owner's reason (comments.reason) for comments.migrate / comments.form" })
 		.optional(),
+	/**
+	 * Classic-theme widgets the kit has no mapping for (coverage report → "Widgets", ids like `calendar-2`): html = keep
+	 * the widget's rendered HTML as a content widget in the same EmDash widget area; skip = not carried (the owner's
+	 * choice). Unknown widgets without a decision fail the transform gate `widgets-handled`.
+	 */
+	widgets: z.record(z.string(), z.enum(["html", "skip"])).default({}),
 });
 
 function decision<T extends string>(values: [T, ...T[]]) {

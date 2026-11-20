@@ -1,0 +1,122 @@
+---
+/**
+ * Site search at /search/?q=… (WordPress's /?s= and /search/<terms>/ are sent here by the middleware's WordPress-URL
+ * rules). EmDash's full-text search (`search()`, FTS5) over every collection with search on: pages (title), posts (title,
+ * excerpt, body) and custom post type collections; plus the pages whose sections contain every word (EmDash 1.5 cannot
+ * index a blocks field: utils/search.ts). Results: title, type, an excerpt with the matched words marked, numbered pages.
+ * A migrated WordPress page at /search/ shows above the form.
+ *
+ * Route cache: a results page is never kept (every query differs); the empty form is cached like any page.
+ */
+import { getEmDashCollection, getEmDashEntry, getSeoMeta, search } from "emdash";
+import Base from "../layouts/Base.astro";
+import Sections from "../components/Sections.astro";
+import site from "../site.config.json";
+import { cachePage, noCache } from "../utils/cache";
+import { cacheChrome, loadChrome } from "../utils/chrome";
+import { collectionsConfig } from "../utils/collections-data";
+import { highlight, mergeHits, textOf, resultExcerpt, resultHref, SEARCH_MAX_PAGE, SEARCH_PAGE_SCAN, SEARCH_PER_PAGE, searchHref, searchParams } from "../utils/search";
+
+const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
+const { q, page } = searchParams(Astro.url);
+const [chrome, intro] = await Promise.all([loadChrome(), getEmDashEntry("pages", "search")]);
+
+type Result = { title: string; href: string; type: string; excerpt: string };
+let results: Result[] = [];
+let hasMore = false;
+let unavailable = false;
+if (q) {
+	noCache(Astro.cache);
+	try {
+		// EmDash pages the merged, ranked results by offset: ask for every row up to this page and keep the last page.
+		const [r, published] = await Promise.all([search(q, { limit: SEARCH_PER_PAGE * page + 1 }).catch(() => ({ items: [], nextCursor: undefined })), getEmDashCollection("pages", { status: "published", limit: SEARCH_PAGE_SCAN })]);
+		const pageData = new Map(published.entries.map((e) => [e.id, e as unknown as { id: string; data: Record<string, unknown> }]));
+		const merged = mergeHits(r.items, [...pageData.values()].map((e) => ({ slug: e.id, title: String(e.data.title ?? ""), text: textOf(e.data.content) })), q);
+		const items = merged.slice(SEARCH_PER_PAGE * (page - 1), SEARCH_PER_PAGE * page);
+		hasMore = (merged.length > SEARCH_PER_PAGE * page || !!r.nextCursor) && page < SEARCH_MAX_PAGE;
+		const label = (c: string) => (c === "pages" ? "Page" : c === "posts" ? "Post" : (collectionsConfig.find((x) => x.slug === c)?.labelSingular ?? c));
+		results = await Promise.all(
+			items.map(async (it) => {
+				const entry = it.collection === "pages" && it.slug && pageData.has(it.slug) ? pageData.get(it.slug) : (await getEmDashEntry(it.collection, it.slug ?? it.id ?? "")).entry;
+				const data = (entry?.data ?? {}) as Record<string, unknown>;
+				const seo = entry ? getSeoMeta(entry as never, { siteUrl: Astro.url.origin, path: resultHref(it.slug, style) }) : undefined;
+				return { title: String(data.title ?? it.title ?? it.slug ?? ""), href: resultHref(it.slug, style), type: label(it.collection), excerpt: resultExcerpt(data, q, seo?.description) };
+			}),
+		);
+	} catch {
+		unavailable = true;
+	}
+} else {
+	cachePage(Astro.cache);
+	cacheChrome(Astro.cache, chrome);
+	if (Astro.cache?.enabled && intro.cacheHint) Astro.cache.set(intro.cacheHint);
+}
+const introBlocks = ((intro.entry?.data as { content?: unknown[] } | undefined)?.content ?? []) as any[];
+const heading = q ? `Search results for “${q}”` : "Search";
+const status = !q ? "" : unavailable ? "Search is not available right now. Please try again in a moment." : results.length ? `${page > 1 ? `Page ${page}: ` : ""}${results.length}${hasMore ? "+" : ""} result${results.length === 1 && !hasMore ? "" : "s"}` : `No results for “${q}”.`;
+---
+
+<Base chrome={chrome} title={q ? heading : "Search"} pageTitle={q ? heading : "Search"} robots="noindex, follow" canonical={`${site.productionUrl.replace(/\/$/, "")}${style === "never" ? "/search" : "/search/"}`}>
+	{introBlocks.length > 0 && <Sections value={introBlocks} />}
+	<section class="section space-normal site-search">
+		<div class="container">
+			<h1 class="heading heading--h1">{heading}</h1>
+			<form class="site-search__form" role="search" method="get" action={style === "never" ? "/search" : "/search/"}>
+				<label for="site-search-q" class="site-search__label">Search this site</label>
+				<div class="site-search__row">
+					<input id="site-search-q" class="site-search__input" type="search" name="q" value={q} required maxlength="200" autocomplete="off" enterkeyhint="search" />
+					<button class="btn btn--primary" type="submit">Search</button>
+				</div>
+			</form>
+			<p class="site-search__status" role="status" aria-live="polite">{status}</p>
+			{
+				results.length > 0 && (
+					<ol class="site-search__results" role="list">
+						{results.map((r) => (
+							<li class="site-search__result">
+								<p class="site-search__type">{r.type}</p>
+								<h2 class="site-search__title">
+									<a href={r.href} set:html={highlight(r.title, q)} />
+								</h2>
+								{r.excerpt && <p class="site-search__excerpt" set:html={highlight(r.excerpt, q)} />}
+							</li>
+						))}
+					</ol>
+				)
+			}
+			{
+				q && !unavailable && !results.length && (
+					<div class="site-search__empty">
+						<p>Check the spelling, try fewer or more general words, or go to the <a href="/">home page</a>.</p>
+					</div>
+				)
+			}
+			{
+				(page > 1 || hasMore) && (
+					<nav class="pagination" aria-label="Search result pages">
+						{page > 1 ? <a class="btn btn--secondary" rel="prev" href={searchHref(q, page - 1, style)}>Previous results</a> : <span />}
+						<span class="pagination__current">Page {page}</span>
+						{hasMore ? <a class="btn btn--secondary" rel="next" href={searchHref(q, page + 1, style)}>More results</a> : <span />}
+					</nav>
+				)
+			}
+		</div>
+	</section>
+</Base>
+
+<style>
+	.site-search__form { margin-top: 1.5rem; max-width: 40rem; }
+	.site-search__label { display: block; font-weight: 600; margin-bottom: 0.5rem; }
+	.site-search__row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+	.site-search__input { flex: 1 1 16rem; min-width: 0; font: inherit; padding: 0.7em 0.9em; border: 1px solid currentColor; border-radius: var(--radius, 6px); background: transparent; color: inherit; }
+	.site-search__input:focus-visible { outline: 2px solid var(--color-accent, currentColor); outline-offset: 2px; }
+	.site-search__status { margin-top: 1.5rem; opacity: 0.85; }
+	.site-search__status:empty { display: none; }
+	.site-search__results { list-style: none; padding: 0; margin: 1.5rem 0 0; display: grid; gap: 1.75rem; max-width: 48rem; }
+	.site-search__type { font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; margin: 0; }
+	.site-search__title { font-size: 1.3em; margin: 0.15rem 0 0.35rem; }
+	.site-search__excerpt { margin: 0; opacity: 0.9; }
+	.site-search__results :global(mark) { background: color-mix(in srgb, var(--color-accent, #ffd54a) 30%, transparent); color: inherit; padding: 0 0.1em; }
+	.site-search__empty { margin-top: 1rem; }
+	.pagination { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: clamp(2rem, 5vw, 4rem); max-width: 48rem; }
+</style>

@@ -22,6 +22,7 @@ import Entry from "../components/collections/Entry.astro";
 import { collectionRoute } from "../utils/collections";
 import { cacheCollections, type CollectionEntry, collectionsConfig, findEntry, listEntries, termOf as collectionTermOf } from "../utils/collections-data";
 import Comments from "../components/comments/Comments.astro";
+import { ancestorSlugs, type BreadcrumbsConfig, type Crumb, pageTrail, postTrail } from "../utils/breadcrumbs";
 
 const raw = Astro.params.slug ? decodeSlug(Astro.params.slug) : "home";
 const slug = raw || "home";
@@ -156,11 +157,23 @@ const first = blocks[0];
 // the page below it, as on the source site.
 const overHero = first?._type === "section_hero" && (first.bg_image || first.bg_video) && (site as { header?: { transparentOnTop?: boolean } }).header?.transparentOnTop !== false;
 const byline = post?.data.bylines?.[0]?.byline as { displayName?: string } | undefined;
+// Visible breadcrumbs, only when the old site showed them (site.config.json `breadcrumbs`); the structured data follows them.
+const crumbCfg = (site as { breadcrumbs?: BreadcrumbsConfig }).breadcrumbs;
+let trail: Crumb[] | undefined;
+const titleOf = async (s: string) => ((await getEmDashEntry("pages", s)).entry?.data as { title?: string } | undefined)?.title;
+if (crumbCfg?.pages && page && slug !== "home") {
+	const titles = new Map<string, string>();
+	for (const [a, t] of await Promise.all(ancestorSlugs(slug).map(async (a) => [a, await titleOf(a)] as const))) if (t) titles.set(a, t);
+	trail = pageTrail(slug, String(data.title ?? ""), titles, crumbCfg, style);
+} else if (crumbCfg?.posts && post) {
+	const indexSlug = blog ? blog.index.replace(/^\/+|\/+$/g, "") : "";
+	trail = postTrail(String(data.title ?? ""), blog ? { index: blog.index, ...(indexSlug ? { title: await titleOf(indexSlug) } : {}) } : undefined, crumbCfg, style);
+}
 ---
 
 {
 	listing ? (
-		<Base chrome={chrome} title={seo?.title ?? (listing.page > 1 ? `${listing.title} – Page ${listing.page}` : listing.title)} pageTitle={listing.title} description={seo?.description ?? listing.description} canonical={`${site.productionUrl.replace(/\/$/, "")}${listing.canonicalPath}`} feeds={route?.kind === "index" ? [] : [{ title: listing.feedTitle, href: feedHref(listing.listing, style) }]}>
+		<Base chrome={chrome} title={seo?.title ?? (listing.page > 1 ? `${listing.title} – Page ${listing.page}` : listing.title)} pageTitle={listing.title} description={seo?.description ?? listing.description} canonical={`${site.productionUrl.replace(/\/$/, "")}${listing.canonicalPath}`} sidebar feeds={route?.kind === "index" ? [] : [{ title: listing.feedTitle, href: feedHref(listing.listing, style) }]}>
 			<Listing heading={listing.heading} intro={listing.intro} eyebrow={listing.eyebrow} posts={listing.posts} listing={listing.listing} page={listing.page} hasMore={listing.hasMore} avatar={listing.avatar} />
 		</Base>
 	) : archive ? (
@@ -172,11 +185,11 @@ const byline = post?.data.bylines?.[0]?.byline as { displayName?: string } | und
 			<Entry collection={found.collection} entry={found.entry} edit={found.entry.edit ?? {}} />
 		</Base>
 	) : post ? (
-		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || autoExcerpt(ptText(data.body), 30) || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "posts", id: data.id, slug: post.id }} article={{ publishedTime: data.publishedAt ? new Date(data.publishedAt).toISOString() : null, modifiedTime: data.updatedAt ? new Date(data.updatedAt).toISOString() : null, author: byline?.displayName ?? null }}>
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || autoExcerpt(ptText(data.body), 30) || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "posts", id: data.id, slug: post.id }} sidebar breadcrumbs={trail} article={{ publishedTime: data.publishedAt ? new Date(data.publishedAt).toISOString() : null, modifiedTime: data.updatedAt ? new Date(data.updatedAt).toISOString() : null, author: byline?.displayName ?? null }}>
 			<Single post={post} edit={post.edit ?? {}} older={older} newer={newer} related={related} />
 		</Base>
 	) : (
-		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "pages", id: data.id, slug: entry.id }} overHero={!!overHero}>
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "pages", id: data.id, slug: entry.id }} overHero={!!overHero} breadcrumbs={trail}>
 			{
 				blocks.length ? (
 					<div {...entry.edit.content}><Sections value={blocks} leadImage /></div>

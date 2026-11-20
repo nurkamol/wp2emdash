@@ -8,6 +8,8 @@ import { BLOCK_TYPES, SECTION_SLUGS } from "../starter/library.js";
 import { blockKey, type MediaResolver, sectionToBlock } from "../targets/emdash/blocks.js";
 import type { BlogPlan } from "../transform/blog.js";
 import { type CptPlan, collectionFields } from "../transform/cpt.js";
+import { emdashMenuLabel, emdashMenuNames } from "../transform/menus.js";
+import type { WidgetPlan } from "../transform/widgets.js";
 import type { FormDefinitionOut } from "./forms.js";
 
 export interface MediaInfo {
@@ -15,6 +17,9 @@ export interface MediaInfo {
 	url: string;
 	alt?: string;
 }
+
+/** Fields of `pages` in EmDash's full-text index (seeded; load marks them on sites set up before the search page). Blocks fields cannot be searchable in EmDash 1.5. */
+export const PAGES_SEARCHABLE = ["title"];
 
 /** Page route → EmDash slug: "/" → "home", "/a/b/" → "a/b". */
 export const routeToSlug = (path: string) => path.replace(/^\/+|\/+$/g, "") || "home";
@@ -41,8 +46,22 @@ const blocksOf = (doc: IrPage, media: MediaResolver) => doc.sections.map((s, i) 
  * `button` draws a header button) and, for a button with a second label, the title attribute as its hover label.
  */
 export function menuItemExtras(i: IrMenuItem): { cssClasses?: string; titleAttr?: string } {
-	const classes = [i.opensPopup ? `popup-${i.opensPopup}` : "", i.button ? "button" : ""].filter(Boolean).join(" ");
-	return { ...(classes ? { cssClasses: classes } : {}), ...(i.button && i.hoverLabel ? { titleAttr: i.hoverLabel } : {}) };
+	// The kit's own classes first (what the header reads), then the item's own WordPress classes (kept for the editor);
+	// `mega`: a mega menu panel, its children shown as columns of links.
+	const classes = [...new Set([i.opensPopup ? `popup-${i.opensPopup}` : "", i.button ? "button" : "", i.mega ? "mega" : "", ...(i.classes ?? [])].filter(Boolean))].join(" ");
+	const title = i.button && i.hoverLabel ? i.hoverLabel : i.titleAttr;
+	return { ...(classes ? { cssClasses: classes } : {}), ...(title ? { titleAttr: title } : {}) };
+}
+
+/** The EmDash menus to write: the three header roles (always, empty when the site has none) and every other WordPress menu by its own name. */
+export function emdashMenus(site: IrSite): { name: string; label: string; items: IrMenuItem[] }[] {
+	const names = emdashMenuNames(site.menus);
+	const roles = (["primary", "secondary", "footer"] as const).map((role) => {
+		const at = names.indexOf(role);
+		return { name: role, label: emdashMenuLabel(role), items: at >= 0 ? (site.menus[at]?.items ?? []) : [] };
+	});
+	const others = site.menus.flatMap((m, at) => (["primary", "secondary", "footer"].includes(names[at] as string) ? [] : [{ name: names[at] as string, label: emdashMenuLabel(names[at] as string, m), items: m.items }]));
+	return [...roles, ...others];
 }
 
 /**
@@ -90,6 +109,20 @@ export interface SeedInput {
 	collections?: { plan: CptPlan; entries: IrPage[] };
 	/** WordPress comments (ir/comments.json): collections whose comment form is on get commentsEnabled and the "Comments closed" field. */
 	comments?: { form: string[] };
+	/** Classic-theme widget areas (ir/widgets.json). */
+	widgets?: WidgetPlan;
+}
+
+/** Seed widget areas (EmDash seed `widgetAreas`: content widgets carry Portable Text, images at their WordPress file for the local preview). */
+export function seedWidgetAreas(plan: WidgetPlan, media: MediaResolver): unknown[] {
+	return plan.areas
+		.filter((a) => a.widgets.length)
+		.map((a) => ({
+			name: a.name,
+			label: a.label,
+			...(a.description ? { description: a.description } : {}),
+			widgets: a.widgets.map((w) => ({ type: w.type, ...(w.title ? { title: w.title } : {}), ...(w.type === "content" ? { content: seedPostBody(w.content ?? [], media) } : {}), ...(w.menuName ? { menuName: w.menuName } : {}), ...(w.componentId ? { componentId: w.componentId, props: w.props ?? {} } : {}) })),
+		}));
 }
 
 /** Per-entry "closed to new comments" (WordPress comment_status "closed"): the starter hides the form, the middleware refuses new comments. */
@@ -141,10 +174,7 @@ const bylineId = (slug: string) => `byline:${slug}`;
 export function buildSeed(i: SeedInput): Record<string, unknown> {
 	dropLog = i.onDrop ?? (() => {});
 	const content = { slug: "content", label: "Sections", type: "blocks", validation: { allowedTypes: SECTION_SLUGS, maxItems: 80 } };
-	const menus = (["primary", "secondary", "footer"] as const).map((role) => {
-		const m = i.site.menus.find((x) => x.role === role);
-		return { name: role, label: `${role[0]?.toUpperCase()}${role.slice(1)} navigation`, items: m ? menuItems(m.items) : [] };
-	});
+	const menus = emdashMenus(i.site).map((m) => ({ ...m, items: menuItems(m.items) }));
 	const seed: Record<string, unknown> = {
 		$schema: "https://emdashcms.com/seed.schema.json",
 		version: "1",
@@ -152,7 +182,8 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 		settings: { title: i.site.title, ...(i.site.tagline ? { tagline: i.site.tagline } : {}), staging: true, seo: { titleSeparator: i.titleSeparator } },
 		blockTypes: BLOCK_TYPES,
 		collections: [
-			{ slug: "pages", label: "Pages", labelSingular: "Page", urlPattern: "/{slug}", supports: ["drafts", "revisions", "preview", "seo", "search"], sortOrder: 1, fields: [{ slug: "title", label: "Title", type: "string", required: true }, content] },
+			// Title searchable: EmDash's full-text index (EmDash 1.5 refuses searchable blocks fields; the search page reads the sections itself).
+			{ slug: "pages", label: "Pages", labelSingular: "Page", urlPattern: "/{slug}", supports: ["drafts", "revisions", "preview", "seo", "search"], sortOrder: 1, fields: [{ slug: "title", label: "Title", type: "string", required: true, searchable: true }, content] },
 			{ slug: "site_parts", label: "Header & footer", labelSingular: "Site part", description: "Shown on every page: the announcement bar above the header (entry “announcement”) and the footer", routable: false, supports: ["drafts", "revisions"], sortOrder: 2, fields: [{ slug: "title", label: "Title", type: "string", required: true }, content] },
 			{
 				slug: "popups",
@@ -172,6 +203,8 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 		],
 		menus,
 	};
+	// Classic-theme widget areas (ir/widgets.json): only sites that had widgets get the seed key.
+	if (i.widgets?.areas.some((a) => a.widgets.length)) seed.widgetAreas = seedWidgetAreas(i.widgets, i.media);
 	// Blog sites only: a brochure site's seed (and admin) stays exactly as before.
 	if (i.blog) {
 		const cols = seed.collections as { slug: string; sortOrder?: number }[];

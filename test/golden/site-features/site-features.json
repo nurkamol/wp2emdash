@@ -1,0 +1,11 @@
+{
+	"headerSearch": true,
+	"breadcrumbs": {
+		"source": "rank-math",
+		"pages": true,
+		"posts": true,
+		"home": "Start"
+	},
+	"notFound": "rebuilt",
+	"maintenance": "LightStart (WP Maintenance Mode)"
+}

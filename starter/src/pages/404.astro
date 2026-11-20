@@ -1,16 +1,32 @@
 ---
+/**
+ * Not found. When the old site's 404 page had its own text, the migration rebuilt it as the site part "not-found"
+ * (Header & footer → not-found, editable); otherwise the starter's own wording. EmDash logs every 404 (its 404 log,
+ * Redirects in the admin); Site health lists the most frequent ones each week with suggested redirects.
+ */
+import { getEmDashEntry } from "emdash";
 import Base from "../layouts/Base.astro";
+import Sections from "../components/Sections.astro";
 import { noCache } from "../utils/cache";
+import { loadChrome } from "../utils/chrome";
 Astro.response.status = 404;
 noCache(Astro.cache);
+const [chrome, part] = await Promise.all([loadChrome(), getEmDashEntry("site_parts", "not-found").catch(() => ({ entry: undefined }))]);
+const blocks = ((part.entry?.data as { content?: unknown[] } | undefined)?.content ?? []) as any[];
 ---
 
-<Base title="Page not found" robots="noindex">
-	<section class="section space-spacious">
-		<div class="container">
-			<h1 class="heading heading--h1">Page not found</h1>
-			<p class="lead">The page you are looking for has moved or no longer exists.</p>
-			<div class="actions"><a class="btn btn--primary" href="/">Go to the home page</a></div>
-		</div>
-	</section>
+<Base chrome={chrome} title="Page not found" robots="noindex">
+	{
+		blocks.length ? (
+			<Sections value={blocks} />
+		) : (
+			<section class="section space-spacious">
+				<div class="container">
+					<h1 class="heading heading--h1">Page not found</h1>
+					<p class="lead">The page you are looking for has moved or no longer exists.</p>
+					<div class="actions"><a class="btn btn--primary" href="/">Go to the home page</a></div>
+				</div>
+			</section>
+		)
+	}
 </Base>

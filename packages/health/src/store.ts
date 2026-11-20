@@ -16,7 +16,7 @@ export interface Kv {
 }
 
 // New checks go at the end: each history row stores the day's statuses by position.
-export const CHECK_IDS = ["uptime", "indexability", "forms", "links", "dns", "ssl", "speed", "analytics", "backups", "media"] as const;
+export const CHECK_IDS = ["uptime", "indexability", "forms", "links", "dns", "ssl", "speed", "analytics", "backups", "media", "notfound"] as const;
 export type CheckId = (typeof CHECK_IDS)[number];
 export type Status = "ok" | "warn" | "fail" | "off" | "unknown";
 
@@ -31,6 +31,7 @@ export const CHECK_LABELS: Record<CheckId, string> = {
 	analytics: "Analytics tags",
 	backups: "Backups",
 	media: "Media",
+	notfound: "Missing pages (404)",
 };
 
 export interface CheckState {
@@ -161,6 +162,10 @@ export const KEYS = {
 	settings: "settings",
 	lock: "lock",
 	reports: "reports",
+	/** The week's most requested missing addresses with suggested redirects (checks/notfound.ts). */
+	notFound: "notfound",
+	/** Coming-soon mode (the starter's middleware reads this row: `plugin:site-health:maintenance`). */
+	maintenance: "maintenance",
 	report: (month: string) => `report:${month}`,
 	download: (token: string) => `dl:${token}`,
 } as const;

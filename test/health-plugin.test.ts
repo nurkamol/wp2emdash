@@ -84,8 +84,8 @@ describe("Site health plugin", () => {
 		const overview = tab(r, "Overview");
 		expect(overview[0]).toMatchObject({ type: "banner", title: "Healthy" });
 		const table = overview.find((b) => b.block_id === "checks");
-		expect(table?.rows.map((x: B) => x.check)).toEqual(["Uptime", "Search engines", "Form messages", "Broken links", "Email DNS records", "Security certificate", "Speed", "Analytics tags", "Backups", "Media"]);
-		expect(tabs(r).map((p) => p.label)).toEqual(["Overview", "Incidents", "Broken links", "Speed", "Reports", "Settings"]);
+		expect(table?.rows.map((x: B) => x.check)).toEqual(["Uptime", "Search engines", "Form messages", "Broken links", "Email DNS records", "Security certificate", "Speed", "Analytics tags", "Backups", "Media", "Missing pages (404)"]);
+		expect(tabs(r).map((p) => p.label)).toEqual(["Overview", "Incidents", "Broken links", "Missing pages", "Speed", "Reports", "Settings"]);
 		const w = await call({}, 50, { ui: { surface: "dashboard-widget" } });
 		expect(w.blocks[0]).toMatchObject({ type: "banner", title: "Healthy" });
 	});

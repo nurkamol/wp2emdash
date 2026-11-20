@@ -7,18 +7,35 @@
  */
 import type { AstroGlobal } from "astro";
 import { CACHE_TAG as ANALYTICS_TAG } from "@wp2emdash/seo/analytics/store";
-import { getEmDashCollection, getEmDashEntry, getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
+import { getEmDashCollection, getEmDashEntry, getMenuWithCacheHint, getSiteSettingsWithCacheHint, getWidgetAreaWithCacheHint } from "emdash";
+import site from "../site.config.json";
+
+/** Where the old theme showed widget areas (site.config.json `widgetAreas`, from the migration) and whether a classic footer menu is shown. */
+const areasConfig = (site as { widgetAreas?: { footer?: string[]; sidebar?: string[] } }).widgetAreas;
+const footerMenuOn = (site as { footerMenu?: boolean }).footerMenu === true;
+
+type Areas = Awaited<ReturnType<typeof getWidgetAreaWithCacheHint>>["data"][];
+
+/** The widget areas a site part shows, in order, with one cache hint for all of them. */
+async function loadAreas(names: string[]): Promise<{ data: Areas; cacheHint: { tags?: string[] } }> {
+	const all = await Promise.all(names.map((n) => getWidgetAreaWithCacheHint(n)));
+	return { data: all.map((a) => a.data), cacheHint: { tags: all.flatMap((a) => a.cacheHint.tags ?? []) } };
+}
 
 export async function loadChrome() {
-	const [settings, primary, secondary, footer, popups, announcementPart] = await Promise.all([
+	const [settings, primary, secondary, footer, popups, announcementPart, footerWidgets, sidebar, footerMenu] = await Promise.all([
 		getSiteSettingsWithCacheHint(),
 		getMenuWithCacheHint("primary"),
 		getMenuWithCacheHint("secondary"),
 		getEmDashEntry("site_parts", "footer"),
 		getEmDashCollection("popups", { status: "published" }),
 		getEmDashEntry("site_parts", "announcement"),
+		areasConfig?.footer?.length ? loadAreas(areasConfig.footer) : undefined,
+		areasConfig?.sidebar?.length ? loadAreas(areasConfig.sidebar) : undefined,
+		footerMenuOn ? getMenuWithCacheHint("footer") : undefined,
 	]);
-	return { settings, primary, secondary, footer, popups, announcementPart };
+	// Optional parts only when the site has them: a brochure site's chrome (and its cache tags) is unchanged.
+	return { settings, primary, secondary, footer, popups, announcementPart, ...(footerWidgets ? { footerWidgets } : {}), ...(sidebar ? { sidebar } : {}), ...(footerMenu ? { footerMenu } : {}) };
 }
 export type Chrome = Awaited<ReturnType<typeof loadChrome>>;
 
@@ -44,7 +61,7 @@ export function announcementState(chrome: Chrome, now = Date.now()) {
  */
 export function cacheChrome(cache: AstroGlobal["cache"] | undefined, chrome: Chrome, now = Date.now()): void {
 	if (!cache?.enabled) return;
-	for (const r of Object.values(chrome)) cache.set(r.cacheHint);
+	for (const r of Object.values(chrome)) if (r?.cacheHint) cache.set(r.cacheHint);
 	cache.set({ tags: [ANALYTICS_TAG] });
 	const next = announcementState(chrome, now).nextChange;
 	const maxAge = cache.options.maxAge;

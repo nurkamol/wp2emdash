@@ -142,14 +142,16 @@ the real domain, sign in there with a magic link and add a new passkey in **Sett
 
 | Scope | Why |
 |---|---|
-| `content:read`, `content:write` | Create, update and publish pages, footer, popups |
+| `content:read`, `content:write` | Create, update and publish pages, footer, popups; widget areas (classic-theme sites) |
 | `media:read`, `media:write` | Find existing media by hash, upload the rest |
 | `schema:read`, `schema:write` | Check the section library and update it on the site when the kit's section types gain fields |
 | `menus:manage` | Write the navigation menus |
 | `settings:read`, `settings:manage` | Site title, tagline, title separator, staging flag, Site URL |
 
-It does not need the transfer scopes. It needs `admin` only for a site with a blog: EmDash 1.5 serves bylines under
-`/_emdash/api/admin/bylines`, so load cannot create the authors' bylines without it (its `bylines` check says so).
+It does not need the transfer scopes. It needs `admin` for the site search (EmDash 1.5 switches full-text search on
+through `/_emdash/api/search/enable` and reads `/search/stats`, both admin only: load's `search` check says so) and for a
+site with a blog (bylines live under `/_emdash/api/admin/bylines`; the `bylines` check says so). A site set up from the
+seed already has search on for its pages; the check then only reads the stats.
 A site with WordPress comments needs it too: the comments import route (`/_emdash/api/plugins/wp2emdash-comments`)
 and EmDash's comment moderation (`/_emdash/api/admin/comments`) are admin-scope routes (docs/spikes/comments-findings.md).
 `content:write` also covers taxonomies and terms, and publishing posts with their WordPress date works because the

@@ -1,0 +1,89 @@
+[
+	{
+		"name": "Main",
+		"role": "primary",
+		"wpLocations": [
+			"primary"
+		],
+		"items": [
+			{
+				"label": "About",
+				"href": "/about/",
+				"titleAttr": "About the studio",
+				"description": "Who we are",
+				"children": []
+			},
+			{
+				"label": "Services",
+				"href": "/services/",
+				"classes": [
+					"megamenu",
+					"columns-2"
+				],
+				"mega": true,
+				"children": [
+					{
+						"label": "Body",
+						"href": "/services/body/",
+						"children": [
+							{
+								"label": "Massage",
+								"href": "/services/body/massage/",
+								"children": []
+							}
+						]
+					},
+					{
+						"label": "Mind",
+						"href": "/services/mind/",
+						"children": [
+							{
+								"label": "Counselling",
+								"href": "/services/mind/counselling/",
+								"children": []
+							}
+						]
+					}
+				]
+			},
+			{
+				"label": "Shop",
+				"href": "https://shop.example.com/",
+				"newTab": true,
+				"classes": [
+					"external-link"
+				],
+				"children": []
+			}
+		]
+	},
+	{
+		"name": "Footer links",
+		"role": "footer",
+		"wpLocations": [
+			"footer"
+		],
+		"items": [
+			{
+				"label": "Privacy",
+				"href": "/privacy/",
+				"children": []
+			}
+		]
+	},
+	{
+		"name": "Social",
+		"role": "other",
+		"wpLocations": [
+			"social"
+		],
+		"items": [
+			{
+				"label": "Instagram",
+				"href": "https://instagram.com/example",
+				"newTab": true,
+				"children": []
+			}
+		]
+	}
+]

@@ -175,7 +175,15 @@ const healthGuide = (h: ClientRepoInput["health"], productionUrl: string) =>
   SEO & Analytics.
 - **Incidents**: when the site or a page failed two checks in a row (5 minutes apart), and when it answered again.
 - **Broken links**: the link, its answer and the pages that link to it — fix it in the page editor.
+- **Missing pages**: the addresses visitors asked for this week that do not exist, most requested first, each with a
+  suggested page to send them to — add it under **Redirects** (old address → suggested page), or fix the link that
+  sent people there. Requests for WordPress login pages and similar bot probes are left out.
 - **Run checks now** re-checks everything except links (which continue in the background).
+
+**Coming-soon mode** (Site health → Settings): shows every visitor a holding page with your logo and a message of your
+own instead of the site — for example while it is being rebuilt — and tells search engines to come back later, so the
+site keeps its place in Google. You still see the site while you are signed in. It takes up to a minute to switch;
+switch it off on the same screen.
 
 **Emails.** When the site goes down and comes back, when new broken links appear, and when search-engine access, form
 email, the email DNS records, the certificate or the analytics tags start failing, an email goes to the alert
@@ -415,9 +423,10 @@ until you publish them, and every page keeps its earlier versions.
 | In the admin | What it holds |
 |---|---|
 | **Pages** | Every page, built from sections (below). Each page has its own SEO fields: title, description, social image. |
-| **Header & footer** | The footer's sections (shown on every page). |
+| **Header & footer** | The footer's sections (shown on every page); \`not-found\`, when there is one, is the text of the "page not found" page. |
 | **Popups** | Popups such as the booking window, and the buttons or links that open them. |
-| **Menus** | \`primary\` (main menu), \`secondary\` and \`footer\` links. A \`secondary\` item with the CSS class \`button\` is a header button; its title attribute is the label it swaps to on hover. |
+| **Menus** | \`primary\` (main menu), \`secondary\` and \`footer\` links, and every other menu the old site had (by its name). A \`secondary\` item with the CSS class \`button\` is a header button; its title attribute is the label it swaps to on hover. A main-menu item with the class \`mega\` shows its sub-items as columns of links. |
+| **Widgets** | Sidebar and footer widget areas, on sites whose old theme had them: text, menus, search and the blog's recent posts and categories, shown in the footer columns and next to blog posts. |
 ${i.blog ? `| **Posts** | Blog posts, with categories, tags and authors. See [writing-posts.md](writing-posts.md). |\n` : ""}${(i.collections ?? []).map((c) => `| **${c.label}** | ${c.labelSingular} entries${c.archive ? ` (listed at \`${c.archive}\`)` : ""}. See [editing-custom-content.md](editing-custom-content.md). |\n`).join("")}| **Media** | Images and videos. Upload in the library or straight from an image field. |
 | **Settings** | Site title, tagline, logo and favicon (**General**), social profiles (**Social Links**), title separator, default social image, Google/Bing verification and robots.txt (**SEO**). Filled in from the old site. |
 

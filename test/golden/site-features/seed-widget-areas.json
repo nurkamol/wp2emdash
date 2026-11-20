@@ -1,0 +1,201 @@
+[
+	{
+		"name": "sidebar-1",
+		"label": "Blog Sidebar",
+		"description": "Next to posts",
+		"widgets": [
+			{
+				"type": "component",
+				"title": "Search",
+				"componentId": "core:search",
+				"props": {
+					"placeholder": "Search…"
+				}
+			},
+			{
+				"type": "component",
+				"title": "Latest",
+				"componentId": "core:recent-posts",
+				"props": {
+					"count": 3,
+					"showDate": true,
+					"urlTemplate": "/:slug"
+				}
+			},
+			{
+				"type": "component",
+				"componentId": "core:categories",
+				"props": {
+					"showCount": true,
+					"hierarchical": true
+				}
+			},
+			{
+				"type": "component",
+				"title": "Find",
+				"componentId": "core:search",
+				"props": {
+					"placeholder": "Type a word"
+				}
+			},
+			{
+				"type": "content",
+				"title": "Calendar",
+				"content": [
+					{
+						"_type": "htmlBlock",
+						"_key": "wcalendar2_h",
+						"html": "<div id=\"calendar_wrap\"><table><caption>May 2024</caption></table></div>"
+					}
+				]
+			}
+		]
+	},
+	{
+		"name": "footer-1",
+		"label": "Footer 1",
+		"widgets": [
+			{
+				"type": "content",
+				"title": "About",
+				"content": [
+					{
+						"_type": "block",
+						"_key": "wtext2_5",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "wtext2_0",
+								"text": "We are a "
+							},
+							{
+								"_type": "span",
+								"_key": "wtext2_1",
+								"text": "movement studio",
+								"marks": [
+									"strong"
+								]
+							},
+							{
+								"_type": "span",
+								"_key": "wtext2_2",
+								"text": ". "
+							},
+							{
+								"_type": "span",
+								"_key": "wtext2_4",
+								"text": "Read more",
+								"marks": [
+									"wtext2_3"
+								]
+							}
+						],
+						"markDefs": [
+							{
+								"_type": "link",
+								"_key": "wtext2_3",
+								"href": "https://blog.example.test/about/"
+							}
+						]
+					},
+					{
+						"_type": "image",
+						"_key": "wtext2_6",
+						"asset": {
+							"_type": "reference",
+							"_ref": "https://blog.example.test/wp-content/uploads/2024/05/photo-300x200.jpg",
+							"url": "https://blog.example.test/wp-content/uploads/2024/05/photo.jpg"
+						},
+						"alt": "The studio"
+					}
+				]
+			},
+			{
+				"type": "menu",
+				"title": "Explore",
+				"menuName": "footer"
+			}
+		]
+	},
+	{
+		"name": "footer-2",
+		"label": "Footer 2",
+		"widgets": [
+			{
+				"type": "content",
+				"title": "Hours",
+				"content": [
+					{
+						"_type": "block",
+						"_key": "wcustomhtml3_1",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "wcustomhtml3_0",
+								"text": "Mon–Fri 9–5"
+							}
+						]
+					}
+				]
+			},
+			{
+				"type": "content",
+				"content": [
+					{
+						"_type": "block",
+						"_key": "wblock6_3",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "wblock6_0",
+								"text": "Call us: "
+							},
+							{
+								"_type": "span",
+								"_key": "wblock6_2",
+								"text": "555-0100",
+								"marks": [
+									"wblock6_1"
+								]
+							}
+						],
+						"markDefs": [
+							{
+								"_type": "link",
+								"_key": "wblock6_1",
+								"href": "tel:+15550100"
+							}
+						]
+					}
+				]
+			},
+			{
+				"type": "content",
+				"content": [
+					{
+						"_type": "image",
+						"_key": "wmediaimage2_0",
+						"asset": {
+							"_type": "reference",
+							"_ref": "32",
+							"url": "https://blog.example.test/wp-content/uploads/2024/06/team.jpg"
+						},
+						"alt": "Our team",
+						"caption": "The team"
+					}
+				]
+			},
+			{
+				"type": "component",
+				"title": "Tags",
+				"componentId": "core:tags",
+				"props": {
+					"showCount": false
+				}
+			}
+		]
+	}
+]

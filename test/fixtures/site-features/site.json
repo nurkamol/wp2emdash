@@ -1,0 +1,64 @@
+{
+	"$comment": "Synthetic classic-theme site features layered on test/fixtures/blog: menus (three levels, a mega panel, footer and social menus), REST menu-item extras, widget areas (wp/v2/sidebars + wp/v2/widgets), audited HTML (header search, breadcrumbs, where widgets show) and a customised 404 page.",
+	"menus": [
+		{
+			"id": 10,
+			"name": "Main",
+			"locations": ["primary"],
+			"items": [
+				{ "id": 100, "parent_id": null, "sort_order": 1, "type": "post_type", "object": "page", "object_id": 3, "url": "https://blog.example.test/about/", "title": "About", "target": "", "classes": null },
+				{ "id": 101, "parent_id": null, "sort_order": 2, "type": "custom", "object": "custom", "object_id": 101, "url": "https://blog.example.test/services/", "title": "Services", "target": "", "classes": ["megamenu", "columns-2", "menu-item-has-children"] },
+				{ "id": 102, "parent_id": 101, "sort_order": 1, "type": "custom", "object": "custom", "object_id": 102, "url": "https://blog.example.test/services/body/", "title": "Body", "target": "", "classes": null },
+				{ "id": 103, "parent_id": 102, "sort_order": 1, "type": "custom", "object": "custom", "object_id": 103, "url": "https://blog.example.test/services/body/massage/", "title": "Massage", "target": "", "classes": null },
+				{ "id": 104, "parent_id": 101, "sort_order": 2, "type": "custom", "object": "custom", "object_id": 104, "url": "https://blog.example.test/services/mind/", "title": "Mind", "target": "", "classes": null },
+				{ "id": 105, "parent_id": 104, "sort_order": 1, "type": "custom", "object": "custom", "object_id": 105, "url": "https://blog.example.test/services/mind/counselling/", "title": "Counselling", "target": "", "classes": null },
+				{ "id": 106, "parent_id": null, "sort_order": 3, "type": "custom", "object": "custom", "object_id": 106, "url": "https://shop.example.com/", "title": "Shop", "target": "_blank", "classes": "external-link" }
+			]
+		},
+		{
+			"id": 12,
+			"name": "Footer links",
+			"locations": ["footer"],
+			"items": [{ "id": 120, "parent_id": null, "sort_order": 1, "type": "custom", "object": "custom", "object_id": 120, "url": "https://blog.example.test/privacy/", "title": "Privacy", "target": "", "classes": null }]
+		},
+		{
+			"id": 13,
+			"name": "Social",
+			"locations": ["social"],
+			"items": [{ "id": 130, "parent_id": null, "sort_order": 1, "type": "custom", "object": "custom", "object_id": 130, "url": "https://instagram.com/example", "title": "Instagram", "target": "_blank", "classes": null }]
+		}
+	],
+	"menuItems": [
+		{ "id": 100, "description": "Who we are", "attr_title": "About the studio" },
+		{ "id": 106, "classes": ["external-link"], "target": "_blank" }
+	],
+	"sidebars": [
+		{ "id": "sidebar-1", "name": "Blog Sidebar", "description": "Next to posts", "status": "active", "widgets": ["search-2", "recent-posts-2", "categories-2", "block-5", "calendar-2"] },
+		{ "id": "footer-1", "name": "Footer 1", "status": "active", "widgets": ["text-2", "nav_menu-2"] },
+		{ "id": "footer-2", "name": "Footer 2", "status": "active", "widgets": ["custom_html-3", "block-6", "media_image-2", "tag_cloud-2"] },
+		{ "id": "header-top", "name": "Header Top Bar", "status": "active", "widgets": [] },
+		{ "id": "wp_inactive_widgets", "name": "Inactive widgets", "status": "inactive", "widgets": ["archives-2"] }
+	],
+	"widgets": [
+		{ "id": "search-2", "id_base": "search", "sidebar": "sidebar-1", "instance": { "raw": { "title": "Search" } }, "rendered": "<form role=\"search\"><input name=\"s\"></form>" },
+		{ "id": "recent-posts-2", "id_base": "recent-posts", "sidebar": "sidebar-1", "instance": { "raw": { "title": "Latest", "number": 3, "show_date": true } } },
+		{ "id": "categories-2", "id_base": "categories", "sidebar": "sidebar-1", "instance": { "raw": { "title": "", "count": 1, "hierarchical": 1, "dropdown": 0 } } },
+		{ "id": "block-5", "id_base": "block", "sidebar": "sidebar-1", "instance": { "raw": { "content": "<!-- wp:search {\"label\":\"Find\",\"placeholder\":\"Type a word\"} /-->" } } },
+		{ "id": "calendar-2", "id_base": "calendar", "sidebar": "sidebar-1", "instance": { "raw": { "title": "Calendar" } }, "rendered": "<div id=\"calendar_wrap\"><table><caption>May 2024</caption></table></div>" },
+		{ "id": "text-2", "id_base": "text", "sidebar": "footer-1", "instance": { "raw": { "title": "About", "text": "<p>We are a <strong>movement studio</strong>. <a href=\"https://blog.example.test/about/\">Read more</a></p>\n<img src=\"https://blog.example.test/wp-content/uploads/2024/05/photo-300x200.jpg\" alt=\"The studio\" />", "filter": true, "visual": true } } },
+		{ "id": "nav_menu-2", "id_base": "nav_menu", "sidebar": "footer-1", "instance": { "raw": { "title": "Explore", "nav_menu": 12 } } },
+		{ "id": "custom_html-3", "id_base": "custom_html", "sidebar": "footer-2", "instance": { "raw": { "title": "Hours", "content": "<p>Mon–Fri 9–5</p>" } } },
+		{ "id": "block-6", "id_base": "block", "sidebar": "footer-2", "instance": { "raw": { "content": "<!-- wp:paragraph -->\n<p>Call us: <a href=\"tel:+15550100\">555-0100</a></p>\n<!-- /wp:paragraph -->" } } },
+		{ "id": "media_image-2", "id_base": "media_image", "sidebar": "footer-2", "instance": { "raw": { "attachment_id": 32, "url": "https://blog.example.test/wp-content/uploads/2024/06/team.jpg", "alt": "Our team", "caption": "The team", "link_type": "custom", "link_url": "https://blog.example.test/team/" } } },
+		{ "id": "tag_cloud-2", "id_base": "tag_cloud", "sidebar": "footer-2", "instance": { "raw": { "title": "Tags", "taxonomy": "post_tag" } } },
+		{ "id": "archives-2", "id_base": "archives", "sidebar": "wp_inactive_widgets", "instance": { "raw": { "title": "Archives" } } }
+	],
+	"html": {
+		"home": "<!doctype html><html><body class=\"home page-id-2\"><header class=\"site-header\"><nav><ul><li class=\"menu-item\"><a href=\"/about/\">About</a></li></ul></nav><form role=\"search\" action=\"/\"><input type=\"search\" name=\"s\"></form></header><main><h1>Welcome</h1></main><footer><div class=\"footer-widgets\"><section id=\"text-2\" class=\"widget widget_text\"><h2>About</h2></section><section id=\"custom_html-3\" class=\"widget\"><p>Mon–Fri 9–5</p></section></div></footer></body></html>",
+		"about": "<!doctype html><html><body class=\"page page-id-3\"><header class=\"site-header\"></header><nav aria-label=\"breadcrumbs\" class=\"rank-math-breadcrumb\"><p><a href=\"/\">Start</a><span class=\"separator\"> » </span><span class=\"last\">About</span></p></nav><main><h1>About</h1></main></body></html>",
+		"hello": "<!doctype html><html><body class=\"post-template-default single single-post postid-11\"><header class=\"site-header\"></header><nav class=\"rank-math-breadcrumb\"><p><a href=\"/\">Start</a> » <a href=\"/journal/\">Journal</a> » <span class=\"last\">Hello</span></p></nav><main><article><h1>Hello</h1></article></main><aside><section id=\"search-2\" class=\"widget widget_search\"></section><section id=\"recent-posts-2\" class=\"widget\"></section></aside></body></html>"
+	},
+	"notFound": "<!doctype html><html><body class=\"error404\"><header class=\"site-header\"><nav><a href=\"/\">Home</a></nav></header><main id=\"main\"><section class=\"error-404 not-found\"><h1>Lost in the studio?</h1><p>That page took a rest day. Try our <a href=\"https://blog.example.test/classes/\">class schedule</a> instead.</p><p>It looks like nothing was found at this location. Maybe try a search?</p><form role=\"search\"><input name=\"s\"></form><a class=\"button\" href=\"https://blog.example.test/contact/\">Contact us</a> <a href=\"/\">Back to home</a></section></main><footer><p>© Example</p></footer></body></html>",
+	"stockNotFound": "<!doctype html><html><body class=\"error404\"><main><h1>Oops! That page can’t be found.</h1><p>It looks like nothing was found at this location. Maybe try one of the links below or a search?</p><a href=\"/\">Go back home</a></main></body></html>",
+	"fingerprint": { "plugins": [{ "slug": "wp-maintenance-mode" }, { "slug": "seo-by-rank-math" }] }
+}

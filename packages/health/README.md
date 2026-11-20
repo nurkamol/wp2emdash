@@ -14,6 +14,13 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   analytics tags (the page carries the codes switched on in SEO & Analytics), backups (the backups plugin's heartbeat)
   and media (the Media Assistant's daily counts: images on pages without alt text, oversized originals, broken image
   references; one D1 read, never an alert). Cadence and limits: `src/schedule.ts`.
+- **Missing pages** (hourly, one D1 read of EmDash's `_emdash_404_log`): the addresses asked for in the last 7 days,
+  most requested first, each with a suggested redirect from the sitemap; bot probes (wp-login.php, .env…) counted, not
+  listed. Its own tab and a dashboard hint; never an alert.
+- **Coming-soon mode** (Settings tab): stored as the KV key `maintenance` (EmDash `options` row
+  `plugin:site-health:maintenance`), which the kit's starter middleware reads to serve a branded 503 holding page
+  (Retry-After, noindex, never cached) to visitors while signed-in people see the site. While it is on, uptime,
+  search-engine, analytics and link checks pause. Never switched on by the migration.
 - **Plugins → Site health**: overall status (Healthy / Attention / Down), each check with its last run and 14-day trend,
   **Run checks now** (single flight, at most every 2 minutes), incidents, broken links, speed, reports, settings; a
   dashboard widget with the overall status.

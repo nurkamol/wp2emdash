@@ -8,8 +8,12 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ### Added
 - Elementor adapter (`src/adapters/elementor`): containers and legacy sections, Kit globals, Theme Builder header/footer, Pro forms and popups (synthetic fixtures; no real Elementor site yet).
+- **Site search page** `/search/?q=` in the starter (EmDash full-text search + the pages' section text); WordPress `/?s=` and `/search/<terms>/` now 301 there; a header search link when the old header had one; load check `search`.
+- **Classic widget areas** → EmDash widget areas (text/HTML/block, image, menu, search and blog widgets; unknown ones gated by `widgets-handled`), rendered as footer columns and the blog sidebar where the old theme showed them.
+- **Every menu** is written to EmDash (not only primary/secondary/footer), with classes, title attribute, targets and all levels; mega menus as columns of links (partial).
+- The old **404 page**'s own wording (site part `not-found`), **breadcrumbs** when the old site showed them (one trail for the page and the BreadcrumbList).
+- Site health (`@wp2emdash/health`): **Missing pages** (EmDash's 404 log, weekly, with suggested redirects) and **coming-soon mode** (503 holding page, admins see the site; never switched on by the migration).
 - Comments migration: approved WordPress comments with dates, authors and threads (`@wp2emdash/comments` admin-only import route; EmDash moderation approves them), threaded display and a moderated comment form.
-
 - Footer credit: "Website by PixelKraft" on every migrated site whose footer has no credit of its own (`credit` in kit.config; `false` turns it off).
 
 ### Fixed

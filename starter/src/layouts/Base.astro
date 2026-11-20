@@ -1,5 +1,5 @@
 ---
-import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
+import { EmDashBodyEnd, EmDashBodyStart, EmDashHead, WidgetArea } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { env } from "cloudflare:workers";
 import SiteHeader from "../components/SiteHeader.astro";
@@ -12,6 +12,8 @@ import Consent from "../components/Consent.astro";
 import SiteWidgets from "../components/SiteWidgets.astro";
 import site from "../site.config.json";
 import { announcementState, type Chrome, loadChrome } from "../utils/chrome";
+import type { Crumb } from "../utils/breadcrumbs";
+import { safeHref } from "../utils/links";
 import { brandMediaIds, brandMediaRows, sameAsWithSocial, type SettingsData, siteBrand, socialHrefFor, verificationTags, withSocial } from "../utils/settings";
 import "../styles/fonts.css";
 import "../styles/tokens.css";
@@ -34,8 +36,12 @@ interface Props {
 	article?: { publishedTime?: string | null; modifiedTime?: string | null; author?: string | null };
 	/** Extra RSS feeds of this page (an archive's own feed), after the site feed. */
 	feeds?: { title: string; href: string }[];
+	/** Show the blog sidebar (the old theme's sidebar widget area, site.config.json widgetAreas.sidebar) next to the content. */
+	sidebar?: boolean;
+	/** Visible breadcrumbs (utils/breadcrumbs.ts); the BreadcrumbList structured data follows the same trail. */
+	breadcrumbs?: Crumb[];
 }
-const { title, pageTitle, description, image, canonical, robots, content, overHero, chrome: chromeProp, article, feeds: extraFeeds = [] } = Astro.props;
+const { title, pageTitle, description, image, canonical, robots, content, overHero, chrome: chromeProp, article, feeds: extraFeeds = [], sidebar: withSidebar, breadcrumbs } = Astro.props;
 // Blog sites: the site feed on every page (WordPress printed it in every page's head), plus the page's own.
 const blogFeed = (site as { blog?: unknown }).blog ? [{ title: "Feed", href: (site as { trailingSlash?: string }).trailingSlash === "never" ? "/feed" : "/feed/" }] : [];
 
@@ -43,6 +49,10 @@ const blogFeed = (site as { blog?: unknown }).blog ? [{ title: "Feed", href: (si
 // for a page that did not pass it.
 const chrome = chromeProp ?? (await loadChrome());
 const { settings, primary, secondary, footer, popups } = chrome;
+// Classic-theme widget areas and footer menu, only on sites where the old theme showed them (utils/chrome.ts).
+const footerAreas = (site as { widgetAreas?: { footer?: string[] } }).widgetAreas?.footer ?? [];
+const sidebarAreas = withSidebar ? ((site as { widgetAreas?: { sidebar?: string[] } }).widgetAreas?.sidebar ?? []) : [];
+const footerMenuItems = (chrome.footerMenu?.data?.items ?? []) as { label: string; url: string; target?: string | null }[];
 // Announcement bar: decided in the browser too (components/Announcement.astro), since a cached page outlives the
 // request that rendered it. A bar whose schedule has ended is left out; one that starts later is rendered hidden.
 const { block: announcement, later: announcementLater } = announcementState(chrome);
@@ -135,7 +145,7 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		{!ogCards && ogImageMeta.width && <meta property="og:image:width" content={String(ogImageMeta.width)} />}
 		{!ogCards && ogImageMeta.height && <meta property="og:image:height" content={String(ogImageMeta.height)} />}
 		{!ogCards && ogImageMeta.type && <meta property="og:image:type" content={ogImageMeta.type} />}
-		<StructuredData canonical={canonicalUrl} pageTitle={pageTitle ?? title ?? siteTitle} description={description || settings.data?.tagline} sameAs={sameAs} logo={brand.logoReplaced ? brand.logo?.src : undefined} />
+		<StructuredData canonical={canonicalUrl} pageTitle={pageTitle ?? title ?? siteTitle} description={description || settings.data?.tagline} sameAs={sameAs} logo={brand.logoReplaced ? brand.logo?.src : undefined} trail={breadcrumbs} />
 		{((site.fonts as { preload?: string[] }).preload ?? []).map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
 		{googleHref && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}
 		{googleHref && <link rel="stylesheet" href={googleHref} />}
@@ -162,10 +172,48 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		{announcement && <Announcement block={announcement} hidden={announcementLater} />}
 		<SiteHeader primary={primary.data?.items ?? []} secondary={secondary.data?.items ?? []} siteTitle={siteTitle} brand={{ ...(brand.logo ? { logo: brand.logo } : {}), ...(brand.logoOnTop ? { logoOnTop: brand.logoOnTop } : {}) }} socialHref={(href: string) => socialHrefFor(href, s)} />
 		<main id="main" tabindex="-1">
-			<slot />
+			{
+				breadcrumbs && breadcrumbs.length > 1 && (
+					<nav class="breadcrumbs container" aria-label="Breadcrumb">
+						<ol>
+							{breadcrumbs.map((c, n) => <li>{c.href && n < breadcrumbs.length - 1 ? <a href={c.href}>{c.label}</a> : <span aria-current="page">{c.label}</span>}</li>)}
+						</ol>
+					</nav>
+				)
+			}
+			{
+				sidebarAreas.length ? (
+					<div class="container with-sidebar">
+						<div class="with-sidebar__main"><slot /></div>
+						<aside class="site-sidebar" aria-label="Sidebar">{sidebarAreas.map((name) => <WidgetArea name={name} />)}</aside>
+					</div>
+				) : (
+					<slot />
+				)
+			}
 		</main>
 		<footer class="site-footer">
+			{
+				footerAreas.length > 0 && (
+					<div class="footer-widgets container">
+						<div class="footer-widgets__grid">{footerAreas.map((name) => <WidgetArea name={name} class="footer-widgets__col" />)}</div>
+					</div>
+				)
+			}
 			{footer.entry ? <Sections value={footerContent} /> : <p class="container">© {new Date().getFullYear()} {siteTitle}</p>}
+			{
+				footerMenuItems.length > 0 && (
+					<nav class="footer-menu container" aria-label="Footer">
+						<ul role="list">
+							{footerMenuItems.map((i) => (
+								<li>
+									<a href={safeHref(i.url) ?? "#"} target={i.target === "_blank" ? "_blank" : undefined} rel={i.target === "_blank" ? "noopener" : undefined}>{i.label}</a>
+								</li>
+							))}
+						</ul>
+					</nav>
+				)
+			}
 			{siteCredit && <p class="site-credit container">{siteCredit.text} <a href={siteCredit.url}>{siteCredit.name}</a></p>}
 		</footer>
 		<Popups popups={popups.entries as any} />
