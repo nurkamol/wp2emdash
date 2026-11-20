@@ -153,6 +153,7 @@ function rawFor(path: string, content: string | undefined, builder: string | und
 		const list = blocks.slice(from, to + 1);
 		return list.length ? clip(list.map(blockSource).join("\n"), "Gutenberg block markup of this row, reconstructed from the parsed blocks (raw/exporter/content)") : undefined;
 	}
+	if (builder === "elementor") return { text: "", note: "Elementor elements: open the page's _elementor_data (JSON) in raw/exporter/content to see this element." };
 	return builder === "bricks" ? { text: "", note: "Bricks elements: open the page's _bricks_page_content_2 in raw/exporter/content to see this element." } : undefined;
 }
 

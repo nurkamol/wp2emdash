@@ -1,0 +1,38 @@
+{
+  "elements": [
+    { "id": "ba00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "ba00002", "elType": "widget", "widgetType": "video", "settings": { "video_type": "youtube", "youtube_url": "https://www.youtube.com/watch?v=XHOmBV4js_E", "show_image_overlay": "yes", "image_overlay": { "url": "https://fixture.example/wp-content/uploads/2026/02/poster.jpg", "id": 610 } }, "elements": [] }
+    ] },
+    { "id": "bb00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "bb00002", "elType": "widget", "widgetType": "video", "settings": { "video_type": "vimeo", "vimeo_url": "https://vimeo.com/235215203" }, "elements": [] }
+    ] },
+    { "id": "bc00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "bc00002", "elType": "widget", "widgetType": "video", "settings": { "video_type": "hosted", "hosted_url": { "url": "https://fixture.example/wp-content/uploads/2026/02/tour.mp4", "id": 611 } }, "elements": [] }
+    ] },
+    { "id": "bd00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "bd00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Find us", "header_size": "h2" }, "elements": [] },
+      { "id": "bd00003", "elType": "widget", "widgetType": "google_maps", "settings": { "address": "1 Fixture Lane, Testville", "zoom": { "size": 14 } }, "elements": [] }
+    ] },
+    { "id": "be00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "be00002", "elType": "widget", "widgetType": "image-gallery", "settings": { "wp_gallery": [ { "id": 620, "url": "https://fixture.example/wp-content/uploads/2026/02/g1.jpg" }, { "id": 621, "url": "https://fixture.example/wp-content/uploads/2026/02/g2.jpg" } ], "gallery_columns": "3" }, "elements": [] }
+    ] },
+    { "id": "bf00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "bf00002", "elType": "widget", "widgetType": "image-carousel", "settings": { "carousel": [ { "id": 622, "url": "https://fixture.example/wp-content/uploads/2026/02/c1.jpg" }, { "id": 623, "url": "https://fixture.example/wp-content/uploads/2026/02/c2.jpg" } ], "link_to": "none" }, "elements": [] }
+    ] },
+    { "id": "bg00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "bg00002", "elType": "widget", "widgetType": "gallery", "settings": { "gallery_type": "single", "gallery_layout": "masonry", "gallery": [ { "id": 624, "url": "https://fixture.example/wp-content/uploads/2026/02/m1.jpg" }, { "id": 625, "url": "https://fixture.example/wp-content/uploads/2026/02/m2.jpg" } ] }, "elements": [] }
+    ] },
+    { "id": "bh00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "bh00002", "elType": "widget", "widgetType": "media-carousel", "settings": { "slides": [ { "_id": "s1", "type": "image", "image": { "id": 626, "url": "https://fixture.example/wp-content/uploads/2026/02/mc1.jpg" } }, { "_id": "s2", "type": "video", "image": { "id": 627, "url": "https://fixture.example/wp-content/uploads/2026/02/mc2.jpg" }, "video": { "url": "https://www.youtube.com/watch?v=abc" } } ] }, "elements": [] }
+    ] },
+    { "id": "bi00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "bi00002", "elType": "widget", "widgetType": "slides", "settings": { "slides": [
+        { "_id": "sl1", "heading": "Spring timetable", "description": "New evening classes.", "button_text": "See classes", "link": { "url": "/timetable/" }, "background_image": { "id": 628, "url": "https://fixture.example/wp-content/uploads/2026/02/s1.jpg" } },
+        { "_id": "sl2", "heading": "Gift cards", "description": "Give a month of calm.", "button_text": "Buy", "link": { "url": "/gift/" } }
+      ] }, "elements": [] }
+    ] },
+    { "id": "bj00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "bj00002", "elType": "widget", "widgetType": "video", "settings": { "video_type": "hosted", "insert_url": "yes", "external_url": { "url": "" } }, "elements": [] }
+    ] }
+  ]
+}

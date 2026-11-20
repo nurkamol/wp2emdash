@@ -1,0 +1,41 @@
+{
+  "elements": [
+    { "id": "ca00001", "elType": "section", "isInner": false, "settings": [], "elements": [
+      { "id": "ca00002", "elType": "column", "settings": { "_column_size": 50 }, "elements": [
+        { "id": "ca00003", "elType": "widget", "widgetType": "price-table", "settings": { "heading": "Drop in", "sub_heading": "One class", "currency_symbol": "euro", "price": "18", "period": "per class", "features_list": [ { "_id": "f1", "item_text": "Any class" }, { "_id": "f2", "item_text": "Mat included" } ], "button_text": "Book", "link": { "url": "/book/" } }, "elements": [] }
+      ] },
+      { "id": "ca00004", "elType": "column", "settings": { "_column_size": 50 }, "elements": [
+        { "id": "ca00005", "elType": "widget", "widgetType": "price-table", "settings": { "heading": "Unlimited", "currency_symbol": "custom", "currency_symbol_custom": "CHF ", "price": "160", "period": "per month", "features_list": [ { "_id": "f3", "item_text": "Every class" } ], "button_text": "Join", "link": { "url": "/join/" }, "show_ribbon": "yes", "ribbon_title": "Popular", "sale": "yes", "original_price": "180" }, "elements": [] }
+      ] }
+    ] },
+    { "id": "cb00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "cb00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Café menu", "header_size": "h2" }, "elements": [] },
+      { "id": "cb00003", "elType": "widget", "widgetType": "price-list", "settings": { "price_list": [ { "_id": "p1", "title": "Matcha latte", "item_description": "Oat milk", "price": "5.50" }, { "_id": "p2", "title": "Ginger tea", "price": "4", "link": { "url": "/cafe/" } } ] }, "elements": [] }
+    ] },
+    { "id": "cc00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "cc00002", "elType": "widget", "widgetType": "progress", "settings": { "title": "Flexibility", "percent": { "unit": "%", "size": 80 } }, "elements": [] },
+      { "id": "cc00003", "elType": "widget", "widgetType": "progress", "settings": { "title": "Strength", "percent": { "unit": "%", "size": 65 } }, "elements": [] }
+    ] },
+    { "id": "cd00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "cd00002", "elType": "widget", "widgetType": "testimonial-carousel", "settings": { "slides": [ { "_id": "t1", "content": "Best hour of my week.", "name": "B. Member", "title": "Member" }, { "_id": "t2", "content": "Patient and precise.", "name": "C. Member" } ] }, "elements": [] }
+    ] },
+    { "id": "ce00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "ce00002", "elType": "widget", "widgetType": "reviews", "settings": { "slides": [ { "_id": "r1", "content": "Lovely space.", "name": "D. Visitor", "rating": 5 } ] }, "elements": [] }
+    ] },
+    { "id": "cf00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "cf00002", "elType": "widget", "widgetType": "call-to-action", "settings": { "skin": "classic", "bg_image": { "id": 640, "url": "https://fixture.example/wp-content/uploads/2026/02/cta.jpg" }, "title": "First class free", "description": "Try any beginner class on us.", "button": "Claim it", "link": { "url": "/first-class/" }, "ribbon_title": "New" }, "elements": [] }
+    ] },
+    { "id": "cg00001", "elType": "container", "isInner": false, "settings": { "flex_direction": "row" }, "elements": [
+      { "id": "cg00002", "elType": "container", "isInner": true, "settings": [], "elements": [
+        { "id": "cg00003", "elType": "widget", "widgetType": "flip-box", "settings": { "title_text_a": "Reformer", "description_text_a": "Spring-loaded strength.", "title_text_b": "Book now", "description_text_b": "Six machines per class.", "button_text": "Reserve", "link": { "url": "/reformer/" } }, "elements": [] }
+      ] },
+      { "id": "cg00004", "elType": "container", "isInner": true, "settings": [], "elements": [
+        { "id": "cg00005", "elType": "widget", "widgetType": "flip-box", "settings": { "title_text_a": "Mat", "description_text_a": "Just you and gravity.", "title_text_b": "Any level", "description_text_b": "" }, "elements": [] }
+      ] }
+    ] },
+    { "id": "ch00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "ch00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Follow along", "header_size": "h3" }, "elements": [] },
+      { "id": "ch00003", "elType": "widget", "widgetType": "social-icons", "settings": { "social_icon_list": [ { "_id": "s1", "social_icon": { "value": "fab fa-instagram", "library": "fa-brands" }, "link": { "url": "https://instagram.com/fixture", "is_external": "true" } }, { "_id": "s2", "social_icon": { "value": "fab fa-facebook-f", "library": "fa-brands" }, "link": { "url": "https://facebook.com/fixture" } }, { "_id": "s3", "social_icon": { "value": "fab fa-youtube", "library": "fa-brands" } } ] }, "elements": [] }
+    ] }
+  ]
+}

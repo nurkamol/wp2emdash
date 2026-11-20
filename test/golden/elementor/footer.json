@@ -1,0 +1,221 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#1F2A2E"
+        }
+      },
+      "spacing": "compact",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "section#ia00001",
+        "rawHash": "2a53c7414b",
+        "row": 0
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/3",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Fixture Studio",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "1 Fixture Lane\nTestville",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/3",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "h4",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Contact",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t8",
+                    "text": "hello@fixture.example",
+                    "marks": [
+                      "t7"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "t7",
+                    "href": "mailto:hello@fixture.example"
+                  }
+                ],
+                "listItem": "bullet",
+                "level": 1
+              },
+              {
+                "_type": "block",
+                "_key": "t9",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "+00 000 000",
+                    "marks": [
+                      "ta"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "ta",
+                    "href": "tel:+00000000"
+                  }
+                ],
+                "listItem": "bullet",
+                "level": 1
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "width": "1/3",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Instagram",
+                    "marks": [
+                      "tc"
+                    ]
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "tc",
+                    "href": "https://instagram.com/fixture",
+                    "blank": true
+                  }
+                ]
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Privacy",
+                "href": "/privacy/",
+                "style": "link"
+              },
+              {
+                "label": "Terms",
+                "href": "/terms/",
+                "style": "link"
+              }
+            ]
+          }
+        ]
+      },
+      "pad": {
+        "top": "60px",
+        "bottom": "30px"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#1F2A2E"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "section#ib00001",
+        "rawHash": "9b301a2d40",
+        "row": 1
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tf",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tg",
+                "text": "© 2026 Fixture Studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "center",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[nav-menu] menu \"footer\": its 2 links kept as text links (edit them on the page, not under Menus)",
+      "path": "section#ia00001/column#ia00008/nav-menu#ia00009",
+      "tag": "nav-menu"
+    }
+  ],
+  "forms": []
+}

@@ -1,0 +1,33 @@
+{
+  "kit": {
+    "system_colors": [
+      { "_id": "primary", "title": "Primary", "color": "#2F4F4F" },
+      { "_id": "secondary", "title": "Secondary", "color": "#F4EFE9" },
+      { "_id": "text", "title": "Text", "color": "#333333" },
+      { "_id": "accent", "title": "Accent", "color": "#C9A27E" }
+    ],
+    "custom_colors": [ { "_id": "8e2c1a4", "title": "Cream", "color": "#FFF8EE" } ],
+    "system_typography": [ { "_id": "primary", "title": "Primary", "typography_typography": "custom", "typography_font_family": "Cormorant Garamond", "typography_font_weight": "600" } ],
+    "viewport_tablet": 1024, "viewport_mobile": 767
+  },
+  "elements": [
+    { "id": "ga00001", "elType": "container", "isInner": false,
+      "settings": { "background_background": "classic", "__globals__": { "background_color": "globals/colors?id=primary", "color_text": "globals/colors?id=8e2c1a4" } },
+      "elements": [
+        { "id": "ga00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Colour from the kit", "header_size": "h2", "__globals__": { "title_color": "globals/colors?id=accent", "typography_typography": "globals/typography?id=primary" } }, "elements": [] },
+        { "id": "ga00003", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Dark section, light text.</p>" }, "elements": [] }
+      ] },
+    { "id": "gb00001", "elType": "section", "isInner": false,
+      "settings": { "background_background": "gradient", "__globals__": { "background_color": "globals/colors?id=secondary" }, "background_color_b": "#FFFFFF", "background_gradient_angle": { "unit": "deg", "size": 90 }, "background_color_stop": { "unit": "%", "size": 10 } },
+      "elements": [ { "id": "gb00002", "elType": "column", "settings": { "_column_size": 100 }, "elements": [ { "id": "gb00003", "elType": "widget", "widgetType": "heading", "settings": { "title": "Gradient section", "header_size": "h2" }, "elements": [] } ] } ] },
+    { "id": "gc00001", "elType": "section", "isInner": false,
+      "settings": { "background_background": "classic", "__globals__": { "background_color": "globals/colors?id=missing1" }, "background_overlay_background": "classic", "background_overlay_color": "#C9A27E" },
+      "elements": [ { "id": "gc00002", "elType": "column", "settings": { "_column_size": 100 }, "elements": [ { "id": "gc00003", "elType": "widget", "widgetType": "heading", "settings": { "title": "Unknown global", "header_size": "h2" }, "elements": [] } ] } ] },
+    { "id": "gd00001", "elType": "container", "isInner": false,
+      "settings": { "background_background": "video", "background_video_link": "https://www.youtube.com/watch?v=XHOmBV4js_E", "background_video_fallback": { "url": "https://fixture.example/wp-content/uploads/2026/02/still.jpg", "id": 650 } },
+      "elements": [ { "id": "gd00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Video background", "header_size": "h2" }, "elements": [] } ] },
+    { "id": "ge00001", "elType": "container", "isInner": false,
+      "settings": { "background_background": "video", "background_video_link": "https://fixture.example/wp-content/uploads/2026/02/loop.mp4" },
+      "elements": [ { "id": "ge00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "Hosted video background", "header_size": "h2" }, "elements": [] } ] }
+  ]
+}

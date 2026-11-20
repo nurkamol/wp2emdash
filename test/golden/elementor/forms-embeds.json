@@ -1,0 +1,231 @@
+{
+  "sections": [
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ea00001",
+        "rawHash": "d02a72159a",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Get in touch",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "formRef": {
+          "provider": "elementor",
+          "id": "10-ea00003"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#eb00001",
+        "rawHash": "780ec72600",
+        "row": 1
+      },
+      "fields": {
+        "intro": [],
+        "formRef": {
+          "provider": "fluent-forms",
+          "id": "3"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ec00001",
+        "rawHash": "1af0566809",
+        "row": 2
+      },
+      "fields": {
+        "intro": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Newsletter sign-up:",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "formRef": {
+          "provider": "cf7",
+          "id": "12"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ed00001",
+        "rawHash": "b1900fbb09",
+        "row": 3
+      },
+      "fields": {
+        "embedUrl": "https://www.youtube.com/embed/XHOmBV4js_E"
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ee00001",
+        "rawHash": "b45a762a3a",
+        "row": 4
+      },
+      "fields": {
+        "html": "<div class=\"custom-badge\">Since 2014</div><script>console.log('x')</script>",
+        "reason": "Elementor HTML widget"
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ef00001",
+        "rawHash": "43f7a90b1b",
+        "row": 5
+      },
+      "fields": {
+        "html": "[my_custom_widget]",
+        "reason": "Elementor shortcode widget"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[form] hidden field \"src\" not rebuilt (its value is set by the page); add it by hand if the receiver needs it; field \"Attachment\" (upload) not supported; rebuild by hand; Elementor form actions not rebuilt: mailchimp; recipient set in Elementor: set it in the admin (Forms → recipients), it is not copied",
+      "path": "container#ea00001/form#ea00003",
+      "tag": "form"
+    },
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (Elementor HTML widget); replace with a section or approve in decisions.md",
+      "path": "container#ee00001/html#ee00002",
+      "carriesContent": true
+    },
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (Elementor shortcode widget); replace with a section or approve in decisions.md",
+      "path": "container#ef00001/shortcode#ef00002",
+      "carriesContent": true
+    }
+  ],
+  "forms": [
+    {
+      "id": "elementor-10-ea00003",
+      "title": "Contact",
+      "submitLabel": "Send message",
+      "successMessage": "Thanks, we will reply soon.",
+      "fields": [
+        {
+          "name": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "placeholder": "Your name",
+          "half": true
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "half": true,
+          "autocomplete": "email"
+        },
+        {
+          "name": "topic",
+          "label": "Topic",
+          "type": "select",
+          "options": [
+            "Classes",
+            "Privates"
+          ]
+        },
+        {
+          "name": "level",
+          "label": "Level",
+          "type": "radio",
+          "options": [
+            "New",
+            "Regular"
+          ]
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "textarea"
+        },
+        {
+          "name": "consent",
+          "label": "I agree to be contacted",
+          "type": "consent"
+        }
+      ],
+      "warnings": [
+        "hidden field \"src\" not rebuilt (its value is set by the page); add it by hand if the receiver needs it",
+        "field \"Attachment\" (upload) not supported; rebuild by hand",
+        "Elementor form actions not rebuilt: mailchimp",
+        "recipient set in Elementor: set it in the admin (Forms → recipients), it is not copied"
+      ]
+    }
+  ]
+}

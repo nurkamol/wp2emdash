@@ -1,0 +1,337 @@
+{
+  "sections": [
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ba00001",
+        "rawHash": "22d2da3f25",
+        "row": 0
+      },
+      "fields": {
+        "embedUrl": "https://www.youtube.com/watch?v=XHOmBV4js_E",
+        "poster": {
+          "wpId": 610,
+          "kind": "image",
+          "url": "https://fixture.example/wp-content/uploads/2026/02/poster.jpg"
+        }
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#bb00001",
+        "rawHash": "de276610e7",
+        "row": 1
+      },
+      "fields": {
+        "embedUrl": "https://vimeo.com/235215203"
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#bc00001",
+        "rawHash": "7065213e02",
+        "row": 2
+      },
+      "fields": {
+        "video": {
+          "wpId": 611,
+          "kind": "video",
+          "url": "https://fixture.example/wp-content/uploads/2026/02/tour.mp4"
+        }
+      }
+    },
+    {
+      "type": "map",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#bd00001",
+        "rawHash": "f0144ee8c4",
+        "row": 3
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Find us",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "embedUrl": "https://maps.google.com/maps?q=1%20Fixture%20Lane%2C%20Testville&output=embed",
+        "address": "1 Fixture Lane, Testville"
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#be00001",
+        "rawHash": "664f739036",
+        "row": 4
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 620,
+            "kind": "image",
+            "url": "https://fixture.example/wp-content/uploads/2026/02/g1.jpg"
+          },
+          {
+            "wpId": 621,
+            "kind": "image",
+            "url": "https://fixture.example/wp-content/uploads/2026/02/g2.jpg"
+          }
+        ],
+        "layout": "grid",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "carousel",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#bf00001",
+        "rawHash": "ddd12bede6",
+        "row": 5
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 622,
+            "kind": "image",
+            "url": "https://fixture.example/wp-content/uploads/2026/02/c1.jpg"
+          },
+          {
+            "wpId": 623,
+            "kind": "image",
+            "url": "https://fixture.example/wp-content/uploads/2026/02/c2.jpg"
+          }
+        ],
+        "layout": "carousel",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "masonry",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#bg00001",
+        "rawHash": "81de7ac1a1",
+        "row": 6
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 624,
+            "kind": "image",
+            "url": "https://fixture.example/wp-content/uploads/2026/02/m1.jpg"
+          },
+          {
+            "wpId": 625,
+            "kind": "image",
+            "url": "https://fixture.example/wp-content/uploads/2026/02/m2.jpg"
+          }
+        ],
+        "layout": "masonry",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "carousel",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#bh00001",
+        "rawHash": "166111f734",
+        "row": 7
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 626,
+            "kind": "image",
+            "url": "https://fixture.example/wp-content/uploads/2026/02/mc1.jpg"
+          }
+        ],
+        "layout": "carousel",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#bi00001#0",
+        "rawHash": "9bc84eeda8",
+        "row": 8
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "h2",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Spring timetable",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "New evening classes.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [
+              {
+                "wpId": 628,
+                "kind": "image",
+                "url": "https://fixture.example/wp-content/uploads/2026/02/s1.jpg"
+              }
+            ],
+            "buttons": [
+              {
+                "label": "See classes",
+                "href": "/timetable/",
+                "style": "primary"
+              }
+            ]
+          },
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "h2",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Gift cards",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Give a month of calm.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Buy",
+                "href": "/gift/",
+                "style": "primary"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[media-carousel] 1 video slide(s) not kept (the carousel shows pictures)",
+      "path": "container#bh00001/media-carousel#bh00002",
+      "tag": "media-carousel"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[slides] 2 slide(s) shown side by side as cards (no slider in the section library)",
+      "path": "container#bi00001/slides#bi00002",
+      "tag": "slides"
+    },
+    {
+      "level": "warn",
+      "code": "media-missing",
+      "message": "[video] without a video",
+      "path": "container#bj00001/video#bj00002",
+      "tag": "video"
+    }
+  ],
+  "forms": []
+}

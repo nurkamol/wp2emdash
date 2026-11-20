@@ -1,0 +1,47 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "variant": "buttons",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#ha00001",
+        "rawHash": "8980d81026",
+        "row": 0
+      },
+      "fields": {
+        "body": [],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Book now",
+            "href": "/book/",
+            "style": "primary"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[site-logo] the starter's header draws the site logo",
+      "path": "container#ha00001/container#ha00002/theme-site-logo#ha00003",
+      "tag": "theme-site-logo"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[nav-menu] menu \"main-menu\" becomes the site's primary menu",
+      "path": "container#ha00001/container#ha00004/nav-menu#ha00005",
+      "tag": "nav-menu"
+    }
+  ],
+  "forms": []
+}

@@ -15,6 +15,7 @@ import { extractReport } from "../extract/report.js";
 import { WpClient, WpHttpError, versionAtLeast } from "../extract/client.js";
 import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.js";
 import { bricksMediaRefs, bricksOptionsNote, readBricksOptions, usesBricks } from "../extract/bricks.js";
+import { elementorMediaRefs, elementorNote, readElementorOptions, usesElementor } from "../extract/elementor.js";
 import { type RedirectRule, recognise, type Unconverted } from "../extract/plugin-exports.js";
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
 import { type CustomCss, customCssFromHtml } from "../transform/custom-css.js";
@@ -25,7 +26,7 @@ export const MIN_EXPORTER = "1.2.0";
 /** Post types that are WordPress internals or rebuilt from other sources. `custom_css` is read on its own (readCustomCss). */
 const SKIP_TYPES = new Set(["attachment", "nav_menu_item", "wp_template", "wp_template_part", "wp_global_styles", "wp_font_family", "wp_font_face", "revision", "customize_changeset", "oembed_cache", "user_request", "custom_css"]);
 /** Types worth asking for even when no listing advertises them. */
-const EXTRA_TYPES = ["salient_g_sections", "bricks_template", "wp_block", "wp_navigation", "nectar_slider", "home_slider", "portfolio", "popup", "popup_theme", "pum_cta", "rank_math_schema"];
+const EXTRA_TYPES = ["salient_g_sections", "bricks_template", "elementor_library", "wp_block", "wp_navigation", "nectar_slider", "home_slider", "portfolio", "popup", "popup_theme", "pum_cta", "rank_math_schema"];
 
 export interface ExporterPost {
 	id: number;
@@ -339,6 +340,8 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 		const r = findMediaRefs(p.content ?? "", p.meta ?? {});
 		// Bricks keeps its elements in post meta (pages, and header/footer/section templates): their images count too.
 		for (const key of ["_bricks_page_content_2", "_bricks_page_header_2", "_bricks_page_footer_2"]) if (p.meta?.[key] !== undefined) r.push(...bricksMediaRefs(p.meta[key]));
+		// Elementor keeps its element tree in post meta `_elementor_data` (JSON text): its images count too.
+		if (p.meta?._elementor_data !== undefined) r.push(...elementorMediaRefs(p.meta._elementor_data));
 		if (p.featured_image?.id) r.push({ kind: "id", value: String(p.featured_image.id), via: "featured_image" });
 		if (r.length) refsByPost[`${p.post_type}:${p.id}:${p.slug}`] = r;
 	}
@@ -492,6 +495,11 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	// Bricks: palette, global classes, theme styles and components are options the REST API does not serve.
 	if (usesBricks(allPosts)) {
 		const note = bricksOptionsNote(readBricksOptions(raw, options));
+		if (note) notes.push(note);
+	}
+	// Elementor: Theme Builder parts and the Kit live in elementor_library; the active kit id is an option.
+	if (usesElementor(allPosts)) {
+		const note = elementorNote(allPosts, readElementorOptions(raw, options));
 		if (note) notes.push(note);
 	}
 	if (isSalient) {

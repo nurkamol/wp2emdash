@@ -28,6 +28,8 @@ const CHROME = [
 	"header.site-header",
 	"nav.main-navigation",
 	".elementor-location-header",
+	// Elementor Pro popups (rendered hidden in every page; migrated as popups)
+	".elementor-location-popup",
 	"#masthead",
 	"#site-navigation",
 	".wp-block-template-part header",

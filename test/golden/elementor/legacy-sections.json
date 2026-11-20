@@ -1,0 +1,283 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "inline",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "width": "full",
+      "gap": "none",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "section#1a2b3c4",
+        "rawHash": "1924efbbdb",
+        "row": 0
+      },
+      "fields": {
+        "columnGap": "0px",
+        "media": [
+          {
+            "wpId": 510,
+            "kind": "image",
+            "url": "https://fixture.example/wp-content/uploads/2026/01/room.jpg",
+            "alt": "The studio room"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Our story",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "We opened in a former bakery.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "The ovens are gone; the warmth stayed.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [],
+        "mediaSide": "right",
+        "ratio": "1/2"
+      },
+      "pad": {
+        "top": "clamp(40px, 25.14px + 3.81vw, 80px)",
+        "topTablet": 40,
+        "bottom": "clamp(40px, 25.14px + 3.81vw, 80px)",
+        "bottomTablet": 40
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "section#2a3b4c5#0",
+        "rawHash": "74bd78af8f",
+        "row": 1
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Three ways to start",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "title": "Intro week",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Five classes for the price of two.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 511,
+              "kind": "image",
+              "url": "https://fixture.example/wp-content/uploads/2026/01/a.jpg"
+            }
+          },
+          {
+            "title": "Drop in",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Any class, any day.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 512,
+              "kind": "image",
+              "url": "https://fixture.example/wp-content/uploads/2026/01/b.jpg"
+            }
+          },
+          {
+            "title": "Membership",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Unlimited classes, paused when you travel.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 513,
+              "kind": "image",
+              "url": "https://fixture.example/wp-content/uploads/2026/01/c.jpg"
+            },
+            "link": {
+              "label": "Membership",
+              "href": "/membership/",
+              "style": "link"
+            }
+          }
+        ],
+        "columns": 3
+      },
+      "minHeight": "70vh",
+      "valign": "middle"
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "anchorId": "faq",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "section#4a5b6c7",
+        "rawHash": "c9b865a091",
+        "row": 2
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "te",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tf",
+                "text": "Questions",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "Do I need a mat?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "No, we lend mats for free.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Can I cancel?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "Up to 12 hours before class.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[section] hidden on desktop (shown on smaller screens: usually a phone-only copy); not migrated",
+      "path": "section#5a6b7c8",
+      "tag": "section"
+    }
+  ],
+  "forms": []
+}

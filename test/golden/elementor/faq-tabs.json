@@ -1,0 +1,235 @@
+{
+  "sections": [
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "section#da00001",
+        "rawHash": "7b9f5b344c",
+        "row": 0
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "question": "Is parking available?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Yes, behind the building.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#db00001",
+        "rawHash": "9e29ecb9c4",
+        "row": 1
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Before your first class",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "What should I wear?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Comfortable clothes you can move in.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Where is the studio?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Second floor, lift available.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "tabs",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#dc00001",
+        "rawHash": "d8d2707035",
+        "row": 2
+      },
+      "fields": {
+        "tabs": [
+          {
+            "label": "Mornings",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "7:00 Flow, 9:00 Mat.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "label": "Evenings",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "18:00 Reformer, 19:30 Yin.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "tabs",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#dd00001",
+        "rawHash": "ec8d42ecd2",
+        "row": 3
+      },
+      "fields": {
+        "tabs": [
+          {
+            "label": "Studio A",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Big windows, wooden floor.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "label": "Tab 2",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Reformer room.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "[nested-accordion] item \"Where is the studio?\": map inside the answer not kept (answers are text)",
+      "path": "container#db00001/nested-accordion#db00003",
+      "tag": "nested-accordion"
+    }
+  ],
+  "forms": []
+}

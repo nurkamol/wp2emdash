@@ -1,0 +1,75 @@
+{
+  "elements": [
+    {
+      "id": "a1b2c3d", "elType": "container", "isInner": false,
+      "settings": {
+        "content_width": "boxed", "flex_direction": "column", "flex_justify_content": "center",
+        "min_height": { "unit": "vh", "size": 100, "sizes": [] },
+        "background_background": "classic",
+        "background_image": { "url": "https://fixture.example/wp-content/uploads/2026/01/hero.jpg", "id": 501, "alt": "", "source": "library" },
+        "background_overlay_background": "classic", "background_overlay_color": "#000000",
+        "background_overlay_opacity": { "unit": "px", "size": 0.45, "sizes": [] },
+        "_element_id": "welcome", "animation": "fadeInUp"
+      },
+      "elements": [
+        { "id": "b1c2d3e", "elType": "widget", "widgetType": "heading", "settings": { "title": "Calm studio for movement", "header_size": "h1", "align": "center" }, "elements": [] },
+        { "id": "b2c3d4e", "elType": "widget", "widgetType": "text-editor", "settings": { "editor": "<p>Small classes, unhurried teaching and a room full of light.</p>", "align": "center" }, "elements": [] },
+        {
+          "id": "b3c4d5e", "elType": "container", "isInner": true, "settings": { "flex_direction": "row", "content_width": "full" },
+          "elements": [
+            { "id": "b4c5d6e", "elType": "widget", "widgetType": "button", "settings": { "text": "Book a class", "link": { "url": "/book/", "is_external": "", "nofollow": "" }, "size": "lg" }, "elements": [] },
+            { "id": "b5c6d7e", "elType": "widget", "widgetType": "button", "settings": { "text": "See timetable", "link": { "url": "/timetable/", "is_external": "", "nofollow": "" }, "button_type": "info" }, "elements": [] }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c1d2e3f", "elType": "container", "isInner": false,
+      "settings": {
+        "flex_direction": "column",
+        "padding": { "unit": "px", "top": "96", "right": "0", "bottom": "96", "left": "0", "isLinked": false },
+        "padding_mobile": { "unit": "px", "top": "48", "right": "0", "bottom": "48", "left": "0", "isLinked": false }
+      },
+      "elements": [
+        { "id": "c2d3e4f", "elType": "widget", "widgetType": "heading", "settings": { "title": "What we offer", "header_size": "h2" }, "elements": [] },
+        {
+          "id": "c3d4e5f", "elType": "container", "isInner": true, "settings": { "flex_direction": "row" },
+          "elements": [
+            { "id": "c4d5e6f", "elType": "container", "isInner": true, "settings": { "width": { "unit": "%", "size": 33.3333 } }, "elements": [
+              { "id": "c5d6e7f", "elType": "widget", "widgetType": "icon-box", "settings": { "selected_icon": { "value": "fas fa-leaf", "library": "fa-solid" }, "title_text": "Pilates", "description_text": "Mat and reformer classes for every level." }, "elements": [] }
+            ] },
+            { "id": "c6d7e8f", "elType": "container", "isInner": true, "settings": { "width": { "unit": "%", "size": 33.3333 } }, "elements": [
+              { "id": "c7d8e9f", "elType": "widget", "widgetType": "icon-box", "settings": { "selected_icon": { "value": "fas fa-sun", "library": "fa-solid" }, "title_text": "Yoga", "description_text": "Slow flow in the morning, yin at night.", "link": { "url": "/yoga/", "is_external": "" } }, "elements": [] }
+            ] },
+            { "id": "c8d9e0f", "elType": "container", "isInner": true, "settings": { "width": { "unit": "%", "size": 33.3333 } }, "elements": [
+              { "id": "c9d0e1f", "elType": "widget", "widgetType": "icon-box", "settings": { "selected_icon": { "value": "fas fa-heart", "library": "fa-solid" }, "title_text": "Privates", "description_text": "One to one sessions by appointment." }, "elements": [] }
+            ] }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d1e2f3a", "elType": "container", "isInner": false,
+      "settings": { "flex_direction": "row", "background_background": "classic", "background_color": "#1F2A2E", "color_text": "#FFFFFF" },
+      "elements": [
+        { "id": "d2e3f4a", "elType": "container", "isInner": true, "settings": [], "elements": [
+          { "id": "d3e4f5a", "elType": "widget", "widgetType": "counter", "settings": { "starting_number": 0, "ending_number": 12, "suffix": "+", "title": "Years teaching" }, "elements": [] }
+        ] },
+        { "id": "d4e5f6a", "elType": "container", "isInner": true, "settings": [], "elements": [
+          { "id": "d5e6f7a", "elType": "widget", "widgetType": "counter", "settings": { "starting_number": 0, "ending_number": 40, "title": "Classes a week" }, "elements": [] }
+        ] }
+      ]
+    },
+    {
+      "id": "e1f2a3b", "elType": "container", "isInner": false, "settings": { "content_width": "full", "flex_direction": "column" },
+      "elements": [
+        {
+          "id": "e2f3a4b", "elType": "container", "isInner": true, "settings": { "content_width": "full", "flex_direction": "column" },
+          "elements": [
+            { "id": "e3f4a5b", "elType": "widget", "widgetType": "testimonial", "settings": { "testimonial_content": "The kindest teachers I have met.", "testimonial_name": "A. Member", "testimonial_job": "Member since 2020", "testimonial_image": { "url": "https://fixture.example/wp-content/uploads/2026/01/member.jpg", "id": 502 } }, "elements": [] }
+          ]
+        }
+      ]
+    }
+  ]
+}

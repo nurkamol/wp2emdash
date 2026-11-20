@@ -1,0 +1,183 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#F4EFE9"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "template#fd00001/template#200/section#fa00001",
+        "rawHash": "7655f02195",
+        "row": 0
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Saved section: opening hours",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Mon–Fri 7–21, weekends 8–14.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#fe00001",
+        "rawHash": "fd16c29e3a",
+        "row": 1
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Pricing",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Kept as written.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Global call to action",
+            "href": "/start/",
+            "style": "primary"
+          },
+          {
+            "label": "Join the newsletter",
+            "href": "#elementor-newsletter",
+            "style": "primary",
+            "opensPopup": "elementor-newsletter"
+          },
+          {
+            "label": "Popup by URL",
+            "href": "#elementor-newsletter",
+            "style": "primary",
+            "opensPopup": "elementor-newsletter"
+          },
+          {
+            "label": "Contact us",
+            "href": "/contact/",
+            "style": "primary"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "dynamic",
+      "message": "[text-editor] editor is Elementor dynamic data (acf-text); the static text is kept",
+      "path": "container#fe00001/text-editor#fe00003",
+      "tag": "text-editor"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "[template] library template 202 could not be loaded (it embeds itself)",
+      "path": "container#ff00001/template#ff00002/template#202/template#fc00001",
+      "carriesContent": true,
+      "tag": "template"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "[template] library template 999 could not be loaded (elementor_library missing from the extract?)",
+      "path": "container#ff00001/template#ff00003",
+      "carriesContent": true,
+      "tag": "template"
+    },
+    {
+      "level": "error",
+      "code": "dynamic",
+      "message": "[posts] lists post entries from the site's data; needs a posts-listing section (not in the v1 library) or a decision in overrides.ts",
+      "path": "container#ff00001/posts#ff00004",
+      "carriesContent": true,
+      "tag": "posts"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[search-form] is rendered by the site (search, post data, sharing, widgets), not migrated as content",
+      "path": "container#ff00001/search-form#ff00005",
+      "tag": "search-form"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "No handler for Elementor widget [acme-timeline] (carries content)",
+      "path": "container#ff00001/acme-timeline#ff00006",
+      "carriesContent": true,
+      "tag": "acme-timeline"
+    },
+    {
+      "level": "warn",
+      "code": "unmapped",
+      "message": "No handler for Elementor widget [acme-ornament]",
+      "path": "container#ff00001/acme-ornament#ff00007",
+      "carriesContent": false,
+      "tag": "acme-ornament"
+    }
+  ],
+  "forms": []
+}

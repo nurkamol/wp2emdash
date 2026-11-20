@@ -8,6 +8,8 @@ import { adaptBricks, bricksDesign, type BricksElement, bricksElements, bricksSi
 import { bricksEntranceAnimations, bricksHeaderLook, bricksLayout } from "../adapters/bricks/layout.js";
 import { headerButtons, headerMenu, nestedNavItems } from "../adapters/bricks/menus.js";
 import { readBricksOptions } from "../extract/bricks.js";
+import { activeKit, adaptElementor, elementorDesign, elementorElements, elementorEntranceAnimations, elementorKit, isElementor, popupAutoOpen, siteTemplates as elementorSiteTemplates, templateType as elementorTemplateType } from "../adapters/elementor/index.js";
+import { readElementorOptions } from "../extract/elementor.js";
 import type { FormDefinitionOut } from "../scaffold/forms.js";
 import { adaptGutenberg } from "../adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../adapters/wpbakery/index.js";
@@ -33,6 +35,7 @@ import type { BricksBox, RootVariables, ScreenshotResult } from "../audit/browse
 import type { ExporterPost, MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
 
+const slugify = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_]+/g, "-");
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
 const write = (file: string, data: unknown) => {
 	mkdirSync(dirname(file), { recursive: true });
@@ -43,6 +46,8 @@ export type Builder = IrPage["source"]["builder"];
 export function detectBuilder(content: string, meta?: Record<string, unknown>): Builder {
 	// Bricks keeps the page in post meta; post_content holds at most a fallback copy.
 	if (isBricks(meta)) return "bricks";
+	// Elementor keeps the page as a JSON tree in post meta; post_content is a plain fallback copy.
+	if (isElementor(meta)) return "elementor";
 	if (!content.trim()) return "empty";
 	if (/\[vc_(row|column|section)\b/.test(content)) return "wpbakery";
 	if (/<!--\s+wp:/.test(content)) return "gutenberg";
@@ -113,6 +118,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const bricks = bricksSite(readBricksOptions(paths.raw, options), liveVariables(readJson<RootVariables[]>(join(paths.snapshot, "css-variables.json"))));
 	const bricksForms = new Map<string, FormDefinitionOut>();
 	const bricksPopups = new Map(bricksTemplatePosts.filter((t) => t.status === "publish" && templateType(t.meta) === "popup").map((t) => [t.id, `bricks-${t.slug}`]));
+	// Elementor: the library (Theme Builder parts, popups, saved templates, global widgets) and the active Kit (global
+	// colours and fonts the element settings link to).
+	const elementorLibrary = content("elementor_library");
+	const elementorTrees = new Map(elementorLibrary.map((t) => [t.id, elementorElements(t.meta?._elementor_data) ?? []]));
+	const elementorKitPost = activeKit(elementorLibrary, readElementorOptions(paths.raw, options).elementor_active_kit);
+	const elementor = elementorKit(elementorKitPost?.meta?._elementor_page_settings);
+	const elementorForms = new Map<string, FormDefinitionOut>();
+	const elementorPopups = new Map(elementorLibrary.filter((t) => t.status === "publish" && elementorTemplateType(t.meta) === "popup").map((t) => [t.id, `elementor-${t.slug}`]));
 	const siteUrl = config.source.url.replace(/\/$/, "");
 	const siteHosts = new Set([new URL(siteUrl).host, ...config.source.alternateHosts].map((h) => h.replace(/^www\./, "")));
 	// Media library id of an upload URL (WordPress size variants and -scaled copies point at the original).
@@ -240,14 +253,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		return marianaTenantCache ?? undefined;
 	};
 	/** `elements`: a Bricks template's element list (its meta key depends on the template type). */
-	const adapt = (p: ExporterPost, kind: IrPage["kind"], elements?: BricksElement[]) => {
+	const adapt = (p: ExporterPost, kind: IrPage["kind"], elements?: BricksElement[], role?: "header" | "footer") => {
 		const builder: Builder = elements ? "bricks" : detectBuilder(p.content ?? "", p.meta);
 		const keys = new Keys(`${p.id.toString(36)}_`);
 		const common = { kind, keys, popupFor, postCount: posts.filter((x) => x.status === "publish").length, rowOverrides: rowOverridesFor(p.slug) };
 		let sections: Section[] = [];
 		let diagnostics: Diagnostic[] = [];
 		try {
-			const r = builder === "bricks" ? adaptBricksPost(p, common, elements) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id) });
+			const r = builder === "bricks" ? adaptBricksPost(p, common, elements) : builder === "elementor" ? adaptElementorPost(p, common, role) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id) });
 			sections = r.sections;
 			diagnostics = r.diagnostics;
 		} catch (e) {
@@ -266,6 +279,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	function adaptBricksPost(p: ExporterPost, common: { kind: IrPage["kind"]; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, elements?: BricksElement[]) {
 		const r = adaptBricks(elements ?? bricksElements(p.meta?._bricks_page_content_2) ?? [], { ...common, template: (id) => bricksTemplates.get(id), site: bricks, postId: p.id, content: p.content ?? "", reusable: (id) => reusable.get(id), title: p.title, siteTitle, permalink, popupSlug: (id) => bricksPopups.get(id), measured: (key) => bricksBoxes.get(`${common.kind === "page" ? routeOf(p) : "/"} ${key}`), menuItems: (id) => { const m = menusRaw.find((x) => String(x.id) === id); return m ? menuTree(m) : undefined; } });
 		for (const f of r.forms) bricksForms.set(f.id, f);
+		return r;
+	}
+
+	function adaptElementorPost(p: ExporterPost, common: { kind: IrPage["kind"]; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, role?: "header" | "footer") {
+		const menuBy = (key: string) => menusRaw.find((m) => String(m.id) === key || m.name === key || slugify(m.name) === key);
+		const r = adaptElementor(elementorElements(p.meta?._elementor_data) ?? [], { ...common, ...(role ? { role } : {}), template: (id) => elementorTrees.get(id), kit: elementor, postId: p.id, title: p.title, siteTitle, permalink, popupSlug: (id) => elementorPopups.get(id), menuItems: (key) => { const m = menuBy(key); return m ? menuTree(m) : undefined; } });
+		for (const f of r.forms) elementorForms.set(f.id, f);
 		return r;
 	}
 
@@ -354,7 +374,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	};
 	for (const p of blogOn ? blogPosts : postsDecided ? [] : posts) {
 		const builder = detectBuilder(p.content ?? "", p.meta);
-		const isBuilder = builder === "wpbakery" || builder === "bricks";
+		const isBuilder = builder === "wpbakery" || builder === "bricks" || builder === "elementor";
 		if (!blogOn && !isBuilder) {
 			notTransformed.push(`post ${p.slug}: ${builder} content: no posts collection (kit.config blog: false)`);
 			continue;
@@ -430,6 +450,22 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		emit({ version: IR_VERSION, kind: "partial", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder: "bricks", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics }, `partials/${p.slug}.json`, true);
 		partials.push({ role, file: `partials/${p.slug}.json` });
 	}
+	// Elementor Theme Builder header and footer: the site-wide ones (condition "Entire Site", else the front page).
+	const elementorParts = elementorSiteTemplates(elementorLibrary.map((t) => ({ id: t.id, slug: t.slug, title: t.title, status: t.status, meta: t.meta })));
+	let elementorHeaderSections: Section[] | undefined;
+	for (const role of ["header", "footer"] as const) {
+		const p = elementorParts[role] && elementorLibrary.find((x) => x.id === elementorParts[role]?.id);
+		if (!p) continue;
+		const { sections, diagnostics } = adapt(p, "partial", undefined, role);
+		if (role === "header") elementorHeaderSections = sections;
+		if (role === "footer") paddedEdges += applyMeasuredPadding(sections, boxesFor("/"), true);
+		if (role === "footer" && overrides.copyrightYear === "current") currentYear(sections);
+		emit({ version: IR_VERSION, kind: "partial", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder: "elementor", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics }, `partials/${p.slug}.json`, true);
+		partials.push({ role, file: `partials/${p.slug}.json` });
+	}
+	for (const o of elementorParts.others) notTransformed.push(`elementor_library ${o.post.slug} (${o.type}, ${o.post.status}): applies to ${o.conditions}; only the site-wide header and footer are migrated`);
+	const canvas = pages.filter((p) => isElementor(p.meta) && /^elementor_(canvas|header_footer)$/.test(String(p.meta._wp_page_template ?? "")));
+	if (canvas.length) notTransformed.push(`Elementor page templates without the theme header/footer (Canvas / Full Width) on: ${canvas.map((p) => `${p.slug} (${p.meta._wp_page_template})`).join(", ")} (the starter shows them; decide per page)`);
 	// Announcement bar: rebuilt from the live pages' HTML (plugins such as Announcer keep it outside REST).
 	const announcement = detectAnnouncement(snapshotHtml);
 	const bar = announcement.best;
@@ -477,6 +513,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		emit({ version: IR_VERSION, kind: "popup", source: { wpId: p.id, type: p.post_type, status: p.status, slug, builder: "bricks", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics, popup: { selectors: [] } }, `popups/${slug}.json`, true);
 		popups.push({ slug, file: `popups/${slug}.json` });
 	}
+	// Elementor Pro popups: opened by links to them (popup action / dynamic tag), or on page load.
+	for (const [id, slug] of elementorPopups) {
+		const p = elementorLibrary.find((x) => x.id === id) as ExporterPost;
+		const { sections, diagnostics } = adapt(p, "popup");
+		const auto = popupAutoOpen(p.meta);
+		emit({ version: IR_VERSION, kind: "popup", source: { wpId: p.id, type: p.post_type, status: p.status, slug, builder: "elementor", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics, popup: { selectors: [], ...(auto ? { autoOpen: auto } : {}) } }, `popups/${slug}.json`, true);
+		popups.push({ slug, file: `popups/${slug}.json` });
+	}
 	for (const t of ["popup_theme", "wp_navigation", "rank_math_schema", "wp_block"]) {
 		const n = content(t).length;
 		if (n) notTransformed.push(`${t} (${n}): ${t === "wp_block" ? "inlined where referenced" : t === "popup_theme" ? "styling, rebuilt from design capture" : t === "rank_math_schema" ? "JSON-LD regenerated by the starter" : "classic menus are used"}`);
@@ -515,6 +559,26 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const buttons = headerButtons(bricksHeaderSections ?? []);
 		if (buttons.length && !menus.some((m) => m.role === "secondary")) menus.push({ name: "header-buttons", role: "secondary", wpLocations: [], items: buttons });
 	}
+	// Elementor: the header template's nav-menu widget names the main menu (by slug); its buttons are the header's calls to action.
+	const elementorHeader = elementorParts.header && elementorTrees.get(elementorParts.header.id);
+	if (elementorHeader) {
+		if (!menus.some((m) => m.role === "primary")) {
+			const keys: string[] = [];
+			const walk = (list: typeof elementorHeader) => {
+				for (const e of list) {
+					const menu = e.widgetType === "nav-menu" && !Array.isArray(e.settings) ? e.settings?.menu : undefined;
+					if (typeof menu === "string") keys.push(menu);
+					walk(e.elements ?? []);
+				}
+			};
+			walk(elementorHeader);
+			const chosen = keys.map((k) => menus.find((m, i) => String(menusRaw[i]?.id) === k || m.name === k || slugify(m.name) === k)).find(Boolean);
+			if (chosen) chosen.role = "primary";
+			reporter.emit({ type: "log", level: chosen ? "info" : "warn", message: `Elementor header menu: ${chosen ? `"${chosen.name}" from the header template's nav-menu widget` : `none found (${keys.length ? `menu ${keys.join(", ")} not in the extract` : "no nav-menu widget in the header template"})`}` });
+		}
+		const buttons = headerButtons(elementorHeaderSections ?? []);
+		if (buttons.length && !menus.some((m) => m.role === "secondary")) menus.push({ name: "header-buttons", role: "secondary", wpLocations: [], items: buttons });
+	}
 	const siteIconId = typeof options.site_icon === "number" && options.site_icon > 0 ? options.site_icon : undefined;
 	// The business from the live home page's structured data (Rank Math/Yoast LocalBusiness/Organization).
 	const homeSnap = existsSync(pagesDir) ? readdirSync(pagesDir).map((f) => readJson<{ url?: string; seo?: { jsonLd?: unknown[] } }>(join(pagesDir, f))).find((x) => { try { return !!x?.url && new URL(x.url).pathname === "/"; } catch { return false; } }) : undefined;
@@ -545,6 +609,9 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	write(join(paths.ir, "settings.json"), settings);
 	// Bricks form definitions (recipients never copied), read by scaffold next to the Fluent Forms exports.
 	for (const f of bricksForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
+	for (const f of elementorForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
+	// Elementor Kit design values (for comparison with the design capture) and the entrance animations count (motion).
+	if (results.some((r) => r.doc.source.builder === "elementor")) write(join(paths.reports, "transform", "elementor-design.json"), { kitPresent: elementor.present, ...(elementorKitPost ? { kitPost: elementorKitPost.id } : {}), ...elementorDesign(elementor), entranceAnimations: elementorEntranceAnimations([...pages, ...elementorLibrary].map((p) => (isElementor(p.meta) ? elementorElements(p.meta?._elementor_data) : undefined))) });
 	if (results.some((r) => r.doc.source.builder === "bricks")) write(join(paths.reports, "transform", "bricks-design.json"), { optionsPresent: bricks.present, ...bricksDesign(bricks), layout: bricksLayout(bricks, shots, readJson<Record<string, unknown>>(join(paths.raw, "acss-settings.json"))), header: bricksHeaderLook(bricksParts.header ? (bricksTemplates.get(bricksParts.header.id) ?? []) : [], bricks), entranceAnimations: bricksEntranceAnimations(pages.map((p) => bricksElements(p.meta?._bricks_page_content_2))) });
 	check("ir-valid", "IR validates against the schema", invalid.length === 0, invalid.join("; ") || `${results.length} documents + site.json + settings.json`);
 
@@ -662,7 +729,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 
 	// ── Content types, taxonomies, authors: everything the extract found is migrated or decided ──────────────
 	const analyze = readJson<{ authors?: { display_name: string; post_count: number | string }[]; attachments?: { count: number } }>(join(exp, "analyze.json"));
-	const builderPost = (p: ExporterPost) => ["wpbakery", "bricks"].includes(detectBuilder(p.content ?? "", p.meta));
+	const builderPost = (p: ExporterPost) => ["wpbakery", "bricks", "elementor"].includes(detectBuilder(p.content ?? "", p.meta));
 	const pathsOf = (links: string[]) => [...new Set(links.map((l) => { try { return new URL(l).pathname; } catch { return l; } }))];
 	const inventory = contentInventory({
 		types: contentTypesOnDisk.map((t) => ({ name: t, entries: content(t).map((p) => ({ status: p.status, handled: t === "post" ? builderPost(p) : false })) })),
