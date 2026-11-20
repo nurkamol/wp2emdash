@@ -21,7 +21,7 @@ afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 describe("route caching config", () => {
 	it("is on by default with an hour's lifetime and a day of stale-while-revalidate", () => {
-		expect(perf()).toEqual({ routeCache: true, maxAge: 3600, swr: 86400, responsiveImages: true, warmup: true, smartPlacement: false });
+		expect(perf()).toEqual({ routeCache: true, maxAge: 3600, swr: 86400, responsiveImages: true, warmup: true, smartPlacement: false, phoneVideo: false });
 	});
 
 	it("has one rule per public page plus the sitemaps and image variants, tagged with EmDash collection names", () => {

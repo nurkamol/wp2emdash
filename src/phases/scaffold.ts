@@ -400,6 +400,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Calm entrance motion: the owner's setting, else on for a Bricks site whose live pages animate content on entry.
 	const entranceMotion = config.motion ?? ((bricksDesignOut?.entranceAnimations ?? 0) >= 3 ? "calm" : undefined);
 	if (entranceMotion === "calm") (siteConfig as { motion?: string }).motion = "calm";
+	// Background videos on phones too (owner choice per site; default: phones keep the picture).
+	if (config.performance.phoneVideo) (siteConfig as { phoneVideo?: boolean }).phoneVideo = true;
 	// Sharing cards (@wp2emdash/og, on by default): fonts as TTF, colours from the tokens, the logo; og: { cards: false } turns them off.
 	rmSync(join(project, "packages", "og"), { recursive: true, force: true });
 	let og: OgCardOptions | undefined;

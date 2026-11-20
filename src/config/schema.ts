@@ -209,6 +209,8 @@ export const kitConfigSchema = z.object({
 			responsiveImages: z.boolean().default(true),
 			warmup: z.boolean().default(true),
 			smartPlacement: z.boolean().default(false),
+			/** Background videos also play on phones (< 768px) after load; default false: phones keep the picture. */
+			phoneVideo: z.boolean().default(false),
 		})
 		.prefault({}),
 	/** SEO panel, dashboard, Search Console and IndexNow (@wp2emdash/seo). On by default; { panel: false } turns it off. */

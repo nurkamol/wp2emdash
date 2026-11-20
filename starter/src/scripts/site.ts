@@ -339,7 +339,8 @@ for (const faq of document.querySelectorAll<HTMLElement>(".faq--panel")) {
 const bgVideos = [...document.querySelectorAll<HTMLVideoElement>("video[data-bg-video]")];
 if (bgVideos.length) {
 	const saveData = (navigator as { connection?: { saveData?: boolean } }).connection?.saveData === true;
-	const small = window.matchMedia("(max-width: 767.98px)").matches;
+	// html.video-phones (performance.phoneVideo): phones play it too, still after load.
+	const small = !document.documentElement.classList.contains("video-phones") && window.matchMedia("(max-width: 767.98px)").matches;
 	const playing: HTMLVideoElement[] = [];
 	const start = () => {
 		for (const v of playing) {
