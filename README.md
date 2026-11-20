@@ -1,10 +1,48 @@
-# wp2emdash
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.svg">
+    <img src="assets/logo-light.svg" width="420" alt="wp2emdash — WordPress to EmDash, proven by gates">
+  </picture>
+</p>
 
-> Migrates WordPress sites to [EmDash](https://docs.emdashcms.com/) on Cloudflare Workers (D1 + R2) and proves the result with automated gates: content, URLs, SEO, design, forms and integrations.
+<p align="center"><strong>Move a WordPress site to EmDash on Cloudflare, and prove nothing was lost.</strong></p>
 
-**Status:** `init` → `verify` run end to end on a real Salient + WPBakery site: 0 unmapped content, 100% of page text carried over, a generated EmDash project loaded idempotently into local, staging and production (`workers.dev`), and a verify report comparing the live WordPress site with the migrated one section by section at phone, tablet and desktop widths. The cutover preflight is implemented and the traffic switch is a command (`wp2emdash golive`, owner-approved with `--yes`) — see [`docs/PLAN.md`](docs/PLAN.md) §13.
+<p align="center">
+  <a href=".github/workflows/ci.yml"><img alt="CI: pnpm test and typecheck" src="https://img.shields.io/badge/CI-test%20%2B%20typecheck-4F46E5?logo=githubactions&logoColor=white"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0F172A"></a>
+  <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-06B6D4?logo=nodedotjs&logoColor=white">
+  <img alt="Tests: 930 passing" src="https://img.shields.io/badge/tests-930%20passing-1F9D6B">
+</p>
 
-**Requires:** Node.js 24+ and pnpm. Generated sites run on Cloudflare Workers (Workers Paid plan — the EmDash Worker is above the free plan's 3 MB limit) with the latest Astro that EmDash supports.
+wp2emdash is an open-source kit, built by PixelKraft, that migrates WordPress sites to
+[EmDash](https://docs.emdashcms.com/) (Astro on Cloudflare Workers, D1 and R2). It rebuilds builder pages as editable
+EmDash sections, carries content, media, menus, forms, SEO and old URLs, ships each site with an in-house admin plugin
+suite, and stops at an automated gate whenever the result does not match the live site.
+
+**Status.** The full pipeline (`init` → `verify`) runs end to end on two real sites, a WPBakery/Salient site and a
+Bricks site. On the WPBakery/Salient site: 0 unmapped content, 100% of live page text carried over, loaded
+idempotently into EmDash and compared with the live WordPress site section by section at phone, tablet and desktop
+widths. The cutover preflight is implemented; `golive` and `publish` are built and unit-tested against mocked Cloudflare and GitHub, not yet run on a
+launch. Per-milestone status: [docs/PLAN.md §13](docs/PLAN.md#13-milestones). What changed: [CHANGELOG.md](CHANGELOG.md).
+
+**Requires** Node.js 24+ and pnpm. Generated sites run on Cloudflare Workers (Workers Paid plan: the EmDash Worker is
+above the free plan's 3 MB limit) with the latest Astro that EmDash supports.
+
+## Contents
+
+- [Quick start](#quick-start)
+- [How it works](#how-it-works)
+- [What gets migrated](#what-gets-migrated)
+- [Commands](#commands)
+- [Plugin suite](#plugin-suite)
+- [Environments](#environments)
+- [Launch](#launch)
+- [Performance and security](#performance-and-security)
+- [Dashboard](#dashboard) · [Claude Code](#claude-code)
+- [Working with site workspaces](#working-with-site-workspaces)
+- [Docs](#docs)
+- [Privacy](#privacy) · [License](#license)
 
 ## Quick start
 
@@ -19,7 +57,7 @@ pnpm wp2emdash             # asks how you want to work: Terminal or Web dashboar
 each phase, accept gates) or **Web dashboard** (opens in the browser: every site, launch readiness, live runs and
 the visual review). The choice is remembered on this machine (`.wp2emdash.local.json`, not committed);
 `WP2EMDASH_MODE=terminal` or `WP2EMDASH_MODE=web` skips the question. The dashboard reviews, approves and takes
-secrets; creating a site, recording gates and the launch switch are done in the terminal.
+secrets; creating a site and recording gates are done in the terminal.
 
 Or without the wizard:
 
@@ -27,38 +65,547 @@ Or without the wizard:
 pnpm wp2emdash init --slug acme --name "Acme Clinic" --source https://acme.com --sensitive
 # tick the (required) items in sites/acme/ACCESS.md
 pnpm wp2emdash run acme init
+pnpm wp2emdash run acme audit        # then extract, transform, scaffold, load, verify, cutover
 pnpm wp2emdash status
-pnpm wp2emdash ui          # local dashboard in the browser (--no-open to only print the URL)
+pnpm wp2emdash ui                    # local dashboard in the browser (--no-open to only print the URL)
 ```
 
+## How it works
+
+`init → audit → extract → transform → scaffold → load → verify → cutover`. Each phase ends in a gate: a list of
+checks, each with an id, a label and pass/fail. The next phase runs only when every earlier gate has passed or was
+accepted by the owner with a recorded reason (`wp2emdash accept`). The terminal, CI, the dashboard and Claude Code
+all read the same gate data. State lives in `sites/<slug>/state.json`, progress events in `sites/<slug>/runs/`.
+
+| Phase | Does | Status |
+|---|---|---|
+| `init` | Workspace, config, access & backup checklist (`ACCESS.md`) | ✅ |
+| `audit` | Crawl the public site: snapshots, screenshots, design tokens, menu motion, forms & integrations scan, builder fingerprint | ✅ |
+| `extract` | EmDash Exporter API (read-only): raw content, meta, SEO, menus, forms, plugin exports, media download | ✅ |
+| `transform` | WPBakery/Salient, Gutenberg, classic and Bricks content → a typed section IR; posts, taxonomies, bylines, custom post types and fields; site-wide snippets, consent, settings, WordPress URL rules; gates for coverage, text conservation, content types and snippets | ✅ |
+| `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, plugin suite, performance package, seed; client README, docs and GitHub CI; builds and type-checks | ✅ |
+| `load` | Media, content, menus, taxonomies, bylines, redirects, settings and sharing images into EmDash through its API; idempotent id-map. Default target: production (`workers.dev`) on a provisioned single-environment site, else local; after go-live only with `--force` and a D1 bookmark | ✅ local, staging, production |
+| `verify` | Old site vs new, URL by URL: text, headings, SEO (og:image, structured data, sitemap), every old address accounted for, links, forms, analytics and consent in a real browser, security headers, route cache and payload, section-by-section visual diff, no sideways scroll, a11y, menu motion; HTML report | ✅ · visual sections over the threshold are fixed or go to the owner |
+| `cutover` | Read-only preflight (resources, secrets, Turnstile, separate zone-scoped go-live token, zone and DNS, alias domains, runbook), then the owner-approved switch with `wp2emdash golive` (see [Launch](#launch)) | Preflight ✅ · `golive` unit-tested, not yet run on a launch |
+
+## What gets migrated
+
+Nothing the old site had is dropped silently: whatever the kit does not carry is listed in `reports/transform/coverage.md` and keeps a gate red until it is decided in `overrides.ts` (with the owner's reason; `decisions.md` holds the longer story). Full feature matrix: [WordPress → EmDash parity](docs/parity/wp-to-emdash.md).
+
+| WordPress | On the new site |
+|---|---|
+| Pages (WPBakery/Salient, Gutenberg, classic, Bricks), header/footer, menus, popups, announcement bar, forms, media in use, SEO meta, JSON-LD, analytics, plugin redirects | Migrated |
+| Comments | In progress |
+| Blog posts (Gutenberg, classic, WPBakery, Bricks) | A `posts` collection, only on sites that have posts (or `blog: true` in kit.config): Gutenberg/classic bodies as EmDash Portable Text (EmDash's own converter after the kit's shortcode pass: `[caption]`, `[gallery]`, `[embed]`, `[audio]`, `[video]`, oEmbed URLs), builder posts keep their sections; at their WordPress address with the WordPress publish date, excerpt, featured image, sticky → "featured", post format, SEO; scheduled posts scheduled; drafts as drafts; private and password-protected posts need `protectedPosts: { as: "draft" \| "skip" \| "publish", reason }` |
+| Categories, tags, custom taxonomies of posts | EmDash taxonomies with every term (hierarchy and descriptions kept) and each post's assignments |
+| Authors with posts | Guest bylines (name, bio, an avatar the site hosted; no emails, no user accounts), credited on their posts. Skip with `authors: { as: "skip", reason }` |
+| Posts page, category/tag/author archives, `/page/N/`, feeds | Rebuilt at the WordPress addresses: posts page (sticky posts first), archives with numbered pages, single post with byline, terms, author box, newer/older and related posts; RSS 2.0 at `/feed/` and `/category/<slug>/feed/` (…tag, author) with autodiscovery; archives in the sitemap. Date archives 301 to the posts page. Details: [blog findings](docs/spikes/blog-findings.md) |
+| Custom post types (team, services, portfolio, locations…) | Each public type becomes its own EmDash collection (change it with `contentTypes: { team: { as: "collection", name?: "people" } }`, or `{ as: "pages" \| "skip", reason }`): title, slug, status, dates, featured image, excerpt, content (classic → Portable Text; WPBakery/Bricks/Gutenberg entries keep their sections), order, parent, terms of their taxonomies, byline; at their WordPress address, with an archive (numbered pages) where WordPress had one and term archives at the live bases; in the sitemap; editing guide `docs/editing-custom-content.md` in the client repo. Types the Exporter does not list as public still need a decision. Details: [CPT findings](docs/spikes/cpt-findings.md) |
+| ACF, Meta Box and Pods fields | Mapped to EmDash fields from the field definitions (ACF field groups, or the plugins' JSON exports dropped in `raw/plugin-exports/`): text → string/text, WYSIWYG → Portable Text, number, true/false, select/radio/checkbox, date/time, URL, image, file, gallery → repeater of images, relationship/post object → references (resolved after every entry exists), flat repeaters → repeaters, groups → one field per sub-field; flexible content, links, maps and nested repeaters are kept as JSON fields and flagged in the coverage report; password fields are never carried. Meta without a definition is listed and keeps gate `cpt-fields` red until mapped (`fields: { legacy_code: "string" }`) or skipped |
+| Taxonomies no migrated content uses | Listed; `taxonomies: { genre: { as: "skip", reason } }` |
+| Sites without a blog: feeds, search, category/tag/author/date archives, attachment pages, `?s=` `?cat=` `?tag=` `?author=` `?attachment_id=` `?feed=` `?m=` (blog sites: search, attachment pages, comment feeds and date archives) | One 301 to the most sensible migrated page, or a 410, by a rule set decided per site (coverage report → "WordPress URLs"; change with `wpUrls: { feed: "/blog/" \| "home" \| "gone", … }`). Defaults and the feed SEO reasoning: [wp-urls findings](docs/spikes/wp-urls-findings.md) |
+| `/?p=`, `/?page_id=`, old upload and sitemap URLs | 301 to the page, the post or the file in the media library; unknown ids answer 404 |
+| Customizer "Additional CSS" | Reported (size, selectors, media queries, images, external imports); carried only with `customCss: "carry"`, as its own stylesheet loaded after the starter's CSS (never inline) |
+| Anything else the old site answered | Verify gate `urls-accounted`: every audited address answers 200, one 301 to a 200, or 404/410 only by decision (`gone: { "/locations.kml": "reason" }`, patterns with `*`) |
+
+### Builders and editors
+
+| Source | Status |
+|---|---|
+| WPBakery + Salient (`vc_*`, `nectar_*`) | Supported: ~70 element handlers and row recognisers, measured against a real site |
+| Gutenberg (30 core blocks, reusable blocks) and the classic editor | Supported; third-party block libraries (Kadence, Spectra, GenerateBlocks…) are reported for mapping |
+| Bricks 2.4.6 / 2.5 | Supported: elements, templates, global classes, palette, components, forms; measured against a real site |
+| Elementor | In progress |
+| Divi, Beaver Builder, Oxygen and other builders | Not yet: detected by the audit, which stops for a decision |
+
+Comments: in progress (extracted today, not yet loaded).
+
+### Plugin data (forms and redirects)
+
+The REST API does not expose most plugins' settings. After the audit, `ACCESS.md` gets a **Plugin data** section
+listing, for every forms or redirects plugin it found, the exact export steps in WordPress admin. The owner exports;
+the files go in `sites/<slug>/raw/plugin-exports/` (any file name). `extract` recognises each file by its content:
+
+| Plugin | Export | Becomes |
+|---|---|---|
+| Fluent Forms | read over REST automatically; Tools → Export Forms as a fallback | site form |
+| Gravity Forms | Forms → Import/Export → Export Forms (.json) | site form |
+| WPForms | WPForms → Tools → Export → Form Exports (.json) | site form |
+| Contact Form 7 | Tools → Export → Contact Forms (.xml) | site form |
+| Redirection | Tools → Redirection → Import/Export → Everything, JSON | EmDash redirects |
+| Rank Math | Redirections → Export (.htaccess or Nginx) | EmDash redirects |
+| Yoast SEO Premium | Redirects → Export (.csv); any `from,to,code` CSV works too | EmDash redirects |
+
+Forms keep their fields, labels, required flags, options, button text and success message. Notification recipients
+stay in `raw/` and are set in the site's admin (Form messages → Settings), never written into the project. `load`
+imports the redirects into EmDash (group `wordpress`, so a rerun updates them and never touches redirects added in the
+admin). Rules EmDash cannot hold (conditional rules, complex regular expressions, redirects to another site) are
+listed in `raw/redirects.json` → `unconverted` and fail the extract gate until handled or accepted: nothing is dropped
+silently. Ninja Forms and Formidable exports are flagged for a rebuild by hand.
+
+### Site settings
+
+EmDash's own **Settings → General, Social Links and SEO** come prefilled from the WordPress site, and the starter reads
+them on every page, so editors change the logo, favicon, social profiles, verification tags, default social image and
+robots.txt in the admin and the live site follows within seconds (the save purges cached pages):
+
+| Setting | From WordPress | The starter |
+|---|---|---|
+| Logo, favicon | brand files captured from the live header (`public/brand`), else `custom_logo` / `site_icon` | header, menu sheet, structured data; favicon + apple-touch icon. While the setting is the migrated file, the optimized brand files stay (hashed WebP, sized favicons, light logo over the hero) |
+| Posts per page, date format, timezone | `posts_per_page`, `date_format` (→ date-fns), `timezone_string` / `gmt_offset` | (EmDash's own use) |
+| Social Links | Rank Math / Yoast social options, home-page JSON-LD `sameAs`, social links in the header/footer | footer social links/icons and the menu sheet's icons point at them; a network missing from the footer's icon row is added; JSON-LD `sameAs` |
+| Default social image | Rank Math / Yoast default, else the og:image most pages share | og:image of pages without their own (EmDash's head) with its size |
+| Google / Bing verification | audited page head, else the SEO plugin | printed by EmDash's head; `site.config.json` → `verification` is the fallback and keeps other services' tags |
+| robots.txt | the live file's own rules (WordPress-only rules dropped, sitemap at the new domain); none → EmDash's default | served by EmDash |
+
+Every value and its source is in the transform coverage report. `load` never overwrites a value an editor changed
+after the previous load (`--overwrite-settings` does). Facts and limits: [settings findings](docs/spikes/settings-findings.md).
+
+### Widgets and site-wide snippets
+
+One **provider registry** (`starter/src/utils/providers.ts`, imported by the kit as `src/providers/registry.ts`) lists
+every third-party widget the kit knows: how it is recognised, its category, and the hosts it may load from. The
+adapters use it to keep a widget in page content as an `embed` section; the starter uses the same table for the embed
+allowlist and the Content-Security-Policy, so nothing an embed needs is blocked and nothing else is allowed.
+
+| Category | Providers |
+|---|---|
+| Booking & calendars | Mariana Tek, Momence, Jane, Calendly, Acuity, SimplePractice, Mindbody, Google Calendar, Vagaro, Glofox, Zenoti, Square Appointments, Booksy, Fresha, OpenTable, Resy, Tock, Arketa, ClassPass |
+| Video, audio, social | YouTube, Vimeo, Wistia, Loom, Spotify, SoundCloud, Instagram, TikTok, Facebook page/video, X (Twitter) |
+| Forms, maps, newsletter | Typeform, Jotform, HubSpot forms, Google Forms, Google Maps, Mailchimp |
+| Reviews | Elfsight, Trustindex, Trustpilot (in content); Elfsight and Trustindex also as site widgets |
+| Site widgets (by ID) | Chat: Tawk.to, Crisp, Intercom, HubSpot (tracking code & chat). Consent: CookieYes, Cookiebot, Termly, iubenda |
+
+**Site-wide snippets.** Theme custom code, WPCode, Insert Headers and Footers, Header Footer Code Manager and plugin
+widgets put code in `<head>` and at the end of `<body>` on every page. `transform` reads it from the audit's saved
+pages (and from a Header Footer Code Manager export that `import-dump` put in `raw/code-snippets.json`), removes
+duplicates across pages, classifies every `<script>`, `<noscript>`, `<iframe>`, `<link>` and `<meta>`, and writes
+`ir/site-snippets.json` and a **Site-wide snippets** section in the coverage report:
+
+| Found | What happens |
+|---|---|
+| Trackers (Google tag, GTM, Meta Pixel, Clarity, Hotjar, Cloudflare beacon) | carried by SEO & Analytics (by ID) |
+| Verification meta (Google, Bing, Pinterest, Facebook…) | carried → Settings → SEO |
+| Canonical, description, Open Graph, icons, JSON-LD, Google Fonts | rebuilt by the starter and the SEO plugin |
+| A booking/video provider's loader (e.g. Mariana Tek) | carried with that provider's embed sections (a section without a loader gets the site-wide script) |
+| Chat, reviews badge, consent tool with a readable ID | carried as a **site widget**: `siteWidgets` in `site.config.json`, loaded by `components/SiteWidgets.astro` from provider + ID only — never free-form code; production domain only, never for signed-in editors; CSP from the registry. A consent tool is loaded before analytics, and CookieYes / Cookiebot acceptance of statistics cookies calls the analytics consent hook |
+| WordPress, theme, plugin, CDN-library and Cloudflare-edge internals (jQuery, emoji, wp-embed, builder runtimes, plugin CSS/JS, email obfuscation) | not needed — listed, collapsed |
+| Anything else (unknown inline or external code, child-theme scripts, legacy iubenda config, markup in a snippet, a provider loaded site-wide that no page embeds, a widget whose snippet carries no ID) | **never carried automatically**: the transform gate `site-snippets` fails until each is decided in `overrides.ts` → `snippets: { "sn-…": "drop" \| "rebuilt" }` (the report prints the block to paste; the reason goes in `decisions.md`) |
+
+`kit.config.ts` → `siteWidgets` overrides what was recognised: a list (`[{ provider: "crisp", id: "…" }]`) is exactly
+those, `false` is none. Host lists and their sources: [docs/spikes/providers-findings.md](docs/spikes/providers-findings.md).
+
 ## Commands
+
+Run as `pnpm wp2emdash <command>`; `pnpm wp2emdash <command> --help` lists every option.
 
 | Command | What it does |
 |---|---|
 | `wp2emdash` | Interactive wizard (terminal or web dashboard) |
-| `wp2emdash init --slug … --name … --source …` | Create `sites/<slug>/` (`--from <slug>` to start from another site's settings) |
-| `wp2emdash run <slug> <phase> [--json] [--preview]` | Run a phase; exit 0 pass · 2 gate failed · 3 not built yet · 1 error |
-| `wp2emdash run <slug> load --force` | Load into a **live** production (after go-live): records a D1 Time Travel bookmark first and prints the restore command; refused without `--force` |
-| `wp2emdash run <slug> load --overwrite-settings` | Also replace site settings (logo, favicon, social links, SEO) an editor changed in the admin since the last load; without it those are kept and reported |
-| `wp2emdash accept <slug> <phase> --reason "…" --by "…"` | Record the owner's acceptance of a failed gate |
-| `wp2emdash status [slug] [--json]` | Phase timeline |
-| `wp2emdash doctor` | Local prerequisites, verifies the Cloudflare token |
-| `wp2emdash provision <slug> [production\|staging]` | Create or reuse D1, R2, the form outbox and the sign-in sessions store (private R2 bucket `<worker>-sessions` with an expiry rule; `SESSION` KV with `sessions: "kv"`) in the environment's account; record them in `cloudflare.json`. Default `production`; `staging` only for sites that opted in (see Environments) |
-| `wp2emdash import-dump <slug> [dir]` · `import-options <slug> <dump>` | Sort exported files / read builder settings from a backup's `database.sql` |
-| `wp2emdash compare <a> <b>` | Content diff between two audited sites (read-only) |
-| `wp2emdash publish <slug> [--repo owner/name] [--yes]` | Project → private GitHub repository: secret scan (file names only), commit, `gh repo create --private`, push, `CLOUDFLARE_ACCOUNT_ID` variable. Never sets the token secret (prints the `gh secret set` command). Plan only without `--yes` |
-| `wp2emdash golive <slug> [--yes]` | The traffic switch after a green cutover preflight: Worker routes for apex and `www`, smoke test on the real domain (200s, canonical host, no noindex), DNS compared with the preflight snapshot, `production.live`. Plan only without `--yes` |
-| `wp2emdash golive <slug> --aliases [--yes]` | Separate step once the primary is live: one Single Redirect rule per alias domain (appended; other rules stay), `check-aliases`, DNS comparison |
-| `wp2emdash golive <slug> --rollback [--aliases] [--yes]` | Delete exactly the routes / rules recorded in `cutover/golive.json`; `production.live = false` |
-| `wp2emdash check-aliases <slug>` | Every audited path on each alias answers 301 to the same path on the primary (read-only) |
-| `wp2emdash proposals <slug> [approve\|reject <id>]` | Approval queue for proposed `overrides.ts` / `decisions.md` changes |
-| `wp2emdash ui` · `wp2emdash mcp` | Local dashboard · MCP server for Claude Code |
+| `init --slug … --name … --source …` | Create `sites/<slug>/` (`--sensitive` for health, legal or finance sites; `--production <url>`; `--from <slug>` to start from another site's settings) |
+| `run <slug> <phase> [--json] [--preview]` | Run a phase; exit 0 pass · 2 gate failed · 3 not built yet · 1 error. `--preview` runs a read-only phase out of order without recording the gate |
+| `run <slug> load --force` | Load into a **live** production (after go-live): records a D1 Time Travel bookmark first and prints the restore command; refused without `--force` |
+| `run <slug> load --only settings` | Apply Settings (General, Social Links, SEO) only, without touching pages, media, menus or redirects: the safe way to update a live site's settings |
+| `run <slug> load --overwrite-settings` | Also replace settings an editor changed in the admin since the last load; without it those are kept and reported |
+| `accept <slug> <phase> --reason "…" --by "…"` | Record the owner's acceptance of a failed gate |
+| `status [slug] [--json]` | Phase timeline for one or all sites |
+| `phases` | List the pipeline phases |
+| `doctor [--json]` | Local prerequisites; verifies the Cloudflare token and the EmDash encryption key format |
+| `provision <slug> [production\|staging] [--location <hint>]` | Create or reuse D1, R2, the form outbox and the sign-in sessions bucket in the environment's account; record them in `cloudflare.json`. Default `production`; `staging` only for sites that opted in |
+| `import-dump <slug> [dir]` | Sort everything exported from the site (`sites/<slug>/dump/`) into the places the phases read |
+| `import-options <slug> <dump>` | Read builder settings (Bricks palette, global classes, theme styles, components) from a backup's `database.sql` |
+| `compare <a> <b> [--json]` | Content diff between two audited sites (read-only, no network) |
+| `check-aliases <slug> [--paths-from <slugs>]` | Every audited path on each alias domain answers 301 to the same path on the primary (read-only) |
+| `golive <slug> [--yes]` | The owner-approved traffic switch (see [Launch](#launch)). Plan only without `--yes` |
+| `golive <slug> --aliases [--yes]` | Separate step once the primary is live: one Single Redirect rule per alias domain |
+| `golive <slug> --rollback [--aliases] [--yes]` | Delete exactly the routes / rules recorded in `cutover/golive.json`; `production.live = false` |
+| `publish <slug> [--repo owner/name] [--yes]` | Project → private GitHub repository: secret scan (file names only), commit, `gh repo create --private`, push, `CLOUDFLARE_ACCOUNT_ID` variable. Never sets the token secret. Plan only without `--yes` |
+| `proposals <slug> [approve\|reject <id>] --by "…"` | Approval queue for proposed `overrides.ts` / `decisions.md` changes |
+| `ui [--no-open] [--port <n>]` | Local dashboard on 127.0.0.1 |
+| `mcp` | MCP server on stdio for Claude Code |
+
+Load and verify targets: `WP2EMDASH_LOAD_TARGET` / `WP2EMDASH_TARGET` = `local`, `staging` or `production`.
+
+## Plugin suite
+
+Every migrated site ships with in-house EmDash plugins, built by PixelKraft as native admin pages inside the client's
+own site (no external service, no extra account). Each is switched in the site's `sites/<slug>/kit.config.ts` and
+takes effect at the next `scaffold`.
+
+| Plugin | Package | Admin page (who) | Default | Turn off |
+|---|---|---|---|---|
+| Sharing images | `@wp2emdash/og` | Plugins → Sharing images (admins) | On | `og: { cards: false }` |
+| SEO & Analytics | `@wp2emdash/seo` | SEO panel in the page editor (contributors and up); Plugins → SEO & Analytics (editors; analytics changes: admins) | On | `seo: { panel: false }` |
+| Site health & monthly report | `@wp2emdash/health` | Plugins → Site health (admins) | On | `health: false` |
+| Privacy & consent | `@wp2emdash/consent` | Plugins → Privacy & consent (admins) | On | `consent: false` |
+| Backups & restore | `@wp2emdash/backups` | Plugins → Backups (admins) | On | `backups: false` |
+| Media assistant | `@wp2emdash/media` | Plugins → Media (editors and admins) | On | `media: false` |
+| Change requests | `@wp2emdash/change-requests` | Plugins → Change requests (editors and admins) | On | `changeRequests: false` |
+| Form messages | `@wp2emdash/forms` | Plugins → Form messages (admins) | With the form outbox (an owner decision) | leave `forms.outbox` unset |
+
+The form endpoint itself (`@wp2emdash/forms`: Turnstile, rate limit, validation, email delivery) is part of every
+site; the Form messages page comes with the outbox, which stores visitors' messages and so is opted into per site.
+
+### Sharing images
+
+Every page can get its own branded sharing image (og:image): the site's logo, the page title and the site's colours
+and fonts on a 1200×630 card, drawn in the Worker the first time it is asked for and stored in R2. On for every site;
+to leave it out:
+
+```ts
+// sites/<slug>/kit.config.ts
+og: { cards: false },
+```
+
+The next `scaffold` downloads TrueType copies of the site's fonts, takes the colours from the generated design tokens
+and the logo from the brand files, adds the `@wp2emdash/og` package and its two renderer libraries (+1.1 MB gzip to
+the Worker), and registers the plugin. After deploying, an admin chooses under **Plugins → Sharing images** whether
+cards replace every page's image or only fill in where a page has none (the default), and can preview and redraw
+them. Verify downloads every og:image and fails on any that does not load. Details:
+[packages/og/README.md](packages/og/README.md).
+
+### SEO & Analytics
+
+Technical SEO is part of every migration (titles, descriptions, canonicals, robots, sitemap, structured data, old
+URLs redirected, analytics, verification tags — and verify checks all of it). On top of that, every site gets an SEO
+and analytics toolkit for its editors, the EmDash plugin `@wp2emdash/seo`; to leave it out:
+
+```ts
+// sites/<slug>/kit.config.ts
+seo: { panel: false },
+```
+
+| Part | Where | What it does |
+|---|---|---|
+| **SEO panel** | Page editor sidebar (contributors and up) | Score out of 100, Google result preview with cut-off warnings, plain-words checklist (title and description length, duplicates across pages, one H1, heading order, text length, image alt text, links, address, indexing, canonical, sharing image), focus keyword per page, "Check my unsaved changes". |
+| **SEO dashboard** | Plugins → SEO, dashboard widget (editors and admins) | Average score and a score per page, the most common issues and where they are, every page with a link to fix it, every image without a description with a form that writes alt text to the media library, robots.txt / sitemap / indexability checks (environment-aware). |
+| **Google Search Console** | SEO dashboard → Google | Connected once with a service account (key stored encrypted): clicks, impressions, click rate, position, daily chart, top searches and pages, sitemaps (submit), index status per page. Works before go-live. |
+| **IndexNow** | SEO dashboard → IndexNow | After go-live, publishing a page notifies Bing, Yandex and the other IndexNow engines; key file at the domain root; notification log; notify-all button. |
+| **Analytics** | SEO & Analytics → Analytics (changes: admins) | Tracking codes by ID only — GA4, Google tag, Google Ads, Tag Manager, Meta Pixel, Microsoft Clarity, Hotjar, Cloudflare Web Analytics — prefilled with everything the audit found on the old site (retired `UA-` listed, never loaded); on/off, edit, remove; conversion events as switches (form sent, phone/email, booking links, outbound) with no visitor data; consent mode (driven by the built-in [Privacy & consent](#privacy--consent) banner); Google/Bing verification points to EmDash's Settings → SEO, other carried tags listed read-only. Saving purges cached pages: live within seconds. The site loads trackers on the production domain only, never for signed-in editors, and its CSP allows exactly the switched-on services (one host table, `packages/seo/src/analytics/csp.ts`). |
+| **Visits** | SEO & Analytics → Visits, dashboard widget (admins), page editor | Cloudflare Web Analytics, last 7 days: visits, page views, daily chart, top pages, referrers; each page's views in its SEO box. Needs the Worker secret `CF_ANALYTICS_TOKEN` (Account Analytics: Read); the site tag is looked up at scaffold. |
+
+No effect on visitors and negligible Worker size. The site checks call the Worker through a `SELF` service binding the
+scaffold adds (a Worker fetching its own address would skip itself). Details: [packages/seo/README.md](packages/seo/README.md).
+
+### Site health & monthly report
+
+Every site gets **Plugins → Site health** (admins only; `@wp2emdash/health`, an in-house PixelKraft plugin) and a
+dashboard widget: overall status (Healthy / Attention / Down), one row per check with its last run and a 14-day
+trend, an incidents timeline, the broken-links table, real-visitor Core Web Vitals, 12 months of reports and the email
+settings. To leave it out, or to change the defaults:
+
+```ts
+// sites/<slug>/kit.config.ts
+health: false,
+// or
+health: { alertsTo: ["ops@agency.example"], reportTo: ["owner@client.example"], brand: "Prepared by PixelKraft", externalLinks: true, monthlyReport: true },
+```
+
+| Check | How often | How |
+|---|---|---|
+| Uptime | every 5 min | Home page + one sitemap page in rotation (+ retries), through the Worker itself (`SELF`); incident = 2 failures in a row, recovery noted |
+| Search engines | hourly | No `noindex` (meta / X-Robots-Tag), canonical host, robots.txt, sitemap answers |
+| Form messages | every 15 min | `@wp2emdash/forms` outbox: waiting / refused counts, email status, last emailed day (counts only) |
+| Broken links | daily (02–04 UTC), resumable | Every sitemap page, every internal link once (HEAD, GET fallback, 3 at a time, 12 requests a tick); links to other sites: 20 sampled weekly |
+| Email DNS | daily | MX/SPF/DMARC/DKIM over DNS-over-HTTPS vs the hashed baseline from `cutover/dns-before.json` |
+| Certificate | daily | Optional `CF_ZONE_READ_TOKEN`; otherwise "renewed by Cloudflare" |
+| Speed | daily + every probe | Page build time median; Chrome UX Report p75 LCP/INP/CLS with optional `CRUX_API_KEY` |
+| Analytics tags | hourly | The page's `site-analytics` tag carries the codes switched on in SEO & Analytics (the browser check stays in verify) |
+
+Alerts (down / back up, page errors, new broken links, indexability, form email, mail DNS, certificate, analytics)
+go to `health.alertsTo` (default `email.stagingTo`) — one email per issue per day, at most six a day, only once the site
+is live and never from staging — through the forms package's email path (provider API or EmDash email). On the 1st a
+branded HTML report (logo and colours from the design tokens, `health.brand` footer) goes to `health.reportTo` (default
+`email.to`) plus the alert recipients: uptime and incidents, speed and CWV, visits/top pages/referrers
+(`CF_ANALYTICS_TOKEN`), form message counts, pages published/updated, broken links found/fixed/open, average SEO score.
+No form contents or personal data anywhere. Verify gets `health-plugin` (registered; on a live site its checks ran in
+the last 30 minutes). Cron design, limits and what was verified: [docs/spikes/health-findings.md](docs/spikes/health-findings.md);
+details: [packages/health/README.md](packages/health/README.md).
+
+### Privacy & consent
+
+Every site gets a built-in cookie banner and **Plugins → Privacy & consent** (admins only; `@wp2emdash/consent`, an
+in-house PixelKraft plugin). Modes: *off*, *notice* (US style, opt-out), *opt-in* (EU/UK style) and *auto* — the
+default: opt-in for visitors from the EU/EEA, UK, Switzerland and Québec (and unknown regions), a notice elsewhere.
+The SEO & Analytics trackers and the chat/review widgets follow the visitor's choice: Google Consent Mode v2 starts
+denied and Google's scripts load only once allowed; Meta Pixel needs marketing consent (`fbq consent grant/revoke`);
+Clarity (`consentv2`) and Hotjar need analytics consent; Cloudflare Web Analytics (cookieless) always runs; Global
+Privacy Control keeps marketing off. Pages stay one cached HTML for everyone: the choice lives in the visitor's browser
+and the region comes from an uncached `/_consent/region`.
+
+The migration prefills it: a consent service kept as a site widget (CookieYes, Cookiebot, Termly, iubenda) → banner
+off (one banner, not two; the admin can switch); a WordPress consent plugin (Complianz, CookieYes, GDPR Cookie
+Consent, Cookie Notice, Borlabs, Real Cookie Banner, Moove…) → the built-in banner in that plugin's mode with its
+wording (coverage report → Consent banner); the privacy policy page is found by slug.
+
+```ts
+// sites/<slug>/kit.config.ts
+consent: false,
+// or
+consent: { mode: "opt-in", position: "card", policy: "/privacy-policy" },
+```
+
+Verify: `consent-runtime` on a live site (no analytics or marketing request before interaction, trackers after
+"Accept all"; reported as not applicable when the banner shows the notice style from the verifying machine's region);
+the banner is part of the existing `a11y` axe pass. Facts and limits: [docs/spikes/consent-findings.md](docs/spikes/consent-findings.md);
+details: [packages/consent/README.md](packages/consent/README.md).
+
+### Backups & restore
+
+Every site gets **Plugins → Backups** (admins only; `@wp2emdash/backups`, an in-house PixelKraft plugin). Every night
+(01–03 UTC, a minute fixed per site) the Worker writes a read-only export of the site's content to its own R2 bucket
+under `backups/<yyyy-mm-dd>/` (compressed JSON, a few KB to a few MB): every collection (drafts and trash too),
+revisions, menus, site settings, redirects, sections, widgets, taxonomies, bylines, SEO, the media library's records
+and a manifest of the media files (keys, sizes, ETags — the files already live in R2 and are never touched). Never in
+a backup: users, passkeys, sessions, API/OAuth tokens, plugin data and secrets, form messages, comments, logs — an
+allowlist; every table left out is listed in the file with the reason.
+
+```ts
+// sites/<slug>/kit.config.ts
+backups: false,
+// or
+backups: { retention: { daily: 30, monthly: 12 }, hourUtc: 2, alertsTo: ["ops@agency.example"], offsite: { endpoint: "https://<other-account>.r2.cloudflarestorage.com", bucket: "client-backups", prefix: "acme" } },
+```
+
+| From the browser (admins) | From the command line (developer) |
+|---|---|
+| List backups (when, kind, size, what's in it), **Back up now** (single flight, at most every 2 min) | Whole-site restore: `npx wrangler d1 time-travel restore <db> --timestamp=<backup time>` (any minute of the last 30 days) |
+| **Download** (one-time link, 2 minutes) | `load --force` / `golive` record a D1 bookmark and a marker the Backups page lists with its restore command |
+| **Restore** the settings, the menus or one page from any backup — preview of every change, a fresh backup first, refused if the site changed since the preview | Older than 30 days: settings/menus/pages one by one from the page; a full rebuild from a file is manual |
+
+Kept: 30 daily + the first of each of 12 months (configurable). When an entry is moved to the trash a snapshot of it is
+kept first (`content:beforeDelete`). Two failed nightly attempts in a row email `backups.alertsTo` (default
+`health.alertsTo`, then `email.stagingTo`); Site health gets a **Backups** check; verify gets `backups-plugin`; the
+dashboard's Environment view shows the last backup. Optional off-site copy: any S3-compatible bucket, keys as Worker
+secrets `BACKUP_S3_ACCESS_KEY_ID` / `BACKUP_S3_SECRET_ACCESS_KEY` (write-only; lifecycle rules there). Why the plugin and
+not EmDash's own Settings → Backups, and what was verified: [docs/spikes/backup-findings.md](docs/spikes/backup-findings.md);
+details: [packages/backups/README.md](packages/backups/README.md).
+
+### Media assistant
+
+Every site gets **Plugins → Media** (editors and admins; `@wp2emdash/media`, an in-house PixelKraft plugin): media
+health (size by type, oversized originals, images without alt text and where each is used, unused files, duplicates,
+formats, broken references — from a read-only scan of the database), **Optimize** (resize + re-encode in place with
+the Images binding through EmDash's own Replace, old file kept 30 days, undo), reviewed **alt text suggestions**
+(Workers AI, or file names and headings; nothing saved until a person marks it), a nine-position **focal point**, and a
+**trash** folder with a 30-day undo (brand files and recent uploads never offered; nothing deleted automatically).
+Every file change is preview → confirm. Site health gets a **Media** check.
+
+```ts
+// sites/<slug>/kit.config.ts
+media: false,
+// or
+media: { aiAlt: false, autoOptimize: true, maxDimension: 3000, protect: ["^partner-"] },
+```
+
+AI alt text is on by default except on `sensitiveData` sites; when on, the scaffold adds `"ai": { "binding": "AI" }`
+to wrangler.jsonc. Optional Worker secret `MEDIA_API_TOKEN` lets the hourly task optimize queued uploads. Client guide:
+`docs/media.md` in the site repo. Facts and limits: [docs/spikes/media-findings.md](docs/spikes/media-findings.md);
+details: [packages/media/README.md](packages/media/README.md).
+
+### Change requests
+
+Every site gets **Plugins → Change requests** (editors and admins; `@wp2emdash/change-requests`, an in-house
+PixelKraft plugin): the client asks the agency for a change inside the admin — title, description, page (or anywhere),
+priority, up to 3 private screenshots/PDFs, how to get back — and follows its status (New → Seen → In progress →
+Waiting for you → Done / Declined) with a comment timeline. The agency (admins) replies and moves the status on the
+same page; a "Request a change" editor panel and a dashboard widget come with it. New requests email the agency;
+status changes and replies email the requester (opt-out). Optional signed webhook for the agency's tracker.
+
+```ts
+// sites/<slug>/kit.config.ts
+changeRequests: false,
+// or
+changeRequests: { agencyTo: ["pm@agency.example"], agencyDomains: ["agency.example"], webhook: "https://hooks.zapier.com/…", retentionMonths: 12 },
+```
+
+`agencyTo` defaults to `email.stagingTo`. With `webhook`, put the Worker secret `CHANGE_REQUESTS_WEBHOOK_SECRET`.
+Closed requests are deleted with their files after `retentionMonths`; the requests (not their files) are in the
+nightly backups. Client guide: `docs/change-requests.md` in the site repo. Facts and limits:
+[docs/spikes/change-requests-findings.md](docs/spikes/change-requests-findings.md); details and the webhook payload:
+[packages/change-requests/README.md](packages/change-requests/README.md).
+
+### Form messages (outbox and inbox)
+
+With `forms.outbox` in a site's `kit.config.ts` (an owner decision: it stores visitors' messages), messages that cannot be emailed are kept in Workers KV, retried by the
+Worker's cron and shown to admins under **Plugins → Form messages** (inbox, insights, export/import, activity,
+recipients). By default a message is deleted once emailed, so the inbox only ever shows what is still waiting. An owner
+who wants to see every message there can opt in to a full inbox:
+
+```ts
+// sites/<slug>/kit.config.ts
+forms: { outbox: { days: 30, keepSent: true } },   // → FORM_OUTBOX_KEEP_SENT="1" in both environments
+```
+
+Every message is then kept, marked **Emailed**, **Waiting** or **Failed**, until `days` ends — with a status filter,
+"Email again", and the newest messages on the dashboard widget. This is a **data-retention decision**: what visitors
+wrote stays in the site for the retention period even after it was emailed. Record it in the site's `decisions.md`;
+on sites with `sensitiveData: true` leave it off unless the owner explicitly asks for an inbox. Details:
+[`packages/forms/README.md`](packages/forms/README.md#configuration-wranglerjsonc-per-environment--environments-do-not-inherit).
+
+## Environments
+
+**One Cloudflare environment per site by default: production**, deployed to its `workers.dev` address until go-live
+(owner decision 2026-11-20). The client reviews the real site there; nothing public changes until `golive` adds the
+Worker routes. Staging is opt-in. Details and commands: [docs/staging-setup.md](docs/staging-setup.md), [docs/PLAN.md §7a](docs/PLAN.md#7a-environments-and-launch-topology).
+
+| | Single environment (default) | Opt-in staging (`target.staging: true`) |
+|---|---|---|
+| Cloudflare | `<slug>` Worker, `<slug>-db`, `<slug>-media`, `<slug>-sessions` (sign-in sessions), outbox KV | the same, plus `<slug>-staging` with its own D1/R2/KV/secrets |
+| Before go-live | production on workers.dev: `noindex`, no analytics, form messages are tests | staging for review; production on workers.dev before the switch |
+| `load` / `verify` default | production once provisioned (else local) | load: local; verify: staging |
+| Form test messages | any host but the domain (workers.dev, preview URLs) → `email.stagingTo` only, `[Test]` subject, never the client, also from the outbox after launch | staging → `email.stagingTo` only |
+| Client CI on push to `main` | deploys production until go-live (`target.ciDeploy`), manual after | deploys staging; production manual |
+| After go-live | content edited in the admin; `load --force` takes a D1 Time Travel bookmark first; code changes via Workers preview URLs (`pnpm versions:upload` → `pnpm versions:deploy`) — previews share production's data, so code/layout review only | as before, plus staging |
+| EmDash token | `EMDASH_TOKEN_PRODUCTION` (`EMDASH_TOKEN` accepted as an alias) | `EMDASH_TOKEN` = staging, `EMDASH_TOKEN_PRODUCTION` = production |
+
+**Opt into staging** when the client signs off big changes on a copy of the data (redesigns, EmDash upgrades with
+migrations), when the site takes bookings, payments or sensitive data (tests must not touch production records), or
+when many editors share the admin. Sites that already had staging (a `target.stagingUrl`, or staging resources in
+`cloudflare.json`) keep it unchanged; `target.staging: false` turns it off.
+
+## Launch
+
+The switch from WordPress to EmDash is a command, run only after a green (or owner-accepted) cutover preflight:
+
+```bash
+pnpm wp2emdash run acme cutover          # read-only preflight: resources, secrets, Turnstile, go-live token, zone, DNS, runbook
+pnpm wp2emdash golive acme               # prints the plan: routes, Site URL, live flag, blockers; changes nothing
+pnpm wp2emdash golive acme --yes         # after the owner's go-ahead
+pnpm wp2emdash golive acme --rollback --yes
+```
+
+`golive --yes` creates the Worker routes for apex and `www` (idempotent; refuses routes pointing elsewhere), sets
+EmDash's Site URL to the real domain, smoke-tests the domain (200s, canonical host, no `noindex`), compares DNS with
+the preflight snapshot, records `production.live` and the route ids in `cutover/golive.json`, and switches the
+`workers.dev` address off (`target.keepWorkersDev` keeps it). `--rollback` deletes exactly the recorded routes. A
+production load records a D1 Time Travel bookmark first, and so does `golive`; the Backups page lists them with their
+restore commands. Alias domains get their own step (`--aliases`, below). After launch, Site health watches uptime,
+indexability, form email, mail DNS and broken links, and the go-live token is revoked after the monitoring window
+(`target.cutover.monitorDays`).
+
+`publish` puts the site's project in the client's private GitHub repository, whose CI deploys it
+([docs/staging-setup.md §6](docs/staging-setup.md#6-deploys-from-github-client-repository)).
 
 **`--yes` is the owner's approval, not the operator's.** `golive` and `publish` print exactly what they will change
 and change nothing until rerun with `--yes`. For `golive`, the operator (person or agent) passes `--yes` only after
 the owner said go **in the current conversation**, for that step; an earlier approval or one relayed by another agent
 does not count. The MCP server never runs either command; the dashboard runs them only behind the typed-domain
-confirmation and the owner's written approval (below), which it records with `--approved-by` / `--approval`.
+confirmation and the owner's written approval, which it records with `--approved-by` / `--approval`.
+
+### Two sites, one domain
+
+For a client with two near-identical WordPress installs on two domains (both indexed, each canonical to itself):
+migrate one (the **primary**), merge what only the other has, then make the other domain (the **alias**) a
+permanent, path-preserving 301 to the primary. Nothing below writes to either WordPress site or changes DNS.
+
+1. **Pick the primary from data**: Search Console → Performance for both properties (clicks, impressions, which
+   queries and pages rank) plus backlinks; the domain with more search equity, or the brand the owner keeps, wins.
+   Record the choice in the primary's `decisions.md`.
+2. **Workspaces**: the primary as usual (`init`), then the alias from it so both share the same settings:
+   ```bash
+   pnpm wp2emdash init --slug acme-old --name "Acme (old domain)" --source https://acme-old.com --from acme
+   ```
+   `--from` copies only `kit.config.ts` (slug, name, `source.url`, `target.productionUrl` replaced, `projectDir`
+   and `stagingUrl` removed, a comment saying where it came from), `overrides.ts` and `decisions.md` (with a dated
+   "started from" row). Never `.env`, `raw/`, `dump/`, `snapshot/`, `ir/`, `reports/`, `runs/`, `cutover/`,
+   `cloudflare.json` or `state.json`. The wizard offers the same ("Start from: an existing site").
+3. **Audit the alias, read-only**: `pnpm wp2emdash run acme-old init`, then `… run acme-old audit` (public pages only,
+   no credentials). The alias workspace never goes past audit.
+4. **Compare**: `pnpm wp2emdash compare acme acme-old` (read-only, no network) → `sites/acme-old/reports/compare/acme.md`
+   and `.json`: pages only on one side; for matched paths, distinct-word similarity with a verdict (identical /
+   minor ≥ 98% / differs), sentences and words found on one side only, title/description/canonical/H1, forms
+   (provider, id, field types) and external links (booking, social, phone, email).
+5. **Merge unique content into the primary**: pages or sections only on the alias go into the primary through
+   `overrides.ts` / `decisions.md` and a rerun, or in the EmDash admin after load — never by hand-editing `ir/`.
+   Record each choice (kept, merged, dropped) in `decisions.md`.
+6. **Set the alias** in the primary's `kit.config.ts`:
+   ```ts
+   target: { productionUrl: "https://acme.com", aliasDomains: ["acme-old.com"] /* www. included */ },
+   ```
+7. **Preflight**: add the alias zone to the go-live token (Zone Read, DNS Read, Single Redirect Read; Single
+   Redirect Edit on launch day — docs/cloudflare-api-token.md) and run `pnpm wp2emdash run acme cutover`. Per alias
+   it checks the zone, snapshots DNS to `cutover/dns-before.acme-old.com.json` with mail records flagged (MX, SPF,
+   DKIM, DMARC, autodiscover — they stay untouched), checks apex and www are proxied and lists existing redirect
+   rules. `cutover/runbook.md` §4 has the exact calls.
+8. **Go-live** (owner approval at each step): switch the primary first (`pnpm wp2emdash golive acme`, then `--yes`;
+   §1 of the runbook) and verify it; then per alias create its one Single Redirect rule (apex + www →
+   `https://acme.com` + same path, query kept, 301) — `pnpm wp2emdash golive acme --aliases`, then `--yes`, appends it
+   to the zone's existing redirect rules and runs the check below and a DNS comparison — or by hand, and run
+   ```bash
+   pnpm wp2emdash check-aliases acme --paths-from acme-old    # every audited path, apex and www, no redirect followed
+   ```
+   which must show a 301 to the same path on the primary for every URL (it reports 200, 404, 302 and chains).
+   Rollback: `pnpm wp2emdash golive acme --rollback --aliases --yes` (or delete that rule by id, runbook). No DNS record
+   changes, so the alias domain's email is unaffected.
+9. **Change of Address**: in the alias's Search Console property, Settings → Change of address → the primary; submit
+   the primary's sitemap; update Google Business Profile, social profiles, booking and other third-party links.
+   Keep the alias domain registered (auto-renew) and its redirect rule in place for good — at least 180 days.
+10. **Monitor** for `target.cutover.monitorDays`: rerun `check-aliases`, watch both Search Console properties (the
+    alias's pages drop out, the primary picks them up) and the primary's 404 log.
+
+## Performance and security
+
+### Performance (on by default)
+
+Every generated site ships a performance package (`src/scaffold/perf.ts`; facts and measurements in
+[docs/spikes/performance-findings.md](docs/spikes/performance-findings.md)):
+
+- **Route caching.** Rendered pages are kept in Cloudflare's Workers cache next to visitors (Astro route caching,
+  `cacheCloudflare()`); a cached page answers like a static file (staging: 80 ms on a warm connection instead of
+  0.8–1.8 s far from the database). One route rule per public page plus the sitemaps, tagged with EmDash collection
+  names; the page also sets the tags of the chrome it shows (settings, menus, footer and announcement site parts,
+  popups), so a publish or a menu/settings save purges the affected pages within seconds. 404s, redirects, signed-in
+  editors and previews are never cached; browsers always revalidate HTML (`no-cache`).
+- **Warm-up after deploy.** Each deploy starts with an empty cache (`cross_version_cache: false`: new templates at
+  once); the deploy scripts and CI then run `scripts/warm.mjs`, which requests every sitemap URL and the image sizes
+  those pages use.
+- **Images.** Responsive `srcset`/`sizes` through EmDash's `/_image` endpoint (Cloudflare Images binding, no zone
+  setting; a failed transform falls back to the original file), width/height on every image the starter renders,
+  the logo as WebP sized for the header and small favicons, fonts and brand files cached by browsers for a year
+  under content-hashed names.
+- **Background video.** The picture paints first (LCP); the video is attached after load when the browser is idle,
+  and not at all on phones (< 768 px), with Save-Data or reduced motion.
+- **Announcement schedules** are checked in the browser (the inline script is allowed by its hash in the CSP, never
+  `'unsafe-inline'`), and a cached page lives no longer than the bar's next start or end.
+- **Verify** gates it on the deployed target: every page `cf-cache-status: HIT` on its second request, cached home
+  page TTFB ≤ `gates.maxCachedTtfbMs` (600 ms, measured from the machine running verify — geography matters), home
+  page ≤ `gates.maxPayloadKb` (1500 KB) until load with no video fetched.
+
+Opt-outs, per site:
+
+```ts
+// sites/<slug>/kit.config.ts
+performance: { routeCache: false },        // render every page per request (also turns off the warm-up)
+performance: { responsiveImages: false },  // original image files only (no Images transformations)
+performance: { warmup: false },            // no warm-up after deploy
+performance: { maxAge: 600, swr: 3600 },   // shorter cache lifetime (seconds)
+```
+
+Smart Placement stays off (`performance: { smartPlacement: true }` to try it): see the findings for why.
+
+### Security and privacy
+
+- **Content-Security-Policy** on every page, built from one provider table: embeds, site widgets and the
+  switched-on trackers are allowed by host; visitors' pages allow inline scripts only by hash (signed-in editors get
+  the looser policy the EmDash admin needs). Security headers
+  and closed WordPress endpoints (`/wp-admin`, `/xmlrpc.php`, `/wp-json`) are verify checks.
+- **Consent**: trackers and widgets follow the visitor's choice in the built-in banner ([Privacy & consent](#privacy--consent)).
+- **Forms**: Turnstile, rate limiting and validation on the endpoint; on sites with `sensitiveData: true` forms are
+  rebuilt under the policy the owner chose (`forms.sensitive`: contact fields only, or contact fields plus one
+  message box with a notice), and the scaffold gate fails until that choice is made.
+- **Trackers and widgets** load on the production domain only, never for signed-in editors.
+
+### Sign-in sessions
+
+EmDash admin sign-in sessions live in a private R2 bucket per environment, `<worker>-sessions`
+(`kit.config` `sessions`, default `"r2"`). Workers KV — the Cloudflare adapter's default — is eventually consistent and
+caches reads at the edge, misses included, so editors were signed out at random ("Not authenticated", Retry → sign-in
+page). R2 is strongly consistent. A lifecycle rule deletes session objects after `sessions.days` (default 30) and the
+session lasts as long: editors sign in again every 30 days. The bucket is never public. `sessions: "kv"` keeps the old
+store. Scaffold uses R2 only once every environment has its bucket (`provision`), else KV with a warning.
+**Switching a live site signs everyone out once** (sessions do not move); the old `<worker>-session` KV namespace is
+left unbound, delete it by hand later. Details: [sessions findings](docs/spikes/sessions-findings.md).
 
 ## Dashboard
 
@@ -163,122 +710,9 @@ cp -R skills/wp2emdash-* <project>/.claude/skills/      # one project (e.g. a si
 Claude never accepts a gate (only `wp2emdash accept` with the owner's reason) and never writes `overrides.ts` /
 `decisions.md` directly.
 
-## Pipeline
+## Working with site workspaces
 
-| Phase | Does | Status |
-|---|---|---|
-| `init` | Workspace, config, access & backup checklist | ✅ |
-| `audit` | Crawl live site, snapshots, screenshots, design, menu motion, forms & integrations scan | ✅ |
-| `extract` | EmDash Exporter API: raw content, meta, SEO, menus, forms, media download | ✅ |
-| `transform` | WPBakery/Salient, Gutenberg, classic, Bricks 2.4–2.5 (elements, global classes, palette, components, header/footer/popup templates, forms; not yet measured on a live Bricks site) → section IR, coverage & text-conservation gate; announcement/top bars (Announcer, WPFront Notification Bar, Salient secondary header, Astra above-header; other bar-like rows reported for a decision) rebuilt from the live HTML as an editable site part above the header | ✅ |
-| `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, analytics, seed; client README, docs and GitHub CI; builds + local preview | ✅ |
-| `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map. Default target: production (workers.dev) on a provisioned single-environment site, else local; after go-live only with `--force` + a D1 bookmark | ✅ local, staging, production (`WP2EMDASH_LOAD_TARGET`) |
-| `verify` | Old site vs production (default, single environment) or staging, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), every old address accounted for (`urls-accounted`), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |
-| `cutover` | Preflight (read-only: resources, secrets, Turnstile, go-live token separate and zone-scoped, zone and DNS record, alias domains, runbook), then the owner-approved switch with `wp2emdash golive`: Worker routes, smoke, `production.live`, rollback; alias domains → one Single Redirect rule each, `check-aliases` (README "Two sites, one domain") | Preflight ✅ · `golive` built and unit-tested (mocked Cloudflare), not yet run on a launch |
-
-Each phase ends in a gate; the next phase won't run until it passes or is accepted with a recorded reason.
-
-## What gets migrated
-
-Nothing the old site had is dropped silently: whatever the kit does not carry is listed in `reports/transform/coverage.md` and keeps a gate red until it is decided in `overrides.ts` (with the owner's reason; `decisions.md` holds the longer story). Full feature matrix: [WordPress → EmDash parity](docs/parity/wp-to-emdash.md).
-
-| WordPress | On the new site |
-|---|---|
-| Pages (WPBakery/Salient, Gutenberg, classic, Bricks), header/footer, menus, popups, announcement bar, forms, media in use, SEO meta, JSON-LD, analytics, plugin redirects | Migrated |
-| Blog posts (Gutenberg, classic, WPBakery, Bricks) | A `posts` collection, only on sites that have posts (or `blog: true` in kit.config): Gutenberg/classic bodies as EmDash Portable Text (EmDash's own converter after the kit's shortcode pass: `[caption]`, `[gallery]`, `[embed]`, `[audio]`, `[video]`, oEmbed URLs), builder posts keep their sections; at their WordPress address with the WordPress publish date, excerpt, featured image, sticky → "featured", post format, SEO; scheduled posts scheduled; drafts as drafts; private and password-protected posts need `protectedPosts: { as: "draft" \| "skip" \| "publish", reason }` |
-| Categories, tags, custom taxonomies of posts | EmDash taxonomies with every term (hierarchy and descriptions kept) and each post's assignments |
-| Authors with posts | Guest bylines (name, bio, an avatar the site hosted; no emails, no user accounts), credited on their posts. Skip with `authors: { as: "skip", reason }` |
-| Posts page, category/tag/author archives, `/page/N/`, feeds | Rebuilt at the WordPress addresses: posts page (sticky posts first), archives with numbered pages, single post with byline, terms, author box, newer/older and related posts; RSS 2.0 at `/feed/` and `/category/<slug>/feed/` (…tag, author) with autodiscovery; archives in the sitemap. Date archives 301 to the posts page. Details: [blog findings](docs/spikes/blog-findings.md) |
-| Custom post types (team, services, portfolio, locations…) | Each public type becomes its own EmDash collection (change it with `contentTypes: { team: { as: "collection", name?: "people" } }`, or `{ as: "pages" \| "skip", reason }`): title, slug, status, dates, featured image, excerpt, content (classic → Portable Text; WPBakery/Bricks/Gutenberg entries keep their sections), order, parent, terms of their taxonomies, byline; at their WordPress address, with an archive (numbered pages) where WordPress had one and term archives at the live bases; in the sitemap; editing guide `docs/editing-custom-content.md` in the client repo. Types the Exporter does not list as public still need a decision. Details: [CPT findings](docs/spikes/cpt-findings.md) |
-| ACF, Meta Box and Pods fields | Mapped to EmDash fields from the field definitions (ACF field groups, or the plugins' JSON exports dropped in `raw/plugin-exports/`): text → string/text, WYSIWYG → Portable Text, number, true/false, select/radio/checkbox, date/time, URL, image, file, gallery → repeater of images, relationship/post object → references (resolved after every entry exists), flat repeaters → repeaters, groups → one field per sub-field; flexible content, links, maps and nested repeaters are kept as JSON fields and flagged in the coverage report; password fields are never carried. Meta without a definition is listed and keeps gate `cpt-fields` red until mapped (`fields: { legacy_code: "string" }`) or skipped |
-| Taxonomies no migrated content uses | Listed; `taxonomies: { genre: { as: "skip", reason } }` |
-| Sites without a blog: feeds, search, category/tag/author/date archives, attachment pages, `?s=` `?cat=` `?tag=` `?author=` `?attachment_id=` `?feed=` `?m=` (blog sites: search, attachment pages, comment feeds and date archives) | One 301 to the most sensible migrated page, or a 410, by a rule set decided per site (coverage report → "WordPress URLs"; change with `wpUrls: { feed: "/blog/" \| "home" \| "gone", … }`). Defaults and the feed SEO reasoning: [wp-urls findings](docs/spikes/wp-urls-findings.md) |
-| `/?p=`, `/?page_id=`, old upload and sitemap URLs | 301 to the page, the post or the file in the media library; unknown ids answer 404 |
-| Customizer "Additional CSS" | Reported (size, selectors, media queries, images, external imports); carried only with `customCss: "carry"`, as its own stylesheet loaded after the starter's CSS (never inline) |
-| Anything else the old site answered | Verify gate `urls-accounted`: every audited address answers 200, one 301 to a 200, or 404/410 only by decision (`gone: { "/locations.kml": "reason" }`, patterns with `*`) |
-
-## Environments
-
-**One Cloudflare environment per site by default: production**, deployed to its `workers.dev` address until go-live
-(owner decision 2026-11-20). The client reviews the real site there; nothing public changes until `golive` adds the
-Worker routes. Staging is opt-in. Details and commands: [docs/staging-setup.md](docs/staging-setup.md), docs/PLAN.md §7a.
-
-| | Single environment (default) | Opt-in staging (`target.staging: true`) |
-|---|---|---|
-| Cloudflare | `<slug>` Worker, `<slug>-db`, `<slug>-media`, `<slug>-sessions` (sign-in sessions), outbox KV | the same, plus `<slug>-staging` with its own D1/R2/KV/secrets |
-| Before go-live | production on workers.dev: `noindex`, no analytics, form messages are tests | staging for review; production on workers.dev before the switch |
-| `load` / `verify` default | production once provisioned (else local) | load: local; verify: staging |
-| Form test messages | any host but the domain (workers.dev, preview URLs) → `email.stagingTo` only, `[Test]` subject, never the client, also from the outbox after launch | staging → `email.stagingTo` only |
-| Client CI on push to `main` | deploys production until go-live (`target.ciDeploy`), manual after | deploys staging; production manual |
-| After go-live | content edited in the admin; `load --force` takes a D1 Time Travel bookmark first; code changes via Workers preview URLs (`pnpm versions:upload` → `pnpm versions:deploy`) — previews share production's data, so code/layout review only | as before, plus staging |
-| EmDash token | `EMDASH_TOKEN_PRODUCTION` (`EMDASH_TOKEN` accepted as an alias) | `EMDASH_TOKEN` = staging, `EMDASH_TOKEN_PRODUCTION` = production |
-
-**Opt into staging** when the client signs off big changes on a copy of the data (redesigns, EmDash upgrades with
-migrations), when the site takes bookings, payments or sensitive data (tests must not touch production records), or
-when many editors share the admin. Sites that already had staging (a `target.stagingUrl`, or staging resources in
-`cloudflare.json`) keep it unchanged; `target.staging: false` turns it off.
-
-**Sign-in sessions** (EmDash admin) live in a private R2 bucket per environment, `<worker>-sessions`
-(`kit.config` `sessions`, default `"r2"`). Workers KV — the Cloudflare adapter's default — is eventually consistent and
-caches reads at the edge, misses included, so editors were signed out at random ("Not authenticated", Retry → sign-in
-page). R2 is strongly consistent. A lifecycle rule deletes session objects after `sessions.days` (default 30) and the
-session lasts as long: editors sign in again every 30 days. The bucket is never public. `sessions: "kv"` keeps the old
-store. Scaffold uses R2 only once every environment has its bucket (`provision`), else KV with a warning.
-**Switching a live site signs everyone out once** (sessions do not move); the old `<worker>-session` KV namespace is
-left unbound, delete it by hand later. Details: [sessions findings](docs/spikes/sessions-findings.md).
-
-## Two sites, one domain
-
-For a client with two near-identical WordPress installs on two domains (both indexed, each canonical to itself):
-migrate one (the **primary**), merge what only the other has, then make the other domain (the **alias**) a
-permanent, path-preserving 301 to the primary. Nothing below writes to either WordPress site or changes DNS.
-
-1. **Pick the primary from data**: Search Console → Performance for both properties (clicks, impressions, which
-   queries and pages rank) plus backlinks; the domain with more search equity, or the brand the owner keeps, wins.
-   Record the choice in the primary's `decisions.md`.
-2. **Workspaces**: the primary as usual (`init`), then the alias from it so both share the same settings:
-   ```bash
-   pnpm wp2emdash init --slug acme-old --name "Acme (old domain)" --source https://acme-old.com --from acme
-   ```
-   `--from` copies only `kit.config.ts` (slug, name, `source.url`, `target.productionUrl` replaced, `projectDir`
-   and `stagingUrl` removed, a comment saying where it came from), `overrides.ts` and `decisions.md` (with a dated
-   "started from" row). Never `.env`, `raw/`, `dump/`, `snapshot/`, `ir/`, `reports/`, `runs/`, `cutover/`,
-   `cloudflare.json` or `state.json`. The wizard offers the same ("Start from: an existing site").
-3. **Audit the alias, read-only**: `pnpm wp2emdash run acme-old init`, then `… run acme-old audit` (public pages only,
-   no credentials). The alias workspace never goes past audit.
-4. **Compare**: `pnpm wp2emdash compare acme acme-old` (read-only, no network) → `sites/acme-old/reports/compare/acme.md`
-   and `.json`: pages only on one side; for matched paths, distinct-word similarity with a verdict (identical /
-   minor ≥ 98% / differs), sentences and words found on one side only, title/description/canonical/H1, forms
-   (provider, id, field types) and external links (booking, social, phone, email).
-5. **Merge unique content into the primary**: pages or sections only on the alias go into the primary through
-   `overrides.ts` / `decisions.md` and a rerun, or in the EmDash admin after load — never by hand-editing `ir/`.
-   Record each choice (kept, merged, dropped) in `decisions.md`.
-6. **Set the alias** in the primary's `kit.config.ts`:
-   ```ts
-   target: { productionUrl: "https://acme.com", aliasDomains: ["acme-old.com"] /* www. included */ },
-   ```
-7. **Preflight**: add the alias zone to the go-live token (Zone Read, DNS Read, Single Redirect Read; Single
-   Redirect Edit on launch day — docs/cloudflare-api-token.md) and run `pnpm wp2emdash run acme cutover`. Per alias
-   it checks the zone, snapshots DNS to `cutover/dns-before.acme-old.com.json` with mail records flagged (MX, SPF,
-   DKIM, DMARC, autodiscover — they stay untouched), checks apex and www are proxied and lists existing redirect
-   rules. `cutover/runbook.md` §4 has the exact calls.
-8. **Go-live** (owner approval at each step): switch the primary first (`pnpm wp2emdash golive acme`, then `--yes`;
-   §1 of the runbook) and verify it; then per alias create its one Single Redirect rule (apex + www →
-   `https://acme.com` + same path, query kept, 301) — `pnpm wp2emdash golive acme --aliases`, then `--yes`, appends it
-   to the zone's existing redirect rules and runs the check below and a DNS comparison — or by hand, and run
-   ```bash
-   pnpm wp2emdash check-aliases acme --paths-from acme-old    # every audited path, apex and www, no redirect followed
-   ```
-   which must show a 301 to the same path on the primary for every URL (it reports 200, 404, 302 and chains).
-   Rollback: `pnpm wp2emdash golive acme --rollback --aliases --yes` (or delete that rule by id, runbook). No DNS record
-   changes, so the alias domain's email is unaffected.
-9. **Change of Address**: in the alias's Search Console property, Settings → Change of address → the primary; submit
-   the primary's sitemap; update Google Business Profile, social profiles, booking and other third-party links.
-   Keep the alias domain registered (auto-renew) and its redirect rule in place for good — at least 180 days.
-10. **Monitor** for `target.cutover.monitorDays`: rerun `check-aliases`, watch both Search Console properties (the
-    alias's pages drop out, the primary picks them up) and the primary's 404 log.
-
-## Where each site lives
+### Where each site lives
 
 `sites/<slug>/` holds the kit's working data for a client: config, `.env`, raw exports, audit snapshots, IR, reports
 (all gitignored). The deployable project — the client's own repository — is generated in `sites/<slug>/project` by
@@ -292,7 +726,7 @@ Every phase then reads and writes the project there; `pnpm wp2emdash status` sho
 write into a folder that already holds something other than this kit's project. To move an existing project: move
 the folder, set `projectDir`, run `pnpm install` in it once (pnpm's helper scripts keep absolute paths).
 
-## One folder for everything
+### One folder for everything
 
 The fastest start: ask the owner (or do it yourself in WordPress admin) for every export in one folder,
 `sites/<slug>/dump/` — inside the site workspace, so it is gitignored and never leaves your machine:
@@ -316,334 +750,17 @@ never opened — form entries are never read. With Claude Code (see below), the 
 map unknown elements: give it the plugin's source from the backup and the audit's screenshots, and it proposes the
 handler with a fixture and a test. Delete the folder when the project ends.
 
-## Plugin data (forms and redirects)
-
-The REST API does not expose most plugins' settings. After the audit, `ACCESS.md` gets a **Plugin data** section
-listing, for every forms or redirects plugin it found, the exact export steps in WordPress admin. The owner exports;
-the files go in `sites/<slug>/raw/plugin-exports/` (any file name). `extract` recognises each file by its content:
-
-| Plugin | Export | Becomes |
-|---|---|---|
-| Fluent Forms | read over REST automatically; Tools → Export Forms as a fallback | site form |
-| Gravity Forms | Forms → Import/Export → Export Forms (.json) | site form |
-| WPForms | WPForms → Tools → Export → Form Exports (.json) | site form |
-| Contact Form 7 | Tools → Export → Contact Forms (.xml) | site form |
-| Redirection | Tools → Redirection → Import/Export → Everything, JSON | EmDash redirects |
-| Rank Math | Redirections → Export (.htaccess or Nginx) | EmDash redirects |
-| Yoast SEO Premium | Redirects → Export (.csv); any `from,to,code` CSV works too | EmDash redirects |
-
-Forms keep their fields, labels, required flags, options, button text and success message. Notification recipients
-stay in `raw/` and are set in the site's admin (Form messages → Settings), never written into the project. `load`
-imports the redirects into EmDash (group `wordpress`, so a rerun updates them and never touches redirects added in the
-admin). Rules EmDash cannot hold (conditional rules, complex regular expressions, redirects to another site) are
-listed in `raw/redirects.json` → `unconverted` and fail the extract gate until handled or accepted: nothing is dropped
-silently. Ninja Forms and Formidable exports are flagged for a rebuild by hand.
-
-## Widgets and site-wide snippets
-
-One **provider registry** (`starter/src/utils/providers.ts`, imported by the kit as `src/providers/registry.ts`) lists
-every third-party widget the kit knows: how it is recognised, its category, and the hosts it may load from. The
-adapters use it to keep a widget in page content as an `embed` section; the starter uses the same table for the embed
-allowlist and the Content-Security-Policy, so nothing an embed needs is blocked and nothing else is allowed.
-
-| Category | Providers |
-|---|---|
-| Booking & calendars | Mariana Tek, Momence, Jane, Calendly, Acuity, SimplePractice, Mindbody, Google Calendar, Vagaro, Glofox, Zenoti, Square Appointments, Booksy, Fresha, OpenTable, Resy, Tock, Arketa, ClassPass |
-| Video, audio, social | YouTube, Vimeo, Wistia, Loom, Spotify, SoundCloud, Instagram, TikTok, Facebook page/video, X (Twitter) |
-| Forms, maps, newsletter | Typeform, Jotform, HubSpot forms, Google Forms, Google Maps, Mailchimp |
-| Reviews | Elfsight, Trustindex, Trustpilot (in content); Elfsight and Trustindex also as site widgets |
-| Site widgets (by ID) | Chat: Tawk.to, Crisp, Intercom, HubSpot (tracking code & chat). Consent: CookieYes, Cookiebot, Termly, iubenda |
-
-**Site-wide snippets.** Theme custom code, WPCode, Insert Headers and Footers, Header Footer Code Manager and plugin
-widgets put code in `<head>` and at the end of `<body>` on every page. `transform` reads it from the audit's saved
-pages (and from a Header Footer Code Manager export that `import-dump` put in `raw/code-snippets.json`), removes
-duplicates across pages, classifies every `<script>`, `<noscript>`, `<iframe>`, `<link>` and `<meta>`, and writes
-`ir/site-snippets.json` and a **Site-wide snippets** section in the coverage report:
-
-| Found | What happens |
-|---|---|
-| Trackers (Google tag, GTM, Meta Pixel, Clarity, Hotjar, Cloudflare beacon) | carried by SEO & Analytics (by ID) |
-| Verification meta (Google, Bing, Pinterest, Facebook…) | carried → Settings → SEO |
-| Canonical, description, Open Graph, icons, JSON-LD, Google Fonts | rebuilt by the starter and the SEO plugin |
-| A booking/video provider's loader (e.g. Mariana Tek) | carried with that provider's embed sections (a section without a loader gets the site-wide script) |
-| Chat, reviews badge, consent tool with a readable ID | carried as a **site widget**: `siteWidgets` in `site.config.json`, loaded by `components/SiteWidgets.astro` from provider + ID only — never free-form code; production domain only, never for signed-in editors; CSP from the registry. A consent tool is loaded before analytics, and CookieYes / Cookiebot acceptance of statistics cookies calls the analytics consent hook |
-| WordPress, theme, plugin, CDN-library and Cloudflare-edge internals (jQuery, emoji, wp-embed, builder runtimes, plugin CSS/JS, email obfuscation) | not needed — listed, collapsed |
-| Anything else (unknown inline or external code, child-theme scripts, legacy iubenda config, markup in a snippet, a provider loaded site-wide that no page embeds, a widget whose snippet carries no ID) | **never carried automatically**: the transform gate `site-snippets` fails until each is decided in `overrides.ts` → `snippets: { "sn-…": "drop" \| "rebuilt" }` (the report prints the block to paste; the reason goes in `decisions.md`) |
-
-`kit.config.ts` → `siteWidgets` overrides what was recognised: a list (`[{ provider: "crisp", id: "…" }]`) is exactly
-those, `false` is none. Host lists and their sources: [docs/spikes/providers-findings.md](docs/spikes/providers-findings.md).
-
-## Form messages (outbox and inbox)
-
-With `forms.outbox` in a site's `kit.config.ts`, messages that cannot be emailed are kept in Workers KV, retried by the
-Worker's cron and shown to admins under **Plugins → Form messages** (inbox, insights, export/import, activity,
-recipients). By default a message is deleted once emailed, so the inbox only ever shows what is still waiting. An owner
-who wants to see every message there can opt in to a full inbox:
-
-```ts
-// sites/<slug>/kit.config.ts
-forms: { outbox: { days: 30, keepSent: true } },   // → FORM_OUTBOX_KEEP_SENT="1" in both environments
-```
-
-Every message is then kept, marked **Emailed**, **Waiting** or **Failed**, until `days` ends — with a status filter,
-"Email again", and the newest messages on the dashboard widget. This is a **data-retention decision**: what visitors
-wrote stays in the site for the retention period even after it was emailed. Record it in the site's `decisions.md`;
-on sites with `sensitiveData: true` leave it off unless the owner explicitly asks for an inbox. Details:
-[`packages/forms/README.md`](packages/forms/README.md#configuration-wranglerjsonc-per-environment--environments-do-not-inherit).
-
-## Sharing cards (on by default)
-
-Every page can get its own branded sharing image (og:image): the site's logo, the page title and the site's colours
-and fonts on a 1200×630 card, drawn in the Worker the first time it is asked for and stored in R2. It is on for every
-site; to leave it out:
-
-```ts
-// sites/<slug>/kit.config.ts
-og: { cards: false },
-```
-
-The next `scaffold` downloads TrueType copies of the site's fonts, takes the colours from the generated design tokens
-and the logo from the brand files, adds the `@wp2emdash/og` package and its two renderer libraries (+1.1 MB gzip to
-the Worker), and registers the plugin. After deploying, an admin chooses under **Plugins → Sharing images** whether
-cards replace every page's image or only fill in where a page has none (the default), and can preview and redraw
-them. Verify downloads every og:image and fails on any that does not load. Details:
-[packages/og/README.md](packages/og/README.md).
-
-## Site settings (EmDash's Settings screens)
-
-EmDash's own **Settings → General, Social Links and SEO** come prefilled from the WordPress site, and the starter reads
-them on every page, so editors change the logo, favicon, social profiles, verification tags, default social image and
-robots.txt in the admin and the live site follows within seconds (the save purges cached pages):
-
-| Setting | From WordPress | The starter |
-|---|---|---|
-| Logo, favicon | brand files captured from the live header (`public/brand`), else `custom_logo` / `site_icon` | header, menu sheet, structured data; favicon + apple-touch icon. While the setting is the migrated file, the optimized brand files stay (hashed WebP, sized favicons, light logo over the hero) |
-| Posts per page, date format, timezone | `posts_per_page`, `date_format` (→ date-fns), `timezone_string` / `gmt_offset` | (EmDash's own use) |
-| Social Links | Rank Math / Yoast social options, home-page JSON-LD `sameAs`, social links in the header/footer | footer social links/icons and the menu sheet's icons point at them; a network missing from the footer's icon row is added; JSON-LD `sameAs` |
-| Default social image | Rank Math / Yoast default, else the og:image most pages share | og:image of pages without their own (EmDash's head) with its size |
-| Google / Bing verification | audited page head, else the SEO plugin | printed by EmDash's head; `site.config.json` → `verification` is the fallback and keeps other services' tags |
-| robots.txt | the live file's own rules (WordPress-only rules dropped, sitemap at the new domain); none → EmDash's default | served by EmDash |
-
-Every value and its source is in the transform coverage report. `load` never overwrites a value an editor changed
-after the previous load (`--overwrite-settings` does). Facts and limits: [settings findings](docs/spikes/settings-findings.md).
-
-## SEO suite (on by default)
-
-Technical SEO is part of every migration (titles, descriptions, canonicals, robots, sitemap, structured data, old
-URLs redirected, analytics, verification tags — and verify checks all of it). On top of that, a site can get an SEO
-toolkit for its editors, as the EmDash plugin `@wp2emdash/seo`, on for every site; to leave it out:
-
-```ts
-// sites/<slug>/kit.config.ts
-seo: { panel: false },
-```
-
-| Part | Where | What it does |
-|---|---|---|
-| **SEO panel** | Page editor sidebar (contributors and up) | Score out of 100, Google result preview with cut-off warnings, plain-words checklist (title and description length, duplicates across pages, one H1, heading order, text length, image alt text, links, address, indexing, canonical, sharing image), focus keyword per page, "Check my unsaved changes". |
-| **SEO dashboard** | Plugins → SEO, dashboard widget (editors and admins) | Average score and a score per page, the most common issues and where they are, every page with a link to fix it, every image without a description with a form that writes alt text to the media library, robots.txt / sitemap / indexability checks (environment-aware). |
-| **Google Search Console** | SEO dashboard → Google | Connected once with a service account (key stored encrypted): clicks, impressions, click rate, position, daily chart, top searches and pages, sitemaps (submit), index status per page. Works before go-live. |
-| **IndexNow** | SEO dashboard → IndexNow | After go-live, publishing a page notifies Bing, Yandex and the other IndexNow engines; key file at the domain root; notification log; notify-all button. |
-| **Analytics** | SEO & Analytics → Analytics (changes: admins) | Tracking codes by ID only — GA4, Google tag, Google Ads, Tag Manager, Meta Pixel, Microsoft Clarity, Hotjar, Cloudflare Web Analytics — prefilled with everything the audit found on the old site (retired `UA-` listed, never loaded); on/off, edit, remove; conversion events as switches (form sent, phone/email, booking links, outbound) with no visitor data; consent mode (off; hook for a future banner); Google/Bing verification points to EmDash's Settings → SEO, other carried tags listed read-only. Saving purges cached pages: live within seconds. The site loads trackers on the production domain only, never for signed-in editors, and its CSP allows exactly the switched-on services (one host table, `packages/seo/src/analytics/csp.ts`). |
-| **Visits** | SEO & Analytics → Visits, dashboard widget (admins), page editor | Cloudflare Web Analytics, last 7 days: visits, page views, daily chart, top pages, referrers; each page's views in its SEO box. Needs the Worker secret `CF_ANALYTICS_TOKEN` (Account Analytics: Read); the site tag is looked up at scaffold. |
-
-No effect on visitors and negligible Worker size. The site checks call the Worker through a `SELF` service binding the
-scaffold adds (a Worker fetching its own address would skip itself). Details: [packages/seo/README.md](packages/seo/README.md).
-
-## Site health & monthly report (on by default)
-
-Every site gets **Plugins → Site health** (admins only; `@wp2emdash/health`, an in-house PixelKraft plugin) and a
-dashboard widget: overall status (Healthy / Attention / Down), one row per check with its last run and a 14-day
-trend, an incidents timeline, the broken-links table, real-visitor Core Web Vitals, 12 months of reports and the email
-settings. To leave it out, or to change the defaults:
-
-```ts
-// sites/<slug>/kit.config.ts
-health: false,
-// or
-health: { alertsTo: ["ops@agency.example"], reportTo: ["owner@client.example"], brand: "Prepared by PixelKraft", externalLinks: true, monthlyReport: true },
-```
-
-| Check | How often | How |
-|---|---|---|
-| Uptime | every 5 min | Home page + one sitemap page in rotation (+ retries), through the Worker itself (`SELF`); incident = 2 failures in a row, recovery noted |
-| Search engines | hourly | No `noindex` (meta / X-Robots-Tag), canonical host, robots.txt, sitemap answers |
-| Form messages | every 15 min | `@wp2emdash/forms` outbox: waiting / refused counts, email status, last emailed day (counts only) |
-| Broken links | daily (02–04 UTC), resumable | Every sitemap page, every internal link once (HEAD, GET fallback, 3 at a time, 12 requests a tick); links to other sites: 20 sampled weekly |
-| Email DNS | daily | MX/SPF/DMARC/DKIM over DNS-over-HTTPS vs the hashed baseline from `cutover/dns-before.json` |
-| Certificate | daily | Optional `CF_ZONE_READ_TOKEN`; otherwise "renewed by Cloudflare" |
-| Speed | daily + every probe | Page build time median; Chrome UX Report p75 LCP/INP/CLS with optional `CRUX_API_KEY` |
-| Analytics tags | hourly | The page's `site-analytics` tag carries the codes switched on in SEO & Analytics (the browser check stays in verify) |
-
-Alerts (down / back up, page errors, new broken links, indexability, form email, mail DNS, certificate, analytics)
-go to `health.alertsTo` (default `email.stagingTo`) — one email per issue per day, at most six a day, only once the site
-is live and never from staging — through the forms package's email path (provider API or EmDash email). On the 1st a
-branded HTML report (logo and colours from the design tokens, `health.brand` footer) goes to `health.reportTo` (default
-`email.to`) plus the alert recipients: uptime and incidents, speed and CWV, visits/top pages/referrers
-(`CF_ANALYTICS_TOKEN`), form message counts, pages published/updated, broken links found/fixed/open, average SEO score.
-No form contents or personal data anywhere. Verify gets `health-plugin` (registered; on a live site its checks ran in
-the last 30 minutes). Cron design, limits and what was verified: [docs/spikes/health-findings.md](docs/spikes/health-findings.md);
-details: [packages/health/README.md](packages/health/README.md).
-
-## Privacy & consent (on by default)
-
-Every site gets a built-in cookie banner and **Plugins → Privacy & consent** (admins only; `@wp2emdash/consent`, an
-in-house PixelKraft plugin). Modes: *off*, *notice* (US style, opt-out), *opt-in* (EU/UK style) and *auto* — the
-default: opt-in for visitors from the EU/EEA, UK, Switzerland and Québec (and unknown regions), a notice elsewhere.
-The SEO & Analytics trackers and the chat/review widgets follow the visitor's choice: Google Consent Mode v2 starts
-denied and Google's scripts load only once allowed; Meta Pixel needs marketing consent (`fbq consent grant/revoke`);
-Clarity (`consentv2`) and Hotjar need analytics consent; Cloudflare Web Analytics (cookieless) always runs; Global
-Privacy Control keeps marketing off. Pages stay one cached HTML for everyone: the choice lives in the visitor's browser
-and the region comes from an uncached `/_consent/region`.
-
-The migration prefills it: a consent service kept as a site widget (CookieYes, Cookiebot, Termly, iubenda) → banner
-off (one banner, not two; the admin can switch); a WordPress consent plugin (Complianz, CookieYes, GDPR Cookie
-Consent, Cookie Notice, Borlabs, Real Cookie Banner, Moove…) → the built-in banner in that plugin's mode with its
-wording (coverage report → Consent banner); the privacy policy page is found by slug.
-
-```ts
-// sites/<slug>/kit.config.ts
-consent: false,
-// or
-consent: { mode: "opt-in", position: "card", policy: "/privacy-policy" },
-```
-
-Verify: `consent-runtime` on a live site (no analytics or marketing request before interaction, trackers after
-"Accept all"; reported as not applicable when the banner shows the notice style from the verifying machine's region);
-the banner is part of the existing `a11y` axe pass. Facts and limits: [docs/spikes/consent-findings.md](docs/spikes/consent-findings.md);
-details: [packages/consent/README.md](packages/consent/README.md).
-
-## Backups & Restore (on by default)
-
-Every site gets **Plugins → Backups** (admins only; `@wp2emdash/backups`, an in-house PixelKraft plugin). Every night
-(01–03 UTC, a minute fixed per site) the Worker writes a read-only export of the site's content to its own R2 bucket
-under `backups/<yyyy-mm-dd>/` (compressed JSON, a few KB to a few MB): every collection (drafts and trash too),
-revisions, menus, site settings, redirects, sections, widgets, taxonomies, bylines, SEO, the media library's records
-and a manifest of the media files (keys, sizes, ETags — the files already live in R2 and are never touched). Never in
-a backup: users, passkeys, sessions, API/OAuth tokens, plugin data and secrets, form messages, comments, logs — an
-allowlist; every table left out is listed in the file with the reason.
-
-```ts
-// sites/<slug>/kit.config.ts
-backups: false,
-// or
-backups: { retention: { daily: 30, monthly: 12 }, hourUtc: 2, alertsTo: ["ops@agency.example"], offsite: { endpoint: "https://<other-account>.r2.cloudflarestorage.com", bucket: "client-backups", prefix: "acme" } },
-```
-
-| From the browser (admins) | From the command line (developer) |
-|---|---|
-| List backups (when, kind, size, what's in it), **Back up now** (single flight, at most every 2 min) | Whole-site restore: `npx wrangler d1 time-travel restore <db> --timestamp=<backup time>` (any minute of the last 30 days) |
-| **Download** (one-time link, 2 minutes) | `load --force` / `golive` record a D1 bookmark and a marker the Backups page lists with its restore command |
-| **Restore** the settings, the menus or one page from any backup — preview of every change, a fresh backup first, refused if the site changed since the preview | Older than 30 days: settings/menus/pages one by one from the page; a full rebuild from a file is manual |
-
-Kept: 30 daily + the first of each of 12 months (configurable). When an entry is moved to the trash a snapshot of it is
-kept first (`content:beforeDelete`). Two failed nightly attempts in a row email `backups.alertsTo` (default
-`health.alertsTo`, then `email.stagingTo`); Site health gets a **Backups** check; verify gets `backups-plugin`; the
-dashboard's Environment view shows the last backup. Optional off-site copy: any S3-compatible bucket, keys as Worker
-secrets `BACKUP_S3_ACCESS_KEY_ID` / `BACKUP_S3_SECRET_ACCESS_KEY` (write-only; lifecycle rules there). Why the plugin and
-not EmDash's own Settings → Backups, and what was verified: [docs/spikes/backup-findings.md](docs/spikes/backup-findings.md);
-details: [packages/backups/README.md](packages/backups/README.md).
-
-## Media Assistant (on by default)
-
-Every site gets **Plugins → Media** (editors and admins; `@wp2emdash/media`, an in-house PixelKraft plugin): media
-health (size by type, oversized originals, images without alt text and where each is used, unused files, duplicates,
-formats, broken references — from a read-only scan of the database), **Optimize** (resize + re-encode in place with
-the Images binding through EmDash's own Replace, old file kept 30 days, undo), reviewed **alt text suggestions**
-(Workers AI, or file names and headings; nothing saved until a person marks it), a nine-position **focal point**, and a
-**trash** folder with a 30-day undo (brand files and recent uploads never offered; nothing deleted automatically).
-Every file change is preview → confirm. Site health gets a **Media** check.
-
-```ts
-// sites/<slug>/kit.config.ts
-media: false,
-// or
-media: { aiAlt: false, autoOptimize: true, maxDimension: 3000, protect: ["^partner-"] },
-```
-
-AI alt text is on by default except on `sensitiveData` sites; when on, the scaffold adds `"ai": { "binding": "AI" }`
-to wrangler.jsonc. Optional Worker secret `MEDIA_API_TOKEN` lets the hourly task optimize queued uploads. Client guide:
-`docs/media.md` in the site repo. Facts and limits: [docs/spikes/media-findings.md](docs/spikes/media-findings.md);
-details: [packages/media/README.md](packages/media/README.md).
-
-## Change requests (on by default)
-
-Every site gets **Plugins → Change requests** (editors and admins; `@wp2emdash/change-requests`, an in-house
-PixelKraft plugin): the client asks the agency for a change inside the admin — title, description, page (or anywhere),
-priority, up to 3 private screenshots/PDFs, how to get back — and follows its status (New → Seen → In progress →
-Waiting for you → Done / Declined) with a comment timeline. The agency (admins) replies and moves the status on the
-same page; a "Request a change" editor panel and a dashboard widget come with it. New requests email the agency;
-status changes and replies email the requester (opt-out). Optional signed webhook for the agency's tracker.
-
-```ts
-// sites/<slug>/kit.config.ts
-changeRequests: false,
-// or
-changeRequests: { agencyTo: ["pm@agency.example"], agencyDomains: ["agency.example"], webhook: "https://hooks.zapier.com/…", retentionMonths: 12 },
-```
-
-`agencyTo` defaults to `email.stagingTo`. With `webhook`, put the Worker secret `CHANGE_REQUESTS_WEBHOOK_SECRET`.
-Closed requests are deleted with their files after `retentionMonths`; the requests (not their files) are in the
-nightly backups. Client guide: `docs/change-requests.md` in the site repo. Facts and limits:
-[docs/spikes/change-requests-findings.md](docs/spikes/change-requests-findings.md); details and the webhook payload:
-[packages/change-requests/README.md](packages/change-requests/README.md).
-
-## Performance (on by default)
-
-Every generated site ships a performance package (`src/scaffold/perf.ts`; facts and measurements in
-[docs/spikes/performance-findings.md](docs/spikes/performance-findings.md)):
-
-- **Route caching.** Rendered pages are kept in Cloudflare's Workers cache next to visitors (Astro route caching,
-  `cacheCloudflare()`); a cached page answers like a static file (staging: 80 ms on a warm connection instead of
-  0.8–1.8 s far from the database). One route rule per public page plus the sitemaps, tagged with EmDash collection
-  names; the page also sets the tags of the chrome it shows (settings, menus, footer and announcement site parts,
-  popups), so a publish or a menu/settings save purges the affected pages within seconds. 404s, redirects, signed-in
-  editors and previews are never cached; browsers always revalidate HTML (`no-cache`).
-- **Warm-up after deploy.** Each deploy starts with an empty cache (`cross_version_cache: false`: new templates at
-  once); the deploy scripts and CI then run `scripts/warm.mjs`, which requests every sitemap URL and the image sizes
-  those pages use.
-- **Images.** Responsive `srcset`/`sizes` through EmDash's `/_image` endpoint (Cloudflare Images binding, no zone
-  setting; a failed transform falls back to the original file), width/height on every image the starter renders,
-  the logo as WebP sized for the header and small favicons, fonts and brand files cached by browsers for a year
-  under content-hashed names.
-- **Background video.** The picture paints first (LCP); the video is attached after load when the browser is idle,
-  and not at all on phones (< 768 px), with Save-Data or reduced motion.
-- **Announcement schedules** are checked in the browser (the inline script is allowed by its hash in the CSP, never
-  `'unsafe-inline'`), and a cached page lives no longer than the bar's next start or end.
-- **Verify** gates it on the deployed target: every page `cf-cache-status: HIT` on its second request, cached home
-  page TTFB ≤ `gates.maxCachedTtfbMs` (600 ms, measured from the machine running verify — geography matters), home
-  page ≤ `gates.maxPayloadKb` (1500 KB) until load with no video fetched.
-
-Opt-outs, per site:
-
-```ts
-// sites/<slug>/kit.config.ts
-performance: { routeCache: false },        // render every page per request (also turns off the warm-up)
-performance: { responsiveImages: false },  // original image files only (no Images transformations)
-performance: { warmup: false },            // no warm-up after deploy
-performance: { maxAge: 600, swr: 3600 },   // shorter cache lifetime (seconds)
-```
-
-Smart Placement stays off (`performance: { smartPlacement: true }` to try it): see the findings for why.
-
 ## Docs
 
-- [Plan](docs/PLAN.md)
-- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md) · [Sign-in sessions on R2](docs/spikes/sessions-findings.md) · [Analytics in the SEO suite (storage, purge, CSP hosts, GraphQL)](docs/spikes/analytics-findings.md) · [Provider registry hosts and site widgets](docs/spikes/providers-findings.md) · [Site settings (schema, head tags, robots.txt, brand files)](docs/spikes/settings-findings.md) · [WordPress URLs, content inventory, Additional CSS](docs/spikes/wp-urls-findings.md)
-- [Site workspaces](sites/README.md)
-- [Environment setup](docs/staging-setup.md) — production on `workers.dev` (default) and opt-in staging: resources, build → migrate → deploy, first admin sign-in (passkeys), API token, CI, after go-live (`load --force`, preview URLs), troubleshooting
-- [Single-environment findings](docs/spikes/single-env-findings.md) — D1 Time Travel and Workers preview URLs checked against Wrangler 4.163.0
-- [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build token and the per-launch go-live token
-- [`@wp2emdash/forms`](packages/forms/README.md) — the forms package every migrated site uses (endpoint, email, KV outbox, Form messages admin page); usable in any EmDash project
-- [`@wp2emdash/seo`](packages/seo/README.md) — SEO & Analytics suite: editor panel, dashboard, Google Search Console, IndexNow, tracking codes, conversion events, consent mode, Visits; on by default (`seo: { panel: false }` turns it off; `analytics: false` carries and loads no trackers)
-- [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; on by default (`og: { cards: false }` in a site's `kit.config.ts` turns them off)
-- [`@wp2emdash/health`](packages/health/README.md) — Site health & monthly report: scheduled checks, alerts, a branded monthly report; on by default (`health: false` turns it off)
-- [`@wp2emdash/consent`](packages/consent/README.md) — Privacy & consent: built-in cookie banner (notice / opt-in / by region), Consent Mode v2, Meta and Clarity consent, GPC, consent log; on by default (`consent: false` turns it off)
+The full index, with a line on every document, is [docs/README.md](docs/README.md). The most used:
 
-- [`@wp2emdash/backups`](packages/backups/README.md) — Backups & Restore: nightly content backups to the site's R2, downloads, restore of settings / menus / a page from the admin; on by default (`backups: false` turns it off)
-- [Agent rules](CLAUDE.md)
-
-Full GitHub docs (configuration reference, adapters, troubleshooting, …) are produced in milestone M8a.
+- [Plan](docs/PLAN.md): scope, architecture, phases, gates, section library, milestones and status
+- [WordPress → EmDash parity](docs/parity/wp-to-emdash.md): what is migrated, partial or missing, feature by feature
+- [Environment setup](docs/staging-setup.md): production on `workers.dev` (default) and opt-in staging, first admin sign-in, CI, go-live, troubleshooting
+- [Cloudflare API tokens](docs/cloudflare-api-token.md): the reusable build token and the per-launch go-live token
+- [Spike findings](docs/README.md#spike-findings-verified-facts): every EmDash and Cloudflare behaviour the kit relies on, checked against the installed versions
+- Package READMEs: [forms](packages/forms/README.md) · [og](packages/og/README.md) · [seo](packages/seo/README.md) · [health](packages/health/README.md) · [consent](packages/consent/README.md) · [backups](packages/backups/README.md) · [media](packages/media/README.md) · [change-requests](packages/change-requests/README.md)
+- [Site workspaces](sites/README.md) · [Changelog](CHANGELOG.md) · [Agent rules](CLAUDE.md)
 
 ## Privacy
 
@@ -651,4 +768,4 @@ Client workspaces (`sites/<slug>/`) never enter this repository: only `sites/REA
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT © Nurkamol Vokhidov — see [LICENSE](LICENSE).

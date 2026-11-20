@@ -14,6 +14,7 @@ Astro, Wrangler and Cloudflare versions before code depended on it — check the
 | [Cloudflare API tokens](cloudflare-api-token.md) | The reusable build token (kit `.env`) and the separate, zone-scoped go-live token used only at cutover; permission sets and where each token goes |
 | [Site workspaces](../sites/README.md) | What lives in `sites/<slug>/` and why none of it is ever committed |
 | [Changelog](../CHANGELOG.md) | What changed, by day and milestone |
+| [Public release checklist](release-checklist.md) | What must be done and ticked before the repository is made public (history rewrite, secret scan, docs review) |
 | [Agent rules](../CLAUDE.md) | Binding rules for anyone (person or agent) working in the kit |
 
 ## Packages (each ships with every migrated site unless turned off)
