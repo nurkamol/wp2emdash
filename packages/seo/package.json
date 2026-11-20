@@ -9,6 +9,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./analyze": "./src/analyze.ts",
+    "./site-checks": "./src/site-checks.ts",
+    "./plugin/collect": "./src/plugin/collect.ts",
     "./plugin": "./src/plugin/index.ts",
     "./analytics/trackers": "./src/analytics/trackers.ts",
     "./analytics/csp": "./src/analytics/csp.ts",

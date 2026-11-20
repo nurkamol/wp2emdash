@@ -41,6 +41,10 @@ interface PluginDefinition {
 	hooks?: {
 		"page:metadata"?: (event: { page: PageContext }, ctx: { kv: KvStub }) => Promise<Contribution[] | null>;
 		"content:afterPublish"?: (event: { content: Record<string, unknown>; collection: string }, ctx: { kv: KvStub }) => Promise<void>;
+		"plugin:install"?: (event: unknown, ctx: unknown) => Promise<void>;
+		"plugin:activate"?: (event: unknown, ctx: unknown) => Promise<void>;
+		/** EmDash's plugin cron hook: a handler, or { handler, timeout } (HookConfig). */
+		cron?: ((event: { name: string; data?: Record<string, unknown>; scheduledAt?: string }, ctx: unknown) => Promise<void>) | { timeout?: number; handler: (event: { name: string; data?: Record<string, unknown>; scheduledAt?: string }, ctx: unknown) => Promise<void> };
 	};
 }
 export const definePlugin = <T extends PluginDefinition>(def: T): T => def;

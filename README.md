@@ -422,6 +422,41 @@ seo: { panel: false },
 No effect on visitors and negligible Worker size. The site checks call the Worker through a `SELF` service binding the
 scaffold adds (a Worker fetching its own address would skip itself). Details: [packages/seo/README.md](packages/seo/README.md).
 
+## Site health & monthly report (on by default)
+
+Every site gets **Plugins → Site health** (admins only; `@wp2emdash/health`, an in-house PixelKraft plugin) and a
+dashboard widget: overall status (Healthy / Attention / Down), one row per check with its last run and a 14-day
+trend, an incidents timeline, the broken-links table, real-visitor Core Web Vitals, 12 months of reports and the email
+settings. To leave it out, or to change the defaults:
+
+```ts
+// sites/<slug>/kit.config.ts
+health: false,
+// or
+health: { alertsTo: ["ops@agency.example"], reportTo: ["owner@client.example"], brand: "Prepared by PixelKraft", externalLinks: true, monthlyReport: true },
+```
+
+| Check | How often | How |
+|---|---|---|
+| Uptime | every 5 min | Home page + one sitemap page in rotation (+ retries), through the Worker itself (`SELF`); incident = 2 failures in a row, recovery noted |
+| Search engines | hourly | No `noindex` (meta / X-Robots-Tag), canonical host, robots.txt, sitemap answers |
+| Form messages | every 15 min | `@wp2emdash/forms` outbox: waiting / refused counts, email status, last emailed day (counts only) |
+| Broken links | daily (02–04 UTC), resumable | Every sitemap page, every internal link once (HEAD, GET fallback, 3 at a time, 12 requests a tick); links to other sites: 20 sampled weekly |
+| Email DNS | daily | MX/SPF/DMARC/DKIM over DNS-over-HTTPS vs the hashed baseline from `cutover/dns-before.json` |
+| Certificate | daily | Optional `CF_ZONE_READ_TOKEN`; otherwise "renewed by Cloudflare" |
+| Speed | daily + every probe | Page build time median; Chrome UX Report p75 LCP/INP/CLS with optional `CRUX_API_KEY` |
+| Analytics tags | hourly | The page's `site-analytics` tag carries the codes switched on in SEO & Analytics (the browser check stays in verify) |
+
+Alerts (down / back up, page errors, new broken links, indexability, form email, mail DNS, certificate, analytics)
+go to `health.alertsTo` (default `email.stagingTo`) — one email per issue per day, at most six a day, only once the site
+is live and never from staging — through the forms package's email path (provider API or EmDash email). On the 1st a
+branded HTML report (logo and colours from the design tokens, `health.brand` footer) goes to `health.reportTo` (default
+`email.to`) plus the alert recipients: uptime and incidents, speed and CWV, visits/top pages/referrers
+(`CF_ANALYTICS_TOKEN`), form message counts, pages published/updated, broken links found/fixed/open, average SEO score.
+No form contents or personal data anywhere. Verify gets `health-plugin` (registered; on a live site its checks ran in
+the last 30 minutes). Cron design, limits and what was verified: [docs/spikes/health-findings.md](docs/spikes/health-findings.md);
+details: [packages/health/README.md](packages/health/README.md).
+
 ## Performance (on by default)
 
 Every generated site ships a performance package (`src/scaffold/perf.ts`; facts and measurements in
@@ -471,6 +506,7 @@ Smart Placement stays off (`performance: { smartPlacement: true }` to try it): s
 - [`@wp2emdash/forms`](packages/forms/README.md) — the forms package every migrated site uses (endpoint, email, KV outbox, Form messages admin page); usable in any EmDash project
 - [`@wp2emdash/seo`](packages/seo/README.md) — SEO & Analytics suite: editor panel, dashboard, Google Search Console, IndexNow, tracking codes, conversion events, consent mode, Visits; on by default (`seo: { panel: false }` turns it off; `analytics: false` carries and loads no trackers)
 - [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; on by default (`og: { cards: false }` in a site's `kit.config.ts` turns them off)
+- [`@wp2emdash/health`](packages/health/README.md) — Site health & monthly report: scheduled checks, alerts, a branded monthly report; on by default (`health: false` turns it off)
 - [Agent rules](CLAUDE.md)
 
 Full GitHub docs (configuration reference, adapters, troubleshooting, …) are produced in milestone M8a.

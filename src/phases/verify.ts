@@ -17,6 +17,7 @@ import { siteHosts } from "../audit/urls.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage } from "../ir/schema.js";
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
+import { healthHeartbeat } from "../verify/health.js";
 import { sourceText } from "../transform/coverage.js";
 import { loadOverrides } from "../config/overrides.js";
 import { currentYearText } from "../transform/year.js";
@@ -87,6 +88,8 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 	let stop = () => {};
 	// Live = the production domain serves this site: indexable, analytics loading. Production on workers.dev is not live.
 	let live = false;
+	// The target's EmDash API token (read-only use here: Site health's status route).
+	let emdashToken: string | undefined;
 	const pins: { host: string; addresses: string[] }[] = [];
 	if (want !== "local") {
 		const t = remoteTarget(paths.root, config, loadSiteEnv(paths.root), want);
@@ -96,6 +99,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		}
 		base = t.url;
 		live = t.live;
+		if (t.token) emdashToken = t.token;
 		if (t.addresses.length) {
 			const host = new URL(base).hostname;
 			pinHost(host, t.addresses);
@@ -437,6 +441,15 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			check("analytics-runtime", "Analytics scripts load in a browser, nothing blocked by the CSP", !rtProblem, rtProblem || runtime?.trackers.map((u) => new URL(u).pathname).join(", "));
 		}
 		check("analytics", live ? "Analytics carried over and loading" : "Analytics carried over, not loaded before go-live", !analyticsProblem, analyticsProblem || (live && adminManaged && !loads ? "no tracker switched on in SEO & Analytics → Analytics (owner's choice)" : carried.size ? `${[...carried].join(", ")}${(want as string) === "production" ? "" : " (production only)"}${adminManaged ? "; managed in SEO & Analytics" : ""}` : "none on the old site"));
+		// Site health (@wp2emdash/health): registered on the target, and on a live site its checks ran recently.
+		if (config.health !== false && want !== "local") {
+			const scaffolded = existsSync(join(paths.project, "astro.config.mjs")) && readFileSync(join(paths.project, "astro.config.mjs"), "utf8").includes("healthPlugin(");
+			if (!scaffolded) check("health-plugin", "Site health plugin registered and running", true, "not in this project yet: rerun scaffold, then deploy (skipped)");
+			else {
+				const h = await healthHeartbeat(base, { fetch: (u, i) => kitFetch(u, i), ...(emdashToken ? { token: emdashToken } : {}), live });
+				check("health-plugin", live ? "Site health plugin registered and its checks ran in the last 30 minutes" : "Site health plugin registered", h.ok, h.detail);
+			}
+		}
 		check("legacy-urls", "Old sitemap and upload addresses redirect to working files", legacyBad.length === 0, legacyBad.slice(0, 6).join("; ") || `${legacy.length} checked`);
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);
 		// Gate on sections where we can pair them; whole-page difference where we cannot (e.g. Gutenberg pages).

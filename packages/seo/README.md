@@ -1,5 +1,8 @@
 # @wp2emdash/seo (experimental) — SEO & Analytics
 
+Version 0.2.1 exports `/site-checks` and `/plugin/collect` and lets the Visits query take a date range (used by
+`@wp2emdash/health` for its monthly report).
+
 Version 0.2.0 adds Analytics to the suite: the admin page is **SEO & Analytics** (tabs Overview, Visits, Analytics,
 Pages, Images, Site checks, Google, IndexNow) when the site carries analytics; without the `analytics` option it stays
 the SEO dashboard of 0.1. Version 0.2.1: the ownership verification section points to EmDash's Settings → SEO, where
