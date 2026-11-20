@@ -13,6 +13,7 @@ import { usersDir, WP_USERS_FILE, wpUsersFromRest } from "../transform/users.js"
 import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import { extractReport } from "../extract/report.js";
+import { attachmentTaxonomies, type FolderSource, folderSourceFromRest } from "../extract/media-folders.js";
 import { WpClient, WpHttpError, versionAtLeast } from "../extract/client.js";
 import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.js";
 import { bricksMediaRefs, bricksOptionsNote, readBricksOptions, usesBricks } from "../extract/bricks.js";
@@ -345,6 +346,36 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	}
 	const taxonomies = (await client.tryGet<unknown[]>("emdash/v1/taxonomies")) ?? [];
 	write(join(exp, "taxonomies.json"), taxonomies);
+	// Media folders kept as attachment taxonomies over REST (Enhanced Media Library, Folders, HappyFiles…): terms and each
+	// attachment's term ids → raw/media-folders.json (src/extract/media-folders.ts). FileBird / Real Media Library keep
+	// theirs in own tables: read from a database dump by import-dump/import-options.
+	rmSync(join(raw, "media-folders.json"), { force: true });
+	try {
+		const taxes = attachmentTaxonomies(await client.tryGet<unknown>("wp/v2/taxonomies", { type: "attachment" }));
+		const paged = async <T>(path: string, params: Record<string, string | number>): Promise<T[]> => {
+			const out: T[] = [];
+			for (let page = 1; page <= 200; page++) {
+				const rows = await client.tryGet<T[]>(path, { ...params, per_page: 100, page }).catch(() => undefined);
+				if (!rows?.length) break;
+				out.push(...rows);
+				if (rows.length < 100) break;
+			}
+			return out;
+		};
+		const sources: FolderSource[] = [];
+		for (const tax of taxes) {
+			const terms = await paged<{ id: number; name: string; parent?: number }>(`wp/v2/${tax.restBase}`, { _fields: "id,name,parent" });
+			if (!terms.length) continue;
+			const rows = await paged<Record<string, unknown>>("wp/v2/media", { _fields: `id,${tax.restBase}` });
+			sources.push(folderSourceFromRest(tax, terms, rows));
+		}
+		if (sources.length) {
+			write(join(raw, "media-folders.json"), { sources });
+			notes.push(`Media folders: ${sources.map((x) => `${x.plugin} (${x.folders.length} folders, ${Object.keys(x.assignments).length} files)`).join(", ")} — planned in transform (coverage report → Media folders).`);
+		}
+	} catch (e) {
+		notes.push(`Media folders over REST not read: ${(e as Error).message}`);
+	}
 	let comments: unknown[] = [];
 	try {
 		comments = (await client.all<unknown>("emdash/v1/comments", {}, 500)).items;

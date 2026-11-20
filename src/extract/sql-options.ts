@@ -178,3 +178,56 @@ export async function readOptionsFromDump(file: string, allow: readonly string[]
 	}
 	return out;
 }
+
+/**
+ * Stream a dump and return every row of the tables whose name ends with one of `suffixes` (after the table prefix:
+ * `wp_fbv` matches "fbv", `wp_fbv_attachment_folder` does not), as objects keyed by the dump's own CREATE TABLE columns.
+ * Only those tables are parsed; nothing else in the dump is read into memory. Rows of a table without a CREATE TABLE
+ * in the dump are keyed by `fallbackColumns[suffix]` when given, else skipped.
+ */
+export async function readTablesFromDump(file: string, suffixes: readonly string[], fallbackColumns: Record<string, string[]> = {}): Promise<Record<string, Record<string, string | null>[]>> {
+	const out: Record<string, Record<string, string | null>[]> = {};
+	const match = (table: string) => suffixes.find((s) => table === s || table.endsWith(`_${s}`));
+	const cols = new Map<string, string[]>();
+	const rl = createInterface({ input: createReadStream(file, { encoding: "utf8" }), crlfDelay: Number.POSITIVE_INFINITY });
+	let creating: string | undefined;
+	let createCols: string[] = [];
+	let pending = "";
+	let pendingSuffix = "";
+	for await (const line of rl) {
+		if (creating) {
+			const m = /^\s+`([A-Za-z0-9_]+)`/.exec(line);
+			if (m?.[1]) createCols.push(m[1]);
+			if (/^\)/.test(line)) {
+				cols.set(creating, createCols);
+				creating = undefined;
+			}
+			continue;
+		}
+		const ct = /^CREATE TABLE (?:IF NOT EXISTS )?`([A-Za-z0-9_]+)`/.exec(line);
+		if (ct?.[1]) {
+			const s = match(ct[1]);
+			if (s) {
+				creating = s;
+				createCols = [];
+			}
+			continue;
+		}
+		if (!pending) {
+			const ins = /^INSERT INTO `([A-Za-z0-9_]+)`/.exec(line);
+			const s = ins?.[1] ? match(ins[1]) : undefined;
+			if (!s) continue;
+			pendingSuffix = s;
+		}
+		pending += pending ? `\n${line}` : line;
+		if (!/\);\s*$/.test(line)) continue;
+		const stmt = pending;
+		pending = "";
+		const listed = /^INSERT INTO `[A-Za-z0-9_]+`\s*\(([^)]*)\)\s*VALUES/.exec(stmt)?.[1];
+		const names = listed ? [...listed.matchAll(/`([A-Za-z0-9_]+)`/g)].map((m) => m[1] as string) : (cols.get(pendingSuffix) ?? fallbackColumns[pendingSuffix]);
+		if (!names) continue;
+		const list = (out[pendingSuffix] ??= []);
+		for (const row of parseValues(stmt)) list.push(Object.fromEntries(names.map((c, i) => [c, row[i] ?? null])));
+	}
+	return out;
+}

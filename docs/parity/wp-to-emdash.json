@@ -5,10 +5,10 @@
 	"summary": {
 		"areas": 110,
 		"inScope": 103,
-		"done": 82,
+		"done": 83,
 		"superseded": 6,
 		"partial": 14,
-		"missing": 1,
+		"missing": 0,
 		"outOfScope": 7
 	},
 	"rows": [
@@ -589,14 +589,14 @@
 		{
 			"id": "media-folders",
 			"area": "Media",
-			"feature": "Media folders (FileBird, Real Media Library)",
-			"emdash": "`media_folders` (migration 072)",
+			"feature": "Media folders (FileBird, Real Media Library, Enhanced Media Library, Folders, HappyFiles)",
+			"emdash": "`media_folders` (flat: id, name; unique name, 1–200 chars), media `folderId`; `/media/folders`, `folderId` on upload and `PUT /media/{id}`",
 			"emdashConfidence": "src",
-			"status": "missing",
-			"kit": "Dropped (fingerprint: “folders are not migrated”)",
-			"gap": "Read the folder taxonomy and recreate folders.",
-			"effort": "S",
-			"risk": "low",
+			"status": "done",
+			"kit": "Built 2026-11-21 (docs/spikes/media-folders-findings.md): attachment taxonomies over REST (terms + each attachment's term ids) and FileBird / Real Media Library tables from a database dump → ir/media-folders.json (\"Parent / Child\" names, deduped like EmDash, first folder wins, coverage section \"Media folders\"); load creates missing folders (reuses same-named ones), uploads into the folder, files earlier uploads only while unfiled; check `media-folders`; other folder plugins reported",
+			"gap": "Untested on a real site and a live EmDash (fake API tests only). Plugins with real directories (Media Library Folders) or own tables (CatFolders) are reported, not read.",
+			"effort": "",
+			"risk": "",
 			"priority": "P2",
 			"sitesUsed": "2/2"
 		},
@@ -1835,6 +1835,16 @@
 			],
 			"effort": "M",
 			"notes": "Done 2026-11-21 (docs/spikes/p2-batch-findings.md) except term SEO (no per-term store in EmDash 1.5) and parent renames moving children."
+		},
+		{
+			"rank": 26,
+			"priority": "P2",
+			"title": "Media folders from FileBird, Real Media Library and attachment taxonomies",
+			"rows": [
+				"media-folders"
+			],
+			"effort": "S",
+			"notes": "Done 2026-11-21 (docs/spikes/media-folders-findings.md); not yet on a real site."
 		}
 	],
 	"p2": [

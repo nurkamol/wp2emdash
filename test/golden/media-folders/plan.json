@@ -1,0 +1,69 @@
+{
+  "folders": [
+    "Brand",
+    "Brand / Logos",
+    "Downloads",
+    "Events",
+    "Photos",
+    "Photos / Archive",
+    "Photos / Classes",
+    "Photos / Classes / It's new",
+    "Team & Studio"
+  ],
+  "assignments": {
+    "101": "Brand / Logos",
+    "102": "Team & Studio",
+    "103": "Events",
+    "105": "Brand / Logos",
+    "201": "Photos / Classes",
+    "202": "Downloads",
+    "203": "Photos / Classes / It's new",
+    "204": "Photos",
+    "205": "Photos / Archive",
+    "206": "Photos"
+  },
+  "sources": [
+    {
+      "plugin": "FileBird",
+      "via": "dump",
+      "key": "fbv",
+      "folders": 4,
+      "assigned": 4
+    },
+    {
+      "plugin": "Real Media Library",
+      "via": "dump",
+      "key": "realmedialibrary",
+      "folders": 2,
+      "assigned": 3
+    },
+    {
+      "plugin": "Enhanced Media Library",
+      "via": "rest",
+      "key": "media_category",
+      "folders": 4,
+      "assigned": 3
+    },
+    {
+      "plugin": "HappyFiles",
+      "via": "rest",
+      "key": "happyfiles_category",
+      "folders": 2,
+      "assigned": 2
+    }
+  ],
+  "multiple": 4,
+  "merged": 1,
+  "truncated": 0,
+  "orphans": 0,
+  "unreachable": [
+    {
+      "plugin": "Media Library Folders (Max Foundry)",
+      "why": "folders are real directories; not read"
+    },
+    {
+      "plugin": "Folders (Premio)",
+      "why": "active, but no folders found — needs the REST taxonomy media_folder"
+    }
+  ]
+}

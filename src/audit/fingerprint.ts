@@ -69,7 +69,7 @@ const KNOWN: Record<string, { name: string; action: PluginAction; replacement: s
 	"google-site-kit": { name: "Google Site Kit", action: "replace", replacement: "GA4/GTM tags configured in site settings" },
 	wordfence: { name: "Wordfence", action: "drop", replacement: "Cloudflare WAF + EmDash auth (passkeys)" },
 	"wordfence-login-security": { name: "Wordfence Login Security", action: "drop", replacement: "EmDash passkeys" },
-	filebird: { name: "FileBird", action: "drop", replacement: "EmDash media library (folders are not migrated)" },
+	filebird: { name: "FileBird", action: "drop", replacement: "EmDash media library; folders recreated from a database dump (import-dump)" },
 	"webp-converter-for-media": { name: "Converter for Media (WebP)", action: "drop", replacement: "Astro/Cloudflare image transforms" },
 	"webp-converter": { name: "Converter for Media (WebP)", action: "drop", replacement: "Astro/Cloudflare image transforms" },
 	spc: { name: "Super Page Cache", action: "drop", replacement: "EmDash route caching on Workers" },

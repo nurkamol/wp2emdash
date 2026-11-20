@@ -10,10 +10,10 @@ The matrix covers 110 features; 103 of them are in scope.
 
 | | Count | Share of in-scope |
 |---|---|---|
-| ✅ Done | 82 | 80% |
+| ✅ Done | 83 | 81% |
 | ➖ Superseded (nothing to carry) | 6 | 6% |
 | 🟡 Partial | 14 | 14% |
-| ❌ Missing | 1 | 1% |
+| ❌ Missing | 0 | 0% |
 | ⛔ Out of scope (not counted) | 7 | — |
 
 **What this means.** The kit fully migrates a brochure site: builder pages (WPBakery/Salient, Bricks, Gutenberg pages; Elementor, Divi and the Gutenberg block libraries since 2026-11-21, not yet on a real site), header and footer, menus, popups and announcement bars, media in use, forms, SEO meta, JSON-LD, analytics, redirects from plugin exports, and old upload/sitemap/`?page_id` URLs. Both real sites were exactly that. They had no posts, comments, CPT entries, terms in use, widgets, consent banner or redirect rules. Since 2026-11-20 the kit also migrates a blog: posts, categories and tags, bylines, archives and RSS feeds (tested on a synthetic WordPress blog and a local EmDash, not yet on a real blog). Since 2026-11-21 custom post types become their own collections with their ACF, Meta Box and Pods fields, archives and term archives (tested the same way).
@@ -97,7 +97,7 @@ Columns: the WordPress feature · its EmDash 1.5 home (evidence level in italics
 | SVG files <sub>`svg`</sub> | Blocked by default (allowlist), per-field opt-in | ✅ done: Drawn to PNG at load (targets/emdash/svg.ts); legacy `.svg` URL → PNG (middleware) | Lossy (raster). Option: `allowedMimeTypes` opt-in on logo fields instead. | — | — | 2/2 |
 | Self-hosted video/audio, external CDN video <sub>`video-audio`</sub> | `video/*`, `audio/*` allowed; Stream runtime | ✅ done: mp4 faststart, external `copy` (overrides.media.external); `hotlink` refused at load | Hotlinked media support (keep URL) for very large files. | S / low | P2 | 1/2 |
 | Galleries <sub>`gallery`</sub> | Kit `gallery` section; PT `gallery` block | ✅ done: Section library `gallery` (grid/masonry/carousel) | — | — | — | — |
-| Media folders (FileBird, Real Media Library) <sub>`media-folders`</sub> | `media_folders` (migration 072) | ❌ missing: Dropped (fingerprint: “folders are not migrated”) | Read the folder taxonomy and recreate folders. | S / low | P2 | 2/2 |
+| Media folders (FileBird, Real Media Library, Enhanced Media Library, Folders, HappyFiles) <sub>`media-folders`</sub> | `media_folders` (flat: id, name; unique name, 1–200 chars), media `folderId`; `/media/folders`, `folderId` on upload and `PUT /media/{id}` | ✅ done: Built 2026-11-21 (docs/spikes/media-folders-findings.md): attachment taxonomies over REST (terms + each attachment's term ids) and FileBird / Real Media Library tables from a database dump → ir/media-folders.json ("Parent / Child" names, deduped like EmDash, first folder wins, coverage section "Media folders"); load creates missing folders (reuses same-named ones), uploads into the folder, files earlier uploads only while unfiled; check `media-folders`; other folder plugins reported | Untested on a real site and a live EmDash (fake API tests only). Plugins with real directories (Media Library Folders) or own tables (CatFolders) are reported, not read. | — | P2 | 2/2 |
 | Attachment pages (`/?attachment_id=N`, `/parent/file-name/`) <sub>`attachment-pages`</sub> | None *(not in EmDash)* | ✅ done: Starter middleware (utils/wp-urls.ts): attachment pages and `?attachment_id=` → parent page if migrated, else the file from the media library, else home (rule `attachment`); verify `urls-accounted` checks every one discovery found | — | — | — | — |
 
 ### Navigation
@@ -243,6 +243,7 @@ Columns: the WordPress feature · its EmDash 1.5 home (evidence level in italics
 | 23 | P1 | Forms: Ninja/Formidable/Elementor extractors, file uploads, conditional logic | `forms-other`, `forms-features` | M | Done 2026-11-21: Ninja, Formidable, WS Form, Forminator, HTML fallback; forms 1.7 uploads, conditions, steps. |
 | 24 | P1 | Post-launch 404 → redirect suggestions; sitemaps for posts/terms | `404-log`, `sitemaps` | S | 404 monitoring done 2026-11-21 (Site health → Missing pages). Image sitemap entries 2026-11-21 (each entry's SEO image, the featured image when there is no og:image). |
 | 25 | P2 | P2 batch: invite list from WordPress users, term descriptions, page order/parent/excerpt/featured image, reusable blocks as sections, oEmbed providers, Adobe Fonts in the CSP, form-entries checklist | `users`, `term-meta`, `menu-order`, `page-hierarchy`, `featured-image`, `excerpt`, `reusable-blocks`, `embeds`, `fonts`, `form-entries` | M | Done 2026-11-21 (docs/spikes/p2-batch-findings.md) except term SEO (no per-term store in EmDash 1.5) and parent renames moving children. |
+| 26 | P2 | Media folders from FileBird, Real Media Library and attachment taxonomies | `media-folders` | S | Done 2026-11-21 (docs/spikes/media-folders-findings.md); not yet on a real site. |
 
 **P2:** `page-hierarchy`, `page-template`, `post-formats`, `global-parts`, `term-meta`, `caption-title`, `video-audio`, `media-folders`, `mega-menu`, `popups`, `social`, `redirects`, `og-twitter`, `jsonld`, `sitemaps`, `kml`, `verification`, `legal`, `i18n`, `events`. Each row in §2 gives its approach.
 

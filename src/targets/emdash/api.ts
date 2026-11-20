@@ -32,6 +32,8 @@ export interface MediaItem {
 	storageKey?: string;
 	contentHash?: string | null;
 	alt?: string | null;
+	/** EmDash ≥ 1.5: the media folder, null = Main library. */
+	folderId?: string | null;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -255,13 +257,33 @@ export class EmDashApi {
 	 * `fieldId`: a file field's id, whose `validation.allowedMimeTypes` replaces the global allowlist (images, audio,
 	 * video, PDF) for this upload — how Word, Excel, ZIP… files get in (api/handlers/media-allowlist.ts).
 	 */
-	async mediaUpload(bytes: Uint8Array, filename: string, mime: string, alt?: string, opts: { caption?: string; fieldId?: string } = {}): Promise<MediaItem> {
+	async mediaUpload(bytes: Uint8Array, filename: string, mime: string, alt?: string, opts: { caption?: string; fieldId?: string; folderId?: string } = {}): Promise<MediaItem> {
 		const form = new FormData();
 		form.append("file", new Blob([bytes as BlobPart], { type: mime }), filename);
 		if (alt) form.append("alt", alt);
 		if (opts.caption) form.append("caption", opts.caption);
 		if (opts.fieldId) form.append("fieldId", opts.fieldId);
+		if (opts.folderId) form.append("folderId", opts.folderId);
 		return (await this.request<{ item: MediaItem }>("POST", "/media", form)).item;
+	}
+	/** PUT /media/{id}: here only `folderId` (mediaUpdateBody; null or "unfiled" = Main library). */
+	async mediaSetFolder(id: string, folderId: string | null): Promise<MediaItem> {
+		return (await this.request<{ item: MediaItem }>("PUT", `/media/${encodeURIComponent(id)}`, { folderId })).item;
+	}
+	/** GET /media/folders (flat; cursor-paged). */
+	async mediaFolders(): Promise<{ id: string; name: string }[]> {
+		const out: { id: string; name: string }[] = [];
+		let cursor: string | undefined;
+		do {
+			const r = await this.request<{ items: { id: string; name: string }[]; nextCursor?: string }>("GET", `/media/folders?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+			out.push(...r.items);
+			cursor = r.nextCursor;
+		} while (cursor);
+		return out;
+	}
+	/** POST /media/folders { name } (409 CONFLICT when the name exists, case-insensitively). */
+	async createMediaFolder(name: string): Promise<{ id: string; name: string }> {
+		return (await this.request<{ item: { id: string; name: string } }>("POST", "/media/folders", { name })).item;
 	}
 
 	// ── menus & settings ──

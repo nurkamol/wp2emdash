@@ -47,6 +47,8 @@ import { decide, isPasswordFormHtml, PROTECTED_FILE, type ProtectedEntry, type P
 import { announcementDoc, describeBar, detectAnnouncement } from "../transform/announcement.js";
 import { emdashMenuNames, isMegaClass, megaItems, megaMenuIds, menusReport, ownClasses, type WpMenuItemRest } from "../transform/menus.js";
 import { breadcrumbsOf, headerSearch, maintenancePlugin, notFoundContent, notFoundDoc, type SiteFeatures, siteFeaturesReport } from "../transform/site-features.js";
+import type { FolderSource } from "../extract/media-folders.js";
+import { folderInputs, mediaFoldersReport, planMediaFolders } from "../transform/media-folders.js";
 import { planWidgets, type WpSidebar, type WpWidget, widgetsFromOptions, widgetsReport } from "../transform/widgets.js";
 import type { BricksBox, RootVariables, ScreenshotResult } from "../audit/browser.js";
 import type { ExporterPost, MediaEntry } from "./extract.js";
@@ -1138,6 +1140,11 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		write(join(paths.ir, "widgets.json"), widgetPlan);
 		check("widgets-handled", "Every widget is mapped to an EmDash widget or decided (overrides.ts widgets)", widgetPlan.unknown.length === 0, widgetPlan.unknown.length ? `${widgetPlan.unknown.length} widget(s) without a mapping (coverage report → Widgets): ${widgetPlan.unknown.slice(0, 6).map((u) => `${u.wpId} (${u.idBase})`).join(", ")}; overrides.ts widgets: { "<id>": "html" | "skip" }` : `${widgetPlan.areas.reduce((n, a) => n + a.widgets.length, 0)} widgets in ${widgetPlan.areas.filter((a) => a.widgets.length).length} area(s)`);
 	}
+	// Media folders (FileBird / Real Media Library from a dump, attachment taxonomies from REST) → ir/media-folders.json.
+	const folderIn = folderInputs(readJson<{ sources?: FolderSource[] }>(join(paths.raw, "media-folders-dump.json")), readJson<{ sources?: FolderSource[] }>(join(paths.raw, "media-folders.json")), (readJson<{ plugins?: { slug: string }[] }>(join(paths.snapshot, "fingerprint.json"))?.plugins ?? []).map((p) => p.slug));
+	const folderPlan = folderIn.sources.length || folderIn.unreachable.length ? planMediaFolders(folderIn.sources, folderIn.unreachable) : undefined;
+	rmSync(join(paths.ir, "media-folders.json"), { force: true });
+	if (folderPlan?.folders.length) write(join(paths.ir, "media-folders.json"), folderPlan);
 	const crumbs = breadcrumbsOf(snapshotHtml);
 	const maintenance = maintenancePlugin(readJson<{ plugins?: { slug: string }[] }>(join(paths.snapshot, "fingerprint.json"))?.plugins ?? [], snapshotHtml);
 	const features: SiteFeatures = {
@@ -1194,7 +1201,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const shortcodes = shortcodeSummary(results);
 	rmSync(join(paths.ir, "shortcodes.json"), { force: true });
 	if (shortcodes.used.length) write(join(paths.ir, "shortcodes.json"), shortcodes);
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...termSeoReport(termSeo), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...termSeoReport(termSeo), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...mediaFoldersReport(folderPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }
