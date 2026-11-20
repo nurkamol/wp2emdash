@@ -655,6 +655,7 @@ ${ap.options}	integrations: [
 			...(config.performance.routeCache ? { routeCache: true } : {}),
 			...(health ? { health: { alertsTo: health.alertsTo, reportTo: health.reportTo, footer: health.brand.footer } } : {}),
 			sensitiveData: config.sensitiveData,
+			...(blogPlan ? { blog: { index: blogPlan.index, archives: blogPlan.taxonomies.map((t) => ({ label: t.label, base: t.base })), ...(blogPlan.bylines.length ? { authorBase: blogPlan.authorBase } : {}), feedFull: blogPlan.feed.full } } : {}),
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
 		}),
 	);
