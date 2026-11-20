@@ -34,7 +34,7 @@ export const INPUTS: ReportInputs = {
 	seo: { average: 84, pages: 12 },
 	now: NOW,
 };
-const BRAND = { footer: "Prepared by PixelKraft", logo: "https://acme.example/brand/logo.png", colors: { bg: "#ffffff", text: "#222222", accent: "#7a4b8c" } };
+const BRAND = { footer: "Prepared by Example Agency", logo: "https://acme.example/brand/logo.png", colors: { bg: "#ffffff", text: "#222222", accent: "#7a4b8c" } };
 
 describe("monthly report", () => {
 	it("summarises the month from what the checks stored", () => {
@@ -53,7 +53,7 @@ describe("monthly report", () => {
 		await expect(html).toMatchFileSnapshot("./golden/health-report.html");
 		expect(html).toContain('<img src="https://acme.example/brand/logo.png"');
 		expect(html).toContain("#7a4b8c");
-		expect(html).toContain("Prepared by PixelKraft");
+		expect(html).toContain("Prepared by Example Agency");
 		expect(html).toContain("@media print");
 		const text = renderReportText(r, BRAND);
 		expect(text).toContain("AVAILABILITY");
@@ -62,7 +62,7 @@ describe("monthly report", () => {
 	});
 	it("explains what is missing instead of inventing numbers", () => {
 		const r = buildReport({ ...INPUTS, history: [], visits: { missing: "Visits need the read-only Cloudflare token CF_ANALYTICS_TOKEN." }, forms: undefined, seo: undefined, incidents: [] });
-		const html = renderReportHtml(r, { footer: "Prepared by PixelKraft" });
+		const html = renderReportHtml(r, { footer: "Prepared by Example Agency" });
 		expect(html).toContain("Availability was not measured this month.");
 		expect(html).toContain("CF_ANALYTICS_TOKEN");
 		expect(html).toContain("not counted on this site");

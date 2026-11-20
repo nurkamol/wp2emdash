@@ -26,7 +26,7 @@ const PAGES = [{ collection: "pages", id: "01JPAGEAAAAAAAAAAAAAAAAAA1", title: "
 
 const client: Actor = { role: 40, id: "u-client", email: "jane@acme.example", name: "Jane", agency: false };
 const colleague: Actor = { role: 40, id: "u-other", email: "sam@acme.example", name: "Sam", agency: false };
-const agency: Actor = { role: 50, id: "u-agency", email: "dev@pixelkraft.example", name: "Dev", agency: true };
+const agency: Actor = { role: 50, id: "u-agency", email: "dev@agency.example", name: "Dev", agency: true };
 
 const sample = (o: Partial<ChangeRequest> = {}): ChangeRequest => ({ ...newRequest({ title: "Update hours", description: "Saturday is now 9–13.", page: PAGES[0] ?? null, priority: "normal", contact: "email", notify: true }, client, { id: "0123456789abcdef", number: 1, now: NOW }), ...o });
 
@@ -67,9 +67,9 @@ describe("status machine and permissions", () => {
 	});
 	it("agency = admins, narrowed by email domain when configured", () => {
 		expect(isAgency({ role: 50, email: "a@client.example" })).toBe(true);
-		expect(isAgency({ role: 40, email: "a@pixelkraft.example" }, ["pixelkraft.example"])).toBe(false);
-		expect(isAgency({ role: 50, email: "a@client.example" }, ["pixelkraft.example"])).toBe(false);
-		expect(isAgency({ role: 50, email: "a@PixelKraft.example" }, ["@pixelkraft.example"])).toBe(true);
+		expect(isAgency({ role: 40, email: "a@agency.example" }, ["agency.example"])).toBe(false);
+		expect(isAgency({ role: 50, email: "a@client.example" }, ["agency.example"])).toBe(false);
+		expect(isAgency({ role: 50, email: "a@Agency.example" }, ["@agency.example"])).toBe(true);
 		expect(actorOf({ role: 40, email: "x@y.example", name: null }).name).toBe("x");
 	});
 });
@@ -126,7 +126,7 @@ describe("validation", () => {
 describe("notifications", () => {
 	it("emails hold the request and a link — not other content; reply-to only when the client asked for email", () => {
 		const r = sample({ priority: "urgent" });
-		const m = newRequestMail(r, { siteName: "Acme", link: `${ORIGIN}/_emdash/admin/plugins/change-requests/requests/${r.id}`, footer: "PixelKraft" });
+		const m = newRequestMail(r, { siteName: "Acme", link: `${ORIGIN}/_emdash/admin/plugins/change-requests/requests/${r.id}`, footer: "Example Agency" });
 		expect(m.subject).toBe("Acme: new change request URGENT · #1 Update hours");
 		expect(m.text).toContain("Saturday is now 9–13.");
 		expect(m.text).toContain("/requests/0123456789abcdef");
@@ -181,7 +181,7 @@ function setup(o: Partial<ChangeRequestsOptions> = {}, envExtra: Record<string, 
 	let now = NOW;
 	const env = { EMAIL_PROVIDER: "emdash", MEDIA: bucket, CHANGE_REQUESTS_WEBHOOK_SECRET: SECRET, ...envExtra };
 	const deps: Deps = { env, fetch: async (url, init) => (hooks.push({ url, init }), new Response("ok")), now: () => now };
-	const options: ChangeRequestsOptions = { productionUrl: ORIGIN, siteName: "Acme", agencyTo: ["team@pixelkraft.example"], webhook: "https://hooks.example/cr", ...o };
+	const options: ChangeRequestsOptions = { productionUrl: ORIGIN, siteName: "Acme", agencyTo: ["team@agency.example"], webhook: "https://hooks.example/cr", ...o };
 	const def = createPlugin(options, async () => deps) as B;
 	const ctx = (user: B | undefined, input: unknown, extra: B = {}) => ({
 		input,
@@ -199,7 +199,7 @@ function setup(o: Partial<ChangeRequestsOptions> = {}, envExtra: Record<string, 
 	const admin = (user: B | undefined, input: unknown, extra: B = {}) => def.routes.admin.handler(ctx(user, input, extra));
 	return { kv, bucket, sent, hooks, logs, def, ctx, admin, deps, options, setNow: (t: number) => (now = t) };
 }
-const U = { client: { role: 40, id: "u-client", email: "jane@acme.example", name: "Jane" }, other: { role: 40, id: "u-other", email: "sam@acme.example", name: "Sam" }, agency: { role: 50, id: "u-agency", email: "dev@pixelkraft.example", name: "Dev" }, author: { role: 30, id: "u-a", email: "a@acme.example", name: "A" } };
+const U = { client: { role: 40, id: "u-client", email: "jane@acme.example", name: "Jane" }, other: { role: 40, id: "u-other", email: "sam@acme.example", name: "Sam" }, agency: { role: 50, id: "u-agency", email: "dev@agency.example", name: "Dev" }, author: { role: 30, id: "u-a", email: "a@acme.example", name: "A" } };
 const create = { type: "form_submit", action_id: "create", values: { title: "Update hours", description: "Saturday is now 9–13.", page: `pages:${PAGES[0]?.id}`, priority: "urgent", contact: "email", notify: true } };
 const text = (out: B) => JSON.stringify(out.blocks);
 
@@ -223,7 +223,7 @@ describe("plugin routes", () => {
 		const [r] = await listRequests(s.kv);
 		expect(r).toMatchObject({ number: 1, status: "new", priority: "urgent", page: PAGES[0], requester: { name: "Jane", email: "jane@acme.example" } });
 		expect(s.sent).toHaveLength(1);
-		expect(s.sent[0]).toMatchObject({ to: "team@pixelkraft.example", replyTo: "jane@acme.example" });
+		expect(s.sent[0]).toMatchObject({ to: "team@agency.example", replyTo: "jane@acme.example" });
 		expect(s.sent[0]?.text).toContain(`${ORIGIN}/_emdash/admin/plugins/change-requests/requests/${r?.id}`);
 		expect(s.hooks).toHaveLength(1);
 		const h = s.hooks[0] as { url: string; init: { headers: Record<string, string>; body: string } };
@@ -247,7 +247,7 @@ describe("plugin routes", () => {
 		// The client answers: back to In progress, the agency hears about it.
 		await s.admin(U.client, { type: "form_submit", action_id: `reply:${r?.id}`, values: { text: "From 1 December." } });
 		expect((await listRequests(s.kv))[0]?.status).toBe("in_progress");
-		expect(s.sent[2]).toMatchObject({ to: "team@pixelkraft.example" });
+		expect(s.sent[2]).toMatchObject({ to: "team@agency.example" });
 		// The requester switches update emails off: the agency's Done is not emailed.
 		await s.admin(U.client, { type: "block_action", action_id: "mute", value: r?.id });
 		await s.admin(U.agency, { type: "form_submit", action_id: `reply:${r?.id}`, values: { text: "", status: "done" } });
@@ -372,13 +372,13 @@ describe("backups and kit wiring", () => {
 	});
 
 	it("kit.config: on by default (agency = email.stagingTo), false turns it off, webhook must be https", () => {
-		const base = { slug: "acme", name: "Acme", source: { url: ORIGIN }, target: { productionUrl: ORIGIN }, email: { to: ["owner@acme.example"], stagingTo: ["dev@pixelkraft.example"] } };
+		const base = { slug: "acme", name: "Acme", source: { url: ORIGIN }, target: { productionUrl: ORIGIN }, email: { to: ["owner@acme.example"], stagingTo: ["dev@agency.example"] } };
 		const on = changeRequestsOptions({ config: kitConfigSchema.parse(base), productionUrl: ORIGIN, collections: ["pages"] });
-		expect(on).toMatchObject({ productionUrl: ORIGIN, siteName: "Acme", agencyTo: ["dev@pixelkraft.example"], collections: ["pages"] });
+		expect(on).toMatchObject({ productionUrl: ORIGIN, siteName: "Acme", agencyTo: ["dev@agency.example"], collections: ["pages"] });
 		expect(on?.webhook).toBeUndefined();
 		expect(changeRequestsOptions({ config: kitConfigSchema.parse({ ...base, changeRequests: false }), productionUrl: ORIGIN, collections: ["pages"] })).toBeUndefined();
-		const custom = changeRequestsOptions({ config: kitConfigSchema.parse({ ...base, sensitiveData: true, changeRequests: { agencyTo: ["pm@pixelkraft.example"], agencyDomains: ["@PixelKraft.example"], webhook: "https://hooks.zapier.com/x", retentionMonths: 6 } }), productionUrl: ORIGIN, collections: ["pages", "posts"] });
-		expect(custom).toMatchObject({ agencyTo: ["pm@pixelkraft.example"], agencyDomains: ["pixelkraft.example"], webhook: "https://hooks.zapier.com/x", retentionMonths: 6, sensitive: true, collections: ["pages", "posts"] });
+		const custom = changeRequestsOptions({ config: kitConfigSchema.parse({ ...base, sensitiveData: true, changeRequests: { agencyTo: ["pm@agency.example"], agencyDomains: ["@Agency.example"], webhook: "https://hooks.zapier.com/x", retentionMonths: 6 } }), productionUrl: ORIGIN, collections: ["pages", "posts"] });
+		expect(custom).toMatchObject({ agencyTo: ["pm@agency.example"], agencyDomains: ["agency.example"], webhook: "https://hooks.zapier.com/x", retentionMonths: 6, sensitive: true, collections: ["pages", "posts"] });
 		expect(() => kitConfigSchema.parse({ ...base, changeRequests: { webhook: "http://hooks.example" } })).toThrow();
 		expect(JSON.stringify(custom)).not.toMatch(/secret/i);
 	});

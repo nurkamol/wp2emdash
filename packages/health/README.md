@@ -1,6 +1,6 @@
 # @wp2emdash/health (experimental) — Site health & monthly report
 
-An in-house PixelKraft plugin for EmDash sites on Cloudflare Workers, on by default in every site the wp2emdash kit
+A built-in wp2emdash plugin for EmDash sites on Cloudflare Workers, on by default in every site the wp2emdash kit
 builds (`health: false` in `kit.config.ts` turns it off). Admins only.
 
 ## What it does
@@ -31,7 +31,7 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
 ```js
 // astro.config.mjs (the kit's scaffold writes this)
 import { healthPlugin } from "@wp2emdash/health";
-emdash({ plugins: [healthPlugin({ productionUrl: "https://example.com", siteName: "Example", live: true, alertsTo: ["team@agency.example"], reportTo: ["owner@example.com"], brand: { footer: "Prepared by PixelKraft" } })] });
+emdash({ plugins: [healthPlugin({ productionUrl: "https://example.com", siteName: "Example", live: true, alertsTo: ["team@agency.example"], reportTo: ["owner@example.com"], brand: { footer: "Prepared by Example Agency" } })] });
 ```
 
 Needs, in `wrangler.jsonc`: a cron trigger (the kit's starter has `*/5 * * * *` and runs EmDash's scheduled handler)

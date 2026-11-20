@@ -39,7 +39,7 @@ function site(routes: Record<string, () => Response>, calls: string[] = []) {
 }
 const page = (body = "", head = "") => () => new Response(html(body, head), { headers: { "content-type": "text/html; charset=utf-8" } });
 
-const OPTIONS: HealthOptions = { productionUrl: ORIGIN, siteName: "Acme", live: true, alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "Prepared by PixelKraft" } };
+const OPTIONS: HealthOptions = { productionUrl: ORIGIN, siteName: "Acme", live: true, alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "Prepared by Example Agency" } };
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -349,9 +349,9 @@ describe("alerts: rate limiting and gating", () => {
 		const fail = { status: "fail" as const, summary: "Search engines are kept out.", at: "t" };
 		expect(alertEvents({ siteName: "Acme", before: {}, after: { indexability: fail }, opened: [], closed: [], freshLinks: [] }).map((x) => x.issue)).toEqual(["indexability-fail"]);
 		expect(alertEvents({ siteName: "Acme", before: { indexability: fail }, after: { indexability: fail }, opened: [], closed: [], freshLinks: [] })).toEqual([]);
-		const m = alertMail(alertEvents({ siteName: "Acme <b>", before: {}, after: { forms: { ...fail, summary: "2 form messages refused." } }, opened: [], closed: [], freshLinks: [] })[0] as never, { siteName: "Acme <b>", adminUrl: `${ORIGIN}/_emdash/admin/plugins/site-health/health`, footer: "Prepared by PixelKraft" });
+		const m = alertMail(alertEvents({ siteName: "Acme <b>", before: {}, after: { forms: { ...fail, summary: "2 form messages refused." } }, opened: [], closed: [], freshLinks: [] })[0] as never, { siteName: "Acme <b>", adminUrl: `${ORIGIN}/_emdash/admin/plugins/site-health/health`, footer: "Prepared by Example Agency" });
 		expect(m.html).not.toContain("<b>");
-		expect(m.text).toContain("Prepared by PixelKraft");
+		expect(m.text).toContain("Prepared by Example Agency");
 	});
 	it("never emails before go-live, from staging, or with alerts switched off", () => {
 		expect(emailBlocked({ ...OPTIONS, live: false }, {}, {}, "alerts")).toContain("not live");

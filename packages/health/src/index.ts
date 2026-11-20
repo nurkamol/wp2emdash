@@ -21,7 +21,7 @@ export interface HealthBrand {
 	/** Absolute URL of a raster logo (PNG/JPEG/WebP) for emails; SVG logos are left out (mail apps do not show them). */
 	logo?: string;
 	colors?: { bg?: string; text?: string; accent?: string };
-	/** Footer line of reports and alerts, e.g. "Prepared by PixelKraft". */
+	/** Footer line of reports and alerts, e.g. "Prepared by <your agency>". */
 	footer: string;
 }
 

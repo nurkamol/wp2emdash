@@ -32,7 +32,7 @@ import { env } from "./stubs/cloudflare-workers.js";
 
 type B = Record<string, any>;
 const ORIGIN = "https://acme.example";
-const OPTIONS: BackupsOptions = { productionUrl: ORIGIN, siteName: "Acme", live: true, alertsTo: ["team@agency.example"], database: "acme-db", footer: "Prepared by PixelKraft" };
+const OPTIONS: BackupsOptions = { productionUrl: ORIGIN, siteName: "Acme", live: true, alertsTo: ["team@agency.example"], database: "acme-db", footer: "Prepared by Example Agency" };
 const T0 = Date.parse("2026-11-20T02:30:00Z");
 
 let kv: ReturnType<typeof memoryKv>;

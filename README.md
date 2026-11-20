@@ -15,7 +15,7 @@
   <img alt="Tests: 957 passing" src="https://img.shields.io/badge/tests-957%20passing-1F9D6B">
 </p>
 
-wp2emdash is an open-source kit, built by PixelKraft, that migrates WordPress sites to
+wp2emdash is an open-source kit that migrates WordPress sites to
 [EmDash](https://docs.emdashcms.com/) (Astro on Cloudflare Workers, D1 and R2). It rebuilds builder pages as editable
 EmDash sections, carries content, media, menus, forms, SEO and old URLs, ships each site with an in-house admin plugin
 suite, and stops at an automated gate whenever the result does not match the live site.
@@ -228,7 +228,7 @@ Load and verify targets: `WP2EMDASH_LOAD_TARGET` / `WP2EMDASH_TARGET` = `local`,
 
 ## Plugin suite
 
-Every migrated site ships with in-house EmDash plugins, built by PixelKraft as native admin pages inside the client's
+Every migrated site ships with built-in EmDash plugins, native admin pages inside the client's
 own site (no external service, no extra account). Each is switched in the site's `sites/<slug>/kit.config.ts` and
 takes effect at the next `scaffold`.
 
@@ -289,7 +289,7 @@ scaffold adds (a Worker fetching its own address would skip itself). Details: [p
 
 ### Site health & monthly report
 
-Every site gets **Plugins → Site health** (admins only; `@wp2emdash/health`, an in-house PixelKraft plugin) and a
+Every site gets **Plugins → Site health** (admins only; `@wp2emdash/health`, a built-in wp2emdash plugin) and a
 dashboard widget: overall status (Healthy / Attention / Down), one row per check with its last run and a 14-day
 trend, an incidents timeline, the broken-links table, real-visitor Core Web Vitals, 12 months of reports and the email
 settings. To leave it out, or to change the defaults:
@@ -298,7 +298,7 @@ settings. To leave it out, or to change the defaults:
 // sites/<slug>/kit.config.ts
 health: false,
 // or
-health: { alertsTo: ["ops@agency.example"], reportTo: ["owner@client.example"], brand: "Prepared by PixelKraft", externalLinks: true, monthlyReport: true },
+health: { alertsTo: ["ops@agency.example"], reportTo: ["owner@client.example"], brand: "Prepared by Example Agency", externalLinks: true, monthlyReport: true },
 ```
 
 | Check | How often | How |
@@ -325,7 +325,7 @@ details: [packages/health/README.md](packages/health/README.md).
 ### Privacy & consent
 
 Every site gets a built-in cookie banner and **Plugins → Privacy & consent** (admins only; `@wp2emdash/consent`, an
-in-house PixelKraft plugin). Modes: *off*, *notice* (US style, opt-out), *opt-in* (EU/UK style) and *auto* — the
+built-in wp2emdash plugin). Modes: *off*, *notice* (US style, opt-out), *opt-in* (EU/UK style) and *auto* — the
 default: opt-in for visitors from the EU/EEA, UK, Switzerland and Québec (and unknown regions), a notice elsewhere.
 The SEO & Analytics trackers and the chat/review widgets follow the visitor's choice: Google Consent Mode v2 starts
 denied and Google's scripts load only once allowed; Meta Pixel needs marketing consent (`fbq consent grant/revoke`);
@@ -352,7 +352,7 @@ details: [packages/consent/README.md](packages/consent/README.md).
 
 ### Backups & restore
 
-Every site gets **Plugins → Backups** (admins only; `@wp2emdash/backups`, an in-house PixelKraft plugin). Every night
+Every site gets **Plugins → Backups** (admins only; `@wp2emdash/backups`, a built-in wp2emdash plugin). Every night
 (01–03 UTC, a minute fixed per site) the Worker writes a read-only export of the site's content to its own R2 bucket
 under `backups/<yyyy-mm-dd>/` (compressed JSON, a few KB to a few MB): every collection (drafts and trash too),
 revisions, menus, site settings, redirects, sections, widgets, taxonomies, bylines, SEO, the media library's records
@@ -383,7 +383,7 @@ details: [packages/backups/README.md](packages/backups/README.md).
 
 ### Media assistant
 
-Every site gets **Plugins → Media** (editors and admins; `@wp2emdash/media`, an in-house PixelKraft plugin): media
+Every site gets **Plugins → Media** (editors and admins; `@wp2emdash/media`, a built-in wp2emdash plugin): media
 health (size by type, oversized originals, images without alt text and where each is used, unused files, duplicates,
 formats, broken references — from a read-only scan of the database), **Optimize** (resize + re-encode in place with
 the Images binding through EmDash's own Replace, old file kept 30 days, undo), reviewed **alt text suggestions**
@@ -405,8 +405,8 @@ details: [packages/media/README.md](packages/media/README.md).
 
 ### Change requests
 
-Every site gets **Plugins → Change requests** (editors and admins; `@wp2emdash/change-requests`, an in-house
-PixelKraft plugin): the client asks the agency for a change inside the admin — title, description, page (or anywhere),
+Every site gets **Plugins → Change requests** (editors and admins; `@wp2emdash/change-requests`, a built-in
+wp2emdash plugin): the client asks the agency for a change inside the admin — title, description, page (or anywhere),
 priority, up to 3 private screenshots/PDFs, how to get back — and follows its status (New → Seen → In progress →
 Waiting for you → Done / Declined) with a comment timeline. The agency (admins) replies and moves the status on the
 same page; a "Request a change" editor panel and a dashboard widget come with it. New requests email the agency;

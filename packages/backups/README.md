@@ -1,6 +1,6 @@
 # @wp2emdash/backups (experimental) — Backups & Restore
 
-An in-house PixelKraft plugin for EmDash sites on Cloudflare Workers, on by default in every site the wp2emdash kit
+A built-in wp2emdash plugin for EmDash sites on Cloudflare Workers, on by default in every site the wp2emdash kit
 builds (`backups: false` in `kit.config.ts` turns it off). Admins only.
 
 ## What it does

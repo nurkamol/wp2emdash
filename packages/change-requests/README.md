@@ -1,6 +1,6 @@
 # @wp2emdash/change-requests (experimental) — Change requests
 
-An in-house PixelKraft plugin for EmDash sites on Cloudflare Workers, on by default in every site the wp2emdash kit
+A built-in wp2emdash plugin for EmDash sites on Cloudflare Workers, on by default in every site the wp2emdash kit
 builds (`changeRequests: false` in `kit.config.ts` turns it off). Editors and admins.
 
 Clients ask the agency for changes from inside their admin instead of email or WhatsApp, and see the status.

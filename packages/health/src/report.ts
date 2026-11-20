@@ -169,7 +169,7 @@ export function renderReportHtml(r: ReportData, brand: HealthBrand): string {
 <tr><td style="padding:28px 28px 8px">${logo}<h1 style="margin:18px 0 4px;font-size:24px;color:${text}">Website report — ${esc(monthName(r.month))}</h1>
 <p style="margin:0;color:#667085">${esc(r.site.url.replace(/^https?:\/\//, "").replace(/\/$/, ""))} · ${esc(headline(r))}</p></td></tr>
 <tr><td style="padding:0 28px 24px">${parts.join("\n")}</td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #eee;font-size:12px;color:#667085">${esc(brand.footer)} · Generated ${esc(r.generatedAt.slice(0, 10))} · All times UTC</td></tr>
+<tr><td style="padding:16px 28px;border-top:1px solid #eee;font-size:12px;color:#667085">${brand.footer ? `${esc(brand.footer)} · ` : ""}Generated ${esc(r.generatedAt.slice(0, 10))} · All times UTC</td></tr>
 </table></body></html>
 `;
 }
@@ -208,8 +208,7 @@ export function renderReportText(r: ReportData, brand: HealthBrand): string {
 		"LINKS AND SEARCH",
 		`Broken links: ${r.links.found} found, ${r.links.fixed} fixed, ${r.links.open} still open.`,
 		...(r.seo ? [`Average SEO score: ${r.seo.average}/100 (${plural(r.seo.pages, "page")}).`] : []),
-		"",
-		brand.footer,
+		...(brand.footer ? ["", brand.footer] : []),
 	];
 	return `${lines.join("\n")}\n`;
 }

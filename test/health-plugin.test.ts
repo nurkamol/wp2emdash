@@ -25,7 +25,7 @@ type B = Record<string, any>;
 type Res = { blocks: B[]; toast?: { message: string; type: string } };
 type Route = { permission?: string; public?: boolean; methods?: string[]; response?: string; handler: (ctx: unknown) => Promise<unknown> };
 const ORIGIN = "https://acme.example";
-const OPTIONS: HealthOptions = { productionUrl: ORIGIN, siteName: "Acme", live: true, alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "Prepared by PixelKraft" } };
+const OPTIONS: HealthOptions = { productionUrl: ORIGIN, siteName: "Acme", live: true, alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "Prepared by Example Agency" } };
 const plugin = createPlugin(OPTIONS) as unknown as { id: string; capabilities: string[]; hooks: Record<string, any>; admin: { pages: { path: string; icon: string }[]; widgets: { id: string }[] }; routes: Record<string, Route> };
 
 let kv: ReturnType<typeof memoryKv>;
@@ -123,7 +123,7 @@ describe("Site health plugin", () => {
 		const ok = await get(url.searchParams.get("token"));
 		expect(ok.status).toBe(200);
 		expect(ok.headers).toContainEqual(["content-disposition", `attachment; filename="acme-report-${month}.html"`]);
-		expect(ok.body.value).toContain("Prepared by PixelKraft");
+		expect(ok.body.value).toContain("Prepared by Example Agency");
 		expect((await get(url.searchParams.get("token"))).status).toBe(410);
 		expect((await get("../../etc")).status).toBe(410);
 	});
@@ -146,10 +146,10 @@ describe("Site health plugin", () => {
 describe("kit side", () => {
 	const config = (extra: Record<string, unknown> = {}) => kitConfigSchema.parse({ slug: "acme", name: "Acme", source: { url: ORIGIN }, target: { productionUrl: ORIGIN }, email: { to: ["owner@acme.example"], stagingTo: ["team@agency.example"] }, ...extra });
 	it("kit.config: on by default, health: false turns it off, recipients default to email.to / stagingTo", () => {
-		expect(config().health).toEqual({ brand: "Prepared by PixelKraft", monthlyReport: true, externalLinks: true });
+		expect(config().health).toEqual({ brand: "", monthlyReport: true, externalLinks: true });
 		expect(config({ health: false }).health).toBe(false);
 		const o = healthOptions({ config: config(), productionUrl: ORIGIN, live: false, logo: "/brand/logo.png", colors: { accent: "#123456" } });
-		expect(o).toMatchObject({ alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "Prepared by PixelKraft", logo: `${ORIGIN}/brand/logo.png` }, live: false });
+		expect(o).toMatchObject({ alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "", logo: `${ORIGIN}/brand/logo.png` }, live: false });
 		expect(healthOptions({ config: config({ health: { alertsTo: ["ops@agency.example"], reportTo: ["ceo@acme.example"], brand: "Prepared by Studio X", externalLinks: false } }), productionUrl: ORIGIN, live: true, logo: "/brand/logo.svg" })).toMatchObject({ alertsTo: ["ops@agency.example"], reportTo: ["ceo@acme.example"], brand: { footer: "Prepared by Studio X" }, externalLinks: false });
 		expect(healthOptions({ config: config(), productionUrl: ORIGIN, live: false, logo: "/brand/logo.svg" })?.brand.logo).toBeUndefined();
 		expect(healthOptions({ config: config({ health: false }), productionUrl: ORIGIN, live: false })).toBeUndefined();
@@ -176,7 +176,7 @@ describe("kit side", () => {
 	});
 	it("client docs explain the page, the emails, the report and the optional secrets", () => {
 		const input: ClientRepoInput = { name: "Acme", slug: "acme", sourceUrl: ORIGIN, productionUrl: ORIGIN, workerName: "acme", productionReady: false, sections: [], forms: [], email: { provider: "brevo", to: ["owner@acme.example"] }, turnstileProduction: true, sensitiveData: false, stack: { node: ">=24", astro: "7", emdash: "1.5", wrangler: "4" } };
-		const on = clientRepoFiles({ ...input, health: { alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], footer: "Prepared by PixelKraft" } });
+		const on = clientRepoFiles({ ...input, health: { alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], footer: "Prepared by Example Agency" } });
 		expect(on["docs/editor-guide.md"]).toContain("## Site health and the monthly report");
 		expect(on["docs/editor-guide.md"]).toContain("at most one per issue per day");
 		expect(on["docs/deployment.md"]).toContain("CRUX_API_KEY");

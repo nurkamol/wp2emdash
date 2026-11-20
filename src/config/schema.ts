@@ -250,8 +250,8 @@ export const kitConfigSchema = z.object({
 				alertsTo: z.array(z.string().email()).optional(),
 				/** Monthly report recipients (the client). Default: email.to. The alert recipients get a copy. */
 				reportTo: z.array(z.string().email()).optional(),
-				/** Footer line of the report and alerts. */
-				brand: z.string().min(1).max(120).default("Prepared by PixelKraft"),
+				/** Footer line of the report and alerts, e.g. "Prepared by <your agency>". Empty (default): no footer line. */
+				brand: z.string().max(120).default(""),
 				/** Email the monthly report (admins can switch it off on the page too). */
 				monthlyReport: z.boolean().default(true),
 				/**

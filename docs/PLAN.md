@@ -447,7 +447,7 @@ editor panel), Worker secret `CF_ANALYTICS_TOKEN`. Opt-out: `seo: { panel: false
 loader request (gtag.js, gtm.js, fbevents.js, clarity.ms tag, hotjar script). Facts: docs/spikes/analytics-findings.md.
 
 ## 7e. Site health & monthly report (on by default; `health: false` turns it off)
-`packages/health` (`@wp2emdash/health`, 0.1, experimental; an in-house PixelKraft plugin). EmDash native plugin, admins
+`packages/health` (`@wp2emdash/health`, 0.1, experimental; a built-in wp2emdash plugin). EmDash native plugin, admins
 only: **Plugins → Site health** (Block Kit tabs Overview / Incidents / Broken links / Speed / Reports / Settings) and a
 dashboard widget. Checks run from **EmDash's plugin cron** (task `tick`, `*/5 * * * *`, scheduled in
 `plugin:install`/`plugin:activate` and re-checked when the page opens), which the Worker's existing `*/5` trigger
@@ -462,14 +462,14 @@ reports. Alerts and the monthly report use the forms package's email path (provi
 `EMAIL_PROVIDER=emdash`), one email per issue per day, at most six alerts a day, only when `production.live` (baked at
 scaffold, like IndexNow), alerts/report switchable in Settings, never on staging. Recipients: `health.alertsTo`
 (default `email.stagingTo`), `health.reportTo` (default `email.to`) + the alert recipients; footer `health.brand`
-("Prepared by PixelKraft"). Branding: og colours from the tokens, the copied raster logo. Optional Worker secrets:
+("Prepared by <agency>", empty by default). Branding: og colours from the tokens, the copied raster logo. Optional Worker secrets:
 `CRUX_API_KEY`, `CF_ZONE_READ_TOKEN` (dashboard Secrets/Environment list them as optional); visits in the report use
 `CF_ANALYTICS_TOKEN`. Verify: `health-plugin` (heartbeat route, or the `status` route with an admin-scoped token;
 live sites must have run within 30 minutes). Facts and limits: docs/spikes/health-findings.md. Since 2026-11-20 a
 ninth check, **Backups**, reads the backups plugin's heartbeat hourly (through `SELF`).
 
 ## 7f. Backups & Restore (on by default; `backups: false` turns it off)
-`packages/backups` (`@wp2emdash/backups`, 0.1, experimental; in-house PixelKraft plugin). EmDash native plugin, admins
+`packages/backups` (`@wp2emdash/backups`, 0.1, experimental; built-in wp2emdash plugin). EmDash native plugin, admins
 only: **Plugins → Backups** (tabs Backups / Restore / Full site / Settings). Plugin cron task `nightly`, hourly at a
 minute fixed per site; due once a day from 01–03 UTC (`backups.hourUtc`), retried hourly up to 4 attempts. A backup is
 a read-only D1 dump through the Worker's `DB` binding (allowlisted tables + `ec_*`, options filtered to `site:*` and
@@ -485,7 +485,7 @@ SigV4 PUT to an S3-compatible bucket, keys as Worker secrets, no deletes. Public
 and `heartbeat`. Verify: `backups-plugin` (live: a backup within 36 h). Facts: docs/spikes/backup-findings.md.
 
 ## 7f. Media Assistant (on by default; `media: false` turns it off)
-`packages/media` (`@wp2emdash/media`, 0.1, experimental; in-house PixelKraft). EmDash native plugin, **Plugins → Media**
+`packages/media` (`@wp2emdash/media`, 0.1, experimental; built-in wp2emdash plugin). EmDash native plugin, **Plugins → Media**
 for editors and admins (route permission `content:edit_any`; Settings and the AI licence admins only). Capabilities
 `media:read`, `media:bytes:read`, `media:metadata:write` only. Report = read-only D1 scan (`DB`) of the library and
 every table that can name a file (EmDash's media usage index is content-only and has no plugin API); cached 10 min,
@@ -500,7 +500,7 @@ Alt text: suggestions (Workers AI `@cf/meta/llama-3.2-11b-vision-instruct` when 
 guide `docs/media.md`. Facts: docs/spikes/media-findings.md.
 
 ## 7f. Change requests (on by default; `changeRequests: false` turns it off)
-`packages/change-requests` (`@wp2emdash/change-requests`, 0.1, experimental; in-house PixelKraft). EmDash native
+`packages/change-requests` (`@wp2emdash/change-requests`, 0.1, experimental; built-in wp2emdash plugin). EmDash native
 plugin, **Plugins → Change requests** for editors and admins (routes `content:edit_any`), dashboard widget, editor
 panel on pages (posts too on blog sites). Capabilities `content:read`, `email:send`. Requests in plugin KV (`req:<id>`,
 compare-and-set), attachments (3 × 5 MB, PNG/JPEG/GIF/WebP/PDF by magic bytes) in `MEDIA` under
@@ -514,7 +514,7 @@ Site health: nothing new. Verify: nothing new. Client guide `docs/change-request
 docs/spikes/change-requests-findings.md.
 
 ## 7f. Privacy & consent (on by default; `consent: false` turns it off)
-`packages/consent` (`@wp2emdash/consent`, 0.1, experimental; in-house PixelKraft). Built-in banner in the starter
+`packages/consent` (`@wp2emdash/consent`, 0.1, experimental; built-in wp2emdash plugin). Built-in banner in the starter
 (`components/Consent.astro`, `public/scripts/site-consent.js`, before SiteWidgets and Analytics in `<head>`), no inline
 script. Modes off / notice / opt-in / **auto (default)**: opt-in for EU/EEA/UK/CH/Québec and unknown, notice elsewhere,
 from `GET /_consent/region` answered by the middleware from `request.cf` (never route-cached, `no-store`). Pages stay

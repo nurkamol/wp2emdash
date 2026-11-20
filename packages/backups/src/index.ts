@@ -39,7 +39,7 @@ export interface BackupsOptions {
 	 * only writes there (no deletes): set a lifecycle rule on that bucket for retention.
 	 */
 	offsite?: { endpoint: string; bucket: string; region?: string; prefix?: string };
-	/** Footer line of alert emails, e.g. "Prepared by PixelKraft". */
+	/** Footer line of alert emails, e.g. "Prepared by <your agency>". */
 	footer?: string;
 }
 
