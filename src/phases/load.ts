@@ -387,7 +387,10 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 			}
 		}
 		try {
-			await api.updateSettings({ title: site.title, ...(site.tagline ? { tagline: site.tagline } : {}), /* noindex until cutover */ staging: true, seo: { titleSeparator: sep } });
+			await api.updateSettings({ title: site.title, ...(site.tagline ? { tagline: site.tagline } : {}), /* EmDash's staging flag puts noindex on every page. Production must not carry it, or the launched domain is
+			   noindexed (seen at a go-live). Pre-launch hosts are still kept out of search: the starter middleware sends
+			   X-Robots-Tag noindex on any host that is not the production hostname, and staging sets STAGING=1. */
+			staging: target !== "production", seo: { titleSeparator: sep } });
 		} catch (e) {
 			menuErrors.push(`settings: ${(e as Error).message}`);
 		}

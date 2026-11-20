@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { type GateCheck, phaseState, readState } from "../core/state.js";
 import { credentialsFor } from "../commands/provision.js";
 import { loadSiteEnv } from "../extract/credentials.js";
+import { remoteTarget } from "../targets/remote.js";
 import { type AliasPlan, aliasPreflight, aliasRunbook, primaryHost } from "../cutover/aliases.js";
 import type { PhaseContext } from "./index.js";
 
@@ -84,6 +85,19 @@ export async function runCutover({ config, paths, reporter }: PhaseContext): Pro
 		const have = new Set((s.result ?? []).map((x) => x.name));
 		const missing = needSecrets.filter((n) => !have.has(n));
 		check("production-secrets", "Production Worker deployed with its secrets", s.ok && missing.length === 0, !s.ok ? `Worker "${worker}" not deployed yet (${s.error}). Deploy production to workers.dev first: pnpm deploy:production` : missing.length ? `missing: ${missing.join(", ")} (npx wrangler secret put <NAME>)` : `${needSecrets.join(", ")}${held && hasForms ? "; form email held in the outbox (no EMAIL_API_KEY yet)" : ""}`);
+	}
+
+	// EmDash's "staging" setting puts noindex on every page: production must have it off before the switch.
+	const prodTarget = remoteTarget(paths.root, config, env, "production");
+	if (!("error" in prodTarget) && prodTarget.token) {
+		try {
+			const res = await fetch(`${prodTarget.url}/_emdash/api/settings`, { headers: { Authorization: `Bearer ${prodTarget.token}` } });
+			const body = (await res.json()) as { data?: { staging?: boolean }; staging?: boolean };
+			const staging = (body.data ?? body).staging;
+			check("indexable", "Production is not marked staging (no noindex on every page)", res.ok && staging !== true, !res.ok ? `settings: HTTP ${res.status}` : staging === true ? "Reload production (WP2EMDASH_LOAD_TARGET=production … load), which clears it, then redeploy so running isolates drop the cached setting" : undefined);
+		} catch (e) {
+			check("indexable", "Production is not marked staging (no noindex on every page)", false, (e as Error).message);
+		}
 	}
 
 	// 4. Forms: a real Turnstile widget for production (staging uses the always-pass test key).
@@ -185,7 +199,8 @@ done
 \`\`\`
 
 Then: \`WP2EMDASH_TARGET=production pnpm wp2emdash run <slug> verify --preview\` (URLs, SEO, forms, redirects,
-analytics loading), submit \`https://${o.domain}/sitemap.xml\` in Search Console, send a test form.
+analytics loading), submit \`https://${o.domain}/sitemap.xml\` in Search Console, send a test form, and confirm no page carries noindex
+(\`curl -s https://${o.domain}/ | grep -i 'name="robots"'\` prints nothing).
 
 ## 2. Rollback (any time during monitoring)
 
