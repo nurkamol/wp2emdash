@@ -43,5 +43,27 @@
   "exports": {
     "./config": "./src/config/schema.ts"
   },
-  "packageManager": "pnpm@11.18.0"
+  "packageManager": "pnpm@11.18.0",
+  "author": "Nurkamol Vokhidov (https://github.com/nurkamol)",
+  "homepage": "https://nurkamol.github.io/wp2emdash/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nurkamol/wp2emdash.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nurkamol/wp2emdash/issues"
+  },
+  "keywords": [
+    "wordpress",
+    "emdash",
+    "migration",
+    "astro",
+    "cloudflare-workers",
+    "d1",
+    "r2",
+    "wpbakery",
+    "gutenberg",
+    "bricks",
+    "elementor"
+  ]
 }

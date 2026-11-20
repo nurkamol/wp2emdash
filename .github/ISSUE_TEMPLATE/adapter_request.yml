@@ -1,0 +1,20 @@
+name: Builder adapter request
+description: Ask for a page builder or theme the kit does not migrate yet (or not fully).
+labels: [adapter]
+body:
+  - type: input
+    id: builder
+    attributes:
+      label: Builder and version
+      placeholder: "Divi 5.0, Oxygen 6, Beaver Builder 2.9…"
+    validations: { required: true }
+  - type: textarea
+    id: elements
+    attributes:
+      label: Elements or features that are missing
+      description: What the coverage report lists as unmapped, or what you expected to carry.
+  - type: textarea
+    id: sample
+    attributes:
+      label: Sample markup or a public demo page
+      description: Anonymised only. The builder's own demo site is ideal.

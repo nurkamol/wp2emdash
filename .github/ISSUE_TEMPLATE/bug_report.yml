@@ -1,0 +1,31 @@
+name: Bug report
+description: Something in the kit, the starter site or a plugin does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Please use synthetic or anonymised data only. Never paste a client's export, credentials, tokens or form messages."
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Where
+      options: [init, audit, extract, transform, scaffold, load, verify, cutover, golive / publish, dashboard, a plugin, starter site, other]
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Commands, the gate check id that failed, and anonymised markup if it is a transform problem.
+      render: shell
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "wp2emdash commit, Node, EmDash, page builder + version, WordPress"
+      placeholder: "main@abc1234, Node 24.4, EmDash 1.5.0, Bricks 2.5, WordPress 6.9"
+    validations: { required: true }

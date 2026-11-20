@@ -26,14 +26,14 @@ No secrets were ever committed (checked: API keys, tokens, private keys — the 
 - [x] `LICENSE` (MIT, Nurkamol Vokhidov) — matches `package.json`.
 - [ ] `README.md`: logo, badges (CI, license, Node version), one-paragraph pitch, quick start, docs index — no client
       names, no internal-only instructions.
-- [ ] `SECURITY.md`: how to report a vulnerability (private email or GitHub private advisories), supported versions.
-- [ ] `CONTRIBUTING.md`: setup, `pnpm test && pnpm typecheck`, fixture + golden rule for adapters, no client data in
+- [x] `SECURITY.md`: how to report a vulnerability (private email or GitHub private advisories), supported versions.
+- [x] `CONTRIBUTING.md`: setup, `pnpm test && pnpm typecheck`, fixture + golden rule for adapters, no client data in
       PRs, commit style.
-- [ ] `CODE_OF_CONDUCT.md` (Contributor Covenant).
-- [ ] `.github/ISSUE_TEMPLATE/` (bug report with builder/WordPress/EmDash versions; adapter request) and a pull request
+- [x] `CODE_OF_CONDUCT.md` (Contributor Covenant).
+- [x] `.github/ISSUE_TEMPLATE/` (bug report with builder/WordPress/EmDash versions; adapter request) and a pull request
       template with the checklist from CONTRIBUTING.
 - [ ] `CHANGELOG.md` up to date; first public version tagged (e.g. `v1.0.0`).
-- [ ] `package.json`: `repository`, `homepage`, `bugs`, `author`, `keywords`, `engines`; `private` kept true unless
+- [x] `package.json`: `repository`, `homepage`, `bugs`, `author`, `keywords`, `engines`; `private` kept true unless
       publishing to npm is intended.
 
 ## 3. Content sweep (current tree)
