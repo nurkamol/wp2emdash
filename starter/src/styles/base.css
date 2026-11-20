@@ -350,17 +350,17 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .faq--panel .faq__item[open] .faq__q::after { rotate: 225deg; translate: 0 -25%; }
 .faq--panel .faq__a { max-width: none; padding: 15px 0; overflow: hidden; }
 /* Columns in a rounded card (field card_bg; Bricks call-to-action panel): text left, buttons right, stacked on phones. */
-.columns.columns--card { display: flex; align-items: center; justify-content: space-between; gap: 25px 15px; padding: var(--cc-pad, 40px); border-radius: var(--cc-radius, 24px); background: var(--cc-bg); }
+.section .columns.columns--card { display: flex; align-items: center; justify-content: space-between; gap: 25px 15px; padding: var(--cc-pad, 40px); border-radius: var(--cc-radius, 24px); background: var(--cc-bg); }
 .columns--card > .columns__col { flex: 0 1 auto; width: auto; min-width: 0; }
 .columns--card > .columns__col:first-child .prose { max-width: var(--cc-text-w, 50ch); }
 .columns--card > .columns__col:first-child .prose > :is(h1, h2, h3, h4) { margin: 0 0 1em; }
 .columns--card > .columns__col .actions { margin-top: 0; }
 @media (max-width: 767.98px) {
-	.columns.columns--card { flex-direction: column; align-items: stretch; padding: var(--cc-pad-p, var(--cc-pad, 40px)); }
+	.section .columns.columns--card { flex-direction: column; align-items: stretch; padding: var(--cc-pad-p, var(--cc-pad, 40px)); }
 	.columns--card > .columns__col:not(:first-child) .actions { justify-content: center; }
 }
 /* Buttons with their own colours, corners or padding (button fields fill / text_color / radius / padding). */
-.btn.btn--own { background: var(--b-bg, var(--color-accent)); color: var(--b-color, var(--color-accent-contrast)); border-color: transparent; transition: background-color 0.2s, color 0.2s, transform 0.2s; }
+.btn.btn--own { background: var(--b-bg, var(--color-accent)); color: var(--b-color, var(--color-accent-contrast)); border-color: transparent; font-weight: var(--body-weight, 400); letter-spacing: normal; transition: background-color 0.2s, color 0.2s, transform 0.2s; }
 .btn.btn--own:hover { background: var(--color-accent); color: var(--color-accent-contrast); }
 .btn[style*="--b-radius"] { border-radius: var(--b-radius); }
 .btn[style*="--b-pad"] { padding: var(--b-pad); }
