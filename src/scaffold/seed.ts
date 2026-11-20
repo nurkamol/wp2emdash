@@ -6,6 +6,7 @@
 import type { IrMenuItem, IrPage, IrSite, MediaRef } from "../ir/schema.js";
 import { BLOCK_TYPES, SECTION_SLUGS } from "../starter/library.js";
 import { blockKey, type MediaResolver, sectionToBlock } from "../targets/emdash/blocks.js";
+import type { BlogPlan } from "../transform/blog.js";
 import type { FormDefinitionOut } from "./forms.js";
 
 export interface MediaInfo {
@@ -82,7 +83,52 @@ export interface SeedInput {
 	includeContent: boolean;
 	/** Fields a block type does not define (reported, not silently lost). */
 	onDrop?: (msg: string) => void;
+	/** Blog sites only (ir/blog.json): the posts collection, taxonomies, bylines and the posts. */
+	blog?: { plan: BlogPlan; posts: IrPage[] };
 }
+
+/**
+ * The `posts` collection (EmDash field types verified in docs/spikes/blog-findings.md). `body` is Portable Text for
+ * Gutenberg/classic posts; `content` keeps the sections of builder posts (WPBakery, Bricks) and is empty otherwise.
+ */
+export const POSTS_COLLECTION = {
+	slug: "posts",
+	label: "Posts",
+	labelSingular: "Post",
+	description: "Blog posts: shown on the posts page, in category, tag and author archives and in the RSS feed",
+	urlPattern: "/{slug}",
+	supports: ["drafts", "revisions", "preview", "seo", "search"],
+	dateField: "publishedAt",
+	fields: [
+		{ slug: "title", label: "Title", type: "string", required: true, searchable: true },
+		{ slug: "excerpt", label: "Excerpt", type: "text", searchable: true },
+		{ slug: "featured_image", label: "Featured image", type: "image" },
+		{ slug: "body", label: "Content", type: "portableText", searchable: true },
+		{ slug: "content", label: "Sections (posts built with a page builder)", type: "blocks", validation: { allowedTypes: SECTION_SLUGS, maxItems: 80 } },
+		{ slug: "featured", label: "Featured (shown first on the posts page)", type: "boolean" },
+		{ slug: "format", label: "Post format (from WordPress)", type: "string" },
+	],
+} as const;
+
+/** Seed form of a post body: media point at the WordPress file (local preview); load stores EmDash media instead. */
+export function seedPostBody(body: unknown[], media: MediaResolver): unknown[] {
+	const fix = (v: unknown): unknown => {
+		if (Array.isArray(v)) return v.map(fix);
+		if (!v || typeof v !== "object") return v;
+		const { _media, ...o } = v as Record<string, unknown> & { _media?: MediaRef & { field?: string } };
+		const out = Object.fromEntries(Object.entries(o).map(([k, x]) => [k, fix(x)]));
+		if (_media) {
+			const url = (media(_media) as { $media?: { url?: string } } | undefined)?.$media?.url;
+			if (url && o.asset && typeof o.asset === "object") out.asset = { ...(o.asset as object), url };
+			else if (url && _media.field) out[_media.field] = url;
+		}
+		return out;
+	};
+	return body.map(fix);
+}
+
+/** Seed entry id of a byline / post. */
+const bylineId = (slug: string) => `byline:${slug}`;
 
 export function buildSeed(i: SeedInput): Record<string, unknown> {
 	dropLog = i.onDrop ?? (() => {});
@@ -118,11 +164,35 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 		],
 		menus,
 	};
+	// Blog sites only: a brochure site's seed (and admin) stays exactly as before.
+	if (i.blog) {
+		const cols = seed.collections as { slug: string; sortOrder?: number }[];
+		for (const c of cols) if ((c.sortOrder ?? 0) >= 2) c.sortOrder = (c.sortOrder ?? 0) + 1;
+		cols.splice(1, 0, { ...POSTS_COLLECTION, sortOrder: 2 } as never);
+		seed.taxonomies = i.blog.plan.taxonomies.map((t) => ({ name: t.name, label: t.label, labelSingular: t.labelSingular, hierarchical: t.hierarchical, collections: ["posts"], terms: t.terms.map((x) => ({ slug: x.slug, label: x.label, ...(x.description ? { description: x.description } : {}), ...(x.parent ? { parent: x.parent } : {}) })) }));
+		if (i.blog.plan.bylines.length) seed.bylines = i.blog.plan.bylines.map((b) => ({ id: bylineId(b.slug), slug: b.slug, displayName: b.displayName, ...(b.bio ? { bio: b.bio } : {}), isGuest: true }));
+	}
 	if (i.includeContent) {
 		seed.content = {
 			pages: i.pages.map((p) => ({ id: routeToSlug(p.route?.path ?? p.source.slug), slug: routeToSlug(p.route?.path ?? p.source.slug), status: p.source.status === "publish" ? "published" : "draft", data: { title: p.title, content: blocksOf(p, i.media) } })),
 			site_parts: i.partials.map((p) => ({ id: p.source.slug, slug: p.source.slug, status: "published", data: { title: p.title, content: blocksOf(p, i.media) } })),
 			popups: i.popups.map((p) => ({ id: p.source.slug, slug: p.source.slug, status: "published", data: { title: p.title, content: blocksOf(p, i.media), selectors: p.popup?.selectors.filter((s) => !s.includes("popmake")).join(", ") || undefined, auto_open_delay: p.popup?.autoOpen?.delayMs } })),
+			...(i.blog
+				? {
+						posts: i.blog.posts.map((p) => {
+							const slug = routeToSlug(p.route?.path ?? p.source.slug);
+							const featured = i.media(p.featuredImage);
+							return {
+								id: `post:${p.source.wpId}`,
+								slug,
+								status: p.source.status === "publish" && p.post?.visibility === "public" ? "published" : "draft",
+								data: { title: p.title, ...(p.post?.excerpt ? { excerpt: p.post.excerpt } : {}), ...(featured ? { featured_image: featured } : {}), body: seedPostBody(p.post?.body ?? [], i.media), content: blocksOf(p, i.media), ...(p.post?.sticky ? { featured: true } : {}), ...(p.post?.format ? { format: p.post.format } : {}) },
+								...(Object.keys(p.post?.terms ?? {}).length ? { taxonomies: p.post?.terms } : {}),
+								...(p.post?.bylines.length ? { bylines: p.post.bylines.map((b) => ({ byline: bylineId(b) })) } : {}),
+							};
+						}),
+					}
+				: {}),
 		};
 	}
 	return seed;

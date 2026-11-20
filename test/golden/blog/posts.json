@@ -1,0 +1,424 @@
+{
+	"classic-notes.json": {
+		"version": 1,
+		"kind": "post",
+		"source": {
+			"wpId": 11,
+			"type": "post",
+			"status": "publish",
+			"slug": "classic-notes",
+			"builder": "classic",
+			"modifiedGmt": "2024-06-01 12:00:00"
+		},
+		"route": {
+			"path": "/classic-notes/"
+		},
+		"title": "Classic notes",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"sections": [],
+		"post": {
+			"body": [
+				{
+					"_type": "block",
+					"_key": "b_2",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "b_0",
+							"text": "A classic post written in the old editor.\n"
+						},
+						{
+							"_type": "span",
+							"_key": "b_1",
+							"text": "With a line break."
+						}
+					]
+				},
+				{
+					"_type": "image",
+					"_key": "b_3",
+					"asset": {
+						"_type": "reference",
+						"_ref": "32",
+						"url": "https://blog.example.test/wp-content/uploads/2024/06/team-300x200.jpg"
+					},
+					"alt": "The team",
+					"caption": "Our team",
+					"_media": {
+						"wpId": 32,
+						"kind": "image",
+						"alt": "The team"
+					}
+				},
+				{
+					"_type": "gallery",
+					"_key": "b_6",
+					"images": [
+						{
+							"_type": "image",
+							"_key": "b_4",
+							"asset": {
+								"_type": "reference",
+								"_ref": "31"
+							},
+							"alt": "",
+							"_media": {
+								"wpId": 31,
+								"kind": "image"
+							}
+						},
+						{
+							"_type": "image",
+							"_key": "b_5",
+							"asset": {
+								"_type": "reference",
+								"_ref": "32"
+							},
+							"alt": "",
+							"_media": {
+								"wpId": 32,
+								"kind": "image"
+							}
+						}
+					]
+				},
+				{
+					"_type": "embed",
+					"_key": "b_7",
+					"url": "https://www.youtube.com/watch?v=abc123",
+					"provider": "youtube",
+					"html": "<figure class=\"wp-block-embed\"><div class=\"wp-block-embed__wrapper\">https://www.youtube.com/watch?v=abc123</div></figure>"
+				},
+				{
+					"_type": "block",
+					"_key": "b_9",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "b_8",
+							"text": "The end."
+						}
+					]
+				}
+			],
+			"excerpt": "A short hand-written excerpt.",
+			"publishedAt": "2024-06-01T12:00:00.000Z",
+			"modifiedAt": "2024-06-01T12:00:00.000Z",
+			"sticky": true,
+			"format": "gallery",
+			"terms": {
+				"category": [
+					"workshops"
+				],
+				"tag": [
+					"tips",
+					"breathing"
+				]
+			},
+			"bylines": [
+				"sam"
+			],
+			"visibility": "public"
+		},
+		"diagnostics": []
+	},
+	"coming-soon.json": {
+		"version": 1,
+		"kind": "post",
+		"source": {
+			"wpId": 12,
+			"type": "post",
+			"status": "future",
+			"slug": "coming-soon",
+			"builder": "gutenberg",
+			"modifiedGmt": "2024-06-02 08:00:00"
+		},
+		"route": {
+			"path": "/coming-soon/"
+		},
+		"title": "Coming soon",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"sections": [],
+		"post": {
+			"body": [
+				{
+					"_type": "block",
+					"_key": "c_1",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "c_0",
+							"text": "Scheduled for later."
+						}
+					]
+				}
+			],
+			"publishedAt": "2099-01-01T08:00:00.000Z",
+			"modifiedAt": "2024-06-02T08:00:00.000Z",
+			"terms": {
+				"category": [
+					"news"
+				]
+			},
+			"bylines": [
+				"jane"
+			],
+			"visibility": "public"
+		},
+		"diagnostics": []
+	},
+	"hello-gutenberg.json": {
+		"version": 1,
+		"kind": "post",
+		"source": {
+			"wpId": 10,
+			"type": "post",
+			"status": "publish",
+			"slug": "hello-gutenberg",
+			"builder": "gutenberg",
+			"modifiedGmt": "2024-05-12 08:30:00"
+		},
+		"route": {
+			"path": "/hello-gutenberg/"
+		},
+		"title": "Hello Gutenberg",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"featuredImage": {
+			"wpId": 31,
+			"kind": "image"
+		},
+		"sections": [],
+		"post": {
+			"body": [
+				{
+					"_type": "block",
+					"_key": "a_6",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "a_0",
+							"text": "First paragraph with "
+						},
+						{
+							"_type": "span",
+							"_key": "a_1",
+							"text": "bold",
+							"marks": [
+								"strong"
+							]
+						},
+						{
+							"_type": "span",
+							"_key": "a_2",
+							"text": " and a "
+						},
+						{
+							"_type": "span",
+							"_key": "a_4",
+							"text": "link to the journal",
+							"marks": [
+								"a_3"
+							]
+						},
+						{
+							"_type": "span",
+							"_key": "a_5",
+							"text": "."
+						}
+					],
+					"markDefs": [
+						{
+							"_type": "link",
+							"_key": "a_3",
+							"href": "https://blog.example.test/journal/"
+						}
+					]
+				},
+				{
+					"_type": "block",
+					"_key": "a_8",
+					"style": "h2",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "a_7",
+							"text": "A heading"
+						}
+					]
+				},
+				{
+					"_type": "image",
+					"_key": "a_9",
+					"asset": {
+						"_type": "reference",
+						"_ref": "31",
+						"url": "https://blog.example.test/wp-content/uploads/2024/05/photo-1024x683.jpg"
+					},
+					"alt": "Studio photo",
+					"caption": "The studio at dawn",
+					"_media": {
+						"wpId": 31,
+						"kind": "image",
+						"alt": "Studio photo"
+					}
+				},
+				{
+					"_type": "block",
+					"_key": "a_b",
+					"style": "normal",
+					"listItem": "bullet",
+					"level": 1,
+					"children": [
+						{
+							"_type": "span",
+							"_key": "a_a",
+							"text": "One"
+						}
+					]
+				},
+				{
+					"_type": "block",
+					"_key": "a_d",
+					"style": "normal",
+					"listItem": "bullet",
+					"level": 1,
+					"children": [
+						{
+							"_type": "span",
+							"_key": "a_c",
+							"text": "Two"
+						}
+					]
+				},
+				{
+					"_type": "block",
+					"_key": "a_f",
+					"style": "blockquote",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "a_e",
+							"text": "Move well."
+						}
+					]
+				}
+			],
+			"publishedAt": "2024-05-10T09:00:00.000Z",
+			"modifiedAt": "2024-05-12T08:30:00.000Z",
+			"terms": {
+				"category": [
+					"news"
+				],
+				"tag": [
+					"tips"
+				]
+			},
+			"bylines": [
+				"jane"
+			],
+			"visibility": "public"
+		},
+		"diagnostics": []
+	},
+	"members-only.json": {
+		"version": 1,
+		"kind": "post",
+		"source": {
+			"wpId": 14,
+			"type": "post",
+			"status": "private",
+			"slug": "members-only",
+			"builder": "gutenberg",
+			"modifiedGmt": "2024-04-01 08:00:00"
+		},
+		"route": {
+			"path": "/members-only/"
+		},
+		"title": "Members only",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"sections": [],
+		"post": {
+			"body": [
+				{
+					"_type": "block",
+					"_key": "e_1",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "e_0",
+							"text": "For members."
+						}
+					]
+				}
+			],
+			"publishedAt": "2024-04-01T08:00:00.000Z",
+			"modifiedAt": "2024-04-01T08:00:00.000Z",
+			"terms": {
+				"category": [
+					"studio-news"
+				]
+			},
+			"bylines": [
+				"sam"
+			],
+			"visibility": "private"
+		},
+		"diagnostics": []
+	},
+	"post-13.json": {
+		"version": 1,
+		"kind": "post",
+		"source": {
+			"wpId": 13,
+			"type": "post",
+			"status": "draft",
+			"slug": "post-13",
+			"builder": "gutenberg",
+			"modifiedGmt": "2024-06-03 08:00:00"
+		},
+		"route": {
+			"path": "/post-13/"
+		},
+		"title": "Unfinished draft",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"sections": [],
+		"post": {
+			"body": [
+				{
+					"_type": "block",
+					"_key": "d_1",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "d_0",
+							"text": "Not ready."
+						}
+					]
+				}
+			],
+			"modifiedAt": "2024-06-03T08:00:00.000Z",
+			"terms": {},
+			"bylines": [
+				"jane"
+			],
+			"visibility": "public"
+		},
+		"diagnostics": []
+	}
+}

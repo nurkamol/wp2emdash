@@ -34,6 +34,7 @@ import { astroPerf, brandHashes, imageHosts, type PerfConfig, perfSite, withWarm
 import { BLOCK_TYPES } from "../starter/library.js";
 import { customStylesheet } from "../transform/custom-css.js";
 import type { WpUrlRules } from "../transform/wp-urls.js";
+import { type BlogPlan, starterBlogConfig } from "../transform/blog.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
 
@@ -281,6 +282,9 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	}
 	const loadDir = (d: string) => (existsSync(join(ir, d)) ? readdirSync(join(ir, d)).filter((f) => f.endsWith(".json")).map((f) => readJson<IrPage>(join(ir, d, f)) as IrPage) : []);
 	const pages = loadDir("pages");
+	// Blog sites only (transform wrote ir/blog.json): posts collection, taxonomies, bylines, archive routes, feeds.
+	const blogPlan = readJson<BlogPlan>(join(ir, "blog.json"));
+	const posts = blogPlan ? loadDir("posts").filter((p) => p.kind === "post" && p.post) : [];
 	const partials = site.partials.map((p) => readJson<IrPage>(join(ir, p.file))).filter((p): p is IrPage => !!p);
 	const popups = site.popups.map((p) => readJson<IrPage>(join(ir, p.file))).filter((p): p is IrPage => !!p);
 
@@ -385,7 +389,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		...(siteWidgets.length ? { siteWidgets } : {}),
 		...(Object.keys(legacyFiles).length ? { legacyFiles } : {}),
 		// WordPress numeric links (/?p=40, /?page_id=40) keep resolving: post id → path of each published page/post.
-		wpIds: Object.fromEntries(pages.flatMap((p) => (p.source.wpId && p.route?.path && p.source.status === "publish" ? [[String(p.source.wpId), p.route.path]] : []))),
+		wpIds: Object.fromEntries([...pages, ...posts.filter((p) => p.post?.visibility === "public")].flatMap((p) => (p.source.wpId && p.route?.path && p.source.status === "publish" ? [[String(p.source.wpId), p.route.path]] : []))),
+		...(blogPlan ? { blog: starterBlogConfig(blogPlan) } : {}),
 		...(Object.keys(verification).length ? { verification } : {}),
 		// Structured data: the business (from the live site's JSON-LD) and each page's schema type (AboutPage, ContactPage…).
 		structuredData: {
@@ -450,7 +455,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	for (const f of existsSync(join(project, "public")) ? readdirSync(join(project, "public")) : []) if (/^[0-9a-f]{32}\.txt$/.test(f) && f !== `${indexNowKey}.txt`) rmSync(join(project, "public", f));
 	if (config.seo.panel) writeFileSync(join(project, "public", `${indexNowKey}.txt`), indexNowKey);
 	else rmSync(join(project, "public", `${indexNowKey}.txt`), { force: true });
-	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: ["pages"], ...(og ? { ogCards: true } : {}), indexNow: { key: indexNowKey, live: !!readJson<CloudflareResources>(join(paths.root, "cloudflare.json"))?.production?.live }, ...(config.analytics !== false ? { analytics: analyticsOptions({ seed: analytics, ...(cfCreds.accountId ? { accountId: cfCreds.accountId } : {}), ...(rum ? { rum } : {}), stateFile: paths.state, ...(Object.keys(verification).length ? { verification } : {}) }) } : {}) } : undefined;
+	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: blogPlan ? ["pages", "posts"] : ["pages"], ...(og ? { ogCards: true } : {}), indexNow: { key: indexNowKey, live: !!readJson<CloudflareResources>(join(paths.root, "cloudflare.json"))?.production?.live }, ...(config.analytics !== false ? { analytics: analyticsOptions({ seed: analytics, ...(cfCreds.accountId ? { accountId: cfCreds.accountId } : {}), ...(rum ? { rum } : {}), stateFile: paths.state, ...(Object.keys(verification).length ? { verification } : {}) }) } : {}) } : undefined;
 	// Site health & monthly report (@wp2emdash/health, on by default); health: false turns it off.
 	rmSync(join(project, "packages", "health"), { recursive: true, force: true });
 	const health = healthOptions({
@@ -559,7 +564,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Seed (with the migrated content for local preview)
 	const sep = /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-";
 	const drops: string[] = [];
-	const seed = buildSeed({ name: config.name, site, pages, partials, popups, media, titleSeparator: sep, forms, includeContent: true, onDrop: (m) => drops.push(m) });
+	const seed = buildSeed({ name: config.name, site, pages, partials, popups, media, titleSeparator: sep, forms, includeContent: true, onDrop: (m) => drops.push(m), ...(blogPlan ? { blog: { plan: blogPlan, posts } } : {}) });
 	for (const d of drops) reporter.emit({ type: "log", level: "info", message: `not stored (no matching field): ${d}` });
 	write(join(project, "seed", "seed.json"), seed);
 
@@ -652,7 +657,7 @@ ${ap.options}	integrations: [
 	const devVars = join(project, ".dev.vars");
 	if (!existsSync(devVars)) write(devVars, "# Local only (gitignored). Turnstile always-pass test keys; add EMAIL_API_KEY and FORM_FROM to test real delivery.\nTURNSTILE_SITE_KEY=1x00000000000000000000AA\nTURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA\n");
 	// Client repository: README, docs, CI, .env.example.
-	const used = new Set([...pages, ...partials, ...popups].flatMap((d) => d.sections.map((s) => `section_${s.type}`)));
+	const used = new Set([...pages, ...posts, ...partials, ...popups].flatMap((d) => d.sections.map((s) => `section_${s.type}`)));
 	const keptDocs = writeClientRepo(
 		project,
 		clientRepoFiles({
@@ -684,6 +689,7 @@ ${ap.options}	integrations: [
 			...(consent ? { consent: { mode: consent.mode, ...(consent.options.keptTools ? { keptTools: consent.options.keptTools } : {}) } } : {}),
 			...(backups ? { backups: { alertsTo: backups.alertsTo, daily: backups.retention?.daily ?? 30, monthly: backups.retention?.monthly ?? 12, offsite: !!backups.offsite, ...(backups.database ? { database: backups.database } : {}) } } : {}),
 			sensitiveData: config.sensitiveData,
+			...(blogPlan ? { blog: { index: blogPlan.index, archives: blogPlan.taxonomies.map((t) => ({ label: t.label, base: t.base })), ...(blogPlan.bylines.length ? { authorBase: blogPlan.authorBase } : {}), feedFull: blogPlan.feed.full } } : {}),
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
 		}),
 	);
@@ -691,12 +697,12 @@ ${ap.options}	integrations: [
 	reporter.emit({ type: "step:end", step: "Generate project", ok: true, detail: `${pages.length} pages, ${forms.length} forms, panel ${motion.panel}` });
 
 	// ── Static checks ──────────────────────────────────────────────────────────
-	const usedTypes = new Set([...pages, ...partials, ...popups].flatMap((d) => d.sections.map((s) => `section_${s.type}`)));
+	const usedTypes = new Set([...pages, ...posts, ...partials, ...popups].flatMap((d) => d.sections.map((s) => `section_${s.type}`)));
 	const componentSrc = readFileSync(join(project, "src", "components", "Sections.astro"), "utf8");
 	const missingComponents = [...usedTypes].filter((t) => !BLOCK_TYPES.some((b) => b.slug === t) || !componentSrc.includes(`${t}:`));
 	check("section-components", "Every section type used by the IR has a block type and a component", missingComponents.length === 0, missingComponents.join(", ") || `${usedTypes.size} types used`);
 	const formIds = new Set(forms.map((f) => f.id));
-	const missingForms = [...pages, ...partials, ...popups].flatMap((d) => d.sections.flatMap((s) => (s.type === "form" && !formIds.has(`${s.fields.formRef.provider}-${s.fields.formRef.id}`) ? [`${d.source.slug}: ${s.fields.formRef.provider}#${s.fields.formRef.id}`] : [])));
+	const missingForms = [...pages, ...posts, ...partials, ...popups].flatMap((d) => d.sections.flatMap((s) => (s.type === "form" && !formIds.has(`${s.fields.formRef.provider}-${s.fields.formRef.id}`) ? [`${d.source.slug}: ${s.fields.formRef.provider}#${s.fields.formRef.id}`] : [])));
 	const formWarnings = forms.flatMap((f) => f.warnings.map((w) => `${f.id}: ${w}`));
 	check("forms", "Every form section has a generated form definition", missingForms.length === 0 && formWarnings.length === 0, [...missingForms, ...formWarnings].join("; ") || `${forms.length} form(s)`);
 	const brandRemote = Object.entries(brand).filter(([, v]) => v && /^https?:/.test(v)).map(([k]) => k);

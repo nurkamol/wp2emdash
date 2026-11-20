@@ -146,7 +146,10 @@ the real domain, sign in there with a magic link and add a new passkey in **Sett
 | `menus:manage` | Write the navigation menus |
 | `settings:read`, `settings:manage` | Site title, tagline, title separator, staging flag, Site URL |
 
-It does not need `admin` or the transfer scopes. Put it in the **site's** `.env` (each site has its own EmDash):
+It does not need the transfer scopes. It needs `admin` only for a site with a blog: EmDash 1.5 serves bylines under
+`/_emdash/api/admin/bylines`, so load cannot create the authors' bylines without it (its `bylines` check says so).
+`content:write` also covers taxonomies and terms, and publishing posts with their WordPress date works because the
+token's owner is an admin (`publishedAt` is checked against the role, not a scope; docs/spikes/blog-findings.md). Put it in the **site's** `.env` (each site has its own EmDash):
 
 ```
 # sites/<slug>/.env

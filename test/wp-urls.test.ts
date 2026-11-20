@@ -222,15 +222,18 @@ describe("transform phase: content types, Additional CSS, WordPress-URL rules", 
 	it("fails until every type, taxonomy, author and the Additional CSS is decided, and reports each", async () => {
 		const paths = setup("open");
 		const checks = await run(paths);
-		expect(checks.find((c) => c.id === "content-types-handled")).toMatchObject({ ok: false, detail: "4 need a decision (coverage report → Content types; overrides.ts contentTypes / taxonomies / authors): portfolio (1), post (1), taxonomy category (1), authors Admin (1)" });
+		// The Gutenberg post is migrated by the blog; its category (no post_types, unused by the post) and its author (no
+		// author on the post entry, so no byline) still need decisions.
+		expect(checks.find((c) => c.id === "content-types-handled")).toMatchObject({ ok: false, detail: "3 need a decision (coverage report → Content types; overrides.ts contentTypes / taxonomies / authors): portfolio (1), taxonomy category (1), authors Admin (1)" });
 		expect(checks.find((c) => c.id === "custom-css")).toMatchObject({ ok: false });
 		const md = readFileSync(join(paths.reports, "transform", "coverage.md"), "utf8");
 		expect(md).toMatch(/## Content types[\s\S]*\| type \| portfolio \| 1 \| 1 \| ❌ undecided \| no collection for this type \| `\/portfolio\/project-a\/` \|/);
 		expect(md).toMatch(/## Additional CSS \(Customizer\)[\s\S]*`\.site-header \.logo img`/);
-		expect(md).toMatch(/## WordPress URLs[\s\S]*\| feed \| 301 → \/ \| default \|/);
+		expect(md).toMatch(/## WordPress URLs[\s\S]*\| feed \| 301 → \/feed\/ \| default \|/);
 		const plan = JSON.parse(readFileSync(join(paths.ir, "wp-urls.json"), "utf8"));
-		expect(plan.rules).toMatchObject({ feed: "/", commentsFeed: "gone", category: "gone", pages: ["/"], trailingSlash: "always" });
-		expect(plan.feedPending).toBe(true);
+		// The site has a post: the blog serves a real feed (no more feedPending redirect) and the post is a real address.
+		expect(plan.rules).toMatchObject({ feed: "/feed/", commentsFeed: "gone", pages: ["/", "/hello-world/"], trailingSlash: "always", blog: { index: "/blog/" } });
+		expect(plan.feedPending).toBe(false);
 	});
 
 	it("passes with decisions; a type decided \"pages\" is migrated at its WordPress address", async () => {

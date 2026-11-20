@@ -59,6 +59,8 @@ export interface ClientRepoInput {
 	backups?: { alertsTo: string[]; daily: number; monthly: number; offsite: boolean; database?: string };
 	sensitiveData: boolean;
 	stack: Record<string, string>;
+	/** Blog sites: the posts page, archive bases and feed (docs/writing-posts.md). */
+	blog?: { index: string; archives: { label: string; base: string }[]; authorBase?: string; feedFull: boolean };
 }
 
 const md = (body: string) => `<!-- ${MARKER}. Delete this line to take the file over: later scaffold runs then leave it alone. -->\n${body.trim()}\n`;
@@ -406,7 +408,7 @@ until you publish them, and every page keeps its earlier versions.
 | **Header & footer** | The footer's sections (shown on every page). |
 | **Popups** | Popups such as the booking window, and the buttons or links that open them. |
 | **Menus** | \`primary\` (main menu), \`secondary\` and \`footer\` links. A \`secondary\` item with the CSS class \`button\` is a header button; its title attribute is the label it swaps to on hover. |
-| **Media** | Images and videos. Upload in the library or straight from an image field. |
+${i.blog ? `| **Posts** | Blog posts, with categories, tags and authors. See [writing-posts.md](writing-posts.md). |\n` : ""}| **Media** | Images and videos. Upload in the library or straight from an image field. |
 | **Settings** | Site title, tagline, logo and favicon (**General**), social profiles (**Social Links**), title separator, default social image, Google/Bing verification and robots.txt (**SEO**). Filled in from the old site. |
 
 ## Site settings
@@ -488,6 +490,43 @@ rankings also depend on content quality, links from other sites and the Google B
 ` : ""}${healthGuide(i.health, i.productionUrl)}${consentGuide(i.consent)}${backupsGuide(i.backups)}`);
 
 	const formRows = i.forms.map((f) => `| ${f.title} (\`${f.id}\`) | ${f.fields.join(", ") || "—"} | ${f.withheld.length ? f.withheld.join(", ") : "—"} |`).join("\n");
+	if (i.blog) {
+		const b = i.blog;
+		files["docs/writing-posts.md"] = md(`
+# Writing posts
+
+Posts live in the admin under **Posts**. Every post that was on the WordPress blog is there, at the same address, with
+its date, categories, tags, author, excerpt and featured image.
+
+## A new post
+
+1. **Posts → New**. Write the title, then the content in the editor (headings, lists, links, images, quotes, embeds).
+2. **Slug** is the address: \`my-first-post\` is published at \`/my-first-post/\`. Migrated posts keep their old
+   WordPress address as their slug (it may contain slashes, such as \`2024/05/my-post\`); do not change it, or old links break
+   (EmDash adds a redirect when a slug changes, but search engines take time to follow).
+3. **Excerpt** (optional): the short text on the posts page, in the feed and in search results. Without one, the
+   first words of the post are used.
+4. **Featured image**: shown at the top of the post and on its card in lists.
+5. **Categories and tags** (side panel): ${b.archives.map((a) => `${a.label} have their own pages at \`${a.base}<name>/\``).join("; ")}.
+6. **Author**: the byline under the title${b.authorBase ? `, linking to \`${b.authorBase}<name>/\`` : ""}. Authors are bylines (names with a bio and photo), not user accounts: add them in **Bylines**.
+7. **Featured**: on = the post stays first on the posts page.
+8. **SEO** (side panel): title, description and sharing image, as for pages.
+9. **Publish**, or **Schedule** to publish it later (the site publishes it within five minutes of the time).
+
+Posts built with a page builder on WordPress keep their sections in **Sections**; new posts only need the content field.
+
+## Where posts appear
+
+| Address | What it shows |
+|---|---|
+| \`${b.index}\` | The posts page: newest first, featured posts on top, numbered pages (\`${b.index === "/" ? "" : b.index}page/2/\`) |
+${b.archives.map((a) => `| \`${a.base}<name>/\` | ${a.label}: every post in it |`).join("\n")}${b.authorBase ? `\n| \`${b.authorBase}<name>/\` | Every post by an author |` : ""}
+| \`/feed/\` | The RSS feed (${b.feedFull ? "full text" : "excerpts"}); every list above has its own, e.g. \`${b.archives[0]?.base ?? "/category/"}<name>/feed/\` |
+
+A published post shows up in all of them within a moment: publishing clears the cached pages.
+`);
+	}
+
 	files["docs/forms-and-integrations.md"] = md(`
 # Forms and integrations
 

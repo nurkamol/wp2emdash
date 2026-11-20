@@ -19,12 +19,13 @@ import { businessFromJsonLd } from "../transform/business.js";
 import { completeMarianaEmbeds, marianaTenant } from "../transform/embeds.js";
 import { collectSnippets, completeProviderLoaders, providerLoaders, settleLoaders } from "../transform/snippets.js";
 import { consentReport, planConsent } from "../transform/consent.js";
-import { type Diagnostic, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
+import { type Diagnostic, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrPost, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
 import { conservation, irText, missingContext, sourceText } from "../transform/coverage.js";
 import { buildSettings, irSettings, settingsReport } from "../transform/settings.js";
-import { contentInventory, inventoryDetail, inventoryReport } from "../transform/content-types.js";
+import { contentInventory, INTERNAL_TAXONOMIES, inventoryDetail, inventoryReport } from "../transform/content-types.js";
 import { type CustomCss, customCssFromHtml, customCssReport, describeCss } from "../transform/custom-css.js";
-import { buildWpUrlPlan, type WpUrlInput, wpUrlsReport } from "../transform/wp-urls.js";
+import { baseOf, buildWpUrlPlan, type WpUrlInput, wpUrlsReport } from "../transform/wp-urls.js";
+import { type BlogByline, blogIndexPath, type BlogPlan, blogReport, blogTaxonomies, bylineSlug, convertPostBody, feedSettings, permalinkPath, type WpTaxonomy, wpGmtToIso } from "../transform/blog.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
 import { announcementDoc, describeBar, detectAnnouncement } from "../transform/announcement.js";
@@ -114,6 +115,16 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const bricksPopups = new Map(bricksTemplatePosts.filter((t) => t.status === "publish" && templateType(t.meta) === "popup").map((t) => [t.id, `bricks-${t.slug}`]));
 	const siteUrl = config.source.url.replace(/\/$/, "");
 	const siteHosts = new Set([new URL(siteUrl).host, ...config.source.alternateHosts].map((h) => h.replace(/^www\./, "")));
+	// Media library id of an upload URL (WordPress size variants and -scaled copies point at the original).
+	const uploadKey = (u: string) => {
+		try {
+			return decodeURIComponent(new URL(u, siteUrl).pathname).replace(/^.*\/(?:wp-content\/uploads|storage)\//, "").replace(/-\d+x\d+(?=\.[a-z0-9]+$)/i, "").replace(/-scaled(?=\.[a-z0-9]+$)/i, "").toLowerCase();
+		} catch {
+			return "";
+		}
+	};
+	const mediaByFile = new Map(manifest.filter((m) => m.id && m.file).map((m) => [(m.file as string).toLowerCase().replace(/-scaled(?=\.[a-z0-9]+$)/i, ""), m.id as number]));
+	const mediaIdForUrl = (u: string) => (siteHosts.has(hostOf(u, siteUrl)) ? mediaByFile.get(uploadKey(u)) : undefined);
 	const relHref = (url: string) => {
 		if (url.startsWith("#")) return url;
 		try {
@@ -288,15 +299,114 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			emit({ version: IR_VERSION, kind: "page", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder, modifiedGmt: p.modified_gmt }, route: { path: routeOf(p) }, title: p.title, seo: seoOf(p), ...(p.featured_image?.id ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}), sections, diagnostics }, `pages/${t}-${p.slug}.json`, p.status === "publish");
 		}
 	}
-	for (const p of asPages("post") || overrides.contentTypes.post?.as === "skip" ? [] : posts) {
+	// ── Blog: posts (Gutenberg/classic → Portable Text, builder posts keep sections), taxonomies, bylines ─────────────
+	// On when WordPress has posts to migrate (or kit.config blog: true); never for a brochure site without posts.
+	const discovery = readJson<Omit<NonNullable<WpUrlInput["discovery"]>, "authors"> & { items?: { type: string; link: string }[]; authors?: { id: number; slug: string; link: string; name?: string; description?: string; avatar?: string }[] }>(join(paths.snapshot, "discovery.json"));
+	const postsDecided = asPages("post") || overrides.contentTypes.post?.as === "skip";
+	const POST_STATUSES = new Set(["publish", "future", "draft", "pending", "private"]);
+	const isProtected = (p: ExporterPost) => p.status === "private" || !!(p as { password?: unknown; post_password?: unknown }).password || !!(p as { post_password?: unknown }).post_password;
+	const blogPosts = postsDecided || config.blog === false ? [] : posts.filter((p) => POST_STATUSES.has(p.status) && !(isProtected(p) && overrides.protectedPosts?.as === "skip"));
+	const blogOn = !postsDecided && config.blog !== false && (blogPosts.length > 0 || config.blog === true);
+	const protectedPosts = blogOn ? posts.filter((p) => POST_STATUSES.has(p.status) && isProtected(p)) : [];
+	const stickyIds = new Set((Array.isArray(options.sticky_posts) ? options.sticky_posts : typeof options.sticky_posts === "object" && options.sticky_posts ? Object.values(options.sticky_posts) : []).map(Number));
+	const authorOf = (p: ExporterPost) => {
+		const a = (p.author ?? {}) as { id?: number; display_name?: string };
+		return typeof a.id === "number" ? { id: a.id, name: a.display_name ?? "" } : undefined;
+	};
+	const discoveredAuthors = new Map((discovery?.authors ?? []).map((a) => [a.id, a]));
+	const blogBylines: BlogByline[] = [];
+	if (blogOn && overrides.authors?.as !== "skip") {
+		const used = new Set<string>();
+		for (const p of blogPosts) {
+			const a = authorOf(p);
+			if (!a) continue;
+			const known = blogBylines.find((b) => b.wpId === a.id);
+			if (known) {
+				known.posts++;
+				continue;
+			}
+			const d = discoveredAuthors.get(a.id);
+			let slug = bylineSlug(d?.slug ?? a.name);
+			for (let i = 2; used.has(slug); i++) slug = `${bylineSlug(d?.slug ?? a.name)}-${i}`;
+			used.add(slug);
+			const path = d?.link ? (() => { try { return new URL(d.link).pathname; } catch { return undefined; } })() : undefined;
+			// Only an avatar the site hosts itself (a local-avatar plugin); Gravatar images stay with Gravatar.
+			const avatarUrl = d?.avatar && siteHosts.has(hostOf(d.avatar, siteUrl)) ? d.avatar : undefined;
+			const avatarId = avatarUrl ? mediaIdForUrl(avatarUrl) : undefined;
+			blogBylines.push({ slug, displayName: a.name || d?.name || slug, ...(d?.description ? { bio: d.description } : {}), ...(avatarId ? { avatar: { wpId: avatarId, kind: "image" as const, alt: a.name } } : avatarUrl ? { avatar: { url: avatarUrl, kind: "image" as const, alt: a.name } } : {}), wpId: a.id, ...(path ? { path } : {}), posts: 1 });
+		}
+	}
+	const usedTaxonomies = new Set(blogPosts.flatMap((p) => Object.entries(p.taxonomies ?? {}).filter(([, t]) => t.length).map(([k]) => k)));
+	const wpTaxonomies = readJson<WpTaxonomy[]>(join(exp, "taxonomies.json")) ?? [];
+	const termBases = (tax: string) => baseOf((discovery?.terms ?? []).filter((t) => t.taxonomy === tax));
+	const blogTax = blogOn ? blogTaxonomies({ taxonomies: wpTaxonomies, usedByPosts: usedTaxonomies, internal: INTERNAL_TAXONOMIES, bases: Object.fromEntries(wpTaxonomies.map((t) => [t.name, termBases(t.name)])) }) : { taxonomies: [], notMigrated: [] };
+	for (const n of blogTax.notMigrated) notTransformed.push(`taxonomy ${n}`);
+	const taxName = new Map(blogTax.taxonomies.map((t) => [t.wpName, t.name]));
+	const trailingAlways = config.target.trailingSlash !== "never";
+	const permalinkStructure = typeof options.permalink_structure === "string" ? options.permalink_structure : undefined;
+	const postRoute = (p: ExporterPost) => {
+		const known = pathById.get(p.id);
+		if (known && p.status === "publish") return overrides.routes[known] ?? known;
+		const cat = p.taxonomies?.category?.[0]?.slug;
+		const author = authorOf(p);
+		const path = permalinkPath(permalinkStructure, { id: p.id, slug: p.slug || `post-${p.id}`, ...(wpGmtToIso(p.date_gmt) ? { dateGmt: wpGmtToIso(p.date_gmt) as string } : {}), ...(cat ? { category: cat } : {}), ...(author ? { author: discoveredAuthors.get(author.id)?.slug ?? bylineSlug(author.name) } : {}) }, trailingAlways);
+		return overrides.routes[path] ?? path;
+	};
+	for (const p of blogOn ? blogPosts : postsDecided ? [] : posts) {
 		const builder = detectBuilder(p.content ?? "", p.meta);
-		if (builder !== "wpbakery" && builder !== "bricks") {
-			notTransformed.push(`post ${p.slug}: ${builder} content imported as Portable Text by the EmDash importer`);
+		const isBuilder = builder === "wpbakery" || builder === "bricks";
+		if (!blogOn && !isBuilder) {
+			notTransformed.push(`post ${p.slug}: ${builder} content: no posts collection (kit.config blog: false)`);
 			continue;
 		}
-		const { sections, diagnostics } = adapt(p, "post");
-		emit({ version: IR_VERSION, kind: "post", source: { wpId: p.id, type: "post", status: p.status, slug: p.slug, builder, modifiedGmt: p.modified_gmt }, route: { path: routeOf(p) }, title: p.title, seo: seoOf(p), sections, diagnostics }, `posts/${p.slug}.json`, p.status === "publish");
+		const adapted = isBuilder ? adapt(p, "post") : undefined;
+		const converted = !isBuilder && builder !== "empty" ? convertPostBody(p.content ?? "", builder === "gutenberg" ? "gutenberg" : "classic", { keyPrefix: `${p.id.toString(36)}_`, mediaIdForUrl, reusable: (id) => reusable.get(id) }) : undefined;
+		const author = authorOf(p);
+		const byline = author ? blogBylines.find((b) => b.wpId === author.id) : undefined;
+		const format = p.taxonomies?.post_format?.[0]?.slug?.replace(/^post-format-/, "");
+		const terms = Object.fromEntries(Object.entries(p.taxonomies ?? {}).flatMap(([wp, list]) => (taxName.get(wp) && list.length ? [[taxName.get(wp) as string, list.map((t) => t.slug)]] : [])));
+		const excerpt = (p.excerpt ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+		const visibility = p.status === "private" ? "private" : isProtected(p) ? "password" : "public";
+		const doc: IrPage = {
+			version: IR_VERSION,
+			kind: "post",
+			source: { wpId: p.id, type: "post", status: p.status, slug: p.slug || `post-${p.id}`, builder, modifiedGmt: p.modified_gmt },
+			route: { path: postRoute(p) },
+			title: p.title,
+			seo: seoOf(p),
+			...(p.featured_image?.id ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}),
+			sections: adapted?.sections ?? [],
+			...(blogOn
+				? {
+						post: {
+							body: (converted?.body ?? []) as IrPost["body"],
+							...(excerpt ? { excerpt } : {}),
+							...(wpGmtToIso(p.date_gmt) ? { publishedAt: wpGmtToIso(p.date_gmt) } : {}),
+							...(wpGmtToIso(p.modified_gmt) ? { modifiedAt: wpGmtToIso(p.modified_gmt) } : {}),
+							...(stickyIds.has(p.id) ? { sticky: true } : {}),
+							...(format ? { format } : {}),
+							terms,
+							bylines: byline ? [byline.slug] : [],
+							visibility,
+						},
+					}
+				: {}),
+			diagnostics: [...(adapted?.diagnostics ?? []), ...(converted?.diagnostics ?? [])],
+		};
+		emit(doc, `posts/${p.slug || `post-${p.id}`}.json`, p.status === "publish" && visibility === "public");
 	}
+	const blogPlan: BlogPlan | undefined = blogOn
+		? {
+				...blogIndexPath(options, new Map(results.filter((r) => r.doc.kind === "page" && r.doc.route).map((r) => [r.doc.source.wpId, (r.doc.route as { path: string }).path]))),
+				perPage: Math.min(100, Math.max(1, Number(options.posts_per_page) || 10)),
+				feed: feedSettings(options),
+				permalink: permalinkStructure ?? "",
+				taxonomies: blogTax.taxonomies,
+				bylines: blogBylines,
+				authorBase: baseOf(discovery?.authors ?? []) ?? "/author/",
+			}
+		: undefined;
+	if (blogPlan) write(join(paths.ir, "blog.json"), blogPlan);
 	const partials: IrSite["partials"] = [];
 	for (const p of partialsRaw) {
 		const { builder, sections, diagnostics } = adapt(p, "partial");
@@ -465,7 +575,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		}
 		for (const x of Object.values(o)) visitMedia(x, where);
 	};
-	for (const r of inScope) visitMedia(r.doc.sections, r.doc.source.slug);
+	for (const r of inScope) visitMedia([r.doc.sections, r.doc.post?.body ?? []], r.doc.source.slug);
 	check("media-refs", "Every media reference in published content resolves", missingMedia.length === 0, missingMedia.slice(0, 8).join(", ") || undefined);
 
 	// ── Every image published content uses in WordPress is kept somewhere in the IR ──
@@ -483,6 +593,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		};
 		collect(r.doc.sections);
 		collect(r.doc.featuredImage);
+		collect(r.doc.post?.body);
 		for (const ref of refs[key] ?? []) {
 			if (ref.kind !== "id" || !(ref.via.startsWith("content:") || ref.via === "featured_image")) continue;
 			const id = Number(ref.value);
@@ -517,7 +628,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		if (typeof o.href === "string") checkHref(o.href, where);
 		for (const [k, x] of Object.entries(o)) if (k !== "href") visitLinks(x, where);
 	};
-	for (const r of inScope) visitLinks(r.doc.sections, r.doc.source.slug);
+	for (const r of inScope) visitLinks([r.doc.sections, r.doc.post?.body ?? []], r.doc.source.slug);
 	for (const m of menus) visitLinks(m.items, `menu ${m.name}`);
 	check("links", "Internal links point at migrated pages, anchors, popups or files", brokenLinks.length === 0, brokenLinks.slice(0, 8).join("; ") || undefined);
 
@@ -550,7 +661,6 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	if (consentPlan.found.length) reporter.emit({ type: "log", level: "info", message: `consent banner on the old site: ${consentPlan.found.map((f) => f.name).join(", ")} → ${consentPlan.reason}` });
 
 	// ── Content types, taxonomies, authors: everything the extract found is migrated or decided ──────────────
-	const discovery = readJson<WpUrlInput["discovery"] & { items?: { type: string; link: string }[] }>(join(paths.snapshot, "discovery.json"));
 	const analyze = readJson<{ authors?: { display_name: string; post_count: number | string }[]; attachments?: { count: number } }>(join(exp, "analyze.json"));
 	const builderPost = (p: ExporterPost) => ["wpbakery", "bricks"].includes(detectBuilder(p.content ?? "", p.meta));
 	const pathsOf = (links: string[]) => [...new Set(links.map((l) => { try { return new URL(l).pathname; } catch { return l; } }))];
@@ -565,8 +675,19 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		},
 		attachments: analyze?.attachments?.count ?? manifest.filter((m) => m.inLibrary).length,
 		overrides,
+		...(blogPlan
+			? {
+					blog: {
+						types: { post: `posts collection (${blogPosts.length} posts: Gutenberg/classic → Portable Text, builder posts keep their sections)` },
+						taxonomies: Object.fromEntries(blogPlan.taxonomies.map((t) => [t.wpName, `blog taxonomy "${t.name}" (${t.terms.length} terms${t.hierarchical ? ", hierarchy kept" : ""}), archives at ${t.base}<slug>/`])),
+						...(blogPlan.bylines.length ? { authors: `bylines (${blogPlan.bylines.length}), author archives at ${blogPlan.authorBase}<slug>/` } : {}),
+					},
+				}
+			: {}),
 	});
 	check("content-types-handled", "Every post type, taxonomy in use and author with posts is migrated or decided", !inventory.some((r) => r.status === "undecided"), inventoryDetail(inventory));
+	// Private and password-protected posts: EmDash has no such status, so each needs the owner's decision.
+	if (protectedPosts.length) check("protected-posts", "Private and password-protected posts decided (overrides.ts protectedPosts)", !!overrides.protectedPosts, overrides.protectedPosts ? `${overrides.protectedPosts.as}: ${protectedPosts.length} post(s) (${overrides.protectedPosts.reason})` : `${protectedPosts.length} post(s) need a decision: ${protectedPosts.slice(0, 5).map((p) => `${p.slug || p.id} (${p.status === "private" ? "private" : "password"})`).join(", ")}; overrides.ts protectedPosts: { as: "draft" | "skip" | "publish", reason }`);
 
 	// ── Customizer Additional CSS: reported, carried only by decision ───────────────────────────────────────
 	const customCss: CustomCss | undefined = readJson<CustomCss>(join(paths.raw, "custom-css.json")) ?? (() => {
@@ -592,6 +713,25 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		...(discovery ? { discovery } : {}),
 		overrides,
 		trailingSlash: config.target.trailingSlash === "preserve" ? (pubPages.every((r) => r.doc.route?.path === "/" || r.doc.route?.path.endsWith("/")) ? "always" : "never") : config.target.trailingSlash,
+		...(blogPlan
+			? {
+					blog: {
+						index: blogPlan.index,
+						archives: [...new Set([...blogPlan.taxonomies.map((t) => t.base), ...(blogPlan.bylines.length ? [blogPlan.authorBase] : [])])],
+						posts: results.filter((r) => r.doc.kind === "post" && r.published && r.doc.route).map((r) => (r.doc.route as { path: string }).path),
+						ids: Object.fromEntries([
+							...blogPlan.taxonomies.flatMap((t) =>
+								t.terms.map((term) => {
+									const live = (discovery?.terms ?? []).find((d) => d.taxonomy === t.wpName && d.slug === term.slug);
+									const path = live ? (() => { try { return new URL(live.link).pathname; } catch { return `${t.base}${term.slug}/`; } })() : `${t.base}${term.slug}/`;
+									return t.wpName === "category" ? [`cat:${term.wpId}`, path] : t.wpName === "post_tag" ? [`tag:${term.slug}`, path] : [`${t.wpName}:${term.slug}`, path];
+								}),
+							),
+							...blogPlan.bylines.map((b) => [`author:${b.wpId}`, b.path ?? `${blogPlan.authorBase}${b.slug}/`]),
+						]),
+					},
+				}
+			: {}),
 	});
 	write(join(paths.ir, "wp-urls.json"), wpUrlPlan);
 	if (wpUrlPlan.feedPending) notTransformed.push("feeds: the site has published posts but no feed is generated yet; /feed/ redirects (coverage report → WordPress URLs)");
@@ -605,11 +745,12 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		snippets: { counts: siteSnippets.counts, widgets: siteSnippets.widgets, items: siteSnippets.items.map(({ id, kind, status, label, note, where, pages }) => ({ id, kind, status, label, note, where, pages: pages.length })) },
 		settings: { sources: settings.sources, notCarried: settings.notCarried },
 		contentTypes: inventory,
+		...(blogPlan ? { blog: { index: blogPlan.index, posts: results.filter((r) => r.doc.kind === "post").length, published: results.filter((r) => r.doc.kind === "post" && r.published).length, taxonomies: blogPlan.taxonomies.map((t) => ({ name: t.name, terms: t.terms.length })), bylines: blogPlan.bylines.length, feed: blogPlan.feed, protectedPosts: protectedPosts.length } } : {}),
 		...(customCss?.css ? { customCss: { decision: overrides.customCss ?? null, source: customCss.source, ...describeCss(customCss.css), ...(customCss.inactive ? { inactive: customCss.inactive } : {}) } } : {}),
 		consent: { found: consentPlan.found, keptWidgets: consentPlan.keptWidgets, mode: config.consent === false ? "off" : (config.consent.mode ?? consentPlan.mode), reason: consentPlan.reason },
 		wpUrls: { rules: wpUrlPlan.explain, attachments: Object.keys(wpUrlPlan.rules.attachments ?? {}).length, feedPending: wpUrlPlan.feedPending },
 	});
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...wpUrlsReport(wpUrlPlan), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...wpUrlsReport(wpUrlPlan), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

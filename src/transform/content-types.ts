@@ -67,6 +67,11 @@ export interface InventoryInput {
 	samples: { types: Record<string, string[]>; taxonomies: Record<string, string[]>; authors: string[] };
 	attachments?: number;
 	overrides: Pick<Overrides, "contentTypes" | "taxonomies" | "authors">;
+	/**
+	 * What the blog migrates (src/transform/blog.ts): post types → note (`post` → "posts collection"), WordPress
+	 * taxonomies → note, and whether the authors become bylines.
+	 */
+	blog?: { types: Record<string, string>; taxonomies: Record<string, string>; authors?: string };
 }
 
 export function contentInventory(input: InventoryInput): InventoryRow[] {
@@ -80,6 +85,7 @@ export function contentInventory(input: InventoryInput): InventoryRow[] {
 		const samples = (input.samples.types[t.name] ?? []).slice(0, 3);
 		const base = { group: "type" as const, name: t.name, total: t.entries.length, published, handled, samples };
 		if (decision) rows.push({ ...base, status: "decided", decision, note: decision.as === "skip" ? "not migrated (owner decision)" : "migrated as pages at their WordPress address" });
+		else if (input.blog?.types[t.name]) rows.push({ ...base, status: "migrated", note: input.blog.types[t.name] as string });
 		else if (INTERNAL_TYPES[t.name]) rows.push({ ...base, status: "internal", note: INTERNAL_TYPES[t.name] as string });
 		else if (HANDLED_TYPES[t.name]) rows.push({ ...base, status: "migrated", note: HANDLED_TYPES[t.name] as string });
 		else {
@@ -95,6 +101,7 @@ export function contentInventory(input: InventoryInput): InventoryRow[] {
 		const decision = input.overrides.taxonomies[tx.name];
 		const base = { group: "taxonomy" as const, name: tx.name, total: used, published: used, handled: 0, samples: (input.samples.taxonomies[tx.name] ?? []).slice(0, 3) };
 		if (decision) rows.push({ ...base, status: "decided", decision, note: "archives not rebuilt (owner decision); their URLs follow the WordPress-URL rules" });
+		else if (input.blog?.taxonomies[tx.name]) rows.push({ ...base, status: "migrated", handled: used, note: input.blog.taxonomies[tx.name] as string });
 		else if (INTERNAL_TAXONOMIES.has(tx.name)) rows.push({ ...base, status: "internal", note: "classifies configuration, not content" });
 		else rows.push({ ...base, status: "undecided", note: "terms in use: no taxonomy is migrated yet" });
 	}
@@ -102,7 +109,7 @@ export function contentInventory(input: InventoryInput): InventoryRow[] {
 	if (writers.length) {
 		const decision = input.overrides.authors;
 		const base = { group: "authors" as const, name: writers.map((a) => a.name).join(", "), total: writers.length, published: writers.reduce((n, a) => n + a.posts, 0), handled: 0, samples: input.samples.authors.slice(0, 3) };
-		rows.push(decision ? { ...base, status: "decided", decision, note: "no bylines or author pages (owner decision); author URLs follow the WordPress-URL rules" } : { ...base, status: "undecided", note: "authors with published posts: bylines are not migrated yet" });
+		rows.push(decision ? { ...base, status: "decided", decision, note: "no bylines or author pages (owner decision); author URLs follow the WordPress-URL rules" } : input.blog?.authors ? { ...base, status: "migrated", handled: writers.length, note: input.blog.authors } : { ...base, status: "undecided", note: "authors with published posts: bylines are not migrated yet" });
 	}
 	return rows;
 }

@@ -32,6 +32,11 @@ export interface WpUrlInput {
 	discovery?: { terms?: { taxonomy: string; slug: string; link: string }[]; authors?: { slug: string; link: string }[]; media?: { id: number; link: string; sourceUrl: string; parent?: number }[] };
 	overrides: Pick<Overrides, "wpUrls">;
 	trailingSlash: "always" | "never";
+	/**
+	 * The site has a blog (src/transform/blog.ts): the posts page, archives and feeds are real routes. `posts` are the
+	 * migrated posts' addresses (never matched by a rule, like pages); `ids` the query forms → archive addresses.
+	 */
+	blog?: { index: string; archives: string[]; posts: string[]; ids: Record<string, string> };
 }
 
 const pathOf = (u: string): string | undefined => {
@@ -43,7 +48,7 @@ const pathOf = (u: string): string | undefined => {
 };
 
 /** The archive base the live permalinks use (`/category/`, `/topics/`…): the most common prefix before the slug. */
-function baseOf(items: { slug: string; link: string }[]): string | undefined {
+export function baseOf(items: { slug: string; link: string }[]): string | undefined {
 	const counts = new Map<string, number>();
 	for (const i of items) {
 		const p = pathOf(i.link);
@@ -65,16 +70,19 @@ export function buildWpUrlPlan(input: WpUrlInput): WpUrlPlan {
 	const blog = input.blogPageId ? input.routeById.get(input.blogPageId) : undefined;
 	const search = pages.find((p) => norm(p) === "/search/");
 	const hasPosts = input.publishedPosts > 0;
+	const realBlog = input.blog;
 	const defaults: Record<RuleKey, { target: string; why: string }> = {
-		feed: blog
+		feed: realBlog
+			? { target: "/feed/", why: "the blog's RSS feed (starter): /feed/ answers RSS 2.0; ?feed=rss2 and /wp-rss2.php → /feed/" }
+			: blog
 			? { target: blog, why: "the site's feed → the blog page (no feed is generated yet)" }
 			: { target: "/", why: hasPosts ? "no feed is generated yet: → home until the blog milestone adds one (flagged)" : "no posts: the feed had nothing of its own, → home (linked from every old page's <head>)" },
 		commentsFeed: { target: "gone", why: "comments are not migrated: the resource is gone (410 tells feed readers to unsubscribe)" },
 		search: search ? { target: search, why: "the site has a /search/ page: the query goes along as ?q=" } : { target: "/", why: "no search page: → home (keeps the SearchAction link from erroring)" },
-		category: blog ? { target: blog, why: "category archives are not rebuilt: → the blog page" } : { target: "gone", why: "no blog page to send them to: 410" },
-		tag: blog ? { target: blog, why: "tag archives are not rebuilt: → the blog page" } : { target: "gone", why: "no blog page to send them to: 410" },
-		author: blog ? { target: blog, why: "author archives are not rebuilt: → the blog page" } : { target: "/", why: "no author pages: → home (what WordPress SEO plugins do for single-author sites)" },
-		date: blog ? { target: blog, why: "date archives are not rebuilt: → the blog page" } : { target: "gone", why: "no blog page to send them to: 410" },
+		category: realBlog ? { target: realBlog.index, why: "category archives are rebuilt (blog); only the bare base and unknown query forms → the posts page" } : blog ? { target: blog, why: "category archives are not rebuilt: → the blog page" } : { target: "gone", why: "no blog page to send them to: 410" },
+		tag: realBlog ? { target: realBlog.index, why: "tag archives are rebuilt (blog); only the bare base and unknown query forms → the posts page" } : blog ? { target: blog, why: "tag archives are not rebuilt: → the blog page" } : { target: "gone", why: "no blog page to send them to: 410" },
+		author: realBlog ? { target: realBlog.index, why: "author archives are rebuilt from the bylines (blog); only the bare base and unknown query forms → the posts page" } : blog ? { target: blog, why: "author archives are not rebuilt: → the blog page" } : { target: "/", why: "no author pages: → home (what WordPress SEO plugins do for single-author sites)" },
+		date: realBlog ? { target: realBlog.index, why: "date archives are not rebuilt: → the posts page" } : blog ? { target: blog, why: "date archives are not rebuilt: → the blog page" } : { target: "gone", why: "no blog page to send them to: 410" },
 		attachment: { target: "/", why: "attachment pages → the parent page when it was migrated, else the file when it is in the media library, else home" },
 	};
 	const explain: WpUrlPlan["explain"] = [];
@@ -107,10 +115,11 @@ export function buildWpUrlPlan(input: WpUrlInput): WpUrlPlan {
 		const ownPage = link && link !== "/" && link !== fileUrl && !/\.[a-z0-9]{2,5}$/i.test(link) ? link : undefined;
 		attachments[String(m.id)] = { ...(ownPage ? { path: ownPage } : {}), ...(parent ? { parent } : {}), ...(file ? { file } : {}) };
 	}
+	const allPages = realBlog ? [...new Set([...pages, ...realBlog.posts])] : pages;
 	return {
-		rules: { ...(rules as Record<RuleKey, string>), ...(Object.keys(bases).length ? { bases } : {}), pages, ...(Object.keys(attachments).length ? { attachments } : {}), trailingSlash: input.trailingSlash } as WpUrlRules,
+		rules: { ...(rules as Record<RuleKey, string>), ...(Object.keys(bases).length ? { bases } : {}), pages: allPages, ...(Object.keys(attachments).length ? { attachments } : {}), trailingSlash: input.trailingSlash, ...(realBlog ? { blog: { index: realBlog.index, archives: realBlog.archives, ...(Object.keys(realBlog.ids).length ? { ids: realBlog.ids } : {}) } } : {}) } as WpUrlRules,
 		explain,
-		feedPending: hasPosts && rules.feed !== "gone",
+		feedPending: hasPosts && !realBlog && rules.feed !== "gone",
 	};
 }
 

@@ -441,6 +441,30 @@ export const diagnostic = z.object({
 export type Diagnostic = z.infer<typeof diagnostic>;
 
 // ── Documents ────────────────────────────────────────────────────────────────
+/**
+ * A blog post's own data. `body` is EmDash Portable Text (the @emdash-cms/gutenberg-to-portable-text block set: block,
+ * image, gallery, embed, code, table, htmlBlock…) for Gutenberg/classic posts; builder posts keep `sections` instead and
+ * have an empty body. Media in the body carry a `_media` MediaRef that load resolves to an EmDash media item.
+ */
+export const irPost = z.object({
+	body: z.array(z.looseObject({ _type: z.string(), _key: z.string() })).default([]),
+	excerpt: z.string().optional(),
+	/** ISO 8601 UTC: WordPress date_gmt (publish date; the scheduled date for a `future` post). */
+	publishedAt: z.string().optional(),
+	modifiedAt: z.string().optional(),
+	/** Sticky post → EmDash `featured` field. */
+	sticky: z.boolean().optional(),
+	/** WordPress post format (aside, gallery, quote, video…), kept as a field; the starter renders every format alike. */
+	format: z.string().optional(),
+	/** EmDash taxonomy name → term slugs. */
+	terms: z.record(z.string(), z.array(z.string())).default({}),
+	/** Byline slugs, in order. */
+	bylines: z.array(z.string()).default([]),
+	/** WordPress visibility: private and password-protected posts need a decision (overrides.ts protectedPosts). */
+	visibility: z.enum(["public", "private", "password"]).default("public"),
+});
+export type IrPost = z.infer<typeof irPost>;
+
 export const irPage = z.object({
 	version: z.literal(IR_VERSION),
 	kind: z.enum(["page", "post", "partial", "popup"]),
@@ -462,6 +486,8 @@ export const irPage = z.object({
 	sections: z.array(section),
 	/** Popup-only: how it opens. */
 	popup: z.object({ selectors: z.array(z.string()).default([]), autoOpen: z.object({ delayMs: z.number() }).optional(), size: z.string().optional() }).optional(),
+	/** Post-only (blog): body, dates, terms and bylines (src/transform/blog.ts). */
+	post: irPost.optional(),
 	diagnostics: z.array(diagnostic),
 });
 export type IrPage = z.infer<typeof irPage>;

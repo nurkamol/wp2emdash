@@ -22,6 +22,19 @@ const input = (o: Partial<ClientRepoInput> = {}): ClientRepoInput => ({
 });
 
 describe("client repo files", () => {
+	it("blog sites get docs/writing-posts.md and a Posts row in the editor guide; others do not", () => {
+		const plain = clientRepoFiles(input());
+		expect(plain["docs/writing-posts.md"]).toBeUndefined();
+		expect(plain["docs/editor-guide.md"]).not.toContain("**Posts**");
+		const blog = clientRepoFiles(input({ blog: { index: "/journal/", archives: [{ label: "Categories", base: "/category/" }, { label: "Tags", base: "/tag/" }], authorBase: "/author/", feedFull: false } }));
+		expect(blog["docs/editor-guide.md"]).toContain("| **Posts** | Blog posts");
+		const doc = blog["docs/writing-posts.md"] as string;
+		expect(doc).toContain("| `/journal/` | The posts page");
+		expect(doc).toContain("| `/category/<name>/` | Categories: every post in it |");
+		expect(doc).toContain("| `/feed/` | The RSS feed (excerpts); every list above has its own, e.g. `/category/<name>/feed/` |");
+		expect(doc).toContain("linking to `/author/<name>/`");
+	});
+
 	it("pins the staging migration target for CI only when its fingerprint is known", () => {
 		expect(deployScripts({ staging: true })["ci:deploy:staging"]).toBeUndefined();
 		expect(deployScripts({ staging: true, stagingFingerprint: "abc123" })["ci:deploy:staging"]).toContain("--expected-target-fingerprint=abc123");
