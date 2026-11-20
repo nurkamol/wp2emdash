@@ -81,7 +81,7 @@ export function ptToMd(blocks: RichText | undefined): string {
 const pt = (blocks: RichText | undefined) => (blocks?.length ? blocks : undefined);
 
 const buttons = (list: Button[] | undefined) =>
-	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, ...(b.size ? { size: b.size } : {}), ...(b.textSize ? { text_size: `${b.textSize}px` } : {}), ...(b.spaceAbove ? { space_above: `${b.spaceAbove}px` } : {}), ...(b.inset ? { side_space: `${b.inset}px` } : {}), ...(b.hoverLabel ? { hover_label: b.hoverLabel } : {}), ...(b.light ? { light: true } : {}), ...(b.plain ? { plain: true } : {}),...(b.minWidth ? { min_width: `${b.minWidth}px` } : {}), new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
+	(list ?? []).map((b) => ({ label: b.label, url: b.opensPopup ? `#${b.opensPopup}` : b.href, style: b.style, ...(b.size ? { size: b.size } : {}), ...(b.textSize ? { text_size: `${b.textSize}px` } : {}), ...(b.spaceAbove ? { space_above: `${b.spaceAbove}px` } : {}), ...(b.inset ? { side_space: `${b.inset}px` } : {}), ...(b.hoverLabel ? { hover_label: b.hoverLabel } : {}), ...(b.light ? { light: true } : {}), ...(b.plain ? { plain: true } : {}), ...(b.look?.bg ? { fill: b.look.bg } : {}), ...(b.look?.color ? { text_color: b.look.color } : {}), ...(b.look?.radius !== undefined ? { radius: b.look.radius } : {}), ...(b.look?.padY !== undefined && b.look?.padX !== undefined ? { padding: `${b.look.padY}px ${b.look.padX}px` } : {}), ...(b.minWidth ? { min_width: `${b.minWidth}px` } : {}), new_tab: !!b.newTab, ...(b.opensPopup ? { popup: b.opensPopup } : {}) }));
 
 /**
  * Sections hold up to 3 buttons. Extra ones (a footer column of legal links, say) become links in a paragraph after
@@ -267,7 +267,8 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 					cols[`col_${n}_icon_gap`] = c.socialIcons;
 				}
 			});
-			return base("columns", { ...head, ...cols });
+			const card = s.fields.card;
+			return base("columns", { ...head, ...cols, ...(card ? { card_bg: card.bg, ...(card.radius !== undefined ? { card_radius: card.radius } : {}), ...(card.pad !== undefined ? { card_pad: card.pad } : {}), ...(card.padPhone !== undefined ? { card_pad_phone: card.padPhone } : {}), ...(card.textWidth ? { card_text_width: card.textWidth } : {}) } : {}) });
 		}
 		case "feature_grid":
 			return base("feature_grid", {
@@ -281,7 +282,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		case "cta_banner":
 			return base("cta_banner", { ...head, body: pt(s.fields.body), buttons: buttons(s.fields.buttons), media: s.fields.media ? media(s.fields.media) : undefined });
 		case "faq":
-			return base("faq", { ...head, intro: pt(s.fields.intro), ...(s.fields.look?.style ? { faq_style: s.fields.look.style } : {}), ...(s.fields.look?.radius ? { card_radius: s.fields.look.radius } : {}), ...(s.fields.look?.openFirst ? { open_first: true } : {}), ...(s.fields.look?.inset ? { list_inset: s.fields.look.inset } : {}), items: s.fields.items.map((i) => ({ question: i.question, answer: ptToMd(i.answer) || "—" })), schema: s.fields.schema });
+			return base("faq", { ...head, intro: pt(s.fields.intro), ...(s.fields.look?.style ? { faq_style: s.fields.look.style } : {}), ...(s.fields.look?.radius ? { card_radius: s.fields.look.radius } : {}), ...(s.fields.look?.openFirst ? { open_first: true } : {}), ...(s.fields.look?.inset ? { list_inset: s.fields.look.inset } : {}), ...(s.fields.look?.bg ? { faq_bg: s.fields.look.bg } : {}), ...(s.fields.look?.pad !== undefined ? { faq_pad: s.fields.look.pad } : {}), ...(s.fields.look?.padPhone !== undefined ? { faq_pad_phone: s.fields.look.padPhone } : {}), ...(s.fields.look?.line ? { faq_line: s.fields.look.line } : {}), ...(s.fields.look?.exclusive ? { faq_exclusive: true } : {}), items: s.fields.items.map((i) => ({ question: i.question, answer: ptToMd(i.answer) || "—" })), schema: s.fields.schema });
 		case "pricing":
 			return base("pricing", {
 				...head,

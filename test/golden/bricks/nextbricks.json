@@ -50,7 +50,12 @@
             "label": "Book a class",
             "href": "/classes/",
             "style": "primary",
-            "hoverLabel": "Pick a time"
+            "hoverLabel": "Pick a time",
+            "look": {
+              "radius": 100,
+              "padY": 15,
+              "padX": 30
+            }
           }
         ]
       }

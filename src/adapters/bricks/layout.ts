@@ -238,3 +238,18 @@ function fluidCss(min: number, max: number): string {
 	const slope = (max - min) / (1440 - 390);
 	return `clamp(${r(Math.min(min, max))}px, ${r(min - slope * 390)}px + ${r(slope * 100, 3)}vw, ${r(Math.max(min, max))}px)`;
 }
+
+/**
+ * Entrance animations on the live site: elements whose Bricks interactions start an animation (`startAnimation` on
+ * `enterView` / `contentLoaded`: fadeIn, fadeInUp…). A site that animates its content gets the starter's calm motion
+ * (scaffold; `motion` in kit.config.ts overrides, "none" turns it off).
+ */
+export function bricksEntranceAnimations(lists: ({ settings?: Record<string, unknown> }[] | undefined)[]): number {
+	let n = 0;
+	for (const list of lists)
+		for (const e of list ?? []) {
+			const ia = e.settings?._interactions;
+			if (Array.isArray(ia) && ia.some((i) => obj(i)?.action === "startAnimation" && ["enterView", "contentLoaded"].includes(String(obj(i)?.trigger)))) n++;
+		}
+	return n;
+}

@@ -254,7 +254,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const hasAnalytics = !!analytics && (analytics.google.length > 0 || !!analytics.gtm || !!analytics.cloudflareToken);
 	if (hasAnalytics) reporter.emit({ type: "log", level: "info", message: `analytics on the production domain: ${[...(analytics?.google ?? []), analytics?.gtm, analytics?.cloudflareToken ? "Cloudflare beacon" : ""].filter(Boolean).join(", ")}` });
 	// Bricks: the header template's own look (container, toggle, buttons, offcanvas panel) with the captured panel style.
-	const bricksDesignOut = readJson<{ typography?: Record<string, Record<string, unknown>>; layout?: BricksLayout; header?: BricksHeaderLook }>(join(paths.reports, "transform", "bricks-design.json"));
+	const bricksDesignOut = readJson<{ typography?: Record<string, Record<string, unknown>>; layout?: BricksLayout; header?: BricksHeaderLook; entranceAnimations?: number }>(join(paths.reports, "transform", "bricks-design.json"));
 	const bricksHeader = bricksHeaderConfig(bricksDesignOut?.header, mobileMenu, tokens.fonts.body);
 	const siteConfig = {
 		...baseConfig,
@@ -303,6 +303,9 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		}
 	}
 	write(join(project, "src", "styles", "fonts.css"), fontsCss);
+	// Calm entrance motion: the owner's setting, else on for a Bricks site whose live pages animate content on entry.
+	const entranceMotion = config.motion ?? ((bricksDesignOut?.entranceAnimations ?? 0) >= 3 ? "calm" : undefined);
+	if (entranceMotion === "calm") (siteConfig as { motion?: string }).motion = "calm";
 	// Experimental sharing cards (@wp2emdash/og): fonts as TTF, colours from the tokens, the logo; off unless og.cards.
 	rmSync(join(project, "packages", "og"), { recursive: true, force: true });
 	let og: OgCardOptions | undefined;

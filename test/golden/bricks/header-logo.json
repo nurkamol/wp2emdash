@@ -51,7 +51,12 @@
             "label": "Book now",
             "href": "/book/",
             "style": "primary",
-            "hoverLabel": "Join today"
+            "hoverLabel": "Join today",
+            "look": {
+              "radius": 100,
+              "padY": 15,
+              "padX": 30
+            }
           }
         ],
         "mediaSide": "left",

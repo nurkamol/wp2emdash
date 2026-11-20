@@ -585,6 +585,62 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		if (Object.keys(look).length) sec.fields.look = look;
 	}
 	const isPostContent = (t: string | undefined) => t?.trim() === "{post_content}";
+	const COLOUR_RE = /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
+	/** A box's background colour and corner radius (px), when it has both: a rounded panel. */
+	const panelOf = (x: BricksElement): { bg: string; radius: number } | undefined => {
+		const s = eff(x);
+		const bg = resolveColour(obj(atBreakpoint(s, "_background", desktop, site))?.color, site);
+		const radius = cssPx(obj(obj(atBreakpoint(s, "_border", desktop, site))?.radius)?.top, site);
+		return bg && COLOUR_RE.test(bg) && radius !== undefined && radius > 0 ? { bg, radius: Math.min(radius, 100) } : undefined;
+	};
+	const descendants = (x: BricksElement): BricksElement[] => childrenOf(x).flatMap((k) => (hidden(k, "", false) ? [] : [k, ...descendants(k)]));
+	/**
+	 * A Bricks accordion inside a rounded box (a grey FAQ panel): the panel look — the box's background and corners,
+	 * each item's side padding (desktop, phones), the title divider colour, one item open at a time unless the
+	 * accordion sets `independentToggle`.
+	 */
+	function faqPanel(root: BricksElement, sec: Section): void {
+		if (sec.type !== "faq") return;
+		const all = descendants(root);
+		const acc = all.find((x) => x.name === "accordion" || x.name === "accordion-nested");
+		if (!acc) return;
+		let box: BricksElement | undefined;
+		for (const x of all) if (STRUCTURE.has(x.name) && descendants(x).includes(acc) && panelOf(x)) box = x;
+		const panel = box ? panelOf(box) : undefined;
+		if (!panel) return;
+		const s = eff(acc);
+		const pad = cssPx(obj(atBreakpoint(s, "_padding", desktop, site))?.left, site);
+		const padPhone = cssPx(obj(atBreakpoint(s, "_padding", phone, site))?.left, site, 390);
+		const line = resolveColour(obj(atBreakpoint(s, "titleBorder", desktop, site))?.color, site);
+		sec.fields.look = {
+			...(sec.fields.look ?? {}),
+			style: "panel",
+			bg: panel.bg,
+			radius: `${panel.radius}px`,
+			...(pad !== undefined && pad <= 120 ? { pad } : {}),
+			...(padPhone !== undefined && padPhone <= 120 && padPhone !== pad ? { padPhone } : {}),
+			...(line && COLOUR_RE.test(line) ? { line } : {}),
+			...(s.independentToggle === true ? {} : { exclusive: true }),
+		};
+	}
+	/**
+	 * A rounded call-to-action panel (a row box with a background and corners) whose children became this section's
+	 * columns: the columns sit in that card — text left (as wide as its own width setting), buttons right, stacked on
+	 * phones — instead of the panel being dropped.
+	 */
+	function ctaCard(root: BricksElement, sec: Section): void {
+		if (sec.type !== "columns") return;
+		const card = descendants(root).find((x) => STRUCTURE.has(x.name) && isRowBox(x) && !!panelOf(x) && childrenOf(x).filter((k) => !hidden(k, "", false)).length === sec.fields.columns.length);
+		const panel = card ? panelOf(card) : undefined;
+		if (!card || !panel) return;
+		const s = eff(card);
+		const pad = cssPx(obj(atBreakpoint(s, "_padding", desktop, site))?.left, site);
+		const padPhone = cssPx(obj(atBreakpoint(s, "_padding", phone, site))?.left, site, 390);
+		const text = descendants(card).find((x) => ["text", "text-basic"].includes(x.name) && str(eff(x)._width) && !/%$|^auto$/.test(str(eff(x)._width) as string));
+		const tw = text ? (measuredBox(text)?.w ?? lenPx(eff(text)._width)) : undefined;
+		sec.fields.card = { bg: panel.bg, radius: panel.radius, ...(pad !== undefined && pad <= 120 ? { pad } : {}), ...(padPhone !== undefined && padPhone <= 120 && padPhone !== pad ? { padPhone } : {}), ...(tw && tw >= 120 && tw <= 2000 ? { textWidth: Math.round(tw) } : {}) };
+		diag({ level: "info", code: "lossy", message: `[${card.name}] rounded call-to-action panel kept as a card around the columns`, path: pathOf(card), tag: card.name });
+	}
 	/**
 	 * A form in a Bricks flex column sits under its heading (not beside it): stacked, as wide as its own box (a container
 	 * with `_width`), as far below as the shared box's row gap; a heading straight in the section is centred (Bricks
@@ -934,6 +990,8 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 			if (s.type === "rich_text" && row.el && out.length === 1) textBoxes(row.el, s);
 			if (row.el && out.length === 1) buttonRows(row.el, s);
 			if (s.type === "form" && row.el && out.length === 1) formStack(row.el, s);
+			if (s.type === "faq" && row.el) faqPanel(row.el, s);
+			if (s.type === "columns" && row.el) ctaCard(row.el, s);
 			// A grid with more cards than tracks keeps its tracks per row.
 			if (row.tracks && (s.type === "feature_grid" || s.type === "team") && (s.fields.columns ?? 0) > row.tracks) s.fields.columns = Math.min(6, row.tracks);
 		}
@@ -942,6 +1000,21 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		const tail = out.at(-1);
 		if (row.pad && head && head.type !== "hero" && !head.fullHeight && row.pad.top) head.pad = { ...head.pad, top: row.pad.top, ...(row.pad.topTablet !== undefined ? { topTablet: row.pad.topTablet } : {}) };
 		if (row.pad && tail && tail.type !== "hero" && !tail.fullHeight && row.pad.bottom) tail.pad = { ...tail.pad, bottom: row.pad.bottom, ...(row.pad.bottomTablet !== undefined ? { bottomTablet: row.pad.bottomTablet } : {}) };
+		// One row split into several sections (an FAQ, then its call-to-action card): between them only the box's own row
+		// gap (measured per screen), not two section paddings. `innerGap` tells the measured-padding pass to keep it.
+		if (out.length > 1 && row.el) {
+			const kids = childrenOf(row.el).filter((k) => !hidden(k, "", false));
+			const box = kids.length === 1 && STRUCTURE.has(kids[0]?.name ?? "") ? (kids[0] as BricksElement) : row.el;
+			const g = fluidGap(box, "row");
+			if (g) for (let k = 1; k < out.length; k++) {
+				const before = out[k - 1] as Section;
+				const after = out[k] as Section;
+				if (before.type === "hero" || after.type === "hero" || before.fullHeight || after.fullHeight) continue;
+				before.pad = { ...before.pad, bottom: "0px" };
+				after.pad = { ...after.pad, top: g };
+				after.innerGap = true;
+			}
+		}
 		sections.push(...out);
 	}
 	return { sections, diagnostics, forms: [...forms.values()] };

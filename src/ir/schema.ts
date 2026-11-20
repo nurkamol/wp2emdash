@@ -68,6 +68,8 @@ export const button = z.object({
 	minWidth: z.number().int().min(40).max(600).optional(),
 	/** A second label the button swaps to on hover / keyboard focus (NextBricks ripple buttons, swap effects). */
 	hoverLabel: z.string().max(80).optional(),
+	/** The button's own colours, corners and padding (px), when the builder element sets them (NextBricks ripple buttons). */
+	look: z.object({ bg: z.string().regex(/^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i).optional(), color: z.string().regex(/^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i).optional(), radius: z.number().min(0).max(200).optional(), padY: z.number().min(0).max(60).optional(), padX: z.number().min(0).max(80).optional() }).optional(),
 	/** Space on each side of a text link (px), when the source pads it (Salient nectar_cta padding_left/right). */
 	inset: z.number().int().min(0).max(80).optional(),
 });
@@ -145,6 +147,8 @@ const base = {
 	spaceBefore: z.number().int().min(0).max(400).optional(),
 	/** The button group: every button as wide as the longest (`equal`; stacked on phones, as the source does). */
 	buttonsWidth: z.enum(["auto", "equal", "full"]).optional(),
+	/** Its top padding is the source box's own gap to the section before it (one builder row split in two): kept as set. */
+	innerGap: z.boolean().optional(),
 	/** Padding measured on the source page (px, or fluid clamp between phone and desktop); wins over spacing. */
 	pad: z.object({ top: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), bottom: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), /** Tablet (691–999px) value where the source's tablet padding is off the phone→desktop line. */ topTablet: z.number().min(0).max(600).optional(), bottomTablet: z.number().min(0).max(600).optional() }).optional(),
 	sourceRef,
@@ -346,7 +350,7 @@ export const section = z.discriminatedUnion("type", [
 			quoteWidth: cssLength.optional(),
 		}),
 	}),
-	z.object({ type: z.literal("columns"), ...base, fields: z.object({ heading, columns: z.array(column).min(1).max(6) }) }),
+	z.object({ type: z.literal("columns"), ...base, fields: z.object({ heading, columns: z.array(column).min(1).max(6), /** The columns sit in a rounded card (a builder call-to-action panel): text left (at most textWidth px), buttons right, stacked on phones. */ card: z.object({ bg: z.string().regex(/^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i), radius: z.number().min(0).max(100).optional(), pad: z.number().min(0).max(120).optional(), padPhone: z.number().min(0).max(120).optional(), textWidth: z.number().int().min(120).max(2000).optional() }).optional() }) }),
 	z.object({
 		type: z.literal("feature_grid"),
 		...base,
@@ -371,7 +375,7 @@ export const section = z.discriminatedUnion("type", [
 		}),
 	}),
 	z.object({ type: z.literal("cta_banner"), ...base, fields: z.object({ heading, body: richText.default([]), buttons: z.array(button).default([]), media: mediaRef.optional() }) }),
-	z.object({ type: z.literal("faq"), ...base, fields: z.object({ heading, intro: richText.default([]), /** Source look: card = padded items, circled icons, the open one raised; openFirst = first answer shown; inset = side space around the list. */ look: z.object({ style: z.enum(["card"]).optional(), radius: cssLength.optional(), openFirst: z.boolean().optional(), inset: z.string().regex(/^\d+(?:\.\d+)?(?:px|%)$/).optional() }).optional(), items: z.array(z.object({ question: z.string(), answer: richText })).min(1), schema: z.boolean().default(true) }) }),
+	z.object({ type: z.literal("faq"), ...base, fields: z.object({ heading, intro: richText.default([]), /** Source look: card = padded items, circled icons, the open one raised; openFirst = first answer shown; inset = side space around the list. */ look: z.object({ style: z.enum(["card", "panel"]).optional(), /** panel (Bricks accordion in a rounded box): its background, item side padding desktop/phones (px), divider colour, one item open at a time. */ bg: z.string().regex(/^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i).optional(), pad: z.number().min(0).max(120).optional(), padPhone: z.number().min(0).max(120).optional(), line: z.string().regex(/^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i).optional(), exclusive: z.boolean().optional(), radius: cssLength.optional(), openFirst: z.boolean().optional(), inset: z.string().regex(/^\d+(?:\.\d+)?(?:px|%)$/).optional() }).optional(), items: z.array(z.object({ question: z.string(), answer: richText })).min(1), schema: z.boolean().default(true) }) }),
 	z.object({
 		type: z.literal("pricing"),
 		...base,

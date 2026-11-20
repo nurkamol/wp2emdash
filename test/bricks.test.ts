@@ -138,6 +138,26 @@ describe("Bricks layout tokens", () => {
 	});
 });
 
+describe("Bricks row split into an FAQ and its call-to-action card", () => {
+	it("keeps the box's measured gap between the two sections", () => {
+		const f = JSON.parse(readFileSync(join(import.meta.dirname, "fixtures", "bricks", "faq-panel.json"), "utf8")) as { elements: BricksElement[]; options: Record<string, unknown>; live: Parameters<typeof liveVariables>[0] };
+		const boxes: Record<string, Partial<Record<"desktop" | "mobile", BricksBox>>> = { "c:0/0": { desktop: { name: "container", w: 0, h: 0, rowGap: 30 }, mobile: { name: "container", w: 0, h: 0, rowGap: 24 } } };
+		const r = adaptBricks(f.elements, { ...opts, site: bricksSite(f.options, liveVariables(f.live)), measured: (k) => boxes[k] });
+		expect(r.sections.map((s) => s.type)).toEqual(["faq", "columns"]);
+		expect(r.sections[0]?.pad?.bottom).toBe("0px");
+		expect(r.sections[1]?.pad?.top).toBe("clamp(24px, 21.77px + 0.571vw, 30px)");
+		expect(r.sections[1]?.innerGap).toBe(true);
+	});
+});
+
+describe("Bricks entrance animations", () => {
+	it("counts elements whose interactions start an animation on entry (the site then gets calm motion)", async () => {
+		const { bricksEntranceAnimations } = await import("../src/adapters/bricks/layout.js");
+		const anim = (trigger: string, action = "startAnimation") => ({ settings: { _interactions: [{ id: "x", trigger, action, animationType: "fadeInUp" }] } });
+		expect(bricksEntranceAnimations([[anim("enterView"), anim("contentLoaded"), { settings: {} }], undefined, [anim("click"), anim("enterView", "show")]])).toBe(2);
+	});
+});
+
 describe("Announcement bars in the text comparison", () => {
 	it("leaves the Announcer plugin's bar and the starter's bar out of the page text (their schedules decide)", async () => {
 		const { sourceText } = await import("../src/transform/coverage.js");
