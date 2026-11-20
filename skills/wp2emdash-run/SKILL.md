@@ -19,7 +19,7 @@ pnpm wp2emdash run <slug> <phase> --json   # exit 0 pass · 2 gate failed · 3 n
 ## Loop
 
 1. `status` (slug): find `next`. If every gate before cutover is passed or accepted, go to step 6.
-2. `run_phase` { slug, phase: next }. For `load` and `verify` leave `target` empty (local dev server / staging by config) or pass `"staging"`. Never `"production"`: the tool refuses it, and so do you.
+2. `run_phase` { slug, phase: next }. For `load` and `verify` leave `target` empty (here: the local dev server, or staging on a site that opted into it) or pass `"staging"`. Never `"production"`: the tool refuses it, and so do you. A single-environment site (the default) is loaded into and verified on production (workers.dev) by the owner/operator on the command line — say so and stop rather than work around it.
 3. Pass (exit 0): say what passed in one line (checks count), go back to 1.
 4. Red gate (exit 2): **stop**. Call `explain_gate` and report each failing check: label, detail, fix. Then decide the next step:
    - unmapped content / legacy_html → `wp2emdash-map` skill;

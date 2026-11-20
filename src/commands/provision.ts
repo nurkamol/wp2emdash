@@ -1,5 +1,5 @@
 /**
- * `wp2emdash provision <slug> <staging|production>`: create the Cloudflare resources an environment needs — D1
+ * `wp2emdash provision <slug> [production|staging]`: create the Cloudflare resources an environment needs — D1
  * database, R2 media bucket, KV form outbox (when the site keeps one), KV for Astro sessions (`SESSION`) — in the
  * account that environment runs in, and record them in sites/<slug>/cloudflare.json. Idempotent (an existing resource with the same name is reused) and
  * never deletes anything: when the environment moves to another account, the old entries are kept under `previous`
@@ -8,10 +8,14 @@
  * Credentials: `CLOUDFLARE_API_TOKEN_<ENV>` / `CLOUDFLARE_ACCOUNT_ID_<ENV>` from the site's .env when set (an
  * environment in a different account, e.g. production in the client's own account), else `CLOUDFLARE_API_TOKEN` /
  * `CLOUDFLARE_ACCOUNT_ID`. Token permissions: docs/cloudflare-api-token.md (token A).
+ *
+ * Production is the default and, for a single-environment site (the default since 2026-11-20), the only environment;
+ * `staging` is refused unless the site opted into staging (src/core/environments.ts).
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../config/load.js";
+import { siteEnvironments } from "../core/environments.js";
 import { sitePaths } from "../core/paths.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 
@@ -58,6 +62,8 @@ export async function provision(slug: string, env: Env, opts: { location?: strin
 	const vars = opts.vars ?? ({ ...process.env, ...loadSiteEnv(paths.root) } as Record<string, string | undefined>);
 	const cfFile = join(paths.root, "cloudflare.json");
 	const cf = (existsSync(cfFile) ? JSON.parse(readFileSync(cfFile, "utf8")) : {}) as { accountId?: string; accountName?: string } & Partial<Record<Env, EnvResources>>;
+	// Staging is opt-in (src/core/environments.ts): a single-environment site gets production resources only.
+	if (env === "staging" && !siteEnvironments(config, cf as never).staging) throw new Error(`${slug} has one environment (production); staging is opt-in. To add it, set target.staging: true in sites/${slug}/kit.config.ts first (docs/staging-setup.md).`);
 	const { token, accountId } = credentialsFor(env, vars, cf);
 	if (!token || !accountId) throw new Error(`No Cloudflare token/account for ${env}: set CLOUDFLARE_API_TOKEN${env === "production" ? "_PRODUCTION" : ""} and CLOUDFLARE_ACCOUNT_ID${env === "production" ? "_PRODUCTION" : ""} (docs/cloudflare-api-token.md).`);
 	const call = async <T>(method: string, path: string, body?: unknown): Promise<{ ok: boolean; status: number; result?: T; errors?: { code: number; message: string }[]; info?: { total_pages?: number } }> => {

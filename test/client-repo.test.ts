@@ -23,9 +23,10 @@ const input = (o: Partial<ClientRepoInput> = {}): ClientRepoInput => ({
 
 describe("client repo files", () => {
 	it("pins the staging migration target for CI only when its fingerprint is known", () => {
-		expect(deployScripts()["ci:deploy:staging"]).toBeUndefined();
-		expect(deployScripts("abc123")["ci:deploy:staging"]).toContain("--expected-target-fingerprint=abc123");
-		expect(Object.keys(deployScripts())).not.toContain("deploy"); // pnpm built-in name
+		expect(deployScripts({ staging: true })["ci:deploy:staging"]).toBeUndefined();
+		expect(deployScripts({ staging: true, stagingFingerprint: "abc123" })["ci:deploy:staging"]).toContain("--expected-target-fingerprint=abc123");
+		expect(Object.keys(deployScripts({ staging: true }))).not.toContain("deploy"); // pnpm built-in name
+		expect(Object.keys(deployScripts({ staging: false }))).not.toContain("deploy");
 	});
 	it("keeps CI staging deploys off without a fingerprint, production manual and guarded", () => {
 		const off = clientRepoFiles(input())[".github/workflows/ci.yml"] as string;

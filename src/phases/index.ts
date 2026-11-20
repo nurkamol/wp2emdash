@@ -16,6 +16,8 @@ export interface PhaseContext {
 	config: KitConfig;
 	paths: SitePaths;
 	reporter: Reporter;
+	/** `run … --force`: load into a live production (after a D1 Time Travel bookmark). */
+	force?: boolean;
 }
 
 /** A phase does its work, then returns the gate checks. Thrown errors count as a failed gate. */

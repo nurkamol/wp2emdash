@@ -9,7 +9,8 @@
  *
  * Order: known form → honeypot → rate limit → Turnstile (fails closed) → validation against the form
  * definition (only its fields are read; anything else in the request is ignored) → email to the recipients (set by an
- * admin on the Form messages page, else FORM_TO) through the site's provider: an API key from Wrangler secrets (Brevo,
+ * admin on the Form messages page, else FORM_TO — or, for a test message from a host other than FORM_LIVE_HOST, only
+ * FORM_TEST_TO; see outbox.ts → isTestRequest) through the site's provider: an API key from Wrangler secrets (Brevo,
  * Resend, Postmark, SendGrid or Mailgun), or EMAIL_PROVIDER=emdash for EmDash's own pipeline (Settings → Email, reached
  * through `withEmDashRuntime`; see emdash-email.ts). Nothing is stored unless the owner enabled the outbox (then only
  * until it is emailed or the retention period ends — or, with keep sent (FORM_OUTBOX_KEEP_SENT="1"), every message,
@@ -24,7 +25,7 @@ import { env } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { deliver, parseAddress } from "./deliver.js";
 import { sendViaEmDash } from "./emdash-email.js";
-import { countMessage, emailConfigured, enqueue, keepsSent, type OutboxEnv, resolveRecipients, usesEmDashEmail } from "./outbox.js";
+import { countMessage, emailConfigured, enqueue, isTestRequest, keepsSent, type OutboxEnv, recipientsFor, usesEmDashEmail } from "./outbox.js";
 import { contentToHtml, contentToText, partsToHtml, partsToText } from "./rich.js";
 import { type Attachment, checkSignaturePng, checkTypedSignature, typedName } from "./signature.js";
 import type { FormDefinition, FormField } from "./types.js";
@@ -140,23 +141,28 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 
 	const viaEmDash = usesEmDashEmail(e);
 	const provider = viaEmDash ? "emdash" : (e.EMAIL_PROVIDER ?? "brevo");
-	const { to } = await resolveRecipients(e);
+	// Single-environment sites: a message from any host but the production domain (workers.dev before go-live, a preview
+	// URL) is a test — emailed only to FORM_TEST_TO, marked so the outbox never sends it to anyone else.
+	const test = isTestRequest(e, request.url);
+	const to = await recipientsFor(e, { test });
 	const emailReady = await emailConfigured(e, to);
 	if (!emailReady && !e.FORM_OUTBOX) return fail(503, "The form is not available right now. Please call or email us instead.", "email not configured");
 
 	const replyEmail = values.find((v) => v.field.type === "email")?.value;
 	const name = values.filter((v) => /name/i.test(v.field.name) || /name/.test(v.field.autocomplete ?? "")).map((v) => v.value).join(" ");
 	const page = request.headers.get("referer") ?? "";
-	const { subject, text, html } = await buildEmail(form, values, { page, origin: new URL(request.url).origin, at: new Date(), name });
+	const built = await buildEmail(form, values, { page, origin: new URL(request.url).origin, at: new Date(), name });
+	const { text, html } = built;
+	const subject = test ? `[Test] ${built.subject}` : built.subject;
 	const files = attachments.length ? { attachments } : {};
 	// Kept for later delivery when email is not set up or the provider refuses (outbox, owner opt-in): the visitor's
 	// message is not lost, and the cron emails it once delivery works.
-	const record = { form: form.id, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html, ...files };
+	const record = { form: form.id, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html, ...files, ...(test ? { test: true } : {}) };
 	// `failed`: the provider refused it (one attempt made), else waiting (not tried: on hold or email not set up).
 	const keep = async (reason: string, failed = false) => {
 		try {
 			if (await enqueue(e, { ...record, ...(failed ? { attempts: 1, status: "failed" as const } : {}) })) {
-				console.log(JSON.stringify({ form: form.id, outcome: "queued", reason }));
+				console.log(JSON.stringify({ form: form.id, outcome: "queued", reason, ...(test ? { test: true } : {}) }));
 				await countMessage(e, form.id, "kept").catch(() => {});
 				return reply(request, 200, { ok: true, message: form.successMessage });
 			}
@@ -179,7 +185,7 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 		const id = "id" in result && typeof result.id === "string" ? result.id : undefined;
 		kept = await enqueue(e, { ...record, status: "emailed", emailedAt: new Date().toISOString(), emailedTo: to, ...(id ? { messageId: id } : {}) }).catch(() => false);
 	}
-	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: provider, recipients: to.length, ...(keepsSent(e) ? { kept } : {}) }));
+	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: provider, recipients: to.length, ...(test ? { test: true } : {}), ...(keepsSent(e) ? { kept } : {}) }));
 	await countMessage(e, form.id, "emailed").catch(() => {});
 	return reply(request, 200, { ok: true, message: form.successMessage });
 };

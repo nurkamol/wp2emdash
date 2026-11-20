@@ -40,6 +40,15 @@ export interface OutboxEnv {
 	EMAIL_API_KEY?: string;
 	FORM_FROM?: string;
 	FORM_TO?: string;
+	/**
+	 * Single-environment sites (wp2emdash scaffold): the production host (without www.). A message sent from any other
+	 * host — the workers.dev address before go-live, a Workers preview URL after it — is a test: it is marked `test`,
+	 * emailed only to FORM_TEST_TO, and never to FORM_TO or the admin's recipients, also when the outbox sends it later.
+	 * Unset (sites with a staging environment): every message is real, as before.
+	 */
+	FORM_LIVE_HOST?: string;
+	/** Test recipients for test messages (kit.config email.stagingTo). Unset: test messages are kept unsent (outbox) or refused. */
+	FORM_TEST_TO?: string;
 	MAILGUN_REGION?: string;
 }
 
@@ -73,6 +82,8 @@ export interface Queued {
 	emailedTo?: string[];
 	/** The provider's message id, when its API returns one (Brevo, Resend, Postmark, SendGrid, Mailgun). */
 	messageId?: string;
+	/** Sent from a host other than FORM_LIVE_HOST (workers.dev before go-live, a preview URL): only ever emailed to FORM_TEST_TO. */
+	test?: boolean;
 }
 
 /** The summary kept in each message key's metadata (KV allows 1024 bytes). */
@@ -89,6 +100,8 @@ export interface Summary {
 	status?: Delivery;
 	/** Imports only: when it was stored (the retention period counts from here). */
 	storedAt?: string;
+	/** A test message (see Queued.test). */
+	test?: boolean;
 }
 
 const PREFIX = "msg:";
@@ -124,6 +137,7 @@ export function summaryOf(q: Queued): Summary {
 		...(q.attachments?.length ? { files: q.attachments.length } : {}),
 		status: deliveryOf(q),
 		...(q.storedAt ? { storedAt: q.storedAt } : {}),
+		...(q.test ? { test: true } : {}),
 	};
 }
 
@@ -208,6 +222,33 @@ export async function resolveRecipients(env: OutboxEnv): Promise<{ to: string[];
 	if (set) return { to: set, source: "admin" };
 	const to = (env.FORM_TO ?? "").split(",").map((x) => x.trim()).filter((x) => EMAIL.test(x));
 	return { to, source: to.length ? "config" : "none" };
+}
+
+// ── Test messages (single-environment sites) ────────────────────────────────────────────────────────────────────
+
+const bareHost = (h: string) => h.trim().toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
+
+/**
+ * Whether a request is a test: FORM_LIVE_HOST is set and the request's host is not it (www. ignored). Before go-live
+ * the domain is not routed to the Worker, so every message is a test; after it, only workers.dev and preview URLs are.
+ */
+export function isTestRequest(env: OutboxEnv, url: string): boolean {
+	if (!env.FORM_LIVE_HOST) return false;
+	try {
+		return bareHost(new URL(url).hostname) !== bareHost(env.FORM_LIVE_HOST);
+	} catch {
+		return true;
+	}
+}
+
+/** The test inbox (FORM_TEST_TO). Test messages go here and nowhere else. */
+export function testRecipients(env: OutboxEnv): string[] {
+	return (env.FORM_TEST_TO ?? "").split(",").map((x) => x.trim()).filter((x) => EMAIL.test(x)).slice(0, MAX_RECIPIENTS);
+}
+
+/** Recipients for one message: a test message only ever goes to the test inbox. */
+export async function recipientsFor(env: OutboxEnv, m: { test?: boolean }): Promise<string[]> {
+	return m.test ? testRecipients(env) : (await resolveRecipients(env)).to;
 }
 
 // ── Sending ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -319,10 +360,12 @@ export async function deleteQueued(env: OutboxEnv, key: string): Promise<boolean
  */
 export async function sendQueued(env: OutboxEnv, key: string): Promise<"sent" | "failed" | "held" | "no-email" | "missing"> {
 	const status = await outboxStatus(env);
-	if (status !== "ready") return status;
+	if (status === "held") return status;
 	const q = await readQueued(env, key);
-	if (!q) return "missing";
-	const to = (await resolveRecipients(env)).to;
+	if (!q) return status === "ready" ? "missing" : status;
+	// A test message only ever goes to the test inbox, whoever presses the button.
+	const to = await recipientsFor(env, q);
+	if (!(await emailConfigured(env, to))) return "no-email";
 	const again = deliveryOf(q) === "emailed";
 	const r = await sendOne(env, q, to, again ? "again" : "late");
 	if (!r.ok) {
@@ -357,6 +400,9 @@ export async function flushOutbox(env: OutboxEnv): Promise<{ sent: number; left:
 	if (!kv) return { sent: 0, left: 0 };
 	const ready = (await outboxStatus(env)) === "ready";
 	const to = ready ? (await resolveRecipients(env)).to : [];
+	// Test messages (sent from workers.dev or a preview URL): only to the test inbox — also after go-live.
+	const testTo = env.FORM_OUTBOX_HOLD === "1" ? [] : testRecipients(env);
+	const testReady = testTo.length > 0 && (await emailConfigured(env, testTo));
 	const keep = keepsSent(env);
 	let sent = 0;
 	let left = 0;
@@ -376,15 +422,21 @@ export async function flushOutbox(env: OutboxEnv): Promise<{ sent: number; left:
 				continue;
 			}
 			if ((m ?? q)?.noEmail || deliveryOf(m ?? (q as Queued)) === "emailed") continue;
-			if (!ready) {
+			// The summary carries the test flag; a record without a summary is read above.
+			if (!((m ?? q)?.test ? testReady : ready)) {
 				left++;
 				continue;
 			}
 			q ??= await readQueued(env, name);
 			if (!q || q.noEmail || deliveryOf(q) === "emailed") continue;
-			const r = await sendOne(env, q, to, "late");
+			const dest = q.test ? testTo : to;
+			if (!dest.length) {
+				left++;
+				continue;
+			}
+			const r = await sendOne(env, q, dest, "late");
 			if (r.ok) {
-				if (keep) await store(env, name, markEmailed(q, to, r.id));
+				if (keep) await store(env, name, markEmailed(q, dest, r.id));
 				else await kv.delete(name);
 				sent++;
 			} else {

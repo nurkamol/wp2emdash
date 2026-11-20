@@ -81,7 +81,18 @@ describe("provision", () => {
 		expect(api.calls.filter((c) => c.startsWith("POST"))).toEqual([]);
 	});
 
+	it("refuses staging on a single-environment site (the default) and creates production only", async () => {
+		const api = fakeApi();
+		await expect(provision("acme", "staging", { sitesDir: dir, vars }, api.fetcher)).rejects.toThrow(/staging is opt-in/);
+		expect(api.calls).toEqual([]);
+		await provision("acme", "production", { sitesDir: dir, vars }, api.fetcher);
+		expect(Object.keys(JSON.parse(readFileSync(cfFile(), "utf8")))).toEqual(["production"]);
+	});
+
 	it("binds SESSION explicitly: creates <worker>-session per environment, or reuses the one Wrangler auto-provisioned (found by title)", async () => {
+		// Opt into staging (target.staging: true).
+		const config = join(dir, "acme", "kit.config.ts");
+		writeFileSync(config, readFileSync(config, "utf8").replace("target: {", "target: {\n\t\tstaging: true,"));
 		const api = fakeApi({ kv: ["acme-staging-session"] });
 		const staging = await provision("acme", "staging", { sitesDir: dir, vars }, api.fetcher);
 		expect(staging.reused).toContain("KV acme-staging-session");

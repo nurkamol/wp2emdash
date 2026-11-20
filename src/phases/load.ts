@@ -1,9 +1,13 @@
 /**
- * Phase 5 — load. IR → a running EmDash site (local dev server by default; staging with
- * WP2EMDASH_LOAD_TARGET=staging, target.stagingUrl and EMDASH_TOKEN). Idempotent:
+ * Phase 5 — load. IR → a running EmDash site. Target (src/core/environments.ts): a single-environment site loads into
+ * production once provisioned (its workers.dev address before go-live; EMDASH_TOKEN_PRODUCTION or EMDASH_TOKEN); a
+ * site with opt-in staging loads into the local dev server unless WP2EMDASH_LOAD_TARGET=staging|production. After
+ * go-live a production load needs --force and records a D1 Time Travel bookmark first (src/targets/d1-backup.ts). Idempotent:
  * an id-map links every WordPress document/media item to its EmDash id, media dedupes by sha1,
  * updates use the entry's revision. The gate re-reads everything from the target.
  */
+import { defaultTarget, noProductionTargets, readCf, siteEnvironments } from "../core/environments.js";
+import { guardLiveProductionWrite } from "../targets/d1-backup.js";
 import { remoteTarget, targetName } from "../targets/remote.js";
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
@@ -70,10 +74,23 @@ export async function ensureDevServer(project: string, port: number, log: (m: st
 	throw new Error("dev server did not start within 90 s");
 }
 
-export async function runLoad({ config, paths, reporter }: PhaseContext): Promise<GateCheck[]> {
+export async function runLoad({ config, paths, reporter, force }: PhaseContext): Promise<GateCheck[]> {
 	const checks: GateCheck[] = [];
 	const check = (id: string, label: string, ok: boolean, detail?: string) => checks.push({ id, label, ok, ...(detail ? { detail } : {}) });
-	const target = targetName(process.env.WP2EMDASH_LOAD_TARGET, "local");
+	// Default target: local for a site with opt-in staging; production (workers.dev before go-live) for a single-environment
+	// site once provisioned (src/core/environments.ts). WP2EMDASH_LOAD_TARGET=local|staging|production overrides it.
+	const cf = readCf(paths.root);
+	const envs = siteEnvironments(config, cf);
+	const target = targetName(process.env.WP2EMDASH_LOAD_TARGET, defaultTarget("load", envs, { noProduction: noProductionTargets() }));
+	if (target === "production" && noProductionTargets()) {
+		check("target", "production target allowed", false, "Refused: this run may not target production (WP2EMDASH_NO_PRODUCTION=1, the MCP server). Production load is the operator's step.");
+		return checks;
+	}
+	if (target === "staging" && !envs.staging) {
+		check("target", "staging target configured", false, "This site has one environment (production); staging is opt-in: set target.staging: true in kit.config.ts and provision it (docs/staging-setup.md)");
+		return checks;
+	}
+	if (!process.env.WP2EMDASH_LOAD_TARGET) reporter.emit({ type: "log", level: "info", message: `target: ${target} (default for a ${envs.staging ? "site with staging" : "single-environment site"}; set WP2EMDASH_LOAD_TARGET to choose)` });
 	const env = loadSiteEnv(paths.root);
 	const overrides = await loadOverrides(paths.overrides);
 	const site = readJson<IrSite>(join(paths.ir, "site.json"));
@@ -90,10 +107,21 @@ export async function runLoad({ config, paths, reporter }: PhaseContext): Promis
 	let siteOrigin: string | undefined;
 	if (target !== "local") {
 		const t = remoteTarget(paths.root, config, env, target);
-		const tokenName = target === "staging" ? "EMDASH_TOKEN" : "EMDASH_TOKEN_PRODUCTION";
 		if ("error" in t || !t.token) {
-			check("target", `${target} target configured`, false, "error" in t ? t.error : `Set ${tokenName} (an EmDash API token from that site's admin) in .env`);
+			check("target", `${target} target configured`, false, "error" in t ? t.error : `Set ${t.tokenName} (an EmDash API token from that site's admin) in .env`);
 			return checks;
+		}
+		// After go-live: --force, and a D1 Time Travel bookmark before the first write.
+		if (target === "production") {
+			const g = await guardLiveProductionWrite({ live: t.live, force: !!force, slug: config.slug, cf: cf as never, vars: { ...process.env, ...env }, bookmarksFile: join(paths.root, "load", "d1-bookmarks.jsonl") });
+			if (!g.ok) {
+				check("live-guard", "Reload of live production allowed", false, g.detail);
+				return checks;
+			}
+			if (g.bookmark) {
+				check("d1-bookmark", "D1 Time Travel bookmark recorded before writing to live production", true, `${g.bookmark.bookmark} (load/d1-bookmarks.jsonl). Restore: cd <project> && ${g.restore}`);
+				reporter.emit({ type: "log", level: "warn", message: `Live production: bookmark ${g.bookmark.bookmark} recorded. To undo this load: cd ${paths.project} && ${g.restore}` });
+			}
 		}
 		siteOrigin = new URL(t.url).origin;
 		// Optional pinned addresses for a fresh workers.dev host (see docs/staging-setup.md → DNS).

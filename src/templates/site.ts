@@ -27,10 +27,11 @@ export default {
 		trailingSlash: "preserve",
 		canonicalHost: "apex",
 		// aliasDomains: ["old-domain.com"], // other domains that 301 to productionUrl (www. included) — README "Two sites, one domain"
-		staging: {
-			// host: "staging.example.com", // empty = *.workers.dev
-			protection: "access", // Cloudflare Access + noindex; or "noindex"
-		},
+		// One Cloudflare environment by default: production, on its workers.dev address until go-live. Opt into a
+		// separate staging Worker (own data) for client sign-off on big changes, bookings/payments/sensitive data or
+		// many editors — docs/staging-setup.md:
+		// staging: { enabled: true, protection: "access" }, // host: "staging.example.com" (empty = *.workers.dev); "noindex"
+		// ciDeploy: "prelaunch", // client CI deploys production on push to main until go-live; "always" | "manual"
 		cutover: {
 			method: "route", // Worker route in front of WordPress, instant rollback; "custom-domain" | "dns"
 			monitorDays: 14,
@@ -48,6 +49,7 @@ export default {
 		provider: "brevo", // resend | sendgrid | postmark | mailgun | ses | google-workspace | microsoft-365 | cloudflare-email
 		// from: "Website <noreply@example.com>",
 		// to: ["owner@example.com"],
+		// stagingTo: ["dev@agency.example"], // test inbox: messages from workers.dev / preview links (or staging) go only here
 		secretName: "EMAIL_API_KEY",
 	},
 	sensitiveData: ${a.sensitiveData},
@@ -81,15 +83,16 @@ Never write passwords, keys or tokens in this file — store them in a password 
 - [ ] Everything exported goes in one folder, \`sites/<slug>/dump/\` (plugin exports, builder/theme settings, Automatic.css settings, a full backup with its database.sql), then \`pnpm wp2emdash import-dump <slug>\` sorts it — see "One folder for everything" in the kit README
 
 ## Before scaffold
-- [ ] Cloudflare API token A (build & staging) in the kit \`.env\` — permissions in docs/cloudflare-api-token.md; \`pnpm wp2emdash doctor\` shows it active
+- [ ] Cloudflare API token A (build & deploy) in the kit \`.env\` — permissions in docs/cloudflare-api-token.md; \`pnpm wp2emdash doctor\` shows it active
 - [ ] Email provider account + API key stored as a Wrangler secret (provider: see kit.config.ts)
 - [ ] Turnstile site/secret key created
 
-## Before load (staging) — docs/staging-setup.md
-- [ ] Staging D1 + R2 created with the right --location and recorded in cloudflare.json
-- [ ] Staging deployed (pnpm deploy:staging: build → migrate → deploy → check)
+## Before load (production on workers.dev; with opt-in staging: staging) — docs/staging-setup.md
+- [ ] Production resources created (\`pnpm wp2emdash provision <slug>\`; staging too only if opted in) with the right --location
+- [ ] Deployed to workers.dev (pnpm deploy:production: build → migrate → deploy → check); its D1 fingerprint recorded
 - [ ] Admin created at /_emdash/admin/setup with "Empty site"; a second passkey added
-- [ ] EmDash API token (load scopes) in .env as EMDASH_TOKEN; target.stagingUrl set
+- [ ] EmDash API token (load scopes) in .env as EMDASH_TOKEN_PRODUCTION (EMDASH_TOKEN also works on a single-environment site; opt-in staging: EMDASH_TOKEN is staging's)
+- [ ] email.stagingTo set: the test inbox for every form message sent from workers.dev or a preview link
 
 ## Before cutover
 - [ ] Domain zone access in Cloudflare (or registrar access + plan for DNS change)

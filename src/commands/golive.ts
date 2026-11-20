@@ -23,6 +23,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../config/load.js";
 import type { KitConfig } from "../config/schema.js";
+import { siteEnvironments } from "../core/environments.js";
 import { type SitePaths, sitePaths } from "../core/paths.js";
 import { type GateCheck, phaseState, readState } from "../core/state.js";
 import { checkAliases } from "./check-aliases.js";
@@ -350,7 +351,7 @@ async function indexableCheck(c: Ctx): Promise<GateCheck> {
 			const res = await c.f(`${t.url}/_emdash/api/settings`, { headers: { Authorization: `Bearer ${t.token}` } });
 			const body = (await res.json().catch(() => ({}))) as { data?: { staging?: boolean }; staging?: boolean };
 			const staging = (body.data ?? body).staging;
-			return { id: "indexable", label, ok: res.ok && staging !== true, ...(!res.ok ? { detail: `settings: HTTP ${res.status}` } : staging === true ? { detail: "Reload production (WP2EMDASH_LOAD_TARGET=production … load), which clears it, then redeploy" } : {}) };
+			return { id: "indexable", label, ok: res.ok && staging !== true, ...(!res.ok ? { detail: `settings: HTTP ${res.status}` } : staging === true ? { detail: "Reload production (pnpm wp2emdash run <slug> load; WP2EMDASH_LOAD_TARGET=production on a site with staging), which clears it, then redeploy" } : {}) };
 		}
 		// No admin token: the home page's robots meta (the workers.dev host itself always sends X-Robots-Tag: noindex).
 		const res = await c.f(`${t.url}/`, { redirect: "follow" });
@@ -450,8 +451,15 @@ async function primarySwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult>
 				checks.push({ id: "site-url", label: `EmDash Site URL is https://${c.canonical} (sign-in links)`, ok: false, detail: (e as Error).message });
 			}
 		} else next.push(`Set EmDash's Site URL to https://${c.canonical} (admin → Settings), so sign-in links use the real domain`);
+		const single = !siteEnvironments(c.config, readJson<CfFile>(c.cfFile) as never).staging;
 		next.push(
-			`pnpm wp2emdash run ${c.slug} scaffold, then pnpm deploy:production in the project (IndexNow and the client docs pick up "live")`,
+			`pnpm wp2emdash run ${c.slug} scaffold, then pnpm deploy:production in the project (IndexNow and the client docs pick up "live"${single ? "; the client CI stops deploying on push to main (target.ciDeploy)" : ""})`,
+			...(single
+				? [
+						`Forms: messages sent from https://${c.canonical} now go to email.to — no redeploy needed (FORM_LIVE_HOST); messages from workers.dev or preview links stay tests (email.stagingTo only), including any still queued from before launch. Send one test form from the domain`,
+						`Content now lives in production: a reload needs --force (pnpm wp2emdash run ${c.slug} load --force) and records a D1 Time Travel bookmark first. Code changes: pnpm versions:upload → preview URL → pnpm versions:deploy (client docs/deployment.md)`,
+					]
+				: []),
 			`WP2EMDASH_TARGET=production pnpm wp2emdash run ${c.slug} verify --preview (now against https://${c.canonical})`,
 			`Submit https://${c.canonical}/sitemap.xml in Search Console; send a test form`,
 			...(c.config.target.aliasDomains.length ? [`Alias domains, a separate step after the owner's go-ahead: pnpm wp2emdash golive ${c.slug} --aliases`] : []),

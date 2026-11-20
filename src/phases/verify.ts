@@ -1,11 +1,13 @@
 /**
  * Phase 6 — verify. The old live site (audit snapshot) against the migrated site, URL by URL:
  * URLs, content, headings, SEO, links, forms, security, visual diff, accessibility, performance and
- * the burger-menu motion. Target: staging when target.stagingUrl is set (WP2EMDASH_TARGET=local for
- * the local dev server). Report: reports/verify/index.html (side-by-side screenshots) + verify.json.
+ * the burger-menu motion. Target (src/core/environments.ts): single-environment site → production once provisioned
+ * (workers.dev before go-live); opt-in staging → staging when its address is known; else the local dev server
+ * (WP2EMDASH_TARGET=local|staging|production overrides). Report: reports/verify/index.html + verify.json.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { defaultTarget, noProductionTargets, readCf, siteEnvironments } from "../core/environments.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import { remoteTarget, targetName } from "../targets/remote.js";
 import { captureScreenshots, type ScreenshotResult, screenName } from "../audit/browser.js";
@@ -71,7 +73,12 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 	// A footer whose typed © year was set to show the current year (overrides.copyrightYear) is compared as that year.
 	const yearNow = String(new Date().getFullYear());
 	const liveYear = (await loadOverrides(paths.overrides).catch(() => undefined))?.copyrightYear === "current" ? (t: string) => currentYearText(t).replaceAll("{year}", yearNow) : (t: string) => t;
-	const want = targetName(process.env.WP2EMDASH_TARGET ?? process.env.WP2EMDASH_LOAD_TARGET, config.target.stagingUrl || stagingRecorded(paths.root) ? "staging" : "local");
+	const envs = siteEnvironments(config, readCf(paths.root));
+	const want = targetName(process.env.WP2EMDASH_TARGET ?? process.env.WP2EMDASH_LOAD_TARGET, defaultTarget("verify", envs, { stagingKnown: !!config.target.stagingUrl || stagingRecorded(paths.root), noProduction: noProductionTargets() }));
+	if (want === "production" && noProductionTargets()) {
+		check("target", "Verify target allowed", false, "Refused: this run may not target production (WP2EMDASH_NO_PRODUCTION=1, the MCP server). Verify against production is the operator's step.");
+		return checks;
+	}
 	let base: string;
 	let stop = () => {};
 	// Live = the production domain serves this site: indexable, analytics loading. Production on workers.dev is not live.
