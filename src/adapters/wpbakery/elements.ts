@@ -35,7 +35,7 @@ export type Fragment =
 	| { kind: "map"; embedUrl?: string; address?: string }
 	| { kind: "marquee"; blocks: RichText; media?: MediaRef; link?: Button }
 	| { kind: "legacy"; html: string; reason: string }
-	| { kind: "subrow"; columns: Col[]; defaultMargin?: boolean };
+	| { kind: "subrow"; columns: Col[]; defaultMargin?: boolean; /** The inner row's content placement (vertical alignment of its columns). */ placement?: "top" | "middle" | "bottom" };
 
 /** Card look of a team style (theme CSS defaults, not shortcode attributes). */
 export interface TeamLook {

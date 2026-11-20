@@ -10,12 +10,12 @@
         }
       },
       "spacing": "normal",
+      "valign": "middle",
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[0]#0",
         "rawHash": "b22175dfdd"
       },
-      "valign": "top",
       "fields": {
         "innerGutters": true,
         "media": [

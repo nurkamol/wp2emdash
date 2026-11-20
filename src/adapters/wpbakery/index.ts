@@ -167,7 +167,8 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 			const frags = (nonEmpty[0]?.fragments ?? []).map((f) => (inset && f.kind === "faq" ? { ...f, look: { ...f.look, inset } } : f));
 			return [...frags, ...strayFrags];
 		}
-		return [{ kind: "subrow", columns: cols, ...(!n.attrs.column_margin || n.attrs.column_margin === "default" ? { defaultMargin: true } : {}) }, ...strayFrags];
+		const placement = ({ top: "top", middle: "middle", bottom: "bottom" } as const)[n.attrs.content_placement as "top"];
+		return [{ kind: "subrow", columns: cols, ...(!n.attrs.column_margin || n.attrs.column_margin === "default" ? { defaultMargin: true } : {}), ...(placement ? { placement } : {}) }, ...strayFrags];
 	}
 
 	// ── Rows ──────────────────────────────────────────────────────────────────
@@ -273,7 +274,9 @@ export function splitRow(row: Row): Row[] {
 	for (const f of col.fragments) {
 		if (f.kind === "subrow") {
 			flushRun();
-			out.push({ ...row, columns: f.columns.filter((c) => c.fragments.length).map((c) => ({ ...c, ...(f.defaultMargin ? { innerGutters: true } : {}), fragments: flattenSubrows(c.fragments) })), path: `${row.path}#${out.length}` });
+			// The inner row's own content placement (Salient content_placement on vc_row_inner) places its columns.
+			const attrs = f.placement && row.attrs.full_height !== "yes" ? { ...row.attrs, content_placement: f.placement, full_screen_row_position: f.placement } : row.attrs;
+			out.push({ ...row, attrs, columns: f.columns.filter((c) => c.fragments.length).map((c) => ({ ...c, ...(f.defaultMargin ? { innerGutters: true } : {}), fragments: flattenSubrows(c.fragments) })), path: `${row.path}#${out.length}` });
 		} else run.push(f);
 	}
 	flushRun();
