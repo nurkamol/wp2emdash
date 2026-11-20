@@ -251,7 +251,7 @@ mountSignaturePads();
  */
 function applyConditions(form: HTMLFormElement): void {
 	const valuesOf = (name: string): string[] => {
-		const inputs = [...form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[name="${CSS.escape(name)}"]`)].filter((i) => !i.disabled);
+		const inputs = [...form.querySelectorAll<HTMLElement>(`[name="${CSS.escape(name)}"]`)].map((i) => i as HTMLInputElement).filter((i) => !i.disabled);
 		return inputs.flatMap((i) => (i instanceof HTMLInputElement && (i.type === "checkbox" || i.type === "radio") ? (i.checked ? [i.type === "checkbox" && !form.querySelector(`[data-field="${CSS.escape(name)}"].field--checkbox-group`) ? "yes" : i.value] : []) : [i.value]));
 	};
 	// Twice: a field depending on a field that was just hidden follows it.
@@ -267,7 +267,7 @@ function applyConditions(form: HTMLFormElement): void {
 			const hit = values.some((x) => rule.equals.map((w) => w.trim().toLowerCase()).includes(x));
 			const show = rule.not ? !hit : hit;
 			el.hidden = !show;
-			for (const input of el.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input, select, textarea")) input.disabled = !show;
+			for (const input of el.querySelectorAll<HTMLElement>("input, select, textarea")) (input as HTMLInputElement).disabled = !show;
 		}
 	}
 }
