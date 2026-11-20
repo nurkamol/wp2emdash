@@ -1,0 +1,94 @@
+{
+	"index": "/journal/",
+	"indexPageId": 4,
+	"perPage": 2,
+	"feed": {
+		"full": true,
+		"items": 5,
+		"source": "option rss_use_excerpt"
+	},
+	"permalink": "/%postname%/",
+	"taxonomies": [
+		{
+			"name": "category",
+			"wpName": "category",
+			"label": "Categories",
+			"labelSingular": "Category",
+			"hierarchical": true,
+			"base": "/category/",
+			"terms": [
+				{
+					"wpId": 7,
+					"slug": "news",
+					"label": "News",
+					"description": "What is new",
+					"count": 2
+				},
+				{
+					"wpId": 8,
+					"slug": "workshops",
+					"label": "Workshops",
+					"count": 1
+				},
+				{
+					"wpId": 1,
+					"slug": "uncategorized",
+					"label": "Uncategorized",
+					"count": 0
+				},
+				{
+					"wpId": 9,
+					"slug": "studio-news",
+					"label": "Studio news",
+					"parent": "news",
+					"count": 1
+				}
+			]
+		},
+		{
+			"name": "tag",
+			"wpName": "post_tag",
+			"label": "Tags",
+			"labelSingular": "Tag",
+			"hierarchical": false,
+			"base": "/tag/",
+			"terms": [
+				{
+					"wpId": 20,
+					"slug": "tips",
+					"label": "Tips",
+					"count": 2
+				},
+				{
+					"wpId": 21,
+					"slug": "breathing",
+					"label": "Breathing",
+					"count": 1
+				}
+			]
+		}
+	],
+	"bylines": [
+		{
+			"slug": "jane",
+			"displayName": "Jane Writer",
+			"bio": "Jane teaches movement and writes the journal.",
+			"wpId": 1,
+			"path": "/author/jane/",
+			"posts": 3
+		},
+		{
+			"slug": "sam",
+			"displayName": "Sam Coach",
+			"avatar": {
+				"wpId": 32,
+				"kind": "image",
+				"alt": "Sam Coach"
+			},
+			"wpId": 2,
+			"path": "/author/sam/",
+			"posts": 2
+		}
+	],
+	"authorBase": "/author/"
+}

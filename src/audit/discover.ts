@@ -43,7 +43,7 @@ export interface Discovery {
 	items: RestItem[];
 	terms: RestTerm[];
 	media: RestMedia[];
-	authors: { id: number; slug: string; link: string }[];
+	authors: { id: number; slug: string; link: string; name?: string; description?: string; avatar?: string }[];
 	robotsTxt?: string;
 }
 
@@ -178,8 +178,12 @@ export async function discoverRest(site: SiteHosts, reporter: Reporter): Promise
 	);
 	const media = mediaList.map((m) => ({ id: m.id, link: m.link, sourceUrl: m.source_url, mimeType: m.mime_type, parent: m.post || undefined }));
 
-	const usersRes = await fetchJson<{ id: number; slug: string; link: string }[]>(`${site.origin}/wp-json/wp/v2/users?_fields=id,slug,link&per_page=100`);
-	const authors = (usersRes.data ?? []).map((u) => ({ id: u.id, slug: u.slug, link: normalizeUrl(u.link, site) }));
+	// Public author profiles (what WordPress shows on author archives): name, bio and avatar become bylines (blog).
+	const usersRes = await fetchJson<{ id: number; slug: string; link: string; name?: string; description?: string; avatar_urls?: Record<string, string> }[]>(`${site.origin}/wp-json/wp/v2/users?_fields=id,slug,link,name,description,avatar_urls&per_page=100`);
+	const authors = (usersRes.data ?? []).map((u) => {
+		const avatar = Object.entries(u.avatar_urls ?? {}).sort((a, b) => Number(b[0]) - Number(a[0]))[0]?.[1];
+		return { id: u.id, slug: u.slug, link: normalizeUrl(u.link, site), ...(u.name ? { name: u.name } : {}), ...(u.description?.trim() ? { description: u.description.trim() } : {}), ...(avatar ? { avatar } : {}) };
+	});
 
 	reporter.emit({
 		type: "step:end",

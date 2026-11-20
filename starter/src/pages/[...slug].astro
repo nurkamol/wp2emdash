@@ -1,17 +1,94 @@
 ---
-/** Every page at its WordPress path (nested paths included). The front page is the entry with slug "home". */
-import { decodeSlug, getEmDashEntry, getSeoMeta } from "emdash";
+/**
+ * Every page at its WordPress path (nested paths included). The front page is the entry with slug "home".
+ * Blog sites (site.config.json `blog`) also answer here: the posts page and its numbered pages, category/tag/author
+ * archives (WordPress bases and paths), their RSS feeds (/feed/, /category/<slug>/feed/…), and every post at its
+ * WordPress address (the post's slug is its path, as for pages). A page always wins over a post with the same address.
+ */
+import { decodeSlug, getEmDashEntry, getSeoMeta, getSiteSettings } from "emdash";
 import Base from "../layouts/Base.astro";
 import Sections from "../components/Sections.astro";
+import Listing from "../components/blog/Listing.astro";
+import Single from "../components/blog/Single.astro";
 import site from "../site.config.json";
 import { cachePage, noCache } from "../utils/cache";
 import { cacheChrome, loadChrome } from "../utils/chrome";
+import { autoExcerpt, blogRoute, feedHref, ptText, ptToHtml, rssXml } from "../utils/blog";
+import { blogConfig, bylineOf, cacheBlog, featuredPosts, listPosts, neighbours, type PostEntry, postHref, relatedPosts, termOf } from "../utils/blog-data";
 
 const raw = Astro.params.slug ? decodeSlug(Astro.params.slug) : "home";
 const slug = raw || "home";
-// The page and the site chrome in parallel (each is a database round trip on an uncached render).
-const [{ entry: page, cacheHint }, chrome] = await Promise.all([getEmDashEntry("pages", slug), loadChrome()]);
-if (!page) {
+const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
+const production = new URL(site.productionUrl).origin;
+const blog = blogConfig;
+const route = blog ? blogRoute(Astro.params.slug ? Astro.url.pathname : "/", blog) : undefined;
+
+// ── Blog listings and feeds ──────────────────────────────────────────────────────────────────────────────────
+let listing: { heading: string; intro?: string | null; eyebrow?: string; posts: PostEntry[]; listing: string; page: number; hasMore: boolean; title: string; description?: string | null; feedTitle: string; avatar?: { src: string; alt: string }; seo?: ReturnType<typeof getSeoMeta>; canonicalPath: string } | undefined;
+let chrome: Awaited<ReturnType<typeof loadChrome>> | undefined;
+if (blog && route) {
+	const perPage = route.feed ? blog.feed.items : blog.perPage;
+	const page = route.feed ? 1 : route.page;
+	if (route.kind === "index") {
+		const indexSlug = blog.index.replace(/^\/+|\/+$/g, "") || "home";
+		const [list, featured, indexPage, c] = await Promise.all([listPosts({ page, perPage }), page === 1 && !route.feed ? featuredPosts() : Promise.resolve([] as PostEntry[]), getEmDashEntry("pages", indexSlug), route.feed ? Promise.resolve(undefined) : loadChrome()]);
+		chrome = c;
+		const posts = [...featured, ...list.entries.filter((e) => !featured.some((f) => f.id === e.id))];
+		const pageTitle = blog.index === "/" ? undefined : (indexPage.entry?.data as { title?: string } | undefined)?.title;
+		listing = { heading: pageTitle ?? "Blog", posts, listing: blog.index, page, hasMore: list.hasMore, title: pageTitle ?? "Blog", feedTitle: "Feed", canonicalPath: Astro.url.pathname, ...(indexPage.entry && blog.index !== "/" ? { seo: getSeoMeta(indexPage.entry, { siteUrl: Astro.url.origin, path: Astro.url.pathname }) } : {}) };
+		cacheBlog(Astro.cache, [list.cacheHint, indexPage.cacheHint]);
+	} else if (route.kind === "term") {
+		const [term, list, c] = await Promise.all([termOf(route.taxonomy, route.slug), listPosts({ page, perPage, where: { [route.taxonomy]: route.slug } }), route.feed ? Promise.resolve(undefined) : loadChrome()]);
+		chrome = c;
+		const a = blog.archives.find((x) => x.taxonomy === route.taxonomy);
+		if (term) listing = { heading: term.label, intro: term.description, eyebrow: a?.labelSingular, posts: list.entries, listing: Astro.url.pathname.replace(/(?:page\/\d+|feed)\/?$/, ""), page, hasMore: list.hasMore, title: term.label, description: term.description, feedTitle: `${term.label} ${a?.labelSingular ?? ""} Feed`.replace(/\s+/g, " "), canonicalPath: Astro.url.pathname };
+		cacheBlog(Astro.cache, [list.cacheHint]);
+	} else {
+		const [byline, c] = await Promise.all([bylineOf(route.slug), route.feed ? Promise.resolve(undefined) : loadChrome()]);
+		chrome = c;
+		if (byline) {
+			const list = await listPosts({ page, perPage, where: { byline: byline.translationGroup ?? byline.id } });
+			const avatar = byline.avatarStorageKey ? { src: `/_emdash/api/media/file/${encodeURIComponent(byline.avatarStorageKey)}`, alt: byline.avatarAlt ?? byline.displayName } : undefined;
+			listing = { heading: byline.displayName, intro: byline.bio, eyebrow: "Author", posts: list.entries, listing: Astro.url.pathname.replace(/(?:page\/\d+|feed)\/?$/, ""), page, hasMore: list.hasMore, title: byline.displayName, description: byline.bio, feedTitle: `Posts by ${byline.displayName} Feed`, canonicalPath: Astro.url.pathname, ...(avatar ? { avatar } : {}) };
+			cacheBlog(Astro.cache, [list.cacheHint]);
+		}
+	}
+	// An unknown term or author, or a page past the last one: not found.
+	if (!listing || (route.page > 1 && !listing.posts.length)) {
+		noCache(Astro.cache);
+		return Astro.rewrite("/404");
+	}
+	cachePage(Astro.cache);
+	if (chrome) cacheChrome(Astro.cache, chrome);
+	if (route.feed) {
+		const settings = await getSiteSettings().catch(() => undefined);
+		const siteTitle = (settings?.title as string | undefined)?.trim() || site.name;
+		const items = listing.posts.map((p) => {
+			const d = p.data;
+			const text = ptText(d.body);
+			const link = `${production}${postHref(p)}`;
+			const terms = (d.terms ?? {}) as Record<string, { label: string }[]>;
+			return {
+				title: String(d.title ?? ""),
+				link,
+				published: new Date(d.publishedAt ?? d.createdAt ?? Date.now()).toISOString(),
+				description: (typeof d.excerpt === "string" && d.excerpt.trim()) || autoExcerpt(text),
+				...(blog.feed.full && (d.body ?? []).length ? { content: ptToHtml(d.body, production) } : {}),
+				categories: Object.values(terms).flat().map((t) => t.label),
+				...(d.byline?.displayName ? { author: d.byline.displayName as string } : {}),
+			};
+		});
+		const xml = rssXml({ title: route.kind === "index" ? siteTitle : `${siteTitle} » ${listing.feedTitle}`, link: `${production}${route.kind === "index" ? blog.index : listing.listing}`, self: `${production}${Astro.url.pathname}`, description: (route.kind === "index" ? (settings?.tagline as string | undefined) : listing.description) || siteTitle, language: (site as { lang?: string }).lang ?? "en", ...(items[0] ? { updated: items[0].published } : {}) }, items);
+		return new Response(xml, { headers: { "Content-Type": "application/rss+xml; charset=utf-8" } });
+	}
+}
+
+// ── A page, else a post ──────────────────────────────────────────────────────────────────────────────────────
+const [{ entry: page, cacheHint }, loadedChrome] = listing ? [{ entry: undefined, cacheHint: undefined }, chrome] : await Promise.all([getEmDashEntry("pages", slug), loadChrome()]);
+chrome = loadedChrome ?? chrome;
+const postResult = !listing && !page && blog && slug !== "home" ? await getEmDashEntry("posts", slug) : undefined;
+const post = postResult?.entry as PostEntry & { edit: Record<string, any> } | undefined;
+if (!listing && !page && !post) {
 	noCache(Astro.cache);
 	return Astro.rewrite("/404");
 }
@@ -21,25 +98,46 @@ if (slug === "home" && Astro.params.slug) {
 }
 // Route cache: this page's own tags (collection + entry), the default lifetime for pages added after the migration, and
 // the chrome's tags (settings, menus, site parts, popups) — all set here, before the response starts streaming.
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled && (cacheHint || postResult?.cacheHint)) Astro.cache.set((cacheHint ?? postResult?.cacheHint) as never);
+let older: PostEntry | undefined;
+let newer: PostEntry | undefined;
+let related: PostEntry[] = [];
+if (post) {
+	[{ older, newer }, related] = await Promise.all([neighbours(post.data.publishedAt), relatedPosts(post)]);
+	cacheBlog(Astro.cache);
+}
 cachePage(Astro.cache);
-cacheChrome(Astro.cache, chrome);
+if (chrome) cacheChrome(Astro.cache, chrome);
 
-const data = page.data as any;
-const blocks = (data.content ?? []) as any[];
-const seo = getSeoMeta(page, { siteUrl: Astro.url.origin, path: slug === "home" ? "/" : Astro.url.pathname });
+const entry = (page ?? post) as any;
+const data = (entry?.data ?? {}) as any;
+const blocks = (page ? (data.content ?? []) : []) as any[];
+const seo = entry ? getSeoMeta(entry, { siteUrl: Astro.url.origin, path: slug === "home" ? "/" : Astro.url.pathname }) : listing?.seo;
 const first = blocks[0];
 // The header sits over a hero picture only when it is transparent at the top of the page (audit); a solid header keeps
 // the page below it, as on the source site.
 const overHero = first?._type === "section_hero" && (first.bg_image || first.bg_video) && (site as { header?: { transparentOnTop?: boolean } }).header?.transparentOnTop !== false;
+const byline = post?.data.bylines?.[0]?.byline as { displayName?: string } | undefined;
 ---
 
-<Base chrome={chrome} title={seo.title} pageTitle={data.title} description={seo.description} image={seo.ogImage} canonical={seo.canonical} robots={seo.robots} content={{ collection: "pages", id: data.id, slug: page.id }} overHero={!!overHero}>
-	{
-		blocks.length ? (
-			<div {...page.edit.content}><Sections value={blocks} leadImage /></div>
-		) : (
-			<section class="section container"><h1 class="heading heading--h1">{data.title}</h1></section>
-		)
-	}
-</Base>
+{
+	listing ? (
+		<Base chrome={chrome} title={seo?.title ?? (listing.page > 1 ? `${listing.title} – Page ${listing.page}` : listing.title)} pageTitle={listing.title} description={seo?.description ?? listing.description} canonical={`${site.productionUrl.replace(/\/$/, "")}${listing.canonicalPath}`} feeds={route?.kind === "index" ? [] : [{ title: listing.feedTitle, href: feedHref(listing.listing, style) }]}>
+			<Listing heading={listing.heading} intro={listing.intro} eyebrow={listing.eyebrow} posts={listing.posts} listing={listing.listing} page={listing.page} hasMore={listing.hasMore} avatar={listing.avatar} />
+		</Base>
+	) : post ? (
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || autoExcerpt(ptText(data.body), 30) || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "posts", id: data.id, slug: post.id }} article={{ publishedTime: data.publishedAt ? new Date(data.publishedAt).toISOString() : null, modifiedTime: data.updatedAt ? new Date(data.updatedAt).toISOString() : null, author: byline?.displayName ?? null }}>
+			<Single post={post} edit={post.edit ?? {}} older={older} newer={newer} related={related} />
+		</Base>
+	) : (
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "pages", id: data.id, slug: entry.id }} overHero={!!overHero}>
+			{
+				blocks.length ? (
+					<div {...entry.edit.content}><Sections value={blocks} leadImage /></div>
+				) : (
+					<section class="section container"><h1 class="heading heading--h1">{data.title}</h1></section>
+				)
+			}
+		</Base>
+	)
+}

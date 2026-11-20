@@ -17,10 +17,11 @@ import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
-import { menuItemExtras, productionCanonical, routeToSlug } from "../scaffold/seed.js";
+import { menuItemExtras, POSTS_COLLECTION, productionCanonical, routeToSlug } from "../scaffold/seed.js";
+import type { BlogPlan } from "../transform/blog.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { svgToPng } from "../targets/emdash/svg.js";
-import { EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
+import { type ContentItem, EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
 import { blockKey, sectionToBlock } from "../targets/emdash/blocks.js";
 import { faststart, needsFaststart } from "../targets/emdash/faststart.js";
 import { desiredSettings, planSettings, type SettingsRecord } from "../targets/emdash/settings.js";
@@ -46,7 +47,36 @@ const MIME: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpe
 const mimeOf = (f: string) => MIME[extname(f).toLowerCase()] ?? "application/octet-stream";
 const mediaKey = (m: MediaRef) => (m.wpId ? `wp:${m.wpId}` : `url:${m.url}`);
 
+/** Builder posts went to `pages` before the blog milestone; blog sites (ir/blog.json) load every post into `posts`. */
 const COLLECTION: Record<IrPage["kind"], string> = { page: "pages", post: "pages", partial: "site_parts", popup: "popups" };
+const collectionOf = (doc: IrPage, blog: boolean) => (doc.kind === "post" && blog && doc.post ? "posts" : COLLECTION[doc.kind]);
+
+/**
+ * A post body for the target: media marked by transform (`_media`) become EmDash media (image asset id + file URL, or
+ * the URL of a file/cover/video field). Unresolved media keep the WordPress URL (load's leftovers check reports it).
+ */
+export function resolvePostBody(body: unknown[], media: (m: MediaRef) => { id: string; url?: string } | undefined): unknown[] {
+	const fix = (v: unknown): unknown => {
+		if (Array.isArray(v)) return v.map(fix);
+		if (!v || typeof v !== "object") return v;
+		const { _media, ...o } = v as Record<string, unknown> & { _media?: MediaRef & { field?: string } };
+		const out: Record<string, unknown> = Object.fromEntries(Object.entries(o).map(([k, x]) => [k, fix(x)]));
+		const e = _media ? media(_media) : undefined;
+		if (e && out.asset && typeof out.asset === "object") out.asset = { _type: "reference", _ref: e.id, ...(e.url ? { url: e.url } : {}) };
+		else if (e?.url && _media?.field) out[_media.field] = e.url;
+		return out;
+	};
+	return body.map(fix);
+}
+
+/** Status on the target for a post: published (with its date), scheduled, or draft (overrides.ts protectedPosts). */
+export function postAction(doc: IrPage, protectedDecision: "draft" | "skip" | "publish" | undefined, now = Date.now()): "publish" | "schedule" | "draft" {
+	const visibility = doc.post?.visibility ?? "public";
+	if (visibility !== "public") return protectedDecision === "publish" && (doc.source.status === "publish" || doc.source.status === "private") ? "publish" : "draft";
+	if (doc.source.status === "publish") return "publish";
+	if (doc.source.status === "future") return doc.post?.publishedAt && Date.parse(doc.post.publishedAt) > now ? "schedule" : "publish";
+	return "draft";
+}
 
 /** Start `pnpm dev` in the project when nothing listens yet; returns a stop function. */
 export async function ensureDevServer(project: string, port: number, log: (m: string) => void): Promise<() => void> {
@@ -159,6 +189,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 
 	async function load(): Promise<GateCheck[]> {
 		const site = siteIr;
+		const blogPlan = readJson<BlogPlan>(join(paths.ir, "blog.json"));
 		// ── Schema on the target ─────────────────────────────────────────────────
 		try {
 			const [bt, cols] = await Promise.all([api.blockTypesFull(), api.collections()]);
@@ -189,7 +220,20 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					schemaErrors.push(`${lib.slug}: ${err.code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : err.code === "BLOCK_TYPE_BREAKING_CHANGE" ? "incompatible change — needs a new block type version (owner decision)" : err.message}`);
 				}
 			}
-			const missingCols = ["pages", "site_parts", "popups"].filter((c) => !cols.some((x) => x.slug === c));
+			// Blog sites: the posts collection (seeded on a new site; created here on a site set up before the blog existed).
+			if (blogPlan && !cols.some((x) => x.slug === "posts")) {
+				try {
+					const { fields, dateField: _d, ...col } = POSTS_COLLECTION;
+					await api.createCollection({ ...col, supports: [...col.supports], hasSeo: true, sortOrder: 2 });
+					for (const f of fields) await api.createField("posts", { ...f });
+					cols.push({ slug: "posts" });
+					schemaChanges.push("collection posts created");
+				} catch (e) {
+					const err = e as EmDashHttpError;
+					schemaErrors.push(`posts: ${err.code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : err.message}`);
+				}
+			}
+			const missingCols = ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : [])].filter((c) => !cols.some((x) => x.slug === c));
 			check("schema", "Section library in sync and collections present on the target", schemaErrors.length === 0 && missingCols.length === 0, [...schemaErrors.slice(0, 4), ...missingCols.map((c) => `collection ${c} missing`)].join("; ") || (schemaChanges.length ? schemaChanges.join(", ") : `${bt.length} block types up to date`));
 			if (schemaErrors.length || missingCols.length) return checks;
 		} catch (e) {
@@ -225,7 +269,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			if (("wpId" in o || "url" in o) && (o.kind === "image" || o.kind === "video" || o.kind === "file")) refs.set(mediaKey(o as MediaRef), o as MediaRef);
 			else for (const x of Object.values(o)) collect(x);
 		};
-		for (const d of docs) collect([d.sections, d.featuredImage]);
+		for (const d of docs) collect([d.sections, d.featuredImage, d.post?.body ?? []]);
+		for (const b of blogPlan?.bylines ?? []) if (b.avatar) refs.set(mediaKey(b.avatar), b.avatar);
 		// Social sharing image (og:image from the SEO plugin): uploaded like any other picture and set as the page's SEO image.
 		const uploadPath = (u: string) => /\/(?:wp-content\/uploads|storage)\/(.+)$/.exec(u.split(/[?#]/)[0] ?? "")?.[1]?.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/i, "").toLowerCase();
 		const ogRef = (d: IrPage): MediaRef | undefined => {
@@ -339,17 +384,70 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			return v;
 		};
 
+		// ── Blog: taxonomy definitions, terms (parents first), bylines — before the posts that reference them ──────
+		const bylineIds = new Map<string, string>();
+		if (blogPlan) {
+			const taxErrors: string[] = [];
+			let termsCreated = 0;
+			try {
+				const defs = await api.taxonomies();
+				for (const t of blogPlan.taxonomies) {
+					try {
+						const def = defs.find((d) => d.name === t.name);
+						if (!def) await api.createTaxonomy({ name: t.name, label: t.label, labelSingular: t.labelSingular, hierarchical: t.hierarchical, collections: ["posts"] });
+						else if (!def.collections.includes("posts")) taxErrors.push(`${t.name}: exists on the target without the posts collection (add it in the admin: Taxonomies → ${t.label})`);
+						const have = new Map((await api.terms(t.name)).map((x) => [x.slug, x]));
+						for (const term of t.terms) {
+							if (have.has(term.slug)) continue;
+							const parentId = term.parent ? have.get(term.parent)?.id : undefined;
+							const made = await api.createTerm(t.name, { slug: term.slug, label: term.label, ...(parentId ? { parentId } : {}), ...(term.description ? { description: term.description } : {}) });
+							have.set(term.slug, made);
+							termsCreated++;
+						}
+					} catch (e) {
+						taxErrors.push(`${t.name}: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs content:write (or taxonomies:manage)" : (e as Error).message}`);
+					}
+				}
+			} catch (e) {
+				taxErrors.push((e as Error).message);
+			}
+			check("taxonomies", "Blog taxonomies and terms on the target", taxErrors.length === 0, taxErrors.slice(0, 4).join("; ") || `${blogPlan.taxonomies.map((t) => `${t.name} ${t.terms.length}`).join(", ")} terms (${termsCreated} created)`);
+			if (blogPlan.bylines.length) {
+				const bylineErrors: string[] = [];
+				let bylinesCreated = 0;
+				try {
+					const have = new Map((await api.bylines()).map((b) => [b.slug, b]));
+					for (const b of blogPlan.bylines) {
+						const known = have.get(b.slug);
+						if (known) {
+							bylineIds.set(b.slug, known.id);
+							continue;
+						}
+						const avatar = b.avatar ? idMap.media[mediaKey(b.avatar)]?.id : undefined;
+						// Guest bylines: names on posts, never user accounts.
+						const made = await api.createByline({ slug: b.slug, displayName: b.displayName, ...(b.bio ? { bio: b.bio } : {}), ...(avatar ? { avatarMediaId: avatar } : {}), isGuest: true });
+						bylineIds.set(b.slug, made.id);
+						bylinesCreated++;
+					}
+				} catch (e) {
+					bylineErrors.push((e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the admin scope (EmDash 1.5 serves bylines under /_emdash/api/admin/bylines; docs/staging-setup.md)" : (e as Error).message);
+				}
+				check("bylines", "Bylines from the WordPress authors on the target (no user accounts)", bylineErrors.length === 0, bylineErrors.join("; ") || `${blogPlan.bylines.length} bylines (${bylinesCreated} created)`);
+			}
+		}
+		const postMedia = (m: MediaRef) => idMap.media[mediaKey(m)];
+
 		// ── Content ──────────────────────────────────────────────────────────────
 		reporter.emit({ type: "step:start", step: "Content", total: docs.length });
 		const existingByCollection = new Map<string, Awaited<ReturnType<typeof api.list>>>();
-		for (const c of ["pages", "site_parts", "popups"]) existingByCollection.set(c, await api.list(c));
+		for (const c of ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : [])]) existingByCollection.set(c, await api.list(c));
 		const contentErrors: string[] = [];
 		const drops: string[] = [];
 		let created = 0;
 		let updated = 0;
 		let adopted = 0;
 		for (const [i, doc] of docs.entries()) {
-			const collection = COLLECTION[doc.kind];
+			const collection = collectionOf(doc, !!blogPlan);
 			const slug = doc.kind === "page" || doc.kind === "post" ? routeToSlug(doc.route?.path ?? doc.source.slug) : doc.source.slug;
 			const key = `${doc.source.type}:${doc.source.wpId}`;
 			reporter.emit({ type: "step:progress", step: "Content", done: i + 1, total: docs.length, item: `${collection}/${slug}` });
@@ -357,6 +455,15 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				const sections = fixLinks(doc.sections) as Section[];
 				const content = sections.map((s, j) => sectionToBlock(s, blockKey(doc.source.slug, j, s.type), resolver, (d) => drops.push(`${slug} ${s.type}#${j}: ${d.join(", ")}`)));
 				const data: Record<string, unknown> = { title: doc.title, content };
+				const isPost = collection === "posts" && !!doc.post;
+				if (isPost && doc.post) {
+					data.body = fixLinks(resolvePostBody(doc.post.body, postMedia));
+					if (doc.post.excerpt) data.excerpt = doc.post.excerpt;
+					const featured = resolver(doc.featuredImage);
+					if (featured) data.featured_image = featured;
+					data.featured = !!doc.post.sticky;
+					if (doc.post.format) data.format = doc.post.format;
+				}
 				if (doc.kind === "popup") {
 					const sel = doc.popup?.selectors.filter((s) => !s.includes("popmake")).join(", ");
 					if (sel) data.selectors = sel;
@@ -385,19 +492,22 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 						reporter.emit({ type: "log", level: "info", message: `adopted existing ${collection}/${slug} (first load into this target)` });
 					}
 				}
+				// Posts: bylines (byline ids), term assignments (taxonomy → term slugs) and the WordPress publish date.
+				const postExtras = isPost && doc.post ? { bylines: doc.post.bylines.flatMap((b) => (bylineIds.get(b) ? [{ bylineId: bylineIds.get(b) as string }] : [])), taxonomies: doc.post.terms, ...(doc.post.publishedAt && doc.source.status === "publish" ? { publishedAt: doc.post.publishedAt } : {}) } : {};
 				if (entryId) {
 					const cur = await api.get(collection, entryId);
-					await api.update(collection, entryId, { data, slug, ...(seo ? { seo } : {}), ...(cur._rev ? { _rev: cur._rev } : {}) });
+					await api.update(collection, entryId, { data, slug, ...(seo ? { seo } : {}), ...postExtras, ...(cur._rev ? { _rev: cur._rev } : {}) });
 					updated++;
 				} else {
-					const item = await api.create(collection, { data, slug, ...(seo ? { seo } : {}) });
+					const item = await api.create(collection, { data, slug, ...(seo ? { seo } : {}), ...postExtras });
 					entryId = item.id;
 					created++;
 				}
 				idMap.content[key] = { collection, id: entryId, slug };
 				saveMap();
-				const shouldPublish = doc.source.status === "publish";
-				if (shouldPublish) await api.publish(collection, entryId);
+				const action = isPost ? postAction(doc, overrides.protectedPosts?.as) : doc.source.status === "publish" ? "publish" : "draft";
+				if (action === "publish") await api.publish(collection, entryId, isPost ? doc.post?.publishedAt : undefined);
+				else if (action === "schedule" && doc.post?.publishedAt) await api.schedule(collection, entryId, doc.post.publishedAt);
 				else {
 					const cur = await api.get(collection, entryId);
 					if (cur.status === "published") await api.unpublish(collection, entryId);
@@ -562,9 +672,20 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const mediaIds = new Set((await api.mediaList()).map((m) => m.id));
 		const counts: string[] = [];
 		const dupes: string[] = [];
-		for (const c of ["pages", "site_parts", "popups"]) {
+		// Posts: the WordPress publish date kept, read back from the target.
+		const dateErrors: string[] = [];
+		for (const c of ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : [])]) {
 			const items = await api.list(c);
-			const expected = docs.filter((d) => COLLECTION[d.kind] === c).length;
+			const expected = docs.filter((d) => collectionOf(d, !!blogPlan) === c).length;
+			if (c === "posts") {
+				for (const d of docs.filter((x) => collectionOf(x, true) === "posts" && x.source.status === "publish" && x.post?.publishedAt && postAction(x, overrides.protectedPosts?.as) === "publish")) {
+					const it = items.find((x) => x.id === idMap.content[`${d.source.type}:${d.source.wpId}`]?.id) as (ContentItem & { publishedAt?: string | null }) | undefined;
+					const at = it?.publishedAt ? Date.parse(it.publishedAt) : Number.NaN;
+					if (!it) dateErrors.push(`${d.source.slug}: not on the target`);
+					else if (it.status !== "published") dateErrors.push(`${d.source.slug}: ${it.status}`);
+					else if (Math.abs(at - Date.parse(d.post?.publishedAt as string)) > 1000) dateErrors.push(`${d.source.slug}: published ${it.publishedAt ?? "—"} vs ${d.post?.publishedAt} on WordPress`);
+				}
+			}
 			if (items.length !== expected) counts.push(`${c}: ${items.length} on target vs ${expected} in IR`);
 			const slugs = items.map((x) => x.slug);
 			for (const s of new Set(slugs.filter((s, i) => slugs.indexOf(s) !== i))) dupes.push(`${c}/${s}`);
@@ -578,6 +699,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			}
 		}
 		if (!onlySettings) check("counts", "Entry counts on the target equal the IR, no duplicate slugs", counts.length === 0 && dupes.length === 0, [...counts, ...dupes.map((d) => `duplicate ${d}`)].join("; ") || undefined);
+		if (!onlySettings && blogPlan) check("post-dates", "Published posts keep their WordPress publish date", dateErrors.length === 0, dateErrors.slice(0, 6).join("; ") || `${docs.filter((x) => x.kind === "post" && x.source.status === "publish").length} posts`);
 		check("no-wordpress-leftovers", "No WordPress links, upload URLs or shortcodes in stored content", leftovers.length === 0, [...new Set(leftovers)].slice(0, 8).join("; ") || undefined);
 		check("media-integrity", "Every media id in stored content exists on the target", missingMedia.length === 0, missingMedia.slice(0, 5).join("; ") || undefined);
 		const idMapComplete = docs.every((d) => idMap.content[`${d.source.type}:${d.source.wpId}`]);
@@ -585,12 +707,13 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 
 		// Every published page renders and shows its first heading.
 		const renderFails: string[] = [];
-		for (const d of docs.filter((x) => x.kind === "page" && x.source.status === "publish")) {
+		const rendered = docs.filter((x) => (x.kind === "page" && x.source.status === "publish") || (blogPlan && x.kind === "post" && x.post && postAction(x, overrides.protectedPosts?.as) === "publish"));
+		for (const d of rendered) {
 			const path = d.route?.path ?? "/";
 			try {
 				const r = await kitFetch(`${api.baseUrl}${path}`, { redirect: "manual" });
 				const html = await r.text();
-				const firstHeading = d.sections.flatMap((s) => (Array.isArray((s.fields as { heading?: unknown }).heading) ? ((s.fields as { heading: { children: { text: string }[] }[] }).heading) : [])).flatMap((b) => b.children.map((c) => c.text))[0];
+				const firstHeading = d.kind === "post" ? d.title : d.sections.flatMap((s) => (Array.isArray((s.fields as { heading?: unknown }).heading) ? ((s.fields as { heading: { children: { text: string }[] }[] }).heading) : [])).flatMap((b) => b.children.map((c) => c.text))[0];
 				if (r.status !== 200) renderFails.push(`${path} HTTP ${r.status}`);
 				else if (firstHeading && !html.includes(firstHeading.replace(/&/g, "&amp;").slice(0, 30)) && !html.includes(firstHeading.slice(0, 30))) renderFails.push(`${path}: "${firstHeading.slice(0, 30)}" not in HTML`);
 			} catch (e) {
@@ -598,7 +721,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			}
 		}
 		reporter.emit({ type: "step:end", step: "Verify target", ok: renderFails.length === 0 });
-		check("render", "Every published page renders on the target", renderFails.length === 0, renderFails.slice(0, 6).join("; ") || `${docs.filter((x) => x.kind === "page" && x.source.status === "publish").length} pages`);
+		check("render", "Every published page renders on the target", renderFails.length === 0, renderFails.slice(0, 6).join("; ") || `${rendered.filter((x) => x.kind === "page").length} pages${blogPlan ? `, ${rendered.filter((x) => x.kind === "post").length} posts` : ""}`);
 		return checks;
 	}
 }

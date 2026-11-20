@@ -1,0 +1,99 @@
+---
+/**
+ * A single post: title, date, byline, categories, featured image, content (Portable Text, or the sections of a post
+ * built with a page builder), tags, author box, previous/next and related posts.
+ */
+import { Image, PortableText } from "emdash/ui";
+import Sections from "../Sections.astro";
+import PostCard from "./PostCard.astro";
+import PostMeta from "./PostMeta.astro";
+import { authorHref, type PostEntry, postHref } from "../../utils/blog-data";
+import { fillTokens, hasContent } from "../../utils/pt";
+
+interface Props {
+	post: PostEntry;
+	/** EmDash's visual-editing annotations for the entry (page.edit). */
+	edit: Record<string, any>;
+	older?: PostEntry;
+	newer?: PostEntry;
+	related: PostEntry[];
+}
+const { post, edit, older, newer, related } = Astro.props;
+const d = post.data;
+const blocks = (d.content ?? []) as any[];
+const body = (d.body ?? []) as any[];
+const byline = (d.bylines?.[0] as { byline?: { slug: string; displayName: string; bio?: string | null } } | undefined)?.byline;
+---
+
+<article class="post">
+	<header class="section space-normal post__header">
+		<div class="container container--narrow">
+			<h1 class="heading heading--h1" {...edit.title}>{d.title}</h1>
+			<PostMeta post={post} />
+		</div>
+	</header>
+	{
+		d.featured_image && (
+			<div class="container post__figure">
+				<Image image={d.featured_image} class="post__image" sizes="(max-width: 1200px) 100vw, 1200px" loading="eager" fetchpriority="high" />
+			</div>
+		)
+	}
+	{blocks.length > 0 && <div {...edit.content}><Sections value={blocks} /></div>}
+	{
+		hasContent(body) && (
+			<div class="section space-normal">
+				<div class="container container--narrow prose post__body" {...edit.body}>
+					<PortableText value={fillTokens(body)} />
+				</div>
+			</div>
+		)
+	}
+	<footer class="section space-normal post__footer">
+		<div class="container container--narrow">
+			<PostMeta post={post} tags />
+			{
+				byline?.bio && (
+					<aside class="author-box" aria-label="About the author">
+						<p class="author-box__name">{authorHref(byline.slug) ? <a href={authorHref(byline.slug)} rel="author">{byline.displayName}</a> : byline.displayName}</p>
+						<p class="author-box__bio">{byline.bio}</p>
+					</aside>
+				)
+			}
+			{
+				(older || newer) && (
+					<nav class="post-nav" aria-label="More posts">
+						{newer ? <a rel="next" href={postHref(newer)}><span class="eyebrow">Newer</span> {newer.data.title}</a> : <span />}
+						{older ? <a rel="prev" href={postHref(older)}><span class="eyebrow">Older</span> {older.data.title}</a> : <span />}
+					</nav>
+				)
+			}
+		</div>
+	</footer>
+	{
+		related.length > 0 && (
+			<section class="section space-normal post__related" aria-labelledby="related-heading">
+				<div class="container">
+					<h2 id="related-heading" class="heading heading--h3">Related posts</h2>
+					<div class="post-list">{related.map((p) => <PostCard post={p} level="h3" />)}</div>
+				</div>
+			</section>
+		)
+	}
+</article>
+
+<style>
+	.container--narrow { max-width: min(100% - 2 * var(--gutter), 46rem); }
+	.post__header { padding-bottom: 0; }
+	.post__header :global(.post-meta) { margin-top: 0.75rem; }
+	.post__figure { margin-top: clamp(1.5rem, 4vw, 2.5rem); }
+	.post__figure :global(img) { width: 100%; height: auto; border-radius: var(--radius-media, 0); }
+	.post__body :global(img) { max-width: 100%; height: auto; }
+	.author-box { margin-top: 2rem; padding: 1.25rem 1.5rem; border-left: 3px solid currentColor; }
+	.author-box__name { margin: 0 0 0.35rem; font-weight: 600; }
+	.author-box__bio { margin: 0; }
+	.post-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2.5rem; }
+	.post-nav a { display: grid; gap: 0.25rem; color: inherit; }
+	.post-nav a[rel="prev"] { text-align: end; }
+	.post__related .post-list { display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); margin-top: 1.5rem; }
+</style>

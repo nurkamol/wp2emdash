@@ -39,6 +39,13 @@ export interface WpUrlRules {
 	/** Attachment id → page path, parent, file. */
 	attachments?: Record<string, WpAttachment>;
 	trailingSlash?: "always" | "never";
+	/**
+	 * The site has a blog (posts collection, archives, feeds): the posts page (`index`) and its pages, the archive
+	 * pages under the `archives` bases (`/category/`, `/tag/`, `/author/`…) with their pages and feeds are real routes
+	 * (pages/[...slug].astro), `/feed/` is the RSS feed. `ids`: WordPress query forms → archive address
+	 * (`cat:7` → /category/news/, `author:1` → /author/jane/, `tag:tips` → /tag/tips/).
+	 */
+	blog?: { index: string; archives: string[]; ids?: Record<string, string> };
 }
 
 export type WpUrlAction =
@@ -97,22 +104,37 @@ export function matchWpUrl(pathname: string, search: URLSearchParams, rules: WpU
 		return { kind: "attachment", ...fallback };
 	};
 
+	const blog = rules.blog;
+	const blogFeed = blog ? styled("/feed/", style) : undefined;
+	const blogId = (key: string, kind: WpUrlKind, fallback: WpUrlTarget): WpUrlAction => {
+		const to = blog?.ids?.[key];
+		return to ? { kind, to: styled(to, style) } : act(kind, fallback, style);
+	};
 	if (path === "/" || path === "/index.php") {
 		const feed = search.get("feed");
-		if (feed !== null) return /comments/.test(feed) ? act("comments-feed", rules.commentsFeed, style) : act("feed", rules.feed, style);
+		if (feed !== null) return /comments/.test(feed) ? act("comments-feed", rules.commentsFeed, style) : blogFeed ? { kind: "feed", to: blogFeed } : act("feed", rules.feed, style);
 		const s = search.get("s");
 		if (s !== null) return act("search", rules.search, style, rules.search !== "/" && rules.search !== "gone" && s ? `?q=${encodeURIComponent(s)}` : undefined);
 		const id = search.get("attachment_id");
 		if (id !== null) return attachment(attachments[id]);
-		if (search.has("cat")) return act("category", rules.category, style);
-		if (search.has("tag")) return act("tag", rules.tag, style);
-		if (search.has("author")) return act("author", rules.author, style);
+		if (search.has("cat")) return blogId(`cat:${search.get("cat")}`, "category", rules.category);
+		if (search.has("tag")) return blogId(`tag:${search.get("tag")}`, "tag", rules.tag);
+		if (search.has("author")) return blogId(`author:${search.get("author")}`, "author", rules.author);
 		if (search.has("m") || search.has("year") || search.has("monthnum")) return act("date", rules.date, style);
 		const wp = search.get("page_id") ?? search.get("p");
 		if (wp !== null && /^\d+$/.test(wp) && !wpIds[wp]) return attachments[wp] ? attachment(attachments[wp]) : { kind: "wp-id", notFound: true };
 		return undefined;
 	}
 	if (pages.has(norm(path))) return undefined;
+
+	// Blog: the posts page and archives with their pages and feeds are real routes; feed variants → /feed/.
+	if (blog && blogFeed) {
+		if (norm(path) === "/feed/") return undefined;
+		if (/^\/wp-(?:rss2?|atom|rdf)\.php$/.test(path) || /^\/feed\/(?:rss2?|atom|rdf)\/?$/.test(path)) return { kind: "feed", to: blogFeed };
+		const inner = path.replace(FEED_SUFFIX, "/").replace(/page\/\d+\/?$/, "");
+		if (norm(inner) === norm(blog.index) && (inner !== path || norm(path) === norm(blog.index))) return undefined;
+		if (blog.archives.some((b) => norm(inner).startsWith(norm(b)) && norm(inner) !== norm(b))) return undefined;
+	}
 
 	// Legacy feed files.
 	if (/^\/wp-(?:rss2?|atom|rdf)\.php$/.test(path)) return act("feed", rules.feed, style);

@@ -1,0 +1,148 @@
+{
+	"$comment": "Synthetic WordPress blog (blog.example.test) for test/blog.test.ts: Gutenberg and classic posts, a sticky post, a scheduled post, a draft, a private post, categories with a hierarchy, tags, two authors, a posts page, media. No real site data.",
+	"options": {
+		"blogname": "Example Journal",
+		"blogdescription": "Notes from the studio",
+		"show_on_front": "page",
+		"page_on_front": 2,
+		"page_for_posts": 4,
+		"posts_per_page": 2,
+		"posts_per_rss": 5,
+		"rss_use_excerpt": "0",
+		"permalink_structure": "/%postname%/",
+		"sticky_posts": [11]
+	},
+	"pages": [
+		{ "id": 2, "post_type": "page", "status": "publish", "slug": "home", "title": "Home", "content": "<!-- wp:paragraph --><p>Welcome to the studio.</p><!-- /wp:paragraph -->", "excerpt": "", "date_gmt": "2024-01-02 10:00:00", "modified_gmt": "2024-01-02 10:00:00", "parent": null, "menu_order": 0, "taxonomies": {}, "meta": {} },
+		{ "id": 4, "post_type": "page", "status": "publish", "slug": "journal", "title": "Journal", "content": "", "excerpt": "", "date_gmt": "2024-01-02 10:00:00", "modified_gmt": "2024-01-02 10:00:00", "parent": null, "menu_order": 0, "taxonomies": {}, "meta": {} }
+	],
+	"posts": [
+		{
+			"id": 10,
+			"post_type": "post",
+			"status": "publish",
+			"slug": "hello-gutenberg",
+			"title": "Hello Gutenberg",
+			"content": "<!-- wp:paragraph -->\n<p>First paragraph with <strong>bold</strong> and a <a href=\"https://blog.example.test/journal/\">link to the journal</a>.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:heading -->\n<h2 class=\"wp-block-heading\">A heading</h2>\n<!-- /wp:heading -->\n\n<!-- wp:image {\"id\":31,\"sizeSlug\":\"large\"} -->\n<figure class=\"wp-block-image size-large\"><img src=\"https://blog.example.test/wp-content/uploads/2024/05/photo-1024x683.jpg\" alt=\"Studio photo\" class=\"wp-image-31\"/><figcaption class=\"wp-element-caption\">The studio at dawn</figcaption></figure>\n<!-- /wp:image -->\n\n<!-- wp:list -->\n<ul><li>One</li><li>Two</li></ul>\n<!-- /wp:list -->\n\n<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><p>Move well.</p></blockquote>\n<!-- /wp:quote -->",
+			"excerpt": "",
+			"date_gmt": "2024-05-10 09:00:00",
+			"modified_gmt": "2024-05-12 08:30:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": { "category": [{ "id": 7, "name": "News", "slug": "news" }], "post_tag": [{ "id": 20, "name": "Tips", "slug": "tips" }] },
+			"featured_image": { "id": 31, "url": "https://blog.example.test/wp-content/uploads/2024/05/photo.jpg" },
+			"meta": {},
+			"author": { "id": 1, "display_name": "Jane Writer" }
+		},
+		{
+			"id": 11,
+			"post_type": "post",
+			"status": "publish",
+			"slug": "classic-notes",
+			"title": "Classic notes",
+			"content": "A classic post written in the old editor.\nWith a line break.\n\n[caption id=\"attachment_32\" align=\"alignnone\" width=\"300\"]<img class=\"size-medium wp-image-32\" src=\"https://blog.example.test/wp-content/uploads/2024/06/team-300x200.jpg\" alt=\"The team\" width=\"300\" height=\"200\" /> Our team[/caption]\n\n[gallery ids=\"31,32\"]\n\nhttps://www.youtube.com/watch?v=abc123\n\nThe end.",
+			"excerpt": "A short <em>hand-written</em> excerpt.",
+			"date_gmt": "2024-06-01 12:00:00",
+			"modified_gmt": "2024-06-01 12:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": { "category": [{ "id": 8, "name": "Workshops", "slug": "workshops" }], "post_tag": [{ "id": 20, "name": "Tips", "slug": "tips" }, { "id": 21, "name": "Breathing", "slug": "breathing" }], "post_format": [{ "id": 40, "name": "Gallery", "slug": "post-format-gallery" }] },
+			"meta": {},
+			"author": { "id": 2, "display_name": "Sam Coach" }
+		},
+		{
+			"id": 12,
+			"post_type": "post",
+			"status": "future",
+			"slug": "coming-soon",
+			"title": "Coming soon",
+			"content": "<!-- wp:paragraph --><p>Scheduled for later.</p><!-- /wp:paragraph -->",
+			"excerpt": "",
+			"date_gmt": "2099-01-01 08:00:00",
+			"modified_gmt": "2024-06-02 08:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": { "category": [{ "id": 7, "name": "News", "slug": "news" }] },
+			"meta": {},
+			"author": { "id": 1, "display_name": "Jane Writer" }
+		},
+		{
+			"id": 13,
+			"post_type": "post",
+			"status": "draft",
+			"slug": "",
+			"title": "Unfinished draft",
+			"content": "<!-- wp:paragraph --><p>Not ready.</p><!-- /wp:paragraph -->",
+			"excerpt": "",
+			"date_gmt": "0000-00-00 00:00:00",
+			"modified_gmt": "2024-06-03 08:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {},
+			"author": { "id": 1, "display_name": "Jane Writer" }
+		},
+		{
+			"id": 14,
+			"post_type": "post",
+			"status": "private",
+			"slug": "members-only",
+			"title": "Members only",
+			"content": "<!-- wp:paragraph --><p>For members.</p><!-- /wp:paragraph -->",
+			"excerpt": "",
+			"date_gmt": "2024-04-01 08:00:00",
+			"modified_gmt": "2024-04-01 08:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": { "category": [{ "id": 9, "name": "Studio news", "slug": "studio-news" }] },
+			"meta": {},
+			"author": { "id": 2, "display_name": "Sam Coach" }
+		}
+	],
+	"taxonomies": [
+		{ "name": "category", "label": "Categories", "label_singular": "Category", "hierarchical": true, "post_types": ["post"], "terms": [
+			{ "id": 9, "name": "Studio news", "slug": "studio-news", "description": "", "parent": 7, "count": 1 },
+			{ "id": 7, "name": "News", "slug": "news", "description": "What is new", "parent": null, "count": 2 },
+			{ "id": 8, "name": "Workshops", "slug": "workshops", "description": "", "parent": null, "count": 1 },
+			{ "id": 1, "name": "Uncategorized", "slug": "uncategorized", "description": "", "parent": null, "count": 0 }
+		] },
+		{ "name": "post_tag", "label": "Tags", "label_singular": "Tag", "hierarchical": false, "post_types": ["post"], "terms": [
+			{ "id": 20, "name": "Tips", "slug": "tips", "description": "", "parent": null, "count": 2 },
+			{ "id": 21, "name": "Breathing", "slug": "breathing", "description": "", "parent": null, "count": 1 }
+		] },
+		{ "name": "post_format", "label": "Formats", "hierarchical": false, "post_types": ["post"], "terms": [{ "id": 40, "name": "Gallery", "slug": "post-format-gallery", "description": "", "parent": null, "count": 1 }] }
+	],
+	"analyze": { "authors": [{ "id": 1, "login": "jane", "display_name": "Jane Writer", "post_count": 3 }, { "id": 2, "login": "sam", "display_name": "Sam Coach", "post_count": 2 }], "attachments": { "count": 2 } },
+	"media": [
+		{ "id": 31, "url": "https://blog.example.test/wp-content/uploads/2024/05/photo.jpg", "file": "2024/05/photo.jpg", "inLibrary": true, "referencedBy": [] },
+		{ "id": 32, "url": "https://blog.example.test/wp-content/uploads/2024/06/team.jpg", "file": "2024/06/team.jpg", "inLibrary": true, "referencedBy": [] }
+	],
+	"urls": [
+		{ "url": "https://blog.example.test/", "path": "/", "status": 200, "kind": "page", "wp": { "id": 2, "type": "page" } },
+		{ "url": "https://blog.example.test/journal/", "path": "/journal/", "status": 200, "kind": "page", "wp": { "id": 4, "type": "page" } },
+		{ "url": "https://blog.example.test/hello-gutenberg/", "path": "/hello-gutenberg/", "status": 200, "kind": "page", "wp": { "id": 10, "type": "post" } },
+		{ "url": "https://blog.example.test/classic-notes/", "path": "/classic-notes/", "status": 200, "kind": "page", "wp": { "id": 11, "type": "post" } },
+		{ "url": "https://blog.example.test/category/news/", "path": "/category/news/", "status": 200, "kind": "page" },
+		{ "url": "https://blog.example.test/feed/", "path": "/feed/", "status": 200, "kind": "non-html" }
+	],
+	"discovery": {
+		"items": [
+			{ "id": 10, "type": "post", "link": "https://blog.example.test/hello-gutenberg/" },
+			{ "id": 11, "type": "post", "link": "https://blog.example.test/classic-notes/" },
+			{ "id": 2, "type": "page", "link": "https://blog.example.test/" },
+			{ "id": 4, "type": "page", "link": "https://blog.example.test/journal/" }
+		],
+		"terms": [
+			{ "id": 7, "taxonomy": "category", "slug": "news", "link": "https://blog.example.test/category/news/", "count": 2 },
+			{ "id": 9, "taxonomy": "category", "slug": "studio-news", "link": "https://blog.example.test/category/news/studio-news/", "count": 1 },
+			{ "id": 8, "taxonomy": "category", "slug": "workshops", "link": "https://blog.example.test/category/workshops/", "count": 1 },
+			{ "id": 20, "taxonomy": "post_tag", "slug": "tips", "link": "https://blog.example.test/tag/tips/", "count": 2 },
+			{ "id": 21, "taxonomy": "post_tag", "slug": "breathing", "link": "https://blog.example.test/tag/breathing/", "count": 1 }
+		],
+		"authors": [
+			{ "id": 1, "slug": "jane", "link": "https://blog.example.test/author/jane/", "name": "Jane Writer", "description": "Jane teaches movement and writes the journal.", "avatar": "https://secure.gravatar.com/avatar/0?s=96" },
+			{ "id": 2, "slug": "sam", "link": "https://blog.example.test/author/sam/", "name": "Sam Coach", "avatar": "https://blog.example.test/wp-content/uploads/2024/06/team.jpg" }
+		],
+		"media": []
+	}
+}

@@ -133,14 +133,58 @@ export class EmDashApi {
 		const r = await this.request<{ item: ContentItem; _rev?: string }>("GET", `/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}`);
 		return { ...r.item, ...(r._rev ? { _rev: r._rev } : {}) };
 	}
-	async create(collection: string, input: { data: Record<string, unknown>; slug?: string; seo?: Record<string, unknown> }): Promise<ContentItem> {
+	async create(collection: string, input: { data: Record<string, unknown>; slug?: string; seo?: Record<string, unknown>; bylines?: { bylineId: string }[]; taxonomies?: Record<string, string[]>; publishedAt?: string }): Promise<ContentItem> {
 		return (await this.request<{ item: ContentItem }>("POST", `/content/${encodeURIComponent(collection)}`, input)).item;
 	}
-	async update(collection: string, id: string, input: { data?: Record<string, unknown>; slug?: string; seo?: Record<string, unknown>; _rev?: string }): Promise<ContentItem> {
+	async update(collection: string, id: string, input: { data?: Record<string, unknown>; slug?: string; seo?: Record<string, unknown>; _rev?: string; bylines?: { bylineId: string }[]; taxonomies?: Record<string, string[]>; publishedAt?: string }): Promise<ContentItem> {
 		return (await this.request<{ item: ContentItem }>("PUT", `/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}`, input)).item;
 	}
-	async publish(collection: string, id: string): Promise<void> {
-		await this.request("POST", `/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/publish`, {});
+	/** `publishedAt` backdates the publish (migration); EmDash requires content:publish_any (Editor role) for it. */
+	async publish(collection: string, id: string, publishedAt?: string): Promise<void> {
+		await this.request("POST", `/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/publish`, publishedAt ? { publishedAt } : {});
+	}
+	/** Scheduled publishing (EmDash publishes it from the Worker's cron at `scheduledAt`). */
+	async schedule(collection: string, id: string, scheduledAt: string): Promise<void> {
+		await this.request("POST", `/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/schedule`, { scheduledAt });
+	}
+
+	// ── collections (schema) ──
+	async createCollection(input: { slug: string; label: string; labelSingular?: string; description?: string; supports?: string[]; urlPattern?: string; routable?: boolean; hasSeo?: boolean; sortOrder?: number }): Promise<void> {
+		await this.request("POST", "/schema/collections", input);
+	}
+	async createField(collection: string, field: Record<string, unknown>): Promise<void> {
+		await this.request("POST", `/schema/collections/${encodeURIComponent(collection)}/fields`, { validation: null, ...field });
+	}
+
+	// ── taxonomies (WRITE needs taxonomies:manage, which content:write grants) ──
+	async taxonomies(): Promise<{ name: string; collections: string[]; hierarchical: boolean }[]> {
+		return (await this.request<{ taxonomies: { name: string; collections: string[]; hierarchical: boolean }[] }>("GET", "/taxonomies")).taxonomies;
+	}
+	async createTaxonomy(input: { name: string; label: string; labelSingular?: string; hierarchical?: boolean; collections?: string[] }): Promise<void> {
+		await this.request("POST", "/taxonomies", input);
+	}
+	async terms(taxonomy: string): Promise<EmDashTerm[]> {
+		return (await this.request<{ terms: EmDashTerm[] }>("GET", `/taxonomies/${encodeURIComponent(taxonomy)}/terms?includeCounts=false`)).terms;
+	}
+	async createTerm(taxonomy: string, input: { slug: string; label: string; parentId?: string | null; description?: string }): Promise<EmDashTerm> {
+		return (await this.request<{ term: EmDashTerm }>("POST", `/taxonomies/${encodeURIComponent(taxonomy)}/terms`, input)).term;
+	}
+
+	// ── bylines (EmDash 1.5 serves them under /admin: the API token needs the `admin` scope) ──
+	async bylines(): Promise<EmDashByline[]> {
+		const out: EmDashByline[] = [];
+		let cursor: string | undefined;
+		for (let page = 0; page < 100; page++) {
+			const r = await this.request<{ items: EmDashByline[]; nextCursor?: string }>("GET", `/admin/bylines?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`);
+			out.push(...(r.items ?? []));
+			if (!r.nextCursor) break;
+			cursor = r.nextCursor;
+		}
+		return out;
+	}
+	async createByline(input: { slug: string; displayName: string; bio?: string | null; avatarMediaId?: string | null; isGuest?: boolean }): Promise<EmDashByline> {
+		const r = await this.request<EmDashByline | { item?: EmDashByline; byline?: EmDashByline }>("POST", "/admin/bylines", input);
+		return ((r as { byline?: EmDashByline }).byline ?? (r as { item?: EmDashByline }).item ?? r) as EmDashByline;
 	}
 	async unpublish(collection: string, id: string): Promise<void> {
 		await this.request("POST", `/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/unpublish`, {});
@@ -208,6 +252,23 @@ export class EmDashApi {
 	async updateRedirect(id: string, input: { destination?: string; type?: number; enabled?: boolean }): Promise<EmDashRedirect> {
 		return this.request("PUT", `/redirects/${encodeURIComponent(id)}`, input);
 	}
+}
+
+export interface EmDashTerm {
+	id: string;
+	slug: string;
+	label: string;
+	parentId: string | null;
+	description?: string;
+}
+
+export interface EmDashByline {
+	id: string;
+	slug: string;
+	displayName: string;
+	bio: string | null;
+	avatarMediaId: string | null;
+	translationGroup?: string | null;
 }
 
 export interface EmDashRedirect {

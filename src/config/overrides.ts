@@ -51,10 +51,19 @@ export const overridesSchema = z.object({
 	 * WordPress address. A reason is required.
 	 */
 	contentTypes: z.record(z.string(), decision(["skip", "pages"])).default({}),
-	/** Taxonomies with terms in use (no taxonomy is migrated yet): skip = archives not rebuilt (URLs follow `wpUrls`). */
+	/**
+	 * Taxonomies with terms in use that the blog does not migrate (taxonomies of other post types; categories/tags when
+	 * posts are skipped): skip = archives not rebuilt (URLs follow `wpUrls`).
+	 */
 	taxonomies: z.record(z.string(), decision(["skip"])).default({}),
-	/** Authors with published content (no bylines are migrated yet): skip = no author pages or bylines. */
+	/** Authors with published content: skip = no bylines or author pages (blog sites get bylines by default). */
 	authors: decision(["skip"]).optional(),
+	/**
+	 * Private and password-protected posts (EmDash has no private or password status; coverage report → "Blog"):
+	 * draft = loaded as drafts (editors see them, visitors do not); skip = not migrated; publish = public on the new site
+	 * (password-protected only: the password is dropped). A reason is required.
+	 */
+	protectedPosts: decision(["draft", "skip", "publish"]).optional(),
 	/**
 	 * Old addresses the owner decided are gone: path patterns (`*` = any characters, query included when the pattern has
 	 * one) → reason. Verify accepts 404/410 for them (urls-accounted).

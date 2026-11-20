@@ -26,6 +26,8 @@ import { compareHeadings, compareMotion, compareSeo, compareText, type HeadingRe
 import { verifyReport } from "../verify/report.js";
 import { accountDetail, accountUniverse, type Judged, judgeUrl, probeUrl, type UniverseInput } from "../verify/urls-accounted.js";
 import type { WpUrlRules } from "../transform/wp-urls.js";
+import type { BlogPlan } from "../transform/blog.js";
+import { validateRss } from "../verify/feeds.js";
 import { mapLimit } from "../audit/http.js";
 import { diffSections, groupSections, type SectionDiff } from "../verify/sections.js";
 import { type CacheProbe, cacheMisses, measurePayload, median, type PayloadResult, probeCache } from "../verify/perf.js";
@@ -126,7 +128,10 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const urls = readJson<{ url: string; path: string; status: number; kind: string; noindex?: boolean; wp?: { id: number } }[]>(join(paths.snapshot, "urls.json")) ?? [];
 		const baseline = urls.filter((u) => u.kind === "page" && u.status === 200);
 		const irPages = existsSync(join(paths.ir, "pages")) ? readdirSync(join(paths.ir, "pages")).map((f) => readJson<IrPage>(join(paths.ir, "pages", f)) as IrPage) : [];
-		const published = new Set(irPages.filter((p) => p.source.status === "publish").map((p) => p.route?.path));
+		// Blog sites: posts are compared like pages (text, headings, SEO), counted, and dated (check `posts`).
+		const blogIr = readJson<BlogPlan>(join(paths.ir, "blog.json"));
+		const irPosts = blogIr && existsSync(join(paths.ir, "posts")) ? readdirSync(join(paths.ir, "posts")).map((f) => readJson<IrPage>(join(paths.ir, "posts", f)) as IrPage).filter((p) => p.post && p.source.status === "publish" && p.post.visibility === "public") : [];
+		const published = new Set([...irPages.filter((p) => p.source.status === "publish"), ...irPosts].map((p) => p.route?.path));
 		const pagesToCheck = baseline.filter((u) => published.has(u.path) || published.has(u.path.replace(/\/$/, "")) || u.path === "/");
 		const outDir = join(paths.reports, "verify");
 		rmSync(join(outDir, "screens"), { recursive: true, force: true });
@@ -328,6 +333,60 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		});
 		reporter.emit({ type: "step:end", step: "Old addresses", ok: judged.every((j) => j.ok), detail: `${judged.filter((j) => j.ok).length}/${judged.length} accounted for` });
 
+		// Blog: every published post answers at its WordPress address with its title and publish date, and the feeds are
+		// real RSS (site feed + one archive feed per taxonomy and author) with the newest posts first.
+		const postProblems: string[] = [];
+		const feedProblems: string[] = [];
+		let feedsChecked = 0;
+		if (blogIr) {
+			await mapLimit(irPosts, Math.max(4, config.audit.concurrency), async (p) => {
+				const path = p.route?.path ?? "/";
+				try {
+					const res = await kitFetch(`${base}${path}`, { redirect: "manual" });
+					const html = await res.text();
+					if (res.status !== 200) return void postProblems.push(`${path} HTTP ${res.status}`);
+					const esc = p.title.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+					if (!html.includes(p.title.slice(0, 40)) && !html.includes(esc.slice(0, 40)) && !html.includes(esc.replace(/'/g, "&#39;").slice(0, 40))) postProblems.push(`${path}: title "${p.title.slice(0, 30)}" not in HTML`);
+					const day = p.post?.publishedAt?.slice(0, 10);
+					if (day && !new RegExp(`datetime="${day}`).test(html)) postProblems.push(`${path}: publish date ${day} not shown`);
+				} catch (e) {
+					postProblems.push(`${path}: ${(e as Error).message.split("\n")[0]}`);
+				}
+			});
+			const newest = [...irPosts].sort((a, b) => Date.parse(b.post?.publishedAt ?? "") - Date.parse(a.post?.publishedAt ?? ""));
+			const feeds: { path: string; titles: string[]; items: number }[] = [{ path: "/feed/", titles: newest.slice(0, blogIr.feed.items).map((p) => p.title), items: Math.min(newest.length, blogIr.feed.items) }];
+			for (const t of blogIr.taxonomies) {
+				const term = t.terms.find((x) => newest.some((p) => p.post?.terms[t.name]?.includes(x.slug)));
+				if (!term) continue;
+				const posts = newest.filter((p) => p.post?.terms[t.name]?.includes(term.slug));
+				feeds.push({ path: `${t.base}${term.slug}/feed/`, titles: posts.slice(0, blogIr.feed.items).map((p) => p.title), items: Math.min(posts.length, blogIr.feed.items) });
+			}
+			const author = blogIr.bylines[0];
+			if (author) {
+				const posts = newest.filter((p) => p.post?.bylines.includes(author.slug));
+				feeds.push({ path: `${blogIr.authorBase}${author.slug}/feed/`, titles: posts.slice(0, blogIr.feed.items).map((p) => p.title), items: Math.min(posts.length, blogIr.feed.items) });
+			}
+			for (const f of feeds) {
+				const path = config.target.trailingSlash === "never" ? f.path.replace(/\/$/, "") : f.path;
+				try {
+					const res = await kitFetch(`${base}${path}`, { redirect: "manual" });
+					const xml = await res.text();
+					if (res.status !== 200) {
+						feedProblems.push(`${path} HTTP ${res.status}`);
+						continue;
+					}
+					if (!/xml/.test(res.headers.get("content-type") ?? "")) feedProblems.push(`${path}: content-type ${res.headers.get("content-type")}`);
+					const v = validateRss(xml, { items: f.items, titles: f.titles });
+					feedsChecked++;
+					for (const pr of v.problems) feedProblems.push(`${path}: ${pr}`);
+				} catch (e) {
+					feedProblems.push(`${path}: ${(e as Error).message.split("\n")[0]}`);
+				}
+			}
+			// Autodiscovery: the home page names the site feed.
+			if (!/<link[^>]+rel="alternate"[^>]+type="application\/rss\+xml"/.test(homeHtml)) feedProblems.push("home page has no RSS autodiscovery link");
+		}
+
 		// Sitemap: every entry answers 200 at its own address (no redirects), every published page is listed.
 		const sitemapLocs: string[] = [];
 		const sitemapErrors: string[] = [];
@@ -478,6 +537,10 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		}
 		check("legacy-urls", "Old sitemap and upload addresses redirect to working files", legacyBad.length === 0, legacyBad.slice(0, 6).join("; ") || `${legacy.length} checked`);
 		check("urls-accounted", "Every old address answers 200, one 301 to a 200, or 404/410 by decision", judged.every((j) => j.ok), accountDetail(judged));
+		if (blogIr) {
+			check("posts", "Every published post answers at its WordPress address with its title and publish date", postProblems.length === 0, postProblems.slice(0, 6).join("; ") || `${irPosts.length} posts`);
+			check("feeds", "RSS feeds (site, archives) are valid RSS 2.0 with the newest posts; autodiscovery link present", feedProblems.length === 0 && feedsChecked > 0, feedProblems.slice(0, 6).join("; ") || `${feedsChecked} feeds`);
+		}
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);
 		// Gate on sections where we can pair them; whole-page difference where we cannot (e.g. Gutenberg pages).
 		const sectionFails = results.flatMap((r) => Object.entries(r.sections).flatMap(([vp, list]) => list.filter((x) => x.ratio > g.visualDiff).map((x) => ({ text: `${r.path} ${vp} ${x.label} (${x.types.join("+")}) ${(x.ratio * 100).toFixed(1)}%`, ratio: x.ratio }))));

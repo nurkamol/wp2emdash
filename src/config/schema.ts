@@ -319,6 +319,12 @@ export const kitConfigSchema = z.object({
 		])
 		.optional(),
 
+	/**
+	 * Blog (posts collection, taxonomies, bylines, archives, feeds). Unset = on when WordPress has published posts the
+	 * transform migrates; true = on even without posts (an empty blog the client starts writing in); false = off.
+	 */
+	blog: z.boolean().optional(),
+
 	/** Third-party widget settings the page markup does not carry (public values, no secrets). */
 	embeds: z
 		.object({

@@ -92,6 +92,17 @@ export function accountUniverse(input: UniverseInput): AccountUrl[] {
 		if (p) add({ path: p, kind: t.taxonomy === "post_tag" ? "tag" : t.taxonomy, taxonomy: t.taxonomy });
 		byTax.set(t.taxonomy, [...(byTax.get(t.taxonomy) ?? []), t]);
 	}
+	// Blog sites: archive feeds are real feeds (a sample per taxonomy and author).
+	if (input.rules?.blog) {
+		for (const [tax, list] of byTax) for (const t of list.slice(0, n)) {
+			const p = pathOf(t.link, hosts);
+			if (p) add({ path: `${p.split("?")[0]?.replace(/\/?$/, "/")}feed/`, kind: "feed", taxonomy: tax });
+		}
+		for (const a of (d.authors ?? []).slice(0, n)) {
+			const p = pathOf(a.link, hosts);
+			if (p) add({ path: `${p.split("?")[0]?.replace(/\/?$/, "/")}feed/`, kind: "feed" });
+		}
+	}
 	for (const t of (byTax.get("category") ?? []).slice(0, n)) add({ path: `/?cat=${t.id}`, kind: "query", taxonomy: "category" });
 	for (const t of (byTax.get("post_tag") ?? []).slice(0, n)) add({ path: `/?tag=${t.slug}`, kind: "query", taxonomy: "post_tag" });
 	for (const a of d.authors ?? []) {
@@ -110,7 +121,8 @@ export function accountUniverse(input: UniverseInput): AccountUrl[] {
 		const p = u.path;
 		const [pathname, query = ""] = p.split("?") as [string, string?];
 		const ruled = input.rules ? matchWpUrl(pathname, new URLSearchParams(query), input.rules)?.kind : undefined;
-		const kind = u.wp?.type ?? (ruled && ruled !== "wp-id" ? ruled : u.kind === "non-html" ? (/\/wp-content\/uploads\//.test(p) ? "upload" : "file") : u.kind === "redirect" ? "redirect" : "page");
+		const blogFeed = !ruled && !!input.rules?.blog && /\/feed\/?$/.test(pathname);
+		const kind = u.wp?.type ?? (blogFeed ? "feed" : ruled && ruled !== "wp-id" ? ruled : u.kind === "non-html" ? (/\/wp-content\/uploads\//.test(p) ? "upload" : "file") : u.kind === "redirect" ? "redirect" : "page");
 		add({ path: p, kind, ...(u.wp?.type ? { type: u.wp.type } : {}) });
 	}
 	for (const a of input.pageAssets) {
@@ -142,6 +154,9 @@ export function judgeUrl(u: AccountUrl, probe: Probe, ctx: JudgeContext): Judged
 	const params = new URLSearchParams(query);
 	const action = ctx.rules ? matchWpUrl(pathname, params, ctx.rules, ctx.wpIds) : undefined;
 	if (probe.error) return res(false, `request failed: ${probe.error}`);
+	// Blog sites: the posts page, archives and their feeds are real routes: only a 200 accounts for them.
+	const blogRoute = !!ctx.rules?.blog && !action && !params.size && (["feed", "category", "tag", "author"].includes(u.kind) || !!u.taxonomy);
+	if (blogRoute && probe.status !== 200) return res(false, `blog ${u.kind} answers ${probe.status}${probe.location ? ` → ${probe.location}` : ""} (a real route: 200 expected)`);
 	if (probe.status === 200) {
 		// The home page answering a WordPress query (?s=, ?cat=, ?p=…) has ignored it: that is not the content.
 		if (pathname === "/" && wpQueryKey(params)) return goneBy ? res(true, `gone by decision (${goneBy[1]})`) : res(false, `answers the home page; ?${wpQueryKey(params)}= ignored`);

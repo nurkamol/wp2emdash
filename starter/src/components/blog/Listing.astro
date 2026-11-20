@@ -1,0 +1,56 @@
+---
+/** The posts page and the category, tag and author archives: heading, intro, posts, numbered pages. */
+import { pageHref } from "../../utils/blog";
+import type { PostEntry } from "../../utils/blog-data";
+import site from "../../site.config.json";
+import PostCard from "./PostCard.astro";
+
+interface Props {
+	heading: string;
+	/** Short text under the heading (term description, author bio). */
+	intro?: string | null;
+	/** Small label above the heading ("Category", "Author"). */
+	eyebrow?: string;
+	posts: PostEntry[];
+	/** The listing's first-page address, current page and whether there is a next one. */
+	listing: string;
+	page: number;
+	hasMore: boolean;
+	/** Avatar for an author archive. */
+	avatar?: { src: string; alt: string };
+}
+const { heading, intro, eyebrow, posts, listing, page, hasMore, avatar } = Astro.props;
+const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
+---
+
+<section class="section space-normal blog">
+	<div class="container">
+		<header class="blog__header">
+			{avatar && <img class="blog__avatar" src={avatar.src} alt={avatar.alt} width="96" height="96" />}
+			<div>
+				{eyebrow && <p class="eyebrow">{eyebrow}</p>}
+				<h1 class="heading heading--h1">{heading}</h1>
+				{intro && <p class="lead blog__intro">{intro}</p>}
+			</div>
+		</header>
+		{posts.length ? <div class="post-list">{posts.map((p, i) => <PostCard post={p} eager={i === 0} />)}</div> : <p class="blog__empty">No posts yet.</p>}
+		{
+			(page > 1 || hasMore) && (
+				<nav class="pagination" aria-label="Pages">
+					{page > 1 ? <a class="btn btn--secondary" rel="prev" href={pageHref(listing, page - 1, style)}>Newer posts</a> : <span />}
+					<span class="pagination__current">Page {page}</span>
+					{hasMore ? <a class="btn btn--secondary" rel="next" href={pageHref(listing, page + 1, style)}>Older posts</a> : <span />}
+				</nav>
+			)
+		}
+	</div>
+</section>
+
+<style>
+	.blog__header { display: flex; gap: 1.25rem; align-items: center; margin-bottom: clamp(1.5rem, 4vw, 3rem); }
+	.blog__avatar { border-radius: 50%; flex: none; }
+	.blog__intro { margin-top: 0.5rem; max-width: 60ch; }
+	.post-list { display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); }
+	.pagination { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: clamp(2rem, 5vw, 4rem); }
+	.blog__empty { opacity: 0.8; }
+</style>

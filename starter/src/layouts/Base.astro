@@ -29,8 +29,14 @@ interface Props {
 	overHero?: boolean;
 	/** Site chrome the page loaded (utils/chrome.ts). */
 	chrome?: Chrome;
+	/** A blog post: EmDash prints article meta and BlogPosting structured data from these. */
+	article?: { publishedTime?: string | null; modifiedTime?: string | null; author?: string | null };
+	/** Extra RSS feeds of this page (an archive's own feed), after the site feed. */
+	feeds?: { title: string; href: string }[];
 }
-const { title, pageTitle, description, image, canonical, robots, content, overHero, chrome: chromeProp } = Astro.props;
+const { title, pageTitle, description, image, canonical, robots, content, overHero, chrome: chromeProp, article, feeds: extraFeeds = [] } = Astro.props;
+// Blog sites: the site feed on every page (WordPress printed it in every page's head), plus the page's own.
+const blogFeed = (site as { blog?: unknown }).blog ? [{ title: "Feed", href: (site as { trailingSlash?: string }).trailingSlash === "never" ? "/feed" : "/feed/" }] : [];
 
 // Site chrome: loaded by the page (route-cache tags must be set before the response streams: utils/chrome.ts), or here
 // for a page that did not pass it.
@@ -91,7 +97,8 @@ const fullTitle = title ? (customTitle || title.includes(siteTitle) ? title : `$
 const pageCtx = createPublicPageContext({
 	Astro,
 	kind: content ? "content" : "custom",
-	pageType: "website",
+	pageType: article ? "article" : "website",
+	...(article ? { articleMeta: article } : {}),
 	title: fullTitle,
 	pageTitle: pageTitle ?? title ?? siteTitle,
 	description: description || settings.data?.tagline || undefined,
@@ -134,6 +141,8 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		{brand.icons.map((i) => <link rel={i.rel} href={i.href} type={i.type || undefined} sizes={i.sizes} />)}
 		{/* Verification tags EmDash's head does not print (Settings → SEO prints Google and Bing). */}
 		{verification.map(([name, content]) => <meta name={name} content={content} />)}
+		{/* RSS autodiscovery (blog sites): the site feed, then this page's own (an archive's). */}
+		{[...blogFeed, ...extraFeeds].map((f) => <link rel="alternate" type="application/rss+xml" title={`${siteTitle} » ${f.title}`} href={f.href} />)}
 		{/* Site widgets before analytics: a consent tool starts first (both scripts are deferred, run in order). */}
 		<SiteWidgets />
 		<Analytics />

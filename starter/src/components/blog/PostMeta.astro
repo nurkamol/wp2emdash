@@ -1,0 +1,69 @@
+---
+/** Date, bylines and categories of a post (listings and the single post). */
+import { authorHref, type PostEntry, termHref } from "../../utils/blog-data";
+import site from "../../site.config.json";
+
+interface Props {
+	post: PostEntry;
+	/** Also list the tags (single post). */
+	tags?: boolean;
+}
+const { post, tags } = Astro.props;
+const d = post.data;
+const date = d.publishedAt ? new Date(d.publishedAt) : undefined;
+const lang = (site as { lang?: string }).lang ?? "en";
+const bylines = ((d.bylines ?? []) as { byline: { slug: string; displayName: string } }[]).map((c) => c.byline).filter(Boolean);
+const terms = (d.terms ?? {}) as Record<string, { slug: string; label: string }[]>;
+const cats = (terms.category ?? []).filter((t) => t.slug !== "uncategorized");
+const tagList = tags ? (terms.tag ?? []) : [];
+---
+
+<p class="post-meta">
+	{date && <time datetime={date.toISOString()}>{date.toLocaleDateString(lang, { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}</time>}
+	{
+		bylines.length > 0 && (
+			<span class="post-meta__by">
+				{" · "}
+				{bylines.map((b, i) => (
+					<>
+						{i > 0 && ", "}
+						{authorHref(b.slug) ? <a href={authorHref(b.slug)} rel="author">{b.displayName}</a> : <span>{b.displayName}</span>}
+					</>
+				))}
+			</span>
+		)
+	}
+	{
+		cats.length > 0 && (
+			<span class="post-meta__terms">
+				{" · "}
+				{cats.map((t, i) => (
+					<>
+						{i > 0 && ", "}
+						<a href={termHref("category", t.slug)}>{t.label}</a>
+					</>
+				))}
+			</span>
+		)
+	}
+</p>
+{
+	tagList.length > 0 && (
+		<ul class="post-tags" role="list">
+			{tagList.map((t: { slug: string; label: string }) => (
+				<li>
+					<a href={termHref("tag", t.slug)} rel="tag">
+						{t.label}
+					</a>
+				</li>
+			))}
+		</ul>
+	)
+}
+
+<style>
+	.post-meta { margin: 0; font-size: 0.9em; opacity: 0.85; }
+	.post-meta a { color: inherit; }
+	.post-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0; margin: 1.5rem 0 0; list-style: none; }
+	.post-tags a { display: inline-block; padding: 0.2em 0.7em; border: 1px solid currentColor; border-radius: 999px; font-size: 0.85em; color: inherit; text-decoration: none; }
+</style>

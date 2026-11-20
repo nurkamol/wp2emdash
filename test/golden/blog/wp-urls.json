@@ -1,0 +1,40 @@
+{
+	"feed": "/feed/",
+	"commentsFeed": "gone",
+	"search": "/",
+	"category": "/journal/",
+	"tag": "/journal/",
+	"author": "/journal/",
+	"date": "/journal/",
+	"attachment": "/",
+	"bases": {
+		"category": "/category/",
+		"tag": "/tag/",
+		"author": "/author/"
+	},
+	"pages": [
+		"/",
+		"/journal/",
+		"/hello-gutenberg/",
+		"/classic-notes/"
+	],
+	"trailingSlash": "always",
+	"blog": {
+		"index": "/journal/",
+		"archives": [
+			"/category/",
+			"/tag/",
+			"/author/"
+		],
+		"ids": {
+			"cat:7": "/category/news/",
+			"cat:8": "/category/workshops/",
+			"cat:1": "/category/uncategorized/",
+			"cat:9": "/category/news/studio-news/",
+			"tag:tips": "/tag/tips/",
+			"tag:breathing": "/tag/breathing/",
+			"author:1": "/author/jane/",
+			"author:2": "/author/sam/"
+		}
+	}
+}
