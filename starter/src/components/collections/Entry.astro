@@ -1,0 +1,139 @@
+---
+/**
+ * One entry of a collection migrated from a WordPress custom post type: title, featured image, the builder sections
+ * (entries built with WPBakery/Bricks/Gutenberg keep them, like pages), the content, and the custom fields in their
+ * order — short values as a definition list, rich text as prose, images and galleries as pictures, references as
+ * links, lists of rows as small cards. Styling comes from the design tokens (styles/tokens.css).
+ */
+import { Image, PortableText } from "emdash/ui";
+import Sections from "../Sections.astro";
+import site from "../../site.config.json";
+import { type CollectionConfig, type CollectionFieldConfig, entryHref, fieldText, hasValue, jsonLines } from "../../utils/collections";
+import type { CollectionEntry } from "../../utils/collections-data";
+import { fillTokens, hasContent } from "../../utils/pt";
+
+interface Props {
+	collection: CollectionConfig;
+	entry: CollectionEntry;
+	/** EmDash's visual-editing annotations for the entry (entry.edit). */
+	edit: Record<string, any>;
+}
+const { collection, entry, edit } = Astro.props;
+const d = entry.data;
+const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
+const lang = (site as { lang?: string }).lang ?? "en";
+const blocks = (d.content ?? []) as any[];
+const body = (d.body ?? []) as any[];
+const refs = (f: string) => entry.references?.[f]?.entries ?? [];
+const parent = refs("parent")[0];
+const kind = (f: CollectionFieldConfig) => {
+	if (f.type === "portableText") return "rich";
+	if (f.type === "image") return "image";
+	if (f.type === "file") return "file";
+	if (f.type === "reference") return "refs";
+	if (f.type === "repeater") return (f.subFields ?? []).every((s) => s.type === "image") ? "gallery" : "rows";
+	if (f.type === "json") return "json";
+	return "short";
+};
+const shown = collection.fields.filter((f) => (f.type === "reference" ? refs(f.slug).length > 0 : hasValue(d[f.slug])));
+const short = shown.filter((f) => kind(f) === "short" || kind(f) === "file" || kind(f) === "refs");
+const long = shown.filter((f) => !short.includes(f));
+const fileHref = (v: any) => v?.src ?? v?.url ?? (v?.meta?.storageKey ? `/_emdash/api/media/file/${encodeURIComponent(v.meta.storageKey)}` : undefined);
+---
+
+<article class="entry">
+	<header class="section space-normal entry__header">
+		<div class="container container--narrow">
+			{parent && <p class="eyebrow"><a href={entryHref(String(parent.data.slug ?? parent.id), style)}>{parent.data.title}</a></p>}
+			{!parent && collection.archive && <p class="eyebrow"><a href={collection.archive}>{collection.label}</a></p>}
+			<h1 class="heading heading--h1" {...edit.title}>{d.title}</h1>
+			{typeof d.excerpt === "string" && d.excerpt.trim() && <p class="lead entry__excerpt" {...edit.excerpt}>{d.excerpt}</p>}
+		</div>
+	</header>
+	{
+		d.featured_image && (
+			<div class="container entry__figure">
+				<Image image={d.featured_image} class="entry__image" sizes="(max-width: 1200px) 100vw, 1200px" loading="eager" fetchpriority="high" />
+			</div>
+		)
+	}
+	{blocks.length > 0 && <div {...edit.content}><Sections value={blocks} /></div>}
+	{
+		(hasContent(body) || shown.length > 0) && (
+			<div class="section space-normal">
+				<div class="container container--narrow entry__body">
+					{hasContent(body) && <div class="prose" {...edit.body}><PortableText value={fillTokens(body)} /></div>}
+					{
+						short.length > 0 && (
+							<dl class="entry__facts">
+								{short.map((f) => (
+									<div class="entry__fact" {...edit[f.slug]}>
+										<dt>{f.label}</dt>
+										<dd>
+											{kind(f) === "refs" ? (
+												refs(f.slug).map((r, i) => <>{i > 0 && ", "}<a href={entryHref(String(r.data.slug ?? r.id), style)}>{r.data.title}</a></>)
+											) : kind(f) === "file" ? (
+												fileHref(d[f.slug]) ? <a href={fileHref(d[f.slug])}>{d[f.slug].filename ?? "Download"}</a> : (d[f.slug].filename ?? "File")
+											) : f.type === "url" ? (
+												<a href={String(d[f.slug])} rel={/^https?:/.test(String(d[f.slug])) ? "noopener" : undefined}>{String(d[f.slug]).replace(/^(mailto|tel):/, "")}</a>
+											) : (
+												fieldText(f.type, d[f.slug], lang)
+											)}
+										</dd>
+									</div>
+								))}
+							</dl>
+						)
+					}
+					{
+						long.map((f) => (
+							<section class="entry__field" {...edit[f.slug]}>
+								<h2 class="heading heading--h4">{f.label}</h2>
+								{kind(f) === "rich" ? (
+									<div class="prose"><PortableText value={fillTokens(d[f.slug])} /></div>
+								) : kind(f) === "image" ? (
+									<Image image={d[f.slug]} class="entry__inline-image" sizes="(max-width: 760px) 100vw, 46rem" />
+								) : kind(f) === "gallery" ? (
+									<div class="entry__gallery">{(d[f.slug] as any[]).flatMap((row) => (f.subFields ?? []).filter((s) => row?.[s.slug]).map((s) => <Image image={row[s.slug]} sizes="(max-width: 700px) 50vw, 15rem" />))}</div>
+								) : kind(f) === "rows" ? (
+									<ul class="entry__rows">
+										{(d[f.slug] as any[]).map((row) => (
+											<li class="entry__row">
+												{(f.subFields ?? []).filter((s) => hasValue(row?.[s.slug])).map((s) => (s.type === "image" ? <Image image={row[s.slug]} sizes="12rem" class="entry__row-image" /> : <p><span class="entry__row-label">{s.label}</span> {s.type === "url" ? <a href={String(row[s.slug])}>{String(row[s.slug])}</a> : fieldText(s.type, row[s.slug], lang)}</p>))}
+											</li>
+										))}
+									</ul>
+								) : (
+									<ul class="entry__list">{jsonLines(d[f.slug]).map((l) => <li>{l}</li>)}</ul>
+								)}
+							</section>
+						))
+					}
+				</div>
+			</div>
+		)
+	}
+</article>
+
+<style>
+	.container--narrow { max-width: min(100% - 2 * var(--gutter), 46rem); }
+	.entry__header { padding-bottom: 0; }
+	.entry__header .eyebrow a { color: inherit; }
+	.entry__excerpt { margin-top: 0.75rem; }
+	.entry__figure { margin-top: clamp(1.5rem, 4vw, 2.5rem); }
+	.entry__figure :global(img) { width: 100%; height: auto; border-radius: var(--radius-media, 0); }
+	.entry__body { display: grid; gap: clamp(1.5rem, 4vw, 2.5rem); }
+	.entry__body :global(img) { max-width: 100%; height: auto; }
+	.entry__facts { display: grid; gap: 0.75rem 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); margin: 0; }
+	.entry__fact dt { font-size: 0.85em; opacity: 0.75; }
+	.entry__fact dd { margin: 0.15rem 0 0; font-weight: 600; overflow-wrap: anywhere; }
+	.entry__field h2 { margin: 0 0 0.75rem; }
+	.entry__gallery { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr)); }
+	.entry__gallery :global(img) { width: 100%; height: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius-media, 0); }
+	.entry__rows { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); list-style: none; padding: 0; margin: 0; }
+	.entry__row { padding: 1rem 1.25rem; border: 1px solid color-mix(in srgb, currentColor 15%, transparent); border-radius: var(--radius-card, var(--radius-media, 0)); }
+	.entry__row p { margin: 0.25rem 0 0; }
+	.entry__row-label { display: block; font-size: 0.85em; opacity: 0.75; }
+	.entry__row :global(.entry__row-image) { width: 100%; height: auto; border-radius: var(--radius-media, 0); }
+	.entry__list { margin: 0; padding-left: 1.2em; }
+</style>

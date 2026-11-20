@@ -4,6 +4,8 @@
  * Blog sites (site.config.json `blog`) also answer here: the posts page and its numbered pages, category/tag/author
  * archives (WordPress bases and paths), their RSS feeds (/feed/, /category/<slug>/feed/…), and every post at its
  * WordPress address (the post's slug is its path, as for pages). A page always wins over a post with the same address.
+ * Sites with collections migrated from custom post types (site.config.json `collections`) answer here too: each
+ * collection's archive (and `/page/N/`), its term archives, and every entry at its WordPress address (after pages and posts).
  */
 import { decodeSlug, getEmDashEntry, getSeoMeta, getSiteSettings } from "emdash";
 import Base from "../layouts/Base.astro";
@@ -15,6 +17,10 @@ import { cachePage, noCache } from "../utils/cache";
 import { cacheChrome, loadChrome } from "../utils/chrome";
 import { autoExcerpt, blogRoute, feedHref, ptText, ptToHtml, rssXml } from "../utils/blog";
 import { blogConfig, bylineOf, cacheBlog, featuredPosts, listPosts, neighbours, type PostEntry, postHref, relatedPosts, termOf } from "../utils/blog-data";
+import Archive from "../components/collections/Archive.astro";
+import Entry from "../components/collections/Entry.astro";
+import { collectionRoute } from "../utils/collections";
+import { cacheCollections, type CollectionEntry, collectionsConfig, findEntry, listEntries, termOf as collectionTermOf } from "../utils/collections-data";
 
 const raw = Astro.params.slug ? decodeSlug(Astro.params.slug) : "home";
 const slug = raw || "home";
@@ -83,12 +89,43 @@ if (blog && route) {
 	}
 }
 
-// ── A page, else a post ──────────────────────────────────────────────────────────────────────────────────────
-const [{ entry: page, cacheHint }, loadedChrome] = listing ? [{ entry: undefined, cacheHint: undefined }, chrome] : await Promise.all([getEmDashEntry("pages", slug), loadChrome()]);
+// ── Collections (custom post types): archives and term archives ────────────────────────────────────────────────
+let archive: { heading: string; intro?: string | null; eyebrow?: string; entries: CollectionEntry[]; listing: string; page: number; hasMore: boolean; description?: string | null } | undefined;
+const croute = !listing && collectionsConfig.length && Astro.params.slug ? collectionRoute(Astro.url.pathname, collectionsConfig) : undefined;
+if (croute) {
+	const listingPath = Astro.url.pathname.replace(/page\/\d+\/?$/, "");
+	if (croute.kind === "archive") {
+		const c = croute.collection;
+		const [list, ch] = await Promise.all([listEntries(c, { page: croute.page }), loadChrome()]);
+		chrome = ch;
+		archive = { heading: c.label, entries: list.entries, listing: listingPath, page: croute.page, hasMore: list.hasMore };
+		cacheCollections(Astro.cache, [c], [list.cacheHint]);
+	} else {
+		const [term, ch] = await Promise.all([collectionTermOf(croute.taxonomy, croute.slug), loadChrome()]);
+		chrome = ch;
+		if (term) {
+			const lists = await Promise.all(croute.collections.map((c) => listEntries(c, { page: croute.page, where: { [croute.taxonomy]: croute.slug } })));
+			archive = { heading: term.label, intro: term.description, description: term.description, eyebrow: croute.label, entries: lists.flatMap((l) => l.entries), listing: listingPath, page: croute.page, hasMore: lists.some((l) => l.hasMore) };
+			cacheCollections(Astro.cache, croute.collections, lists.map((l) => l.cacheHint));
+		}
+	}
+	// An unknown term, or a page past the last one: not found.
+	if (!archive || (croute.page > 1 && !archive.entries.length)) {
+		noCache(Astro.cache);
+		return Astro.rewrite("/404");
+	}
+	cachePage(Astro.cache);
+	if (chrome) cacheChrome(Astro.cache, chrome);
+}
+
+// ── A page, else a post, else an entry of a collection ───────────────────────────────────────────────────────
+const [{ entry: page, cacheHint }, loadedChrome] = listing || archive ? [{ entry: undefined, cacheHint: undefined }, chrome] : await Promise.all([getEmDashEntry("pages", slug), loadChrome()]);
 chrome = loadedChrome ?? chrome;
-const postResult = !listing && !page && blog && slug !== "home" ? await getEmDashEntry("posts", slug) : undefined;
+const postResult = !listing && !archive && !page && blog && slug !== "home" ? await getEmDashEntry("posts", slug) : undefined;
 const post = postResult?.entry as PostEntry & { edit: Record<string, any> } | undefined;
-if (!listing && !page && !post) {
+const found = !listing && !archive && !page && !post && collectionsConfig.length && slug !== "home" ? await findEntry(slug) : undefined;
+if (found) cacheCollections(Astro.cache, [found.collection], [found.cacheHint]);
+if (!listing && !archive && !page && !post && !found) {
 	noCache(Astro.cache);
 	return Astro.rewrite("/404");
 }
@@ -109,7 +146,7 @@ if (post) {
 cachePage(Astro.cache);
 if (chrome) cacheChrome(Astro.cache, chrome);
 
-const entry = (page ?? post) as any;
+const entry = (page ?? post ?? found?.entry) as any;
 const data = (entry?.data ?? {}) as any;
 const blocks = (page ? (data.content ?? []) : []) as any[];
 const seo = entry ? getSeoMeta(entry, { siteUrl: Astro.url.origin, path: slug === "home" ? "/" : Astro.url.pathname }) : listing?.seo;
@@ -124,6 +161,14 @@ const byline = post?.data.bylines?.[0]?.byline as { displayName?: string } | und
 	listing ? (
 		<Base chrome={chrome} title={seo?.title ?? (listing.page > 1 ? `${listing.title} – Page ${listing.page}` : listing.title)} pageTitle={listing.title} description={seo?.description ?? listing.description} canonical={`${site.productionUrl.replace(/\/$/, "")}${listing.canonicalPath}`} feeds={route?.kind === "index" ? [] : [{ title: listing.feedTitle, href: feedHref(listing.listing, style) }]}>
 			<Listing heading={listing.heading} intro={listing.intro} eyebrow={listing.eyebrow} posts={listing.posts} listing={listing.listing} page={listing.page} hasMore={listing.hasMore} avatar={listing.avatar} />
+		</Base>
+	) : archive ? (
+		<Base chrome={chrome} title={archive.page > 1 ? `${archive.heading} – Page ${archive.page}` : archive.heading} pageTitle={archive.heading} description={archive.description} canonical={`${site.productionUrl.replace(/\/$/, "")}${Astro.url.pathname}`}>
+			<Archive heading={archive.heading} intro={archive.intro} eyebrow={archive.eyebrow} entries={archive.entries} listing={archive.listing} page={archive.page} hasMore={archive.hasMore} />
+		</Base>
+	) : found ? (
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: found.collection.slug, id: data.id, slug: found.entry.id }}>
+			<Entry collection={found.collection} entry={found.entry} edit={found.entry.edit ?? {}} />
 		</Base>
 	) : post ? (
 		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || autoExcerpt(ptText(data.body), 30) || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "posts", id: data.id, slug: post.id }} article={{ publishedTime: data.publishedAt ? new Date(data.publishedAt).toISOString() : null, modifiedTime: data.updatedAt ? new Date(data.updatedAt).toISOString() : null, author: byline?.displayName ?? null }}>

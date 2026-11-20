@@ -144,6 +144,8 @@ export interface JudgeContext {
 	rules?: WpUrlRules;
 	wpIds?: Record<string, string>;
 	overrides: Pick<Overrides, "gone" | "contentTypes" | "taxonomies" | "authors">;
+	/** Addresses of migrated custom post type entries and archives: real routes, only a 200 accounts for them. */
+	realRoutes?: Set<string>;
 }
 
 /** Accounted for or not, and why. */
@@ -157,6 +159,8 @@ export function judgeUrl(u: AccountUrl, probe: Probe, ctx: JudgeContext): Judged
 	// Blog sites: the posts page, archives and their feeds are real routes: only a 200 accounts for them.
 	const blogRoute = !!ctx.rules?.blog && !action && !params.size && (["feed", "category", "tag", "author"].includes(u.kind) || !!u.taxonomy);
 	if (blogRoute && probe.status !== 200) return res(false, `blog ${u.kind} answers ${probe.status}${probe.location ? ` → ${probe.location}` : ""} (a real route: 200 expected)`);
+	const norm = (p: string) => (p === "/" ? "/" : `${p.replace(/\/+$/, "")}/`);
+	if (ctx.realRoutes && !params.size && [...ctx.realRoutes].some((r) => norm(r) === norm(pathname)) && probe.status !== 200) return res(false, `migrated entry or archive answers ${probe.status}${probe.location ? ` → ${probe.location}` : ""} (a real route: 200 expected)`);
 	if (probe.status === 200) {
 		// The home page answering a WordPress query (?s=, ?cat=, ?p=…) has ignored it: that is not the content.
 		if (pathname === "/" && wpQueryKey(params)) return goneBy ? res(true, `gone by decision (${goneBy[1]})`) : res(false, `answers the home page; ?${wpQueryKey(params)}= ignored`);

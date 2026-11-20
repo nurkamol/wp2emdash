@@ -12,6 +12,14 @@ const sectionOrDrop = z.union([z.enum(SECTION_TYPES.filter((t) => t !== "announc
 
 const wpTarget = z.union([z.literal("home"), z.literal("gone"), z.string().regex(/^\//, "a path starting with /")]).optional();
 
+const EMDASH_FIELD_TYPES = ["string", "text", "url", "number", "integer", "boolean", "datetime", "select", "multiSelect", "portableText", "image", "file", "json"] as const;
+const collectionDecision = z.object({
+	as: z.literal("collection"),
+	name: z.string().regex(/^[a-z][a-z0-9_]*$/, "a collection slug: lowercase letters, digits, underscores").optional(),
+	reason: z.string().optional(),
+	fields: z.record(z.string(), z.enum([...EMDASH_FIELD_TYPES, "skip"])).optional(),
+});
+
 export const overridesSchema = z.object({
 	/** WordPress path → EmDash path, when the default mapping is wrong. */
 	routes: z.record(z.string(), z.string()).default({}),
@@ -46,11 +54,13 @@ export const overridesSchema = z.object({
 	 */
 	snippets: z.record(z.string().regex(/^sn-[0-9a-f]{8}$/), z.enum(["drop", "rebuilt"])).default({}),
 	/**
-	 * Post types the transform does not migrate on its own (CPTs, Gutenberg/classic posts, products…; coverage report →
-	 * "Content types"): skip = not carried (their URLs may answer 404/410 in verify), pages = migrated as pages at their
-	 * WordPress address. A reason is required.
+	 * Post types (CPTs, Gutenberg/classic posts, products…; coverage report → "Content types" and "Custom post types"):
+	 * skip = not carried (their URLs may answer 404/410 in verify), pages = migrated as pages at their WordPress address
+	 * (a reason is required for both); collection = its own EmDash collection (the default for a public post type the
+	 * Exporter describes): `name` renames the collection, `fields` maps meta keys no field definition describes to an
+	 * EmDash field type, or leaves a field out ("skip").
 	 */
-	contentTypes: z.record(z.string(), decision(["skip", "pages"])).default({}),
+	contentTypes: z.record(z.string(), z.union([decision(["skip", "pages"]), collectionDecision])).default({}),
 	/**
 	 * Taxonomies with terms in use that the blog does not migrate (taxonomies of other post types; categories/tags when
 	 * posts are skipped): skip = archives not rebuilt (URLs follow `wpUrls`).

@@ -1,0 +1,118 @@
+{
+	"$comment": "Synthetic WordPress site with custom post types: an ACF-powered `team` (text, image, wysiwyg, repeater, relationship, date, select, true/false, gallery, taxonomy `department`), a hierarchical `services` with Meta Box fields (classic and Gutenberg entries), and a Pods `location` with a multi relationship to services. Exporter 1.2 shapes (analyze, content with `acf` and `meta`), REST /wp/v2/types, plugin field-definition exports. No real data.",
+	"options": { "blogname": "Example Studio", "show_on_front": "page", "page_on_front": 1, "posts_per_page": 2, "permalink_structure": "/%postname%/" },
+	"pages": [
+		{ "id": 1, "post_type": "page", "status": "publish", "slug": "home", "title": "Home", "content": "<!-- wp:paragraph --><p>Welcome to the studio.</p><!-- /wp:paragraph -->", "excerpt": "", "date_gmt": "2024-01-02 10:00:00", "modified_gmt": "2024-01-02 10:00:00", "parent": null, "menu_order": 0, "taxonomies": {}, "meta": {}, "permalink": "https://cpt.example.test/" },
+		{ "id": 2, "post_type": "page", "status": "publish", "slug": "about", "title": "About", "content": "<!-- wp:paragraph --><p>About the studio.</p><!-- /wp:paragraph -->", "excerpt": "", "date_gmt": "2024-01-02 10:00:00", "modified_gmt": "2024-01-02 10:00:00", "parent": null, "menu_order": 0, "taxonomies": {}, "meta": {}, "permalink": "https://cpt.example.test/about/" }
+	],
+	"team": [
+		{
+			"id": 101, "post_type": "team", "status": "publish", "slug": "jane", "title": "Jane Doe", "content": "Jane has taught Pilates for twelve years.\n\nShe trained in London.", "excerpt": "Lead instructor.", "date_gmt": "2024-02-01 09:00:00", "modified_gmt": "2024-03-01 09:00:00", "parent": null, "menu_order": 1,
+			"author": { "id": 1, "login": "admin", "display_name": "Studio Admin" },
+			"permalink": "https://cpt.example.test/team/jane/",
+			"taxonomies": { "department": [{ "id": 40, "name": "Coaching", "slug": "coaching" }] },
+			"featured_image": { "id": 31, "url": "https://cpt.example.test/wp-content/uploads/2024/02/jane.jpg" },
+			"meta": { "role": "Lead instructor", "_role": "field_role", "photo": "32", "_photo": "field_photo", "bio": "<p>Certified <strong>STOTT</strong> instructor.</p>", "start_date": "20200115", "level": "senior", "accepts_clients": "1", "skills": "2", "skills_0_skill": "Reformer", "skills_0_years": "8", "skills_1_skill": "Mat", "skills_1_years": "12", "related": ["102"], "gallery": ["33", "34"], "legacy_code": "JD-01", "rank_math_title": "Jane", "_thumbnail_id": "31" },
+			"acf": { "role": "Lead instructor", "photo": { "type": "image", "id": 32, "url": "https://cpt.example.test/wp-content/uploads/2024/02/jane-portrait.jpg", "alt": "Jane portrait" }, "bio": "<p>Certified <strong>STOTT</strong> instructor.</p>", "start_date": "January 15, 2020", "level": "senior", "accepts_clients": true, "skills": [{ "skill": "Reformer", "years": "8" }, { "skill": "Mat", "years": "12" }], "related": [102], "gallery": [{ "ID": 33, "id": 33, "url": "https://cpt.example.test/wp-content/uploads/2024/02/studio-1.jpg", "alt": "Studio", "sizes": { "thumbnail": "https://cpt.example.test/wp-content/uploads/2024/02/studio-1-150x150.jpg" } }, { "ID": 34, "id": 34, "url": "https://cpt.example.test/wp-content/uploads/2024/02/studio-2.jpg", "alt": "", "sizes": {} }], "profile_link": { "title": "Profile", "url": "https://example.org/jane", "target": "" } }
+		},
+		{
+			"id": 102, "post_type": "team", "status": "publish", "slug": "sam", "title": "Sam Lee", "content": "Sam runs the front desk.", "excerpt": "", "date_gmt": "2024-02-02 09:00:00", "modified_gmt": "2024-02-02 09:00:00", "parent": null, "menu_order": 2,
+			"author": { "id": 1, "login": "admin", "display_name": "Studio Admin" },
+			"permalink": "https://cpt.example.test/team/sam/",
+			"taxonomies": { "department": [{ "id": 41, "name": "Front desk", "slug": "front-desk" }] },
+			"meta": { "role": "Front desk", "level": "junior", "accepts_clients": "0", "related": ["101", "999"], "legacy_code": "SL-02" },
+			"acf": { "role": "Front desk", "photo": false, "bio": "", "start_date": "", "level": "junior", "accepts_clients": false, "skills": false, "related": [101, 999], "gallery": false }
+		},
+		{
+			"id": 103, "post_type": "team", "status": "draft", "slug": "", "title": "New hire", "content": "", "excerpt": "", "date_gmt": "0000-00-00 00:00:00", "modified_gmt": "2024-04-01 09:00:00", "parent": null, "menu_order": 3,
+			"permalink": "https://cpt.example.test/?post_type=team&p=103",
+			"taxonomies": {}, "meta": { "role": "Instructor" }, "acf": { "role": "Instructor" }
+		}
+	],
+	"services": [
+		{ "id": 201, "post_type": "services", "status": "publish", "slug": "pilates", "title": "Pilates", "content": "Classes for every level.\n\n[caption id=\"attachment_35\" align=\"alignnone\" width=\"300\"]<img class=\"wp-image-35\" src=\"https://cpt.example.test/wp-content/uploads/2024/02/class.jpg\" alt=\"A class\" /> A class in progress[/caption]", "excerpt": "", "date_gmt": "2024-01-10 09:00:00", "modified_gmt": "2024-01-10 09:00:00", "parent": null, "menu_order": 0, "permalink": "https://cpt.example.test/services/pilates/", "taxonomies": {}, "meta": { "price": "40", "duration": "55 minutes", "photos": ["35"], "booking_url": "https://book.example.org/pilates" } },
+		{ "id": 202, "post_type": "services", "status": "publish", "slug": "private-sessions", "title": "Private sessions", "content": "One to one sessions.", "excerpt": "", "date_gmt": "2024-01-11 09:00:00", "modified_gmt": "2024-01-11 09:00:00", "parent": 201, "menu_order": 1, "permalink": "https://cpt.example.test/services/pilates/private-sessions/", "taxonomies": {}, "meta": { "price": "90", "duration": "60 minutes", "booking_url": "not a url" } },
+		{ "id": 203, "post_type": "services", "status": "publish", "slug": "group-classes", "title": "Group classes", "content": "<!-- wp:heading --><h2 class=\"wp-block-heading\">Group classes</h2><!-- /wp:heading --><!-- wp:paragraph --><p>Up to eight people per class.</p><!-- /wp:paragraph -->", "excerpt": "", "date_gmt": "2024-01-12 09:00:00", "modified_gmt": "2024-01-12 09:00:00", "parent": 201, "menu_order": 2, "permalink": "https://cpt.example.test/services/pilates/group-classes/", "taxonomies": {}, "meta": { "price": "25" } }
+	],
+	"location": [
+		{ "id": 301, "post_type": "location", "status": "publish", "slug": "downtown", "title": "Downtown studio", "content": "", "excerpt": "", "date_gmt": "2024-01-05 09:00:00", "modified_gmt": "2024-01-05 09:00:00", "parent": null, "menu_order": 0, "permalink": "https://cpt.example.test/location/downtown/", "taxonomies": {}, "meta": { "address": "1 Main Street\nSpringfield", "website": "https://cpt.example.test/", "open_weekends": "1", "phone": "+1 555 0100", "services_offered": ["201", "202"], "_pods_address": "field_1" } }
+	],
+	"taxonomies": [
+		{ "name": "department", "label": "Departments", "label_singular": "Department", "hierarchical": false, "post_types": ["team"], "terms": [{ "id": 40, "name": "Coaching", "slug": "coaching", "description": "Instructors", "parent": null, "count": 1 }, { "id": 41, "name": "Front desk", "slug": "front-desk", "description": "", "parent": null, "count": 1 }] }
+	],
+	"analyze": {
+		"post_types": [
+			{ "name": "page", "label": "Pages", "label_singular": "Page", "total": 2, "supports": { "title": true, "editor": true }, "taxonomies": [], "hierarchical": true, "has_archive": false, "custom_fields": [] },
+			{ "name": "team", "label": "Team", "label_singular": "Team member", "total": 3, "supports": { "title": true, "editor": true, "thumbnail": true, "excerpt": true, "author": true }, "taxonomies": ["department"], "hierarchical": false, "has_archive": true, "custom_fields": [{ "key": "role", "count": 3, "inferred_type": "string", "sample": "Lead instructor" }] },
+			{ "name": "services", "label": "Services", "label_singular": "Service", "total": 3, "supports": { "title": true, "editor": true, "page-attributes": true }, "taxonomies": [], "hierarchical": true, "has_archive": "services", "custom_fields": [] },
+			{ "name": "location", "label": "Locations", "label_singular": "Location", "total": 1, "supports": { "title": true }, "taxonomies": [], "hierarchical": false, "has_archive": false, "custom_fields": [] }
+		],
+		"acf": [
+			{ "key": "group_team", "title": "Team member", "location": [[{ "param": "post_type", "operator": "==", "value": "team" }]], "fields": [{ "key": "field_role", "name": "role", "label": "Role", "type": "text", "required": true }, { "key": "field_photo", "name": "photo", "label": "Photo", "type": "image", "required": false }] }
+		],
+		"authors": [{ "id": 1, "login": "admin", "display_name": "Studio Admin", "post_count": 0 }],
+		"attachments": { "count": 5, "by_type": { "image": 5 } }
+	},
+	"types": {
+		"page": { "slug": "page", "name": "Pages", "rest_base": "pages", "hierarchical": true, "has_archive": false, "viewable": true },
+		"team": { "slug": "team", "name": "Team", "rest_base": "team", "hierarchical": false, "has_archive": true, "viewable": true },
+		"services": { "slug": "services", "name": "Services", "rest_base": "services", "hierarchical": true, "has_archive": "services", "viewable": true },
+		"location": { "slug": "location", "name": "Locations", "rest_base": "location", "hierarchical": false, "has_archive": false, "viewable": true }
+	},
+	"fieldDefinitions": {
+		"acf-team.json": {
+			"provider": "acf",
+			"file": "acf-export-2024-05-01.json",
+			"data": [
+				{
+					"key": "group_team",
+					"title": "Team member",
+					"location": [[{ "param": "post_type", "operator": "==", "value": "team" }]],
+					"fields": [
+						{ "key": "field_role", "label": "Role", "name": "role", "type": "text", "required": 1 },
+						{ "key": "field_photo", "label": "Photo", "name": "photo", "type": "image", "return_format": "array" },
+						{ "key": "field_bio", "label": "Biography", "name": "bio", "type": "wysiwyg" },
+						{ "key": "field_tab", "label": "More", "name": "", "type": "tab" },
+						{ "key": "field_start", "label": "Teaching since", "name": "start_date", "type": "date_picker", "return_format": "F j, Y" },
+						{ "key": "field_level", "label": "Level", "name": "level", "type": "select", "choices": { "junior": "Junior", "senior": "Senior" } },
+						{ "key": "field_accepts", "label": "Takes new clients", "name": "accepts_clients", "type": "true_false" },
+						{ "key": "field_skills", "label": "Skills", "name": "skills", "type": "repeater", "sub_fields": [{ "key": "field_skill", "label": "Skill", "name": "skill", "type": "text" }, { "key": "field_years", "label": "Years", "name": "years", "type": "number" }] },
+						{ "key": "field_related", "label": "Works with", "name": "related", "type": "relationship", "post_type": ["team"] },
+						{ "key": "field_gallery", "label": "Gallery", "name": "gallery", "type": "gallery" },
+						{ "key": "field_link", "label": "Profile link", "name": "profile_link", "type": "link" }
+					]
+				}
+			]
+		},
+		"metabox-services.json": {
+			"provider": "metabox",
+			"file": "meta-box-export.json",
+			"data": [{ "post_title": "Service details", "meta_box": { "id": "service-details", "title": "Service details", "post_types": ["services"], "fields": [{ "id": "price", "name": "Price", "type": "number" }, { "id": "duration", "name": "Duration", "type": "text" }, { "id": "photos", "name": "Photos", "type": "image_advanced" }, { "id": "booking_url", "name": "Booking link", "type": "url" }] } }]
+		},
+		"pods-location.json": {
+			"provider": "pods",
+			"file": "pods-package.json",
+			"data": { "@meta": { "version": "3.2.0" }, "pods": [{ "name": "location", "label": "Locations", "type": "post_type", "fields": [{ "name": "address", "label": "Address", "type": "paragraph" }, { "name": "website", "label": "Website", "type": "website" }, { "name": "open_weekends", "label": "Open at weekends", "type": "boolean" }, { "name": "phone", "label": "Phone", "type": "phone" }, { "name": "services_offered", "label": "Services", "type": "pick", "pick_object": "post_type", "pick_val": "services", "pick_format_type": "multi" }] }] }
+		}
+	},
+	"media": [
+		{ "id": 31, "url": "https://cpt.example.test/wp-content/uploads/2024/02/jane.jpg", "file": "2024/02/jane.jpg", "inLibrary": true, "referencedBy": [] },
+		{ "id": 32, "url": "https://cpt.example.test/wp-content/uploads/2024/02/jane-portrait.jpg", "file": "2024/02/jane-portrait.jpg", "inLibrary": true, "referencedBy": [] },
+		{ "id": 33, "url": "https://cpt.example.test/wp-content/uploads/2024/02/studio-1.jpg", "file": "2024/02/studio-1.jpg", "inLibrary": true, "referencedBy": [] },
+		{ "id": 34, "url": "https://cpt.example.test/wp-content/uploads/2024/02/studio-2.jpg", "file": "2024/02/studio-2.jpg", "inLibrary": true, "referencedBy": [] },
+		{ "id": 35, "url": "https://cpt.example.test/wp-content/uploads/2024/02/class.jpg", "file": "2024/02/class.jpg", "inLibrary": true, "referencedBy": [] }
+	],
+	"urls": [
+		{ "url": "https://cpt.example.test/", "path": "/", "status": 200, "kind": "page", "wp": { "id": 1, "type": "page" } },
+		{ "url": "https://cpt.example.test/about/", "path": "/about/", "status": 200, "kind": "page", "wp": { "id": 2, "type": "page" } },
+		{ "url": "https://cpt.example.test/team/jane/", "path": "/team/jane/", "status": 200, "kind": "page", "wp": { "id": 101, "type": "team" } },
+		{ "url": "https://cpt.example.test/team/", "path": "/team/", "status": 200, "kind": "page" },
+		{ "url": "https://cpt.example.test/services/pilates/private-sessions/", "path": "/services/pilates/private-sessions/", "status": 200, "kind": "page", "wp": { "id": 202, "type": "services" } }
+	],
+	"discovery": {
+		"items": [{ "id": 101, "type": "team", "link": "https://cpt.example.test/team/jane/" }, { "id": 201, "type": "services", "link": "https://cpt.example.test/services/pilates/" }],
+		"terms": [{ "id": 40, "taxonomy": "department", "slug": "coaching", "link": "https://cpt.example.test/department/coaching/", "count": 1 }, { "id": 41, "taxonomy": "department", "slug": "front-desk", "link": "https://cpt.example.test/department/front-desk/", "count": 1 }],
+		"authors": [],
+		"media": []
+	}
+}

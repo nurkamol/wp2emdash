@@ -1,0 +1,645 @@
+{
+	"collections": [
+		{
+			"slug": "services",
+			"label": "Services",
+			"labelSingular": "Service",
+			"description": "Migrated from the WordPress post type \"services\"",
+			"urlPattern": "/{slug}",
+			"supports": [
+				"drafts",
+				"revisions",
+				"preview",
+				"seo",
+				"search"
+			],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "body",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "content",
+					"label": "Sections (entries built with a page builder)",
+					"type": "blocks",
+					"validation": {
+						"allowedTypes": [
+							"section_hero",
+							"section_rich_text",
+							"section_media_text",
+							"section_columns",
+							"section_feature_grid",
+							"section_cta_banner",
+							"section_faq",
+							"section_pricing",
+							"section_testimonials",
+							"section_team",
+							"section_gallery",
+							"section_logo_strip",
+							"section_stats",
+							"section_steps",
+							"section_tabs",
+							"section_video",
+							"section_form",
+							"section_map",
+							"section_embed",
+							"section_legacy_html",
+							"section_announcement"
+						],
+						"maxItems": 80
+					}
+				},
+				{
+					"slug": "menu_order",
+					"label": "Order",
+					"type": "integer"
+				},
+				{
+					"slug": "parent",
+					"label": "Parent service",
+					"type": "reference",
+					"validation": {
+						"targetCollection": "services",
+						"multiple": false
+					}
+				},
+				{
+					"slug": "price",
+					"label": "Price",
+					"type": "number"
+				},
+				{
+					"slug": "duration",
+					"label": "Duration",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "photos",
+					"label": "Photos",
+					"type": "repeater",
+					"validation": {
+						"subFields": [
+							{
+								"slug": "image",
+								"label": "Image",
+								"type": "image"
+							}
+						]
+					}
+				},
+				{
+					"slug": "booking_url",
+					"label": "Booking link",
+					"type": "url"
+				}
+			],
+			"sortOrder": 2
+		},
+		{
+			"slug": "location",
+			"label": "Locations",
+			"labelSingular": "Location",
+			"description": "Migrated from the WordPress post type \"location\"",
+			"urlPattern": "/{slug}",
+			"supports": [
+				"drafts",
+				"revisions",
+				"preview",
+				"seo",
+				"search"
+			],
+			"dateField": "publishedAt",
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "address",
+					"label": "Address",
+					"type": "text",
+					"searchable": true
+				},
+				{
+					"slug": "website",
+					"label": "Website",
+					"type": "url"
+				},
+				{
+					"slug": "open_weekends",
+					"label": "Open at weekends",
+					"type": "boolean"
+				},
+				{
+					"slug": "phone",
+					"label": "Phone",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "services_offered",
+					"label": "Services",
+					"type": "reference",
+					"validation": {
+						"targetCollection": "services",
+						"multiple": true
+					}
+				}
+			],
+			"sortOrder": 3
+		},
+		{
+			"slug": "team",
+			"label": "Team",
+			"labelSingular": "Team member",
+			"description": "Migrated from the WordPress post type \"team\"",
+			"urlPattern": "/{slug}",
+			"supports": [
+				"drafts",
+				"revisions",
+				"preview",
+				"seo",
+				"search"
+			],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "excerpt",
+					"label": "Excerpt",
+					"type": "text",
+					"searchable": true
+				},
+				{
+					"slug": "featured_image",
+					"label": "Featured image",
+					"type": "image"
+				},
+				{
+					"slug": "body",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				},
+				{
+					"slug": "menu_order",
+					"label": "Order",
+					"type": "integer"
+				},
+				{
+					"slug": "role",
+					"label": "Role",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "photo",
+					"label": "Photo",
+					"type": "image"
+				},
+				{
+					"slug": "bio",
+					"label": "Biography",
+					"type": "portableText"
+				},
+				{
+					"slug": "start_date",
+					"label": "Teaching since",
+					"type": "datetime"
+				},
+				{
+					"slug": "level",
+					"label": "Level",
+					"type": "select",
+					"validation": {
+						"options": [
+							"junior",
+							"senior"
+						]
+					}
+				},
+				{
+					"slug": "accepts_clients",
+					"label": "Takes new clients",
+					"type": "boolean"
+				},
+				{
+					"slug": "skills",
+					"label": "Skills",
+					"type": "repeater",
+					"validation": {
+						"subFields": [
+							{
+								"slug": "skill",
+								"label": "Skill",
+								"type": "string"
+							},
+							{
+								"slug": "years",
+								"label": "Years",
+								"type": "number"
+							}
+						]
+					}
+				},
+				{
+					"slug": "related",
+					"label": "Works with",
+					"type": "reference",
+					"validation": {
+						"targetCollection": "team",
+						"multiple": true
+					}
+				},
+				{
+					"slug": "gallery",
+					"label": "Gallery",
+					"type": "repeater",
+					"validation": {
+						"subFields": [
+							{
+								"slug": "image",
+								"label": "Image",
+								"type": "image"
+							}
+						]
+					}
+				},
+				{
+					"slug": "profile_link",
+					"label": "Profile link",
+					"type": "json"
+				},
+				{
+					"slug": "legacy_code",
+					"label": "Legacy Code",
+					"type": "string",
+					"searchable": true
+				}
+			],
+			"sortOrder": 4
+		}
+	],
+	"taxonomies": [
+		{
+			"name": "department",
+			"label": "Departments",
+			"labelSingular": "Department",
+			"hierarchical": false,
+			"collections": [
+				"team"
+			],
+			"terms": [
+				{
+					"slug": "coaching",
+					"label": "Coaching",
+					"description": "Instructors"
+				},
+				{
+					"slug": "front-desk",
+					"label": "Front desk"
+				}
+			]
+		}
+	],
+	"content": {
+		"services": [
+			{
+				"id": "services:203",
+				"slug": "services/pilates/group-classes",
+				"status": "published",
+				"data": {
+					"title": "Group classes",
+					"body": [],
+					"content": [
+						{
+							"_type": "section_rich_text",
+							"_version": 1,
+							"_key": "group-classes-0-rich_text",
+							"heading": "Group classes",
+							"heading_level": "h2",
+							"body": [
+								{
+									"_type": "block",
+									"_key": "5n_2",
+									"style": "normal",
+									"children": [
+										{
+											"_type": "span",
+											"_key": "5n_3",
+											"text": "Up to eight people per class.",
+											"marks": []
+										}
+									],
+									"markDefs": []
+								}
+							],
+							"width": "normal",
+							"align": "left",
+							"buttons": [],
+							"variant": "default",
+							"tone": "light",
+							"spacing": "normal"
+						}
+					],
+					"menu_order": 2,
+					"price": 25,
+					"parent": "$ref:services:201"
+				}
+			},
+			{
+				"id": "services:201",
+				"slug": "services/pilates",
+				"status": "published",
+				"data": {
+					"title": "Pilates",
+					"body": [
+						{
+							"_type": "block",
+							"_key": "5l_b1",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "5l_b0",
+									"text": "Classes for every level."
+								}
+							]
+						},
+						{
+							"_type": "image",
+							"_key": "5l_b2",
+							"asset": {
+								"_type": "reference",
+								"_ref": "35",
+								"url": "https://cpt.example.test/wp-content/uploads/2024/02/class.jpg"
+							},
+							"alt": "A class",
+							"caption": "A class in progress"
+						}
+					],
+					"content": [],
+					"menu_order": 0,
+					"price": 40,
+					"duration": "55 minutes",
+					"photos": [
+						{
+							"image": {
+								"$media": {
+									"url": "https://cpt.example.test/wp-content/uploads/2024/02/class.jpg",
+									"filename": "class.jpg"
+								}
+							}
+						}
+					],
+					"booking_url": "https://book.example.org/pilates"
+				}
+			},
+			{
+				"id": "services:202",
+				"slug": "services/pilates/private-sessions",
+				"status": "published",
+				"data": {
+					"title": "Private sessions",
+					"body": [
+						{
+							"_type": "block",
+							"_key": "5m_b1",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "5m_b0",
+									"text": "One to one sessions."
+								}
+							]
+						}
+					],
+					"content": [],
+					"menu_order": 1,
+					"price": 90,
+					"duration": "60 minutes",
+					"parent": "$ref:services:201"
+				}
+			}
+		],
+		"location": [
+			{
+				"id": "location:301",
+				"slug": "location/downtown",
+				"status": "published",
+				"data": {
+					"title": "Downtown studio",
+					"address": "1 Main Street\nSpringfield",
+					"website": "/",
+					"open_weekends": true,
+					"phone": "+1 555 0100",
+					"services_offered": [
+						"$ref:services:201",
+						"$ref:services:202"
+					]
+				}
+			}
+		],
+		"team": [
+			{
+				"id": "team:101",
+				"slug": "team/jane",
+				"status": "published",
+				"data": {
+					"title": "Jane Doe",
+					"excerpt": "Lead instructor.",
+					"featured_image": {
+						"$media": {
+							"url": "https://cpt.example.test/wp-content/uploads/2024/02/jane.jpg",
+							"filename": "jane.jpg"
+						}
+					},
+					"body": [
+						{
+							"_type": "block",
+							"_key": "2t_b1",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "2t_b0",
+									"text": "Jane has taught Pilates for twelve years."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "2t_b3",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "2t_b2",
+									"text": "She trained in London."
+								}
+							]
+						}
+					],
+					"menu_order": 1,
+					"role": "Lead instructor",
+					"photo": {
+						"$media": {
+							"url": "https://cpt.example.test/wp-content/uploads/2024/02/jane-portrait.jpg",
+							"filename": "jane-portrait.jpg",
+							"alt": "Jane portrait"
+						}
+					},
+					"bio": [
+						{
+							"_type": "block",
+							"_key": "2t_bio_3",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "2t_bio_0",
+									"text": "Certified "
+								},
+								{
+									"_type": "span",
+									"_key": "2t_bio_1",
+									"text": "STOTT",
+									"marks": [
+										"strong"
+									]
+								},
+								{
+									"_type": "span",
+									"_key": "2t_bio_2",
+									"text": " instructor."
+								}
+							]
+						}
+					],
+					"start_date": "2020-01-15T00:00:00.000Z",
+					"level": "senior",
+					"accepts_clients": true,
+					"skills": [
+						{
+							"skill": "Reformer",
+							"years": 8
+						},
+						{
+							"skill": "Mat",
+							"years": 12
+						}
+					],
+					"related": [
+						"$ref:team:102"
+					],
+					"gallery": [
+						{
+							"image": {
+								"$media": {
+									"url": "https://cpt.example.test/wp-content/uploads/2024/02/studio-1.jpg",
+									"filename": "studio-1.jpg",
+									"alt": "Studio"
+								}
+							}
+						},
+						{
+							"image": {
+								"$media": {
+									"url": "https://cpt.example.test/wp-content/uploads/2024/02/studio-2.jpg",
+									"filename": "studio-2.jpg"
+								}
+							}
+						}
+					],
+					"profile_link": {
+						"title": "Profile",
+						"url": "https://example.org/jane",
+						"target": ""
+					},
+					"legacy_code": "JD-01"
+				},
+				"taxonomies": {
+					"department": [
+						"coaching"
+					]
+				},
+				"bylines": [
+					{
+						"byline": "byline:studio-admin"
+					}
+				]
+			},
+			{
+				"id": "team:102",
+				"slug": "team/sam",
+				"status": "published",
+				"data": {
+					"title": "Sam Lee",
+					"body": [
+						{
+							"_type": "block",
+							"_key": "2u_b1",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "2u_b0",
+									"text": "Sam runs the front desk."
+								}
+							]
+						}
+					],
+					"menu_order": 2,
+					"role": "Front desk",
+					"level": "junior",
+					"accepts_clients": false,
+					"related": [
+						"$ref:team:101"
+					],
+					"legacy_code": "SL-02"
+				},
+				"taxonomies": {
+					"department": [
+						"front-desk"
+					]
+				},
+				"bylines": [
+					{
+						"byline": "byline:studio-admin"
+					}
+				]
+			},
+			{
+				"id": "team:103",
+				"slug": "team/team-103",
+				"status": "draft",
+				"data": {
+					"title": "New hire",
+					"body": [],
+					"menu_order": 3,
+					"role": "Instructor",
+					"accepts_clients": false
+				}
+			}
+		]
+	}
+}

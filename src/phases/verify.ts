@@ -28,6 +28,7 @@ import { verifyReport } from "../verify/report.js";
 import { accountDetail, accountUniverse, type Judged, judgeUrl, probeUrl, type UniverseInput } from "../verify/urls-accounted.js";
 import type { WpUrlRules } from "../transform/wp-urls.js";
 import type { BlogPlan } from "../transform/blog.js";
+import type { CptPlan } from "../transform/cpt.js";
 import { validateRss } from "../verify/feeds.js";
 import { mapLimit } from "../audit/http.js";
 import { diffSections, groupSections, type SectionDiff } from "../verify/sections.js";
@@ -133,7 +134,10 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		// Blog sites: posts are compared like pages (text, headings, SEO), counted, and dated (check `posts`).
 		const blogIr = readJson<BlogPlan>(join(paths.ir, "blog.json"));
 		const irPosts = blogIr && existsSync(join(paths.ir, "posts")) ? readdirSync(join(paths.ir, "posts")).map((f) => readJson<IrPage>(join(paths.ir, "posts", f)) as IrPage).filter((p) => p.post && p.source.status === "publish" && p.post.visibility === "public") : [];
-		const published = new Set([...irPages.filter((p) => p.source.status === "publish"), ...irPosts].map((p) => p.route?.path));
+		// Custom post types: published entries with an address are compared like pages too (check `entries`).
+		const cptIr = readJson<CptPlan>(join(paths.ir, "collections.json"));
+		const irEntries = (cptIr?.collections ?? []).flatMap((c) => (existsSync(join(paths.ir, "entries", c.slug)) ? readdirSync(join(paths.ir, "entries", c.slug)).map((f) => readJson<IrPage>(join(paths.ir, "entries", c.slug, f)) as IrPage) : [])).filter((p) => p.entry && p.route && p.source.status === "publish");
+		const published = new Set([...irPages.filter((p) => p.source.status === "publish"), ...irPosts, ...irEntries].map((p) => p.route?.path));
 		const pagesToCheck = baseline.filter((u) => published.has(u.path) || published.has(u.path.replace(/\/$/, "")) || u.path === "/");
 		const outDir = join(paths.reports, "verify");
 		rmSync(join(outDir, "screens"), { recursive: true, force: true });
@@ -329,7 +333,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		reporter.emit({ type: "step:start", step: "Old addresses", total: universe.length });
 		let probed = 0;
 		const judged = await mapLimit(universe, Math.max(4, config.audit.concurrency * 2), async (u) => {
-			const j = judgeUrl(u, await probeUrl(kitFetch, base, u.path), { ...(wpRules ? { rules: wpRules } : {}), wpIds: siteCfg.wpIds ?? {}, overrides: ov });
+			const j = judgeUrl(u, await probeUrl(kitFetch, base, u.path), { ...(wpRules ? { rules: wpRules } : {}), wpIds: siteCfg.wpIds ?? {}, overrides: ov, ...(irEntries.length || archivePaths.length ? { realRoutes: new Set([...irEntries.map((p) => p.route?.path as string), ...archivePaths]) } : {}) });
 			reporter.emit({ type: "step:progress", step: "Old addresses", done: ++probed, total: universe.length, item: u.path });
 			return j;
 		});
@@ -337,6 +341,20 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 
 		// Blog: every published post answers at its WordPress address with its title and publish date, and the feeds are
 		// real RSS (site feed + one archive feed per taxonomy and author) with the newest posts first.
+		// Collections: every published entry at its WordPress address with its title; every archive (and its term archives) 200.
+		const entryProblems: string[] = [];
+		const archivePaths = (cptIr?.collections ?? []).filter((c) => c.routable && c.archive).map((c) => c.archive as string);
+		await mapLimit([...irEntries.map((p) => ({ path: p.route?.path ?? "/", title: p.title })), ...archivePaths.map((path) => ({ path, title: undefined as string | undefined }))], Math.max(4, config.audit.concurrency), async (x) => {
+			try {
+				const res = await kitFetch(`${base}${x.path}`, { redirect: "manual" });
+				const html = await res.text();
+				if (res.status !== 200) return void entryProblems.push(`${x.path} HTTP ${res.status}`);
+				const esc = (x.title ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+				if (x.title && !html.includes(x.title.slice(0, 40)) && !html.includes(esc.slice(0, 40)) && !html.includes(esc.replace(/'/g, "&#39;").slice(0, 40))) entryProblems.push(`${x.path}: title "${x.title.slice(0, 30)}" not in HTML`);
+			} catch (e) {
+				entryProblems.push(`${x.path}: ${(e as Error).message.split("\n")[0]}`);
+			}
+		});
 		const postProblems: string[] = [];
 		const feedProblems: string[] = [];
 		let feedsChecked = 0;
@@ -559,6 +577,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			check("posts", "Every published post answers at its WordPress address with its title and publish date", postProblems.length === 0, postProblems.slice(0, 6).join("; ") || `${irPosts.length} posts`);
 			check("feeds", "RSS feeds (site, archives) are valid RSS 2.0 with the newest posts; autodiscovery link present", feedProblems.length === 0 && feedsChecked > 0, feedProblems.slice(0, 6).join("; ") || `${feedsChecked} feeds`);
 		}
+		if (cptIr?.collections.length) check("entries", "Every published custom post type entry answers at its WordPress address with its title; archives answer 200", entryProblems.length === 0, entryProblems.slice(0, 6).join("; ") || `${irEntries.length} entries, ${archivePaths.length} archive(s)`);
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);
 		// Gate on sections where we can pair them; whole-page difference where we cannot (e.g. Gutenberg pages).
 		const sectionFails = results.flatMap((r) => Object.entries(r.sections).flatMap(([vp, list]) => list.filter((x) => x.ratio > g.visualDiff).map((x) => ({ text: `${r.path} ${vp} ${x.label} (${x.types.join("+")}) ${(x.ratio * 100).toFixed(1)}%`, ratio: x.ratio }))));

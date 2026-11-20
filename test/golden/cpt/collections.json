@@ -1,0 +1,436 @@
+{
+	"collections": [
+		{
+			"type": "location",
+			"slug": "location",
+			"label": "Locations",
+			"labelSingular": "Location",
+			"description": "Migrated from the WordPress post type \"location\"",
+			"hierarchical": false,
+			"routable": true,
+			"base": "/location/",
+			"perPage": 2,
+			"core": {
+				"excerpt": false,
+				"featuredImage": false,
+				"body": false,
+				"sections": false,
+				"menuOrder": false,
+				"ordered": false,
+				"parent": false,
+				"bylines": false
+			},
+			"fields": [
+				{
+					"slug": "address",
+					"label": "Address",
+					"wp": {
+						"source": "pods",
+						"name": "address",
+						"type": "paragraph"
+					},
+					"kind": "text",
+					"type": "text"
+				},
+				{
+					"slug": "website",
+					"label": "Website",
+					"wp": {
+						"source": "pods",
+						"name": "website",
+						"type": "website"
+					},
+					"kind": "url",
+					"type": "url"
+				},
+				{
+					"slug": "open_weekends",
+					"label": "Open at weekends",
+					"wp": {
+						"source": "pods",
+						"name": "open_weekends",
+						"type": "boolean"
+					},
+					"kind": "boolean",
+					"type": "boolean"
+				},
+				{
+					"slug": "phone",
+					"label": "Phone",
+					"wp": {
+						"source": "pods",
+						"name": "phone",
+						"type": "phone"
+					},
+					"kind": "string",
+					"type": "string"
+				},
+				{
+					"slug": "services_offered",
+					"label": "Services",
+					"wp": {
+						"source": "pods",
+						"name": "services_offered",
+						"type": "pick"
+					},
+					"kind": "reference",
+					"type": "reference",
+					"targets": [
+						"services"
+					],
+					"targetCollection": "services",
+					"multiple": true
+				}
+			],
+			"taxonomies": [],
+			"definitions": [
+				"Locations (pods export pods-package.json)"
+			],
+			"unknownMeta": [],
+			"notCarried": [],
+			"decision": {
+				"by": "default"
+			},
+			"entries": 1,
+			"published": 1,
+			"sortOrder": 2
+		},
+		{
+			"type": "services",
+			"slug": "services",
+			"label": "Services",
+			"labelSingular": "Service",
+			"description": "Migrated from the WordPress post type \"services\"",
+			"hierarchical": true,
+			"routable": true,
+			"base": "/services/",
+			"archive": "/services/",
+			"perPage": 2,
+			"core": {
+				"excerpt": false,
+				"featuredImage": false,
+				"body": true,
+				"sections": true,
+				"menuOrder": true,
+				"ordered": true,
+				"parent": true,
+				"bylines": false
+			},
+			"fields": [
+				{
+					"slug": "price",
+					"label": "Price",
+					"wp": {
+						"source": "metabox",
+						"name": "price",
+						"type": "number"
+					},
+					"kind": "number",
+					"type": "number"
+				},
+				{
+					"slug": "duration",
+					"label": "Duration",
+					"wp": {
+						"source": "metabox",
+						"name": "duration",
+						"type": "text"
+					},
+					"kind": "string",
+					"type": "string"
+				},
+				{
+					"slug": "photos",
+					"label": "Photos",
+					"wp": {
+						"source": "metabox",
+						"name": "photos",
+						"type": "image_advanced"
+					},
+					"kind": "gallery",
+					"type": "repeater",
+					"subFields": [
+						{
+							"slug": "image",
+							"label": "Image",
+							"type": "image",
+							"kind": "image",
+							"wpName": "image"
+						}
+					],
+					"note": "gallery → repeater of images"
+				},
+				{
+					"slug": "booking_url",
+					"label": "Booking link",
+					"wp": {
+						"source": "metabox",
+						"name": "booking_url",
+						"type": "url"
+					},
+					"kind": "url",
+					"type": "url"
+				}
+			],
+			"taxonomies": [],
+			"definitions": [
+				"Service details (metabox export meta-box-export.json)"
+			],
+			"unknownMeta": [],
+			"notCarried": [],
+			"decision": {
+				"by": "default"
+			},
+			"entries": 3,
+			"published": 3,
+			"sortOrder": 3
+		},
+		{
+			"type": "team",
+			"slug": "team",
+			"label": "Team",
+			"labelSingular": "Team member",
+			"description": "Migrated from the WordPress post type \"team\"",
+			"hierarchical": false,
+			"routable": true,
+			"base": "/team/",
+			"archive": "/team/",
+			"perPage": 2,
+			"core": {
+				"excerpt": true,
+				"featuredImage": true,
+				"body": true,
+				"sections": false,
+				"menuOrder": true,
+				"ordered": true,
+				"parent": false,
+				"bylines": true
+			},
+			"fields": [
+				{
+					"slug": "role",
+					"label": "Role",
+					"wp": {
+						"source": "acf",
+						"name": "role",
+						"type": "text"
+					},
+					"kind": "string",
+					"type": "string"
+				},
+				{
+					"slug": "photo",
+					"label": "Photo",
+					"wp": {
+						"source": "acf",
+						"name": "photo",
+						"type": "image"
+					},
+					"kind": "image",
+					"type": "image"
+				},
+				{
+					"slug": "bio",
+					"label": "Biography",
+					"wp": {
+						"source": "acf",
+						"name": "bio",
+						"type": "wysiwyg"
+					},
+					"kind": "html",
+					"type": "portableText"
+				},
+				{
+					"slug": "start_date",
+					"label": "Teaching since",
+					"wp": {
+						"source": "acf",
+						"name": "start_date",
+						"type": "date_picker"
+					},
+					"kind": "date",
+					"type": "datetime",
+					"note": "date kept as a date and time at 00:00 UTC (EmDash has no date-only field)"
+				},
+				{
+					"slug": "level",
+					"label": "Level",
+					"wp": {
+						"source": "acf",
+						"name": "level",
+						"type": "select"
+					},
+					"kind": "select",
+					"type": "select",
+					"options": [
+						"junior",
+						"senior"
+					]
+				},
+				{
+					"slug": "accepts_clients",
+					"label": "Takes new clients",
+					"wp": {
+						"source": "acf",
+						"name": "accepts_clients",
+						"type": "true_false"
+					},
+					"kind": "boolean",
+					"type": "boolean"
+				},
+				{
+					"slug": "skills",
+					"label": "Skills",
+					"wp": {
+						"source": "acf",
+						"name": "skills",
+						"type": "repeater"
+					},
+					"kind": "repeater",
+					"type": "repeater",
+					"subFields": [
+						{
+							"slug": "skill",
+							"label": "Skill",
+							"type": "string",
+							"kind": "string",
+							"wpName": "skill"
+						},
+						{
+							"slug": "years",
+							"label": "Years",
+							"type": "number",
+							"kind": "number",
+							"wpName": "years"
+						}
+					]
+				},
+				{
+					"slug": "related",
+					"label": "Works with",
+					"wp": {
+						"source": "acf",
+						"name": "related",
+						"type": "relationship"
+					},
+					"kind": "reference",
+					"type": "reference",
+					"targets": [
+						"team"
+					],
+					"targetCollection": "team",
+					"multiple": true
+				},
+				{
+					"slug": "gallery",
+					"label": "Gallery",
+					"wp": {
+						"source": "acf",
+						"name": "gallery",
+						"type": "gallery"
+					},
+					"kind": "gallery",
+					"type": "repeater",
+					"subFields": [
+						{
+							"slug": "image",
+							"label": "Image",
+							"type": "image",
+							"kind": "image",
+							"wpName": "image"
+						}
+					],
+					"note": "gallery → repeater of images"
+				},
+				{
+					"slug": "profile_link",
+					"label": "Profile link",
+					"wp": {
+						"source": "acf",
+						"name": "profile_link",
+						"type": "link"
+					},
+					"kind": "link",
+					"type": "json",
+					"note": "link (title, URL, target): kept as JSON",
+					"warn": true
+				},
+				{
+					"slug": "legacy_code",
+					"label": "Legacy Code",
+					"wp": {
+						"source": "meta",
+						"name": "legacy_code",
+						"type": "emdash:string"
+					},
+					"kind": "string",
+					"type": "string"
+				}
+			],
+			"taxonomies": [
+				{
+					"name": "department",
+					"wpName": "department",
+					"base": "/department/",
+					"label": "Departments",
+					"labelSingular": "Department"
+				}
+			],
+			"definitions": [
+				"Team member (acf export acf-export-2024-05-01.json)",
+				"Team member (Exporter analyze (ACF top-level fields))"
+			],
+			"unknownMeta": [
+				{
+					"key": "legacy_code",
+					"entries": 2,
+					"sample": "JD-01",
+					"decided": "string"
+				}
+			],
+			"notCarried": [],
+			"decision": {
+				"by": "override"
+			},
+			"entries": 3,
+			"published": 2,
+			"sortOrder": 4
+		}
+	],
+	"taxonomies": [
+		{
+			"name": "department",
+			"wpName": "department",
+			"label": "Departments",
+			"labelSingular": "Department",
+			"hierarchical": false,
+			"base": "/department/",
+			"collections": [
+				"team"
+			],
+			"terms": [
+				{
+					"wpId": 40,
+					"slug": "coaching",
+					"label": "Coaching",
+					"description": "Instructors",
+					"count": 1
+				},
+				{
+					"wpId": 41,
+					"slug": "front-desk",
+					"label": "Front desk",
+					"count": 1
+				}
+			]
+		}
+	],
+	"bylines": [
+		{
+			"slug": "studio-admin",
+			"displayName": "Studio Admin",
+			"wpId": 1,
+			"posts": 2
+		}
+	]
+}

@@ -1,0 +1,21 @@
+{
+	"feed": "/",
+	"commentsFeed": "gone",
+	"search": "/",
+	"category": "gone",
+	"tag": "gone",
+	"author": "/",
+	"date": "gone",
+	"attachment": "/",
+	"pages": [
+		"/",
+		"/about/",
+		"/location/downtown/",
+		"/services/pilates/",
+		"/services/pilates/private-sessions/",
+		"/services/pilates/group-classes/",
+		"/team/jane/",
+		"/team/sam/"
+	],
+	"trailingSlash": "always"
+}
