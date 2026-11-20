@@ -4,13 +4,26 @@ import { decodeSlug, getEmDashEntry, getSeoMeta } from "emdash";
 import Base from "../layouts/Base.astro";
 import Sections from "../components/Sections.astro";
 import site from "../site.config.json";
+import { cachePage, noCache } from "../utils/cache";
+import { cacheChrome, loadChrome } from "../utils/chrome";
 
 const raw = Astro.params.slug ? decodeSlug(Astro.params.slug) : "home";
 const slug = raw || "home";
-const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
-if (!page) return Astro.rewrite("/404");
-if (slug === "home" && Astro.params.slug) return Astro.redirect("/", 301);
+// The page and the site chrome in parallel (each is a database round trip on an uncached render).
+const [{ entry: page, cacheHint }, chrome] = await Promise.all([getEmDashEntry("pages", slug), loadChrome()]);
+if (!page) {
+	noCache(Astro.cache);
+	return Astro.rewrite("/404");
+}
+if (slug === "home" && Astro.params.slug) {
+	noCache(Astro.cache);
+	return Astro.redirect("/", 301);
+}
+// Route cache: this page's own tags (collection + entry), the default lifetime for pages added after the migration, and
+// the chrome's tags (settings, menus, site parts, popups) — all set here, before the response starts streaming.
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+cachePage(Astro.cache);
+cacheChrome(Astro.cache, chrome);
 
 const data = page.data as any;
 const blocks = (data.content ?? []) as any[];
@@ -21,7 +34,7 @@ const first = blocks[0];
 const overHero = first?._type === "section_hero" && (first.bg_image || first.bg_video) && (site as { header?: { transparentOnTop?: boolean } }).header?.transparentOnTop !== false;
 ---
 
-<Base title={seo.title} pageTitle={data.title} description={seo.description} image={seo.ogImage} canonical={seo.canonical} robots={seo.robots} content={{ collection: "pages", id: data.id, slug: page.id }} overHero={!!overHero}>
+<Base chrome={chrome} title={seo.title} pageTitle={data.title} description={seo.description} image={seo.ogImage} canonical={seo.canonical} robots={seo.robots} content={{ collection: "pages", id: data.id, slug: page.id }} overHero={!!overHero}>
 	{
 		blocks.length ? (
 			<div {...page.edit.content}><Sections value={blocks} leadImage /></div>

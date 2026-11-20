@@ -1,5 +1,4 @@
 ---
-import { getEmDashCollection, getEmDashEntry, getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
 import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { env } from "cloudflare:workers";
@@ -10,6 +9,7 @@ import Popups from "../components/Popups.astro";
 import StructuredData from "../components/StructuredData.astro";
 import Analytics from "../components/Analytics.astro";
 import site from "../site.config.json";
+import { announcementState, type Chrome, loadChrome } from "../utils/chrome";
 import "../styles/fonts.css";
 import "../styles/tokens.css";
 import "../styles/motion.css";
@@ -25,26 +25,18 @@ interface Props {
 	content?: { collection: string; id: string; slug?: string | null };
 	/** First section is a full-bleed hero: the header starts transparent over it. */
 	overHero?: boolean;
+	/** Site chrome the page loaded (utils/chrome.ts). */
+	chrome?: Chrome;
 }
-const { title, pageTitle, description, image, canonical, robots, content, overHero } = Astro.props;
+const { title, pageTitle, description, image, canonical, robots, content, overHero, chrome: chromeProp } = Astro.props;
 
-const [settings, primary, secondary, footer, popups, announcementPart] = await Promise.all([
-	getSiteSettingsWithCacheHint(),
-	getMenuWithCacheHint("primary"),
-	getMenuWithCacheHint("secondary"),
-	getEmDashEntry("site_parts", "footer"),
-	getEmDashCollection("popups", { status: "published" }),
-	getEmDashEntry("site_parts", "announcement"),
-]);
-if (Astro.cache?.enabled) {
-	for (const r of [settings, primary, secondary, footer, popups, announcementPart]) Astro.cache.set(r.cacheHint);
-}
-// Announcement bar: the first enabled bar block of the "announcement" site part (schedule checked in the browser too,
-// since cached pages outlive the request that rendered them).
-// A bar whose schedule has ended is not rendered at all: the browser check is an inline script, which the public
-// Content-Security-Policy (no 'unsafe-inline') does not run, so an ended bar stayed on screen.
-const ended = (b: { ends_at?: string }) => !!b.ends_at && !Number.isNaN(Date.parse(b.ends_at)) && Date.parse(b.ends_at) < Date.now();
-const announcement = ((announcementPart.entry?.data as { content?: any[] } | undefined)?.content ?? []).find((b) => b?._type === "section_announcement" && b.enabled !== false && Array.isArray(b.message) && b.message.length && !ended(b));
+// Site chrome: loaded by the page (route-cache tags must be set before the response streams: utils/chrome.ts), or here
+// for a page that did not pass it.
+const chrome = chromeProp ?? (await loadChrome());
+const { settings, primary, secondary, footer, popups } = chrome;
+// Announcement bar: decided in the browser too (components/Announcement.astro), since a cached page outlives the
+// request that rendered it. A bar whose schedule has ended is left out; one that starts later is rendered hidden.
+const { block: announcement, later: announcementLater } = announcementState(chrome);
 
 const siteTitle = settings.data?.title?.trim() || site.name;
 // Sharing image on the host serving this page: before go-live the production domain still serves WordPress, which has
@@ -98,7 +90,7 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 ---
 
 <!doctype html>
-<html lang={site.lang} class:list={{ "has-announcement": !!announcement, "motion-calm": (site as { motion?: string }).motion === "calm" }}>
+<html lang={site.lang} class:list={{ "has-announcement": !!announcement && !announcementLater, "motion-calm": (site as { motion?: string }).motion === "calm" }}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -115,14 +107,15 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		{((site.fonts as { preload?: string[] }).preload ?? []).map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
 		{googleHref && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}
 		{googleHref && <link rel="stylesheet" href={googleHref} />}
-		{site.favicon && <link rel="icon" href={site.favicon} />}
+		{/* Favicons sized for their use (performance package); the captured file when there are none. */}
+		{(site as { icons?: { rel: string; href: string; type: string; sizes?: string }[] }).icons?.map((i) => <link rel={i.rel} href={i.href} type={i.type} sizes={i.sizes} />) ?? (site.favicon && <link rel="icon" href={site.favicon} />)}
 		{Object.entries((site as { verification?: Record<string, string> }).verification ?? {}).map(([name, content]) => <meta name={name} content={content} />)}
 		<Analytics />
 	</head>
 	<body class:list={{ "over-hero": overHero }}>
 		<EmDashBodyStart page={pageCtx} />
 		<a href="#main" class="skip-link">Skip to content</a>
-		{announcement && <Announcement block={announcement} />}
+		{announcement && <Announcement block={announcement} hidden={announcementLater} />}
 		<SiteHeader primary={primary.data?.items ?? []} secondary={secondary.data?.items ?? []} siteTitle={siteTitle} />
 		<main id="main" tabindex="-1">
 			<slot />

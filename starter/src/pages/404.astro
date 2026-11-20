@@ -1,6 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
+import { noCache } from "../utils/cache";
 Astro.response.status = 404;
+noCache(Astro.cache);
 ---
 
 <Base title="Page not found" robots="noindex">

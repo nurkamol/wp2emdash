@@ -2,14 +2,17 @@
 /**
  * Announcement bar above the header (site part "announcement", block section_announcement).
  * Rendered on the server, so it is in the HTML and in the first paint. A tiny inline script right after it
- * (before the header and the page are parsed) hides it when the visitor closed this message version or the
- * schedule says so, and measures its height into --announce-h: the header and the page move down by exactly
- * that, before anything paints, so there is no layout shift. Scroll, resize and close: scripts/site.ts.
+ * (before the header and the page are parsed) decides visibility in the browser — the visitor closed this message
+ * version, or the schedule (starts_at / ends_at) says so — because a cached page outlives the request that rendered
+ * it. It measures the bar's height into --announce-h: the header and the page move down by exactly that, before
+ * anything paints, so there is no layout shift. Without JavaScript the server's decision stands (Base.astro also
+ * shortens the page's cache lifetime to the next schedule change). Scroll, resize and close: scripts/site.ts.
  * Accessible: a labelled region, a real close button, text colour raised to WCAG AA when it is too faint.
  */
 import Rich from "./Rich.astro";
 import { safeHref, isExternal } from "../utils/links";
 import { announcementVersion, readableText } from "../utils/announcement";
+import announcementScript from "../scripts/inline/announcement.js?raw";
 
 interface Props {
 	block: {
@@ -25,8 +28,10 @@ interface Props {
 		starts_at?: string;
 		ends_at?: string;
 	};
+	/** Outside its schedule when the page was rendered (starts later): in the HTML but hidden until the script shows it. */
+	hidden?: boolean;
 }
-const { block: b } = Astro.props;
+const { block: b, hidden } = Astro.props;
 const buttons = (b.buttons ?? []).filter((x) => x?.label).slice(0, 2);
 const bg = b.bg_color || undefined;
 const text = readableText(bg, b.text_color || undefined);
@@ -37,7 +42,7 @@ const at = (v?: string) => (v && !Number.isNaN(Date.parse(v)) ? String(Date.pars
 const style = [bg && `--announce-bg:${bg}`, text && `--announce-color:${text}`, btnBg && `--announce-btn-bg:${btnBg}`, btnText && `--announce-btn-color:${btnText}`].filter(Boolean).join(";") || undefined;
 ---
 
-<section class="announcement" aria-label="Announcement" data-announcement data-version={version} data-sticky={b.sticky ? "" : undefined} data-dismissible={b.dismissible ? "" : undefined} data-from={at(b.starts_at)} data-to={at(b.ends_at)} style={style}>
+<section class="announcement" aria-label="Announcement" data-announcement data-version={version} data-sticky={b.sticky ? "" : undefined} data-dismissible={b.dismissible ? "" : undefined} data-from={at(b.starts_at)} data-to={at(b.ends_at)} hidden={hidden} style={style}>
 	<div class="announcement__inner container">
 		<Rich value={b.message} class="announcement__message" />
 		{
@@ -63,13 +68,6 @@ const style = [bg && `--announce-bg:${bg}`, text && `--announce-color:${text}`, 
 		)
 	}
 </section>
-<script is:inline>
-	(function (b) {
-		var r = document.documentElement, now = Date.now(), off = false;
-		try { off = b.hasAttribute("data-dismissible") && localStorage.getItem("announcement:" + b.dataset.version) === "closed"; } catch (e) {}
-		if (off || (b.dataset.from && now < +b.dataset.from) || (b.dataset.to && now > +b.dataset.to)) { b.hidden = true; r.classList.remove("has-announcement"); return; }
-		var h = b.offsetHeight;
-		r.style.setProperty("--announce-h", h + "px");
-		r.style.setProperty("--announce-offset", (b.hasAttribute("data-sticky") ? h : Math.max(0, h - scrollY)) + "px");
-	})(document.currentScript.previousElementSibling);
-</script>
+{/* The pre-paint script is a fixed text (scripts/inline/announcement.js): the public Content-Security-Policy allows it
+   by its SHA-256 hash (middleware.ts), never with 'unsafe-inline'. */}
+<script is:inline set:html={announcementScript} />
