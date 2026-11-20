@@ -65,7 +65,7 @@ Fixture `test/fixtures/cpt/site.json`: ACF `team` (text, image, wysiwyg, date, s
 
 ## Brochure sites unchanged
 
-Transform + scaffold (no install) of copies of Example Clinic and studio-a with the code before and after: `ir/`, `reports/`, `seed/seed.json`, `site.config.json`, `astro.config.mjs`, `wrangler.jsonc` and client docs byte-identical; only kit-owned starter source differs (new collection components and utils, `[...slug].astro`, `archives.xml.ts`, `middleware.ts`).
+Transform + scaffold (no install) of copies of the two pilot brochure sites with the code before and after: `ir/`, `reports/`, `seed/seed.json`, `site.config.json`, `astro.config.mjs`, `wrangler.jsonc` and client docs byte-identical; only kit-owned starter source differs (new collection components and utils, `[...slug].astro`, `archives.xml.ts`, `middleware.ts`).
 
 ## Not verified yet
 
