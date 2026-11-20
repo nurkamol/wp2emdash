@@ -1,20 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" width="420" height="96" role="img" aria-label="wp2emdash — WordPress to EmDash migration kit">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" width="420" height="96" role="img" aria-label="wp2emdash — WordPress to EmDash, proven by gates">
+  <g transform="translate(8 8) scale(1.25)">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#4F46E5"/>
-      <stop offset="1" stop-color="#06B6D4"/>
-    </linearGradient>
-    <linearGradient id="t" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#4F46E5"/>
-      <stop offset="1" stop-color="#06B6D4"/>
+    <linearGradient id="g" x1="6" y1="4" x2="58" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FBAD41"/>
+      <stop offset=".5" stop-color="#F6821F"/>
+      <stop offset="1" stop-color="#CE2F55"/>
     </linearGradient>
   </defs>
-  <g transform="translate(8 8) scale(1.25)">
-    <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#g)"/>
-    <rect x="2.5" y="2.5" width="59" height="59" rx="14.5" fill="none" stroke="#fff" stroke-opacity=".18"/>
-    <path d="M12.5 21.5 L18.5 42.5 L25 28.5 L31.5 42.5 L37.5 21.5" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M42 32 H52" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#g)"/>
+  <rect x="2.5" y="2.5" width="59" height="59" rx="13.5" fill="none" stroke="#fff" stroke-opacity=".18"/>
+  <path d="M11.5 21 L18 43 L25 28.5 L32 43 L36.5 32.5 H52.5" fill="none" stroke="#fff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <text x="104" y="54" font-family="Inter, 'SF Pro Display', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="40" font-weight="750" letter-spacing="-1" fill="#F8FAFC">wp<tspan fill="url(#t)">2</tspan>emdash</text>
-  <text x="105" y="78" font-family="Inter, 'SF Pro Text', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="500" letter-spacing=".2" fill="#94A3B8">WordPress → EmDash, proven by gates</text>
+  <text x="104" y="54" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="40" font-weight="700" letter-spacing="-1.2" fill="#FAFAFA">wp<tspan fill="#F6821F">2</tspan>emdash</text>
+  <text x="105" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14.5" font-weight="500" letter-spacing=".1" fill="#A3A3A3">WordPress → EmDash, proven by gates</text>
 </svg>

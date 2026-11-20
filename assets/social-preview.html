@@ -1,4 +1,34 @@
 <!doctype html><html><head><meta charset="utf-8"><style>
-html,body{margin:0}body{width:1280px;height:640px;display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 600px at 20% 0%,#1e1b4b 0%,#0b1020 55%,#05070f 100%);font-family:Inter,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e2e8f0}
-.wrap{text-align:left;width:1040px}.logo{width:760px;display:block}.tag{margin-top:28px;font-size:30px;line-height:1.4;color:#cbd5e1;max-width:980px}.chips{margin-top:34px;display:flex;gap:14px;flex-wrap:wrap}.chip{border:1px solid rgba(148,163,184,.35);border-radius:999px;padding:10px 20px;font-size:20px;color:#e2e8f0;background:rgba(15,23,42,.6)}
-</style></head><body><div class="wrap"><img class="logo" src="logo-dark.svg"><div class="tag">Migrate WordPress sites to EmDash on Cloudflare Workers — every page, setting and old URL accounted for, every step proven by an automated gate.</div><div class="chips"><span class="chip">WPBakery · Gutenberg · Bricks · Elementor</span><span class="chip">SEO &amp; analytics</span><span class="chip">Forms</span><span class="chip">Backups · Health · Consent</span></div></div></body></html>
+/* Social preview, 1280×640 (rendered @2x). Tokens: Cloudflare Kumo dark surfaces, EmDash orange. */
+html,body{margin:0}
+body{width:1280px;height:640px;background:oklch(10% 0 0);color:oklch(97% 0 0);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;position:relative;overflow:hidden}
+.frame{position:absolute;inset:40px;border:1px solid oklch(26.9% 0 0);border-radius:20px;background:oklch(12% 0 0);display:grid;grid-template-columns:1fr 470px;gap:48px;padding:56px 56px 0 64px;box-sizing:border-box}
+.logo{width:340px;display:block;margin-bottom:44px}
+h1{margin:0;font-size:58px;line-height:1.04;letter-spacing:-.035em;font-weight:700;color:oklch(98.5% 0 0)}
+h1 span{color:oklch(70.8% 0 0)}
+.sub{margin-top:24px;font-size:22px;line-height:1.45;color:oklch(70.8% 0 0);max-width:540px}
+.term{align-self:start;margin-top:4px;border:1px solid oklch(32% 0 0);border-radius:14px;background:oklch(8.5% 0 0);overflow:hidden;position:relative}
+.term:before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent 4%,#FBAD41 30%,#F6821F 55%,#CE2F55 80%,transparent 96%)}
+.bar{height:40px;border-bottom:1px solid oklch(24% 0 0);display:flex;align-items:center;gap:7px;padding:0 16px}
+.bar i{width:10px;height:10px;border-radius:50%;background:oklch(30% 0 0)}
+pre{margin:0;padding:20px 22px 24px;font:17px/1.75 ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;color:oklch(92% 0 0)}
+.d{color:oklch(62% 0 0)}.ok{color:oklch(78% .16 155)}.ph{color:oklch(80% .12 230);font-weight:700}.b{font-weight:700}.pr{color:#F6821F}
+.phases{position:absolute;left:64px;right:56px;bottom:36px;display:flex;gap:10px;align-items:center;font:16px/1 ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;color:oklch(70.8% 0 0)}
+.phases b{font-weight:500;color:oklch(97% 0 0)}
+.phases i{font-style:normal;color:oklch(45% 0 0)}
+</style></head><body><div class="frame">
+<div>
+<img class="logo" src="logo-dark.svg" alt="">
+<h1>Move WordPress to EmDash. <span>Prove nothing was lost.</span></h1>
+<div class="sub">An open-source kit for Cloudflare Workers. Every phase ends in an automated gate.</div>
+</div>
+<div class="term"><div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="pr">$</span> pnpm wp2emdash run example verify
+<span class="ph">▶ verify</span>
+  <span class="ok">✔</span> Pages
+  <span class="ok">✔</span> Old addresses<span class="d"> — 318/318</span>
+  <span class="ok">✔</span> Visual diff
+  <span class="ok">✔</span> Accessibility &amp; performance
+<span class="ok b">✔ verify gate passed</span></pre></div>
+<div class="phases"><b>init</b><i>→</i><b>audit</b><i>→</i><b>extract</b><i>→</i><b>transform</b><i>→</i><b>scaffold</b><i>→</i><b>load</b><i>→</i><b>verify</b><i>→</i><b>cutover</b></div>
+</div></body></html>
