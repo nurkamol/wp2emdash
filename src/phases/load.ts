@@ -21,6 +21,8 @@ import { COMMENTS_CLOSED_FIELD, menuItemExtras, PAGES_SEARCHABLE, POSTS_COLLECTI
 import { emdashMenuLabel, emdashMenuNames } from "../transform/menus.js";
 import type { WidgetPlan } from "../transform/widgets.js";
 import { pageData, pageFields } from "../transform/pages.js";
+import type { SectionsPlan } from "../transform/sections.js";
+import { writeSections } from "../targets/emdash/sections.js";
 import type { BlogPlan } from "../transform/blog.js";
 import { type CptCollection, type CptPlan, collectionFields } from "../transform/cpt.js";
 import { BLOCK_TYPES } from "../starter/library.js";
@@ -431,6 +433,9 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		for (const b of blogPlan?.bylines ?? []) if (b.avatar) refs.set(mediaKey(b.avatar), b.avatar);
 		// Images in classic-theme widgets (ir/widgets.json).
 		for (const a of widgetPlan?.areas ?? []) for (const w of a.widgets) collect(w.content ?? []);
+		// Images in reusable blocks written as EmDash sections (ir/sections.json).
+		const sectionsPlan = readJson<SectionsPlan>(join(paths.ir, "sections.json"));
+		for (const s of sectionsPlan?.sections ?? []) collect(s.content);
 		// Social sharing image (og:image from the SEO plugin): uploaded like any other picture and set as the page's SEO image.
 		const uploadPath = (u: string) => /\/(?:wp-content\/uploads|storage)\/(.+)$/.exec(u.split(/[?#]/)[0] ?? "")?.[1]?.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/i, "").toLowerCase();
 		const ogRef = (d: IrPage): MediaRef | undefined => {
@@ -897,6 +902,12 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				}
 			}
 			check("widgets", "Widget areas written", widgetErrors.length === 0, widgetErrors.slice(0, 4).join("; ") || `${written} widgets in ${widgetPlan.areas.filter((x) => x.widgets.length).length} area(s)`);
+		}
+
+		// ── Reusable blocks → EmDash sections (ir/sections.json): created, or updated when the kit made them ──────────
+		if (sectionsPlan?.sections.length) {
+			const r = await writeSections(api, sectionsPlan.sections, (content) => fixLinks(resolvePostBody(content, postMedia)));
+			check("sections", "Reusable blocks written as EmDash sections (source import)", r.errors.length === 0, r.errors.slice(0, 4).join("; ") || `${r.created} created, ${r.updated} updated`);
 		}
 
 		// ── Site search: EmDash's full-text index on for pages (title), posts and collections: the starter's /search/ page ──

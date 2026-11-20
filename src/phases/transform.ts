@@ -36,6 +36,7 @@ import { type CommentsPlan, type CommentTarget, commentsGate, commentsReport, di
 import { type BlogByline, blogIndexPath, type BlogPlan, blogReport, blogTaxonomies, bylineSlug, convertPostBody, feedSettings, permalinkPath, type WpTaxonomy, wpGmtToIso } from "../transform/blog.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
 import { pageAttributes, pageAttributesReport, showsFeaturedImage } from "../transform/pages.js";
+import { planSections, sectionsReport } from "../transform/sections.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
 import { shortcodeSummary, shortcodesReport } from "../transform/shortcodes.js";
 import { loadSiteEnv } from "../extract/credentials.js";
@@ -1102,6 +1103,10 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	if (features.maintenance) reporter.emit({ type: "log", level: "warn", message: `The old site had ${features.maintenance}: the new site's coming-soon mode stays off (Site health → Settings switches it on).` });
 	for (const m of megaItems(site.menus)) notTransformed.push(`mega menu ${m}: partial — rebuilt as columns of links; images, widgets and custom HTML in the panel are not carried`);
 
+	// ── Reusable blocks → EmDash sections (ir/sections.json; pages keep them inlined) ─────────────────────────────
+	const sectionsPlan = planSections(content("wp_block"), { mediaIdForUrl, reusable: (id) => reusable.get(id) });
+	if (sectionsPlan.sections.length || sectionsPlan.skipped.length) write(join(paths.ir, "sections.json"), sectionsPlan);
+
 	// ── Report ─────────────────────────────────────────────────────────────────
 	const reportDir = join(paths.reports, "transform");
 	write(join(reportDir, "coverage.json"), {
@@ -1122,7 +1127,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const shortcodes = shortcodeSummary(results);
 	rmSync(join(paths.ir, "shortcodes.json"), { force: true });
 	if (shortcodes.used.length) write(join(paths.ir, "shortcodes.json"), shortcodes);
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

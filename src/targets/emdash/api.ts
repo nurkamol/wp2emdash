@@ -280,6 +280,22 @@ export class EmDashApi {
 		const r = await this.request<{ item?: { id: string }; id?: string }>("POST", `/menus/${encodeURIComponent(menu)}/items`, item);
 		return { id: r.item?.id ?? (r.id as string) };
 	}
+	// ── sections (EmDash 1.5 /_emdash/api/sections: GET content:read, WRITE content:write; role EDITOR for sections:manage) ──
+	/** The section with this slug, or undefined when there is none (404). */
+	async section(slug: string): Promise<{ id: string; slug: string; title: string; source?: string } | undefined> {
+		try {
+			return await this.request<{ id: string; slug: string; title: string; source?: string }>("GET", `/sections/${encodeURIComponent(slug)}`);
+		} catch (e) {
+			if (e instanceof EmDashHttpError && e.status === 404) return undefined;
+			throw e;
+		}
+	}
+	async createSection(input: { slug: string; title: string; description?: string; content: unknown[]; source: "import" }): Promise<void> {
+		await this.request("POST", "/sections", input);
+	}
+	async updateSection(slug: string, input: { title?: string; description?: string; content?: unknown[] }): Promise<void> {
+		await this.request("PUT", `/sections/${encodeURIComponent(slug)}`, input);
+	}
 	// ── widget areas (EmDash 1.5 /_emdash/api/widget-areas: GET content:read, WRITE content:write + widgets:manage role) ──
 	async widgetAreas(): Promise<{ name: string; widgets?: unknown[] }[]> {
 		return (await this.request<{ items: { name: string; widgets?: unknown[] }[] }>("GET", "/widget-areas")).items;

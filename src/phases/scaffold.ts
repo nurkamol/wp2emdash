@@ -40,6 +40,7 @@ import { customStylesheet } from "../transform/custom-css.js";
 import type { WpUrlRules } from "../transform/wp-urls.js";
 import type { SiteFeatures } from "../transform/site-features.js";
 import { starterWidgetAreas, type WidgetPlan } from "../transform/widgets.js";
+import type { SectionsPlan } from "../transform/sections.js";
 import { type BlogPlan, starterBlogConfig } from "../transform/blog.js";
 import { type CptPlan, starterCollectionsConfig } from "../transform/cpt.js";
 import { type CommentsPlan, starterCommentsConfig } from "../transform/comments.js";
@@ -310,6 +311,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const partials = site.partials.map((p) => readJson<IrPage>(join(ir, p.file))).filter((p): p is IrPage => !!p);
 	// Classic-theme widget areas and the site features the old theme showed (transform: ir/widgets.json, ir/site-features.json).
 	const widgetPlan = readJson<WidgetPlan>(join(ir, "widgets.json"));
+	// WordPress reusable blocks as EmDash sections (src/transform/sections.ts).
+	const sectionsPlan = readJson<SectionsPlan>(join(ir, "sections.json"));
 	const features = readJson<SiteFeatures>(join(ir, "site-features.json"));
 	const widgetAreas = widgetPlan ? starterWidgetAreas(widgetPlan) : undefined;
 	const footerMenu = !site.partials.some((p) => p.role === "footer") && (site.menus.find((m) => m.role === "footer")?.items.length ?? 0) > 0;
@@ -650,7 +653,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Seed (with the migrated content for local preview)
 	const sep = /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-";
 	const drops: string[] = [];
-	const seed = buildSeed({ name: config.name, site, pages, partials, popups, media, titleSeparator: sep, forms, includeContent: true, onDrop: (m) => drops.push(m), ...(blogPlan ? { blog: { plan: blogPlan, posts } } : {}), ...(cptPlan?.collections.length ? { collections: { plan: cptPlan, entries } } : {}), ...(widgetPlan ? { widgets: widgetPlan } : {}), ...(commentsFile?.collections.some((c) => c.form) ? { comments: { form: commentsFile.collections.filter((c) => c.form).map((c) => c.slug) } } : {}) });
+	const seed = buildSeed({ name: config.name, site, pages, partials, popups, media, titleSeparator: sep, forms, includeContent: true, onDrop: (m) => drops.push(m), ...(blogPlan ? { blog: { plan: blogPlan, posts } } : {}), ...(cptPlan?.collections.length ? { collections: { plan: cptPlan, entries } } : {}), ...(widgetPlan ? { widgets: widgetPlan } : {}), ...(sectionsPlan?.sections.length ? { sections: sectionsPlan.sections } : {}), ...(commentsFile?.collections.some((c) => c.form) ? { comments: { form: commentsFile.collections.filter((c) => c.form).map((c) => c.slug) } } : {}) });
 	for (const d of drops) reporter.emit({ type: "log", level: "info", message: `not stored (no matching field): ${d}` });
 	write(join(project, "seed", "seed.json"), seed);
 

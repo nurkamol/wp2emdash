@@ -11,6 +11,7 @@ import { type CptPlan, collectionFields } from "../transform/cpt.js";
 import { emdashMenuLabel, emdashMenuNames } from "../transform/menus.js";
 import { pageData, pageFields, parentsFirst } from "../transform/pages.js";
 import type { WidgetPlan } from "../transform/widgets.js";
+import type { IrReusableSection } from "../transform/sections.js";
 import type { FormDefinitionOut } from "./forms.js";
 
 export interface MediaInfo {
@@ -112,6 +113,8 @@ export interface SeedInput {
 	comments?: { form: string[] };
 	/** Classic-theme widget areas (ir/widgets.json). */
 	widgets?: WidgetPlan;
+	/** WordPress reusable blocks as EmDash sections (ir/sections.json). */
+	sections?: IrReusableSection[];
 }
 
 /** Seed widget areas (EmDash seed `widgetAreas`: content widgets carry Portable Text, images at their WordPress file for the local preview). */
@@ -236,6 +239,8 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 		c.commentsEnabled = true;
 		c.fields = [...c.fields, { ...COMMENTS_CLOSED_FIELD }]; // a copy: POSTS_COLLECTION's fields are shared
 	}
+	// Reusable blocks → EmDash sections (seed `sections`, source "import"; images at their WordPress file for the local preview).
+	if (i.includeContent && i.sections?.length) seed.sections = i.sections.map((s) => ({ slug: s.slug, title: s.title, description: `From the WordPress reusable block "${s.title}" (#${s.wpId})`, content: seedPostBody(s.content, i.media), source: "import" }));
 	if (i.includeContent) {
 		seed.content = {
 			// Password-protected pages stay drafts in the seed (local preview has no password page data).

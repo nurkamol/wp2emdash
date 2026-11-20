@@ -1,0 +1,171 @@
+{
+	"sections": [
+		{
+			"slug": "wp-opening-hours",
+			"title": "Opening hours",
+			"wpId": 41,
+			"content": [
+				{
+					"_type": "block",
+					"_key": "s15_1",
+					"style": "h3",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "s15_0",
+							"text": "Opening hours"
+						}
+					]
+				},
+				{
+					"_type": "block",
+					"_key": "s15_5",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "s15_2",
+							"text": "Monday to Friday, 7am to 8pm. "
+						},
+						{
+							"_type": "span",
+							"_key": "s15_3",
+							"text": "Weekends",
+							"marks": [
+								"strong"
+							]
+						},
+						{
+							"_type": "span",
+							"_key": "s15_4",
+							"text": " 8am to 2pm."
+						}
+					]
+				},
+				{
+					"_type": "image",
+					"_key": "s15_6",
+					"asset": {
+						"_type": "reference",
+						"_ref": "31",
+						"url": "https://reusable.example.test/wp-content/uploads/2024/02/studio-1024x512.jpg"
+					},
+					"alt": "The studio",
+					"_media": {
+						"wpId": 31,
+						"kind": "image",
+						"alt": "The studio"
+					}
+				}
+			],
+			"diagnostics": []
+		},
+		{
+			"slug": "wp-call-to-action",
+			"title": "Call to action",
+			"wpId": 42,
+			"content": [
+				{
+					"_type": "block",
+					"_key": "s16_1",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "s16_0",
+							"text": "Book your first class today."
+						}
+					]
+				},
+				{
+					"_type": "block",
+					"_key": "s16_3",
+					"style": "h3",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "s16_2",
+							"text": "Opening hours"
+						}
+					]
+				},
+				{
+					"_type": "block",
+					"_key": "s16_7",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "s16_4",
+							"text": "Monday to Friday, 7am to 8pm. "
+						},
+						{
+							"_type": "span",
+							"_key": "s16_5",
+							"text": "Weekends",
+							"marks": [
+								"strong"
+							]
+						},
+						{
+							"_type": "span",
+							"_key": "s16_6",
+							"text": " 8am to 2pm."
+						}
+					]
+				},
+				{
+					"_type": "image",
+					"_key": "s16_8",
+					"asset": {
+						"_type": "reference",
+						"_ref": "31",
+						"url": "https://reusable.example.test/wp-content/uploads/2024/02/studio-1024x512.jpg"
+					},
+					"alt": "The studio",
+					"_media": {
+						"wpId": 31,
+						"kind": "image",
+						"alt": "The studio"
+					}
+				}
+			],
+			"diagnostics": []
+		},
+		{
+			"slug": "wp-legacy-form",
+			"title": "Legacy form",
+			"wpId": 45,
+			"content": [
+				{
+					"_type": "htmlBlock",
+					"_key": "s19_0",
+					"html": "[contact-form-7 id=\"5\" title=\"Contact\"]",
+					"originalBlockName": "core/shortcode"
+				}
+			],
+			"diagnostics": [
+				{
+					"level": "error",
+					"code": "flagged",
+					"message": "shortcode kept as text: [contact-form-7 id=\"5\" title=\"Contact\"]",
+					"path": "body#0",
+					"carriesContent": true,
+					"tag": "shortcode"
+				}
+			]
+		}
+	],
+	"skipped": [
+		{
+			"wpId": 43,
+			"title": "Unfinished",
+			"why": "status draft"
+		},
+		{
+			"wpId": 44,
+			"title": "Reusable block 44",
+			"why": "empty"
+		}
+	]
+}
