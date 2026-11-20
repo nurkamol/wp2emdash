@@ -368,3 +368,29 @@ staging; Automatic.css (ACSS) rules read from the live `automatic.css` / `automa
   from the settings alone).
 - The waiver's section top margin (`_margin.top: var(--space-l)`, phones `--section-space-l`) is not carried: the live
   title sits ~45px lower.
+
+## Round 3: Turnstile, FAQ panel, call-to-action cards, calm motion (2026-11-20)
+
+- **Turnstile** (all sites): `data-size="flexible"` stretched the widget across the form. It is now rendered explicitly
+  (`api.js?render=explicit`, site.ts) at its normal size (300×65), left under the last field; compact (150×140) only
+  where the form is narrower than 300px (320px phones); a form in a closed popup is drawn when it first gets a width.
+- **FAQ** (live, measured): a Bricks `accordion` in a rounded box (`#f7f7f7`, 25px corners, 10px vertical padding);
+  items padded 5px 40px (20px from `mobile_landscape`), the title 15px top/bottom with a 1px `rgba(0,0,0,.1)` divider
+  (`titleBorder`), the question an h4 (20px / 400 Outfit at 1440, 18px at 390), a small ion chevron at the right, the
+  answer 15px under the title; one item open at a time (Bricks default, `independentToggle` unset). Kit: FAQ look
+  `panel` (bg, radius, item padding desktop/phones, divider, exclusive) from the accordion and its rounded ancestor;
+  `<details name>` for native exclusivity, site.ts animates the height (260ms; none under reduced motion) and keeps
+  one open where `name` is not supported. Salient FAQs (`lines` / `card`) are unchanged — no `name`, no script.
+- **Call-to-action panels** (FAQ and /events/ "Still got questions?"): a row box with `#f7f7f7`, 25px corners and 40px
+  padding: heading (Pinyon 24px) and text (`_width: var(--width-m)` = 546px) left, a NextBricks ripple v2 button right
+  (black, white text, 25px corners, 10px 30px). Kit: columns `card` (bg, radius, padding, text width) from the panel the
+  columns came from; ripple buttons carry their own colours, corners and padding (button `look`). Phones: text, then
+  the button centred.
+- **A row split into sections** (FAQ, then its card): the space between them is the box's own row gap (30px), measured
+  per viewport, not the Salient inner gap (92px) — `innerGap` keeps the measured-padding pass off it.
+- **Calm motion**: the live pages animate content on entry (Bricks interactions `startAnimation` on `enterView` /
+  `contentLoaded`, 20 elements on this site). Scaffold turns on `motion: "calm"` for such a Bricks site (kit.config
+  `motion` overrides; `"none"` keeps the default): sections rise 14px over 600ms, columns / FAQ items / cards follow
+  70ms apart, pictures settle from a 3% zoom, buttons and links ease colour and shadow (200ms). The first section is
+  never held back (LCP); nothing animates under prefers-reduced-motion or without JS (the reveal classes are added by
+  site.ts only then).
