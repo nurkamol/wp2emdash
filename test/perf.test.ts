@@ -90,7 +90,7 @@ describe("warm-up after deploy", () => {
 		writeFileSync(file, WARMUP_SCRIPT);
 		const run = (arg: string) =>
 			new Promise<{ code: number | null; out: string }>((resolve) => {
-				const p = spawn(process.execPath, [file, arg], { env: { ...process.env, WARM_DELAY_MS: "0" } });
+				const p = spawn(process.execPath, [file, arg], { env: { ...process.env, WARM_DELAY_MS: "0", WARM_RETRY_MS: "0" } });
 				let out = "";
 				p.stdout.on("data", (b: Buffer) => (out += b));
 				p.on("close", (code: number | null) => resolve({ code, out }));

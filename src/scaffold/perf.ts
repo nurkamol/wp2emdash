@@ -174,7 +174,7 @@ const all = async (list) => {
 	for (let round = 1; round <= 2; round++) {
 		const failed = out.map((r, i) => [r, i]).filter(([r]) => r.status !== 200 && !(r.status >= 300 && r.status < 400));
 		if (!failed.length) break;
-		await sleep(2000 * round);
+		await sleep(Number(process.env.WARM_RETRY_MS ?? 2000) * round);
 		for (const [r, i] of failed) out[i] = await get(r.url);
 	}
 	return out;
