@@ -29,7 +29,7 @@ export async function mailBaselineFrom(cutoverDir: string): Promise<MailBaseline
 }
 
 export interface HealthInputs {
-	config: Pick<KitConfig, "name" | "email" | "health" | "analytics" | "forms"> & Partial<Pick<KitConfig, "backups">>;
+	config: Pick<KitConfig, "name" | "email" | "health" | "analytics" | "forms"> & Partial<Pick<KitConfig, "backups" | "media">>;
 	productionUrl: string;
 	live: boolean;
 	/** Site path of the copied logo (public/brand/…). */
@@ -67,5 +67,6 @@ export function healthOptions(i: HealthInputs): HealthOptions | undefined {
 		...(i.seo ? { seo: i.seo } : {}),
 		...(i.mail ? { mail: i.mail } : {}),
 		...(i.config.backups !== undefined && i.config.backups !== false ? { backups: true } : {}),
+		...(i.config.media !== undefined && i.config.media !== false ? { media: true } : {}),
 	};
 }

@@ -483,6 +483,21 @@ token A). Alerts after 2 failed nightly attempts in a row (forms email path, liv
 SigV4 PUT to an S3-compatible bucket, keys as Worker secrets, no deletes. Public routes: `download` (one-time token)
 and `heartbeat`. Verify: `backups-plugin` (live: a backup within 36 h). Facts: docs/spikes/backup-findings.md.
 
+## 7f. Media Assistant (on by default; `media: false` turns it off)
+`packages/media` (`@wp2emdash/media`, 0.1, experimental; in-house PixelKraft). EmDash native plugin, **Plugins → Media**
+for editors and admins (route permission `content:edit_any`; Settings and the AI licence admins only). Capabilities
+`media:read`, `media:bytes:read`, `media:metadata:write` only. Report = read-only D1 scan (`DB`) of the library and
+every table that can name a file (EmDash's media usage index is content-only and has no plugin API); cached 10 min,
+rescanned daily by the cron task `hourly` (minute fixed per site), counts kept in plugin KV `summary` for Site health's
+**Media** check (hourly, one D1 read, no alerts). File changes through EmDash's REST API as the confirming person via
+`SELF` (replace original, folders, delete), each preview → one-time plan → confirm: Optimize (Images binding,
+same type, quality 82, old file in `backups/media-originals/` 30 days, focal point restored, `emdash:media` purge),
+trash (folder "Trash (Media Assistant)", 30-day undo, deletion only by an editor after 30 days with a last copy kept).
+Alt text: suggestions (Workers AI `@cf/meta/llama-3.2-11b-vision-instruct` when `media.aiAlt` — default
+`!sensitiveData`, adds the `AI` binding — else file name / heading), saved only when reviewed. Upload queue via
+`media:afterUpload` (default off); processed by a click or hourly with `MEDIA_API_TOKEN`. Verify: nothing new. Client
+guide `docs/media.md`. Facts: docs/spikes/media-findings.md.
+
 ## 7f. Privacy & consent (on by default; `consent: false` turns it off)
 `packages/consent` (`@wp2emdash/consent`, 0.1, experimental; in-house PixelKraft). Built-in banner in the starter
 (`components/Consent.astro`, `public/scripts/site-consent.js`, before SiteWidgets and Analytics in `<head>`), no inline

@@ -11,7 +11,9 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   waiting / refused counts, email status — read through that package, counts only), broken links (daily, resumable;
   20 sampled external links weekly), email DNS records against the go-live baseline (DNS over HTTPS), the certificate
   (optional token), speed (page build time; Chrome UX Report p75 LCP / INP / CLS with an optional key) and the
-  analytics tags (the page carries the codes switched on in SEO & Analytics). Cadence and limits: `src/schedule.ts`.
+  analytics tags (the page carries the codes switched on in SEO & Analytics), backups (the backups plugin's heartbeat)
+  and media (the Media Assistant's daily counts: images on pages without alt text, oversized originals, broken image
+  references; one D1 read, never an alert). Cadence and limits: `src/schedule.ts`.
 - **Plugins → Site health**: overall status (Healthy / Attention / Down), each check with its last run and 14-day trend,
   **Run checks now** (single flight, at most every 2 minutes), incidents, broken links, speed, reports, settings; a
   dashboard widget with the overall status.

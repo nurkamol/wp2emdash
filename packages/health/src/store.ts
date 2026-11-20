@@ -16,7 +16,7 @@ export interface Kv {
 }
 
 // New checks go at the end: each history row stores the day's statuses by position.
-export const CHECK_IDS = ["uptime", "indexability", "forms", "links", "dns", "ssl", "speed", "analytics", "backups"] as const;
+export const CHECK_IDS = ["uptime", "indexability", "forms", "links", "dns", "ssl", "speed", "analytics", "backups", "media"] as const;
 export type CheckId = (typeof CHECK_IDS)[number];
 export type Status = "ok" | "warn" | "fail" | "off" | "unknown";
 
@@ -30,6 +30,7 @@ export const CHECK_LABELS: Record<CheckId, string> = {
 	speed: "Speed",
 	analytics: "Analytics tags",
 	backups: "Backups",
+	media: "Media",
 };
 
 export interface CheckState {

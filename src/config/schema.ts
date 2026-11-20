@@ -297,6 +297,29 @@ export const kitConfigSchema = z.object({
 		])
 		.prefault({}),
 	/**
+	 * Media Assistant (@wp2emdash/media): Plugins → Media for editors and admins — media health, Optimize (in place, old
+	 * file kept 30 days), reviewed alt text suggestions, focal points, a 30-day media trash. On by default; `media: false`
+	 * turns it off.
+	 */
+	media: z
+		.union([
+			z.literal(false),
+			z.object({
+				/**
+				 * Alt text suggestions from Workers AI (adds the `AI` binding to wrangler.jsonc; each picture goes to a Cloudflare
+				 * vision model as a small copy). Default: on, except on sites with sensitiveData. Every suggestion is reviewed.
+				 */
+				aiAlt: z.boolean().optional(),
+				/** Queue new uploads for optimizing (an editor's click, or hourly with the MEDIA_API_TOKEN secret). */
+				autoOptimize: z.boolean().default(false),
+				/** Longest side (px) of an image original; larger ones are listed and resized by Optimize. */
+				maxDimension: z.number().int().min(1200).max(6000).default(2500),
+				/** Extra file-name patterns (regex) never offered for the trash; logos and icons are protected already. */
+				protect: z.array(z.string().max(200)).default([]),
+			}),
+		])
+		.prefault({}),
+	/**
 	 * Third-party EmDash plugins that run in EmDash's sandbox (Cloudflare Worker Loader, Workers Paid). Each is pinned
 	 * to a reviewed version and enabled per environment; admin installs from the public registry stay off.
 	 */
