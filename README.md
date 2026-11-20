@@ -12,7 +12,7 @@
   <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/nurkamol/wp2emdash?color=F6821F"></a>
   <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
-  <img alt="Tests: 1093 passing" src="https://img.shields.io/badge/tests-1093%20passing-1F9D6B">
+  <img alt="Tests: 1146 passing" src="https://img.shields.io/badge/tests-1146%20passing-1F9D6B">
 </p>
 
 wp2emdash is an open-source kit, built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net), that migrates WordPress sites to
@@ -108,6 +108,11 @@ Nothing the old site had is dropped silently: whatever the kit does not carry is
 | Custom post types (team, services, portfolio, locations…) | Each public type becomes its own EmDash collection (change it with `contentTypes: { team: { as: "collection", name?: "people" } }`, or `{ as: "pages" \| "skip", reason }`): title, slug, status, dates, featured image, excerpt, content (classic → Portable Text; WPBakery/Bricks/Gutenberg entries keep their sections), order, parent, terms of their taxonomies, byline; at their WordPress address, with an archive (numbered pages) where WordPress had one and term archives at the live bases; in the sitemap; editing guide `docs/editing-custom-content.md` in the client repo. Types the Exporter does not list as public still need a decision. Details: [CPT findings](docs/spikes/cpt-findings.md) |
 | ACF, Meta Box and Pods fields | Mapped to EmDash fields from the field definitions (ACF field groups, or the plugins' JSON exports dropped in `raw/plugin-exports/`): text → string/text, WYSIWYG → Portable Text, number, true/false, select/radio/checkbox, date/time, URL, image, file, gallery → repeater of images, relationship/post object → references (resolved after every entry exists), flat repeaters → repeaters, groups → one field per sub-field; flexible content, links, maps and nested repeaters are kept as JSON fields and flagged in the coverage report; password fields are never carried. Meta without a definition is listed and keeps gate `cpt-fields` red until mapped (`fields: { legacy_code: "string" }`) or skipped |
 | Taxonomies no migrated content uses | Listed; `taxonomies: { genre: { as: "skip", reason } }` |
+| Page order, parent page, page excerpt and featured image | Fields on EmDash's `pages` (`menu_order`, `parent` reference, `excerpt`, `featured_image`), added only for the ones the site actually uses; addresses stay as they were. The featured image is carried, not drawn on the page (the coverage report counts the live pages whose theme showed it); it also becomes the page's sharing and sitemap image when the page has none of its own |
+| Reusable blocks / synced patterns | Still inlined where pages used them, and each one also becomes an EmDash **section** (admin → Sections, inserted into rich text with `/section`; EmDash inserts a copy, so sections are not synced) |
+| Term descriptions; Yoast term SEO | Descriptions go to the EmDash term (shown under the archive heading and as its meta description; an empty one on an existing term is filled, an editor's is kept). Per-term SEO titles/descriptions have no home in EmDash 1.5: counted in the coverage report, not carried |
+| Users and roles | **No accounts are created and passwords never move.** Extract (administrator's application password) reads names, e-mail addresses and roles into an invite checklist in `sites/<slug>/users/` (gitignored; reports and client docs get counts per role only): administrator → Admin, editor → Editor, author → Author, contributor → Contributor; subscribers and plugin roles only when `overrides.ts users.roles` says so. The owner invites people from it in the admin, or runs `wp2emdash invite <slug> --send` |
+| Past form entries | Never read. The client go-live checklist has the owner export them from each form plugin before the switch (they disappear with WordPress hosting) |
 | Menus (every location: primary, secondary, footer, social, menus without a location) | Every WordPress menu becomes an EmDash menu (the header reads `primary` and `secondary`; a classic footer without a footer site part shows `footer`), all nesting levels, new-tab targets, the item's own CSS classes and title attribute. Item descriptions (EmDash has no field) are listed in the coverage report. Mega menus (Max Mega Menu, theme `megamenu` classes) → **partial**: columns of links in the menu panel; images, widgets and HTML inside the panel are reported, not carried |
 | Widgets and sidebars (classic themes) | EmDash widget areas, one per WordPress sidebar (`wp/v2/sidebars` + `wp/v2/widgets`, or a database dump's `sidebars_widgets`): Text, Custom HTML and block widgets → content widgets (Portable Text, images in the media library), Image → image (its link reported), Navigation Menu → menu widget, Search / Recent Posts / Categories / Archives / Tag Cloud → EmDash's core widgets (blog ones only on a blog site). Shown where the old theme showed them: footer areas as footer columns, the blog sidebar next to posts and listings. Any other widget keeps gate `widgets-handled` red until `widgets: { "calendar-2": "html" \| "skip" }` |
 | Site search (`/?s=`, `/search/<terms>/`) | The starter's search page at `/search/?q=` (EmDash full-text search over posts and collections, page titles, plus the text of every page's sections): ranked results with type and excerpt, matched words marked, numbered pages, a no-results state; results never cached, the empty form cached like a page. A search icon in the header when the old header had one; a migrated `/search/` page shows above the form |
@@ -180,12 +185,15 @@ after the previous load (`--overwrite-settings` does). Facts and limits: [settin
 One **provider registry** (`starter/src/utils/providers.ts`, imported by the kit as `src/providers/registry.ts`) lists
 every third-party widget the kit knows: how it is recognised, its category, and the hosts it may load from. The
 adapters use it to keep a widget in page content as an `embed` section; the starter uses the same table for the embed
-allowlist and the Content-Security-Policy, so nothing an embed needs is blocked and nothing else is allowed.
+allowlist and the Content-Security-Policy, so nothing an embed needs is blocked and nothing else is allowed. A
+Gutenberg embed block stores only the URL; for X, TikTok, Instagram, Reddit, Pinterest, Dailymotion, TED, Spotify, Loom
+and Mixcloud the adapter writes the provider's official embed code from it. An Adobe Fonts project the old site loaded
+(CSS embed) is kept, and Typekit's hosts join the CSP only on such a site.
 
 | Category | Providers |
 |---|---|
 | Booking & calendars | Mariana Tek, Momence, Jane, Calendly, Acuity, SimplePractice, Mindbody, Google Calendar, Vagaro, Glofox, Zenoti, Square Appointments, Booksy, Fresha, OpenTable, Resy, Tock, Arketa, ClassPass |
-| Video, audio, social | YouTube, Vimeo, Wistia, Loom, Spotify, SoundCloud, Instagram, TikTok, Facebook page/video, X (Twitter) |
+| Video, audio, social | YouTube, Vimeo, Wistia, Loom, Dailymotion, TED, Twitch, Spotify, SoundCloud, Mixcloud, Bandcamp, Apple Podcasts/Music, Instagram, TikTok, Facebook page/video, X (Twitter), Pinterest, Reddit, Bluesky |
 | Forms, maps, newsletter | Typeform, Jotform, HubSpot forms, Google Forms, Google Maps, Mailchimp |
 | Reviews | Elfsight, Trustindex, Trustpilot (in content); Elfsight and Trustindex also as site widgets |
 | Site widgets (by ID) | Chat: Tawk.to, Crisp, Intercom, HubSpot (tracking code & chat). Consent: CookieYes, Cookiebot, Termly, iubenda |
@@ -229,6 +237,7 @@ Run as `pnpm wp2emdash <command>`; `pnpm wp2emdash <command> --help` lists every
 | `import-dump <slug> [dir]` | Sort everything exported from the site (`sites/<slug>/dump/`) into the places the phases read |
 | `import-options <slug> <dump>` | Read builder settings (Bricks palette, global classes, theme styles, components) from a backup's `database.sql` |
 | `compare <a> <b> [--json]` | Content diff between two audited sites (read-only, no network) |
+| `invite <slug> [--send]` | Team invites from the WordPress users (counts per role). `--send` creates them through EmDash (it e-mails them when the site has an e-mail provider; otherwise the kit stops and the owner invites from the admin) — the owner's step, never part of load |
 | `check-aliases <slug> [--paths-from <slugs>]` | Every audited path on each alias domain answers 301 to the same path on the primary (read-only) |
 | `golive <slug> [--yes]` | The owner-approved traffic switch (see [Launch](#launch)). Plan only without `--yes` |
 | `golive <slug> --aliases [--yes]` | Separate step once the primary is live: one Single Redirect rule per alias domain |

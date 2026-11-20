@@ -57,8 +57,9 @@ Astro, Wrangler and Cloudflare versions before code depended on it — check the
 | [Custom post types & fields](spikes/cpt-findings.md) | CPTs → EmDash collections; ACF, Meta Box and Pods field mapping |
 | [Site health](spikes/health-findings.md) | Cron design, check limits, alerts and the monthly report |
 | [Media assistant](spikes/media-findings.md) | Media scan, Images binding optimizing, Workers AI alt text, trash |
+| [P2 parity batch](spikes/p2-batch-findings.md) | Team invites (EmDash invite API, roles), term descriptions, page order/parent/excerpt/featured image, reusable blocks as sections, oEmbeds, Adobe Fonts, image sitemap entries |
 | [Performance](spikes/performance-findings.md) | Route cache, warm-up, responsive images, deferred video, with staging measurements; why Smart Placement stays off |
-| [Provider registry](spikes/providers-findings.md) | Hosts and snippet forms of the 46 known widget providers; site widgets |
+| [Provider registry](spikes/providers-findings.md) | Hosts and snippet forms of the 55 known widget providers; site widgets |
 | [Sign-in sessions](spikes/sessions-findings.md) | Why Workers KV sessions logged editors out at random, and the move to R2 |
 | [Site settings](spikes/settings-findings.md) | EmDash's Settings schema, head tags, robots.txt and brand files, prefilled from WordPress |
 | [Single environment](spikes/single-env-findings.md) | Production-only by default: D1 Time Travel and Workers preview URLs checked against Wrangler 4.163 |

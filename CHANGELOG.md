@@ -25,6 +25,14 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - **More form plugins:** Ninja Forms, Formidable, WS Form and Forminator exports; a live form without an export is rebuilt from the page's HTML (flagged).
 - **`@wp2emdash/forms` 1.7:** file upload fields (private R2 storage, one-time signed download links, retention), conditional fields (`showIf`) and multi-step forms; kit config `forms.uploads`.
 - **Shortcode registry** (`src/adapters/shortcodes.ts`): forms, breadcrumbs, layout wrappers, widgets and core media shortcodes; unknown plugin shortcodes block; coverage report "Shortcodes".
+- **Team invite list** from the WordPress users (P2 batch, `docs/spikes/p2-batch-findings.md`): administrator/editor/author/contributor → Admin/Editor/Author/Contributor, subscribers and plugin roles only by decision (`overrides.ts users`); names and e-mail addresses only in `sites/<slug>/users/` (reports, ir and client docs show counts per role). Load creates no accounts; `wp2emdash invite <slug> --send` sends the invites when the owner runs it.
+- **Page attributes:** manual order, parent page, excerpt and featured image become `pages` fields (`menu_order`, `parent`, `excerpt`, `featured_image`) only when the site uses them; parents written in load's reference pass.
+- **Reusable blocks as EmDash sections:** each published `wp_block` is also written as a section (`source: import`) editors can insert with `/section`; pages keep the block inlined.
+- **oEmbeds:** Gutenberg embed URLs of X, TikTok, Instagram, Reddit, Pinterest, Dailymotion, TED, Spotify, Loom and Mixcloud become the provider's official embed code; Dailymotion, TED, Twitch, Pinterest, Reddit, Bluesky, Mixcloud, Bandcamp and Apple Podcasts/Music join the provider registry (allowlist + CSP).
+- **Adobe Fonts:** a CSS kit the old site loaded is kept (`site.config.json fonts.typekitHref`), with Typekit's hosts in the CSP only on such sites.
+- **Image sitemap entries:** a page, post or entry without its own sharing image gets its featured image as the SEO image, which EmDash lists as `<image:image>`.
+- **Term meta:** load fills an empty description on a term that already exists on the target (never an editor's); Yoast per-term SEO (`wpseo_taxonomy_meta` via `import-options`) is counted in the coverage report, not carried (EmDash 1.5 has no per-term SEO).
+- **Go-live checklist:** the owner exports past form entries from WordPress before the switch and before hosting is retired, and invites the team (counts per role).
 
 ### Fixed
 - WPBakery/Bricks rows that hold a collection (video, form, gallery…) plus loose images or buttons dropped them without a word: they are now carried as sections after the collection, and icons that have no place are reported in the coverage report.
