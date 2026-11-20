@@ -1,0 +1,263 @@
+{
+  "sections": [
+    {
+      "type": "cta_banner",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#111111"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[0]",
+        "rawHash": "67abfd6449",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Repairs while you wait",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Most fixes in under an hour. No appointment needed on weekdays.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Repair prices",
+            "href": "/repairs/",
+            "style": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[1]",
+        "rawHash": "7c3e63196e",
+        "row": 1
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Service",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Full tune-up from $79.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Gears and brakes",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [],
+                "listItem": "bullet",
+                "level": 1
+              },
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Wheel truing",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [],
+                "listItem": "bullet",
+                "level": 1
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Rentals",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "City and e-bikes by the day.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "anchorId": "visit",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "e264b720c0",
+        "row": 2
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "tg",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "th",
+                "text": "Visit the shop",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "embedUrl": "https://maps.google.com/maps?q=Ironbridge%20Bikes&output=embed"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "anchorId": "visit",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "e264b720c0",
+        "row": 2
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "ti",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tj",
+                "text": "Open Tuesday to Sunday, 9am to 6pm.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "flagged",
+      "message": "Rebuilt from the live page's rendered HTML (fixture (breakdance)); check it visually against the live page, then record the review in overrides.ts domFallbackReviewed",
+      "path": "dom",
+      "tag": "dom-fallback"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "left out of the rebuilt page: inline SVG icon ×1, footer ×1, header ×1",
+      "path": "dom"
+    }
+  ],
+  "forms": []
+}

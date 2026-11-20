@@ -118,7 +118,7 @@ function formProvider($form: cheerio.Cheerio<never>, html: string): { provider: 
 
 const fid2 = (f: { attribs?: Record<string, string> }) => f.attribs?.id;
 
-function extractForms($: cheerio.CheerioAPI, html: string): FormSnapshot[] {
+export function extractForms($: cheerio.CheerioAPI, html: string): FormSnapshot[] {
 	const forms: FormSnapshot[] = [];
 	$("form").each((_, el) => {
 		const $form = $(el) as unknown as cheerio.Cheerio<never>;

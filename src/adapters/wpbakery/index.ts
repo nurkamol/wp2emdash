@@ -36,7 +36,7 @@ export interface Row {
 	columns: Col[];
 	path: string;
 	raw: string;
-	adapter?: "wpbakery" | "gutenberg" | "classic" | "bricks" | "elementor" | "divi";
+	adapter?: "wpbakery" | "gutenberg" | "classic" | "bricks" | "elementor" | "divi" | "dom-fallback";
 }
 
 /** Page-builder element families (WPBakery and its add-ons, Salient, Divi, Avada, other themes' builders): unknown ones keep the "No handler" report. */

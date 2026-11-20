@@ -1,0 +1,254 @@
+{
+  "sections": [
+    {
+      "type": "cta_banner",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#e8f0e0"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[0]",
+        "rawHash": "2227db3076",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Plants that thrive in your garden",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Over 3,000 perennials, shrubs and trees, grown on site in Larkspur valley.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Plan your visit",
+            "href": "/visit/",
+            "style": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "type": "media_text",
+      "variant": "inline",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[1]",
+        "rawHash": "84d8015d4e",
+        "row": 1
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 15,
+            "kind": "image",
+            "alt": "Our greenhouse"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Grown here, not shipped in",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Every plant spends at least one winter outdoors before we sell it.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "da50a44ea3",
+        "row": 2
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 16,
+            "kind": "image",
+            "alt": "Roses"
+          },
+          {
+            "wpId": 17,
+            "kind": "image",
+            "alt": "Ferns"
+          },
+          {
+            "wpId": 18,
+            "kind": "image",
+            "alt": "Maples"
+          }
+        ],
+        "layout": "grid",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[4]",
+        "rawHash": "0419d87b3d",
+        "row": 4
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Garden tips by email",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "One short letter a month.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[4]",
+        "rawHash": "0419d87b3d",
+        "row": 4
+      },
+      "fields": {
+        "html": "<form id=\"mc4wp-form-1\" class=\"mc4wp-form mc4wp-form-99\" method=\"post\" action=\"https://list.example/subscribe\"><p><label>Email address <input type=\"email\" name=\"EMAIL\" required=\"\"></label></p><p><input type=\"submit\" value=\"Sign up\"></p></form>",
+        "reason": "mailchimp form"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "flagged",
+      "message": "Rebuilt from the live page's rendered HTML (fixture (siteorigin)); check it visually against the live page, then record the review in overrides.ts domFallbackReviewed",
+      "path": "dom",
+      "tag": "dom-fallback"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "post listing (2 posts shown) needs a posts-listing section (not in the v1 library)",
+      "path": "dom[3]",
+      "carriesContent": true,
+      "tag": "listing"
+    },
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (mailchimp form); replace with a section or approve in decisions.md",
+      "path": "dom[4]/div[2]/form[0]",
+      "carriesContent": true
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "element hidden on desktop (a phone/tablet copy?) not migrated: \"Old summer opening hours: 9 to 9.\"",
+      "path": "dom[4]/div[4]/div[0]"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "left out of the rebuilt page: theme chrome (header, menus, skip links) ×1, footer ×1",
+      "path": "dom"
+    }
+  ],
+  "forms": []
+}

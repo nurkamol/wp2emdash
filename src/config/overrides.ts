@@ -133,6 +133,12 @@ export const overridesSchema = z.object({
 	 * choice). Unknown widgets without a decision fail the transform gate `widgets-handled`.
 	 */
 	widgets: z.record(z.string(), z.enum(["html", "skip"])).default({}),
+	/**
+	 * Pages rebuilt from the live page's rendered HTML by the DOM fallback (a builder without an adapter; coverage report →
+	 * "Rebuilt from rendered HTML"): page slug → the owner's note that the rebuilt page was checked against the live one
+	 * (who, when, what was fixed). Until every such published page has one, the transform gate `dom-fallback-reviewed` fails.
+	 */
+	domFallbackReviewed: z.record(z.string(), z.string().min(3, "give the owner's review note")).default({}),
 });
 
 function decision<T extends string>(values: [T, ...T[]]) {
