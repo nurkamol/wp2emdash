@@ -1,0 +1,25 @@
+{
+  "taxonomies": {
+    "media_category": { "name": "Media Categories", "slug": "media_category", "types": ["attachment"], "hierarchical": true, "rest_base": "media_category" },
+    "happyfiles_category": { "name": "HappyFiles Folders", "slug": "happyfiles_category", "types": ["attachment"], "hierarchical": true, "rest_base": "happyfiles_category" }
+  },
+  "terms": {
+    "media_category": [
+      { "id": 11, "name": "Brand", "parent": 0 },
+      { "id": 12, "name": "Logos", "parent": 11 },
+      { "id": 13, "name": "Team &amp; Studio", "parent": 0 },
+      { "id": 14, "name": "  logos ", "parent": 11 }
+    ],
+    "happyfiles_category": [
+      { "id": 21, "name": "Brand", "parent": 0 },
+      { "id": 22, "name": "Events", "parent": 0 }
+    ]
+  },
+  "media": [
+    { "id": 101, "media_category": [12], "happyfiles_category": [] },
+    { "id": 102, "media_category": [13, 11], "happyfiles_category": [22] },
+    { "id": 103, "media_category": [], "happyfiles_category": [22] },
+    { "id": 104, "media_category": [999], "happyfiles_category": [] },
+    { "id": 105, "media_category": [14] }
+  ]
+}

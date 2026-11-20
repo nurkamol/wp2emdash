@@ -30,6 +30,8 @@ import { BLOCK_TYPES } from "../starter/library.js";
 import { svgToPng } from "../targets/emdash/svg.js";
 import { ACCESS_BODY_FIELD, ACCESS_FIELD, pageAction, protectedData } from "../targets/emdash/access.js";
 import { hashPassword, PROTECTED_FILE, type ProtectedEntry } from "../transform/protected.js";
+import { ensureMediaFolders, type FolderResult, fileUnfiledMedia, folderSummary } from "../targets/emdash/media-folders.js";
+import { folderKey, type MediaFolderPlan } from "../transform/media-folders.js";
 import { DOC_MIME, DOCUMENT_FIELD, globallyAllowed, isDocument, lostMetadata, manifestIndex, plainCaption, uploadLinks } from "../targets/emdash/documents.js";
 import { type ContentItem, EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
 import { type CommentMapEntry, type CommentsFile, loadComments } from "../targets/emdash/comments.js";
@@ -481,6 +483,22 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const existing = await api.mediaList();
 		for (const m of existing) if (m.contentHash) bySha.set(String(m.contentHash).replace(/^sha1:/, ""), m);
 		const existingIds = new Set(existing.map((m) => m.id));
+		// Media folders (ir/media-folders.json, src/targets/emdash/media-folders.ts): folders first, so new uploads carry one.
+		const folderPlan = readJson<MediaFolderPlan>(join(paths.ir, "media-folders.json"));
+		const folderResult: FolderResult = { created: 0, reused: 0, filed: 0, inPlace: 0, kept: 0, errors: [] };
+		const currentFolder = new Map(existing.map((m) => [m.id, m.folderId ?? null] as const));
+		let folderIds = new Map<string, string>();
+		if (folderPlan?.folders.length) {
+			try {
+				folderIds = await ensureMediaFolders(api, folderPlan, folderResult);
+			} catch (e) {
+				folderResult.errors.push(`folders: ${(e as Error).message}`);
+			}
+		}
+		const folderFor = (wpId?: number) => {
+			const name = wpId !== undefined ? folderPlan?.assignments[String(wpId)] : undefined;
+			return name ? folderIds.get(folderKey(name)) : undefined;
+		};
 		let uploaded = 0;
 		let reused = 0;
 		const mediaErrors: string[] = [];
@@ -551,7 +569,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				} else {
 					const mime = mimeOf(filename);
 					const caption = plainCaption(local?.caption).slice(0, 1000);
-					item = await api.mediaUpload(bytes, filename, mime, ref.alt ?? (local?.alt || undefined), { ...(caption ? { caption } : {}), ...(!globallyAllowed(mime) ? { fieldId: await documentFieldId() } : {}) });
+					item = await api.mediaUpload(bytes, filename, mime, ref.alt ?? (local?.alt || undefined), { ...(caption ? { caption } : {}), ...(!globallyAllowed(mime) ? { fieldId: await documentFieldId() } : {}), ...(folderFor(ref.wpId) ? { folderId: folderFor(ref.wpId) } : {}) });
+					currentFolder.set(item.id, item.folderId ?? null);
 					bySha.set(sha1, item);
 					uploaded++;
 					if (local) uploadedEntries.push(local);
@@ -567,6 +586,10 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		if (svgBrowser) await svgBrowser.close().catch(() => {});
 		if (svgConverted.length) reporter.emit({ type: "log", level: "info", message: `SVG drawn to PNG (EmDash's media library takes no SVG): ${svgConverted.join(", ")}` });
 		reporter.emit({ type: "step:end", step: "Media", ok: mediaErrors.length === 0, detail: `${uploaded} uploaded, ${reused} reused, ${refs.size} referenced` });
+		if (folderPlan?.folders.length) {
+			if (!folderResult.errors.some((x) => x.startsWith("folders:"))) await fileUnfiledMedia(api, folderPlan, folderIds, (wpId) => idMap.media[`wp:${wpId}`]?.id, currentFolder, folderResult);
+			check("media-folders", "Media folders from WordPress on the target (editors' folders and filing kept)", folderResult.errors.length === 0, folderResult.errors.slice(0, 6).join("; ") || folderSummary(folderResult, folderPlan));
+		}
 		check("media", "Every referenced media item is on the target", mediaErrors.length === 0, mediaErrors.slice(0, 6).join("; ") || `${refs.size} items (${uploaded} uploaded, ${reused} already there${duplicates ? `, ${duplicates} duplicate file(s) of the WordPress library share one media item` : ""})`);
 		// Files linked from content: each one in the media library (the links are rewritten below); a link to an upload
 		// extract could not download was already broken on the live site (extract's brokenUploads).
