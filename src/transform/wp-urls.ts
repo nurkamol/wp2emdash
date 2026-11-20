@@ -37,6 +37,8 @@ export interface WpUrlInput {
 	 * migrated posts' addresses (never matched by a rule, like pages); `ids` the query forms → archive addresses.
 	 */
 	blog?: { index: string; archives: string[]; posts: string[]; ids: Record<string, string> };
+	/** Comments are migrated (src/transform/comments.ts): the comment feeds still answer 410 (no comment feed is built). */
+	comments?: boolean;
 }
 
 const pathOf = (u: string): string | undefined => {
@@ -77,7 +79,7 @@ export function buildWpUrlPlan(input: WpUrlInput): WpUrlPlan {
 			: blog
 			? { target: blog, why: "the site's feed → the blog page (no feed is generated yet)" }
 			: { target: "/", why: hasPosts ? "no feed is generated yet: → home until the blog milestone adds one (flagged)" : "no posts: the feed had nothing of its own, → home (linked from every old page's <head>)" },
-		commentsFeed: { target: "gone", why: "comments are not migrated: the resource is gone (410 tells feed readers to unsubscribe)" },
+		commentsFeed: { target: "gone", why: input.comments ? "comments are migrated but no comment feed is built: the resource is gone (410 tells feed readers to unsubscribe)" : "comments are not migrated: the resource is gone (410 tells feed readers to unsubscribe)" },
 		search: search ? { target: search, why: "the site has a /search/ page: the query goes along as ?q=" } : { target: "/", why: "no search page: → home (keeps the SearchAction link from erroring)" },
 		category: realBlog ? { target: realBlog.index, why: "category archives are rebuilt (blog); only the bare base and unknown query forms → the posts page" } : blog ? { target: blog, why: "category archives are not rebuilt: → the blog page" } : { target: "gone", why: "no blog page to send them to: 410" },
 		tag: realBlog ? { target: realBlog.index, why: "tag archives are rebuilt (blog); only the bare base and unknown query forms → the posts page" } : blog ? { target: blog, why: "tag archives are not rebuilt: → the blog page" } : { target: "gone", why: "no blog page to send them to: 410" },

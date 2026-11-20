@@ -1,0 +1,20 @@
+{
+	"$comment": "Synthetic comments for the blog fixture (test/fixtures/blog/site.json): Exporter /emdash/v1/comments items plus rows another source could send (spam, trash, pingback, author_url, HTML body). Names and example.test addresses are made up.",
+	"commentStatus": { "2": "closed", "4": "closed", "10": "open", "11": "closed", "12": "open", "14": "open" },
+	"restDiscussion": { "default_comment_status": "open", "default_ping_status": "open" },
+	"dumpDiscussion": { "default_comment_status": "open", "comment_moderation": "0", "comment_previously_approved": "1", "close_comments_for_old_posts": "1", "close_comments_days_old": "30", "comment_registration": "0", "thread_comments": "1", "thread_comments_depth": "3" },
+	"comments": [
+		{ "id": 101, "post_id": 10, "parent_id": null, "author_name": "Ana Reader", "author_email": "ana@example.test", "body": "Great post! I tried the routine this morning.", "date_gmt": "2024-05-11T08:00:00Z", "status": "approved" },
+		{ "id": 102, "post_id": 10, "parent_id": 101, "author_name": "Jane Writer", "author_email": "jane@example.test", "body": "<p>Thanks &amp; welcome!</p><p>More in <a href=\"https://blog.example.test/classic-notes/\">the notes</a>.</p>", "date_gmt": "2024-05-11 09:30:00", "status": "approved" },
+		{ "id": 103, "post_id": 10, "parent_id": 102, "author_name": "Ana Reader", "author_email": "ana@example.test", "body": "Will read it, thanks.\nSee https://example.test/a.", "date_gmt": "2024-05-12T07:15:00Z", "status": "approved" },
+		{ "id": 104, "post_id": 10, "parent_id": null, "author_name": "Pat Pending", "author_email": "pat@example.test", "body": "Is this still on?", "date_gmt": "2024-05-13T10:00:00Z", "status": "pending" },
+		{ "id": 105, "post_id": 10, "parent_id": null, "author_name": "Cheap Pills", "author_email": "spam@example.test", "body": "buy now", "date_gmt": "2024-05-13T11:00:00Z", "status": "spam" },
+		{ "id": 106, "post_id": 11, "parent_id": null, "author_name": "Other Blog", "author_email": "", "author_url": "https://other.example.test/", "body": "[…] linked from […]", "date_gmt": "2024-06-02T08:00:00Z", "status": "approved", "type": "pingback" },
+		{ "id": 107, "post_id": 11, "parent_id": null, "author_name": "Sam &amp; Co", "author_email": "sam@example.test", "author_url": "https://sam.example.test/", "body": "Lovely notes.", "date_gmt": "2024-06-02T09:00:00Z", "status": "approved" },
+		{ "id": 108, "post_id": 11, "parent_id": 104, "author_name": "Lee", "author_email": "lee@example.test", "body": "Agreed.", "date_gmt": "2024-06-03T09:00:00Z", "status": "approved" },
+		{ "id": 109, "post_id": 99, "parent_id": null, "author_name": "Gone", "author_email": "gone@example.test", "body": "On an attachment page.", "date_gmt": "2024-06-04T09:00:00Z", "status": "approved" },
+		{ "id": 110, "post_id": 2, "parent_id": null, "author_name": "Visitor", "author_email": "visitor@example.test", "body": "Nice studio!", "date_gmt": "2024-02-01T12:00:00Z", "status": "approved" },
+		{ "id": 111, "post_id": 10, "parent_id": null, "author_name": "Binned", "author_email": "bin@example.test", "body": "old", "date_gmt": "2024-05-14T09:00:00Z", "status": "trash" },
+		{ "id": 112, "post_id": 10, "parent_id": null, "author_name": "Scripted", "author_email": "", "body": "<script>alert(1)</script>", "date_gmt": "2024-05-15T09:00:00Z", "status": "approved" }
+	]
+}

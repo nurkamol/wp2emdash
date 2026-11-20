@@ -10,15 +10,15 @@ The matrix covers 110 features; 103 of them are in scope.
 
 | | Count | Share of in-scope |
 |---|---|---|
-| ✅ Done | 58 | 56% |
+| ✅ Done | 60 | 58% |
 | ➖ Superseded (nothing to carry) | 6 | 6% |
 | 🟡 Partial | 26 | 25% |
-| ❌ Missing | 13 | 13% |
+| ❌ Missing | 11 | 11% |
 | ⛔ Out of scope (not counted) | 7 | — |
 
 **What this means.** The kit fully migrates a brochure site: builder pages (WPBakery/Salient, Bricks, Gutenberg pages; Elementor since 2026-11-21, not yet on a real site), header and footer, menus, popups and announcement bars, media in use, forms, SEO meta, JSON-LD, analytics, redirects from plugin exports, and old upload/sitemap/`?page_id` URLs. Both real sites were exactly that. They had no posts, comments, CPT entries, terms in use, widgets, consent banner or redirect rules. Since 2026-11-20 the kit also migrates a blog: posts, categories and tags, bylines, archives and RSS feeds (tested on a synthetic WordPress blog and a local EmDash, not yet on a real blog). Since 2026-11-21 custom post types become their own collections with their ACF, Meta Box and Pods fields, archives and term archives (tested the same way).
 
-Anything beyond that is missing today. The kit has no comments (in progress) or widgets, and no adapters for Divi or other builders (the Elementor adapter exists since 2026-11-21 but has not met a real Elementor site yet); a built-in consent banner exists since 2026-11-20. Since 2026-11-20 none of it is lost silently: transform lists every unmigrated post type, taxonomy in use and author (gate `content-types-handled`), Customizer CSS is reported and carried by decision, and verify accounts for every old address (`urls-accounted`): feeds, search, archives, attachment pages and query URLs follow a per-site rule set.
+Anything beyond that is missing today. Since 2026-11-21 approved comments are migrated too, with their date, author and threads (synthetic test). The kit has no widgets (in progress), and no adapters for Divi or other builders (the Elementor adapter exists since 2026-11-21 but has not met a real Elementor site yet); a built-in consent banner exists since 2026-11-20. Since 2026-11-20 none of it is lost silently: transform lists every unmigrated post type, taxonomy in use and author (gate `content-types-handled`), Customizer CSS is reported and carried by decision, and verify accounts for every old address (`urls-accounted`): feeds, search, archives, attachment pages and query URLs follow a per-site rule set.
 
 **Top 10 gaps by impact**
 
@@ -29,7 +29,7 @@ Anything beyond that is missing today. The kit has no comments (in progress) or 
 5. **~~No authors or bylines.~~** Closed 2026-11-20 (guest bylines). Row: bylines.
 6. **The starter has no search page.** The blog index, single post, category/tag/author archives and pagination exist since 2026-11-20. Rows: search (archives, single-post closed).
 7. **~~No RSS feeds.~~** Closed 2026-11-20: blog sites serve RSS 2.0 site and archive feeds. Row: rss.
-8. **Comments are extracted but not loaded,** and EmDash has no bulk-create API for them. Row: comments.
+8. **~~Comments are extracted but not loaded.~~** Closed 2026-11-21: approved comments with date, author and threads through an admin-only import route, approved by EmDash's moderation. Row: comments.
 9. **Third-party scripts now have a home.** The snippet recognizer, the 46-provider registry, site widgets and the built-in consent banner carry them; unknown code still waits for a decision (gate `site-snippets`).
 10. **Only four builders are supported.** WPBakery/Salient, Gutenberg, Bricks and (since 2026-11-21, unmeasured on a real site) Elementor; there are no Divi or DOM-fallback adapters, so other WordPress sites stop at transform. Rows: elementor, divi, other-builders.
 
@@ -119,14 +119,14 @@ Columns: the WordPress feature · its EmDash 1.5 home (evidence level in italics
 | Blog index, category/tag/author/date archives, pagination <sub>`archives`</sub> | No injected routes; `getEmDashCollection` where taxonomy/`byline` + offset/`hasMore`, `getTerm`, `getBylineBySlug` | ✅ done: Starter (blog sites): posts page (WordPress posts page, `/` when the front page lists posts, else /blog/) with sticky posts first, category/tag/author archives at the WordPress bases incl. nested category paths, `/page/N/`; route cache tags posts + taxonomies; archives sitemap. Date archives 301 to the posts page | Date archives are not rebuilt (redirect). | — | — | — |
 | Single post template (date, author box, categories, prev/next, related) <sub>`single-post`</sub> | Theme; EmDash prints BlogPosting JSON-LD and article meta for `pageType: article` | ✅ done: starter components/blog/Single.astro: title, date, byline, categories/tags, featured image, content (Portable Text or builder sections), author box, newer/older, related by category | — | — | — | — |
 | Site search + results page <sub>`search`</sub> | FTS5 (`search`, `searchCollection`, `LiveSearch.astro`, widget `core:search`) | 🟡 partial: No `/search` route yet; `/?s=q` and `/search/q/` → 301 home, or `/search/?q=` when a migrated `/search/` page exists (WordPress-URL rule `search`; verify `urls-accounted`) | `/search` page (FTS5) in the starter; then the rule sends the query there and the Rank Math WebSite SearchAction resolves. | S / low | P1 | 2/2 |
-| RSS/Atom feeds (`/feed/`, category/comment feeds) <sub>`rss`</sub> | None (no feed route or helper in src) *(not in EmDash)* *(not in EmDash)* | ✅ done: Blog sites: RSS 2.0 at /feed/ and /<archive>/feed/ (full text or excerpt per `rss_use_excerpt`, `posts_per_rss` items), autodiscovery links, `?feed=rss2`/`/wp-rss2.php` → /feed/; verify `feeds`. Sites without posts: 301 home, comment feeds 410 (docs/spikes/wp-urls-findings.md) | Comment feeds stay 410 (comments not migrated). | — | — | 2/2 |
+| RSS/Atom feeds (`/feed/`, category/comment feeds) <sub>`rss`</sub> | None (no feed route or helper in src) *(not in EmDash)* *(not in EmDash)* | ✅ done: Blog sites: RSS 2.0 at /feed/ and /<archive>/feed/ (full text or excerpt per `rss_use_excerpt`, `posts_per_rss` items), autodiscovery links, `?feed=rss2`/`/wp-rss2.php` → /feed/; verify `feeds`. Sites without posts: 301 home, comment feeds 410 (docs/spikes/wp-urls-findings.md) | Comment feeds stay 410 (no comment feed is built, also when comments are migrated). | — | — | 2/2 |
 
 ### Comments & users
 
 | WP feature | EmDash 1.5 home | Kit status + refs | Gap & approach | Effort / risk | Pri | Sites |
 |---|---|---|---|---|---|---|
-| Comments (approved, threaded) <sub>`comments`</sub> | `_emdash_comments` (pending/approved/spam/trash, 1-level threading), moderation, Turnstile; no admin bulk-create REST route found | ❌ missing: extract writes raw/exporter/comments.json; not loaded | Spike the write path (site-transfer `comment` records via `emdash site import`, or EmDash's `importCommentsFromPlugin`); deeper threads flattened (reported); emails never logged. | M / med | P1 | 0/2 |
-| Comment open/closed per post, discussion settings <sub>`comment-settings`</sub> | Per collection: `commentsEnabled`, `commentsModeration`, `commentsClosedAfterDays` | ❌ missing: — | Map site defaults to collection options; per-post closed state needs a field. | S / low | P2 | 0/2 |
+| Comments (approved, threaded) <sub>`comments`</sub> | `_emdash_comments` (pending/approved/spam/trash, 1-level threading), moderation, Turnstile; no API creates a comment with its date and author (public route stamps now; admin routes only moderate; site transfer needs an empty site) | ✅ done: transform/comments.ts → ir/comments.json (approved; pending by decision; spam/trash/pingbacks/orphans counted; deeper replies flattened); load writes pending rows through the kit's admin-only route (@wp2emdash/comments), then approves through EmDash's bulk moderation (cache purge); id-map, counts per entry; starter list + form; verify `comments` (docs/spikes/comments-findings.md) | Author URLs not carried (EmDash 1.5 has no column); comment feeds stay 410; tested on a synthetic blog only. | — | — | 0/2 |
+| Comment open/closed per post, discussion settings <sub>`comment-settings`</sub> | Per collection: `commentsEnabled`, `commentsModeration`, `commentsClosedAfterDays` | ✅ done: Discussion settings (REST `default_comment_status`, backup options via import-options) → collection settings at load; per-entry `comment_status: closed` → field "Comments closed" (form hidden, middleware refuses); registered-users-only and sensitive sites: form off unless decided | — | — | — | 0/2 |
 | Users and roles <sub>`users`</sub> | Roles SUBSCRIBER…ADMIN, invites, passkeys, magic links, OAuth (GitHub/Google/Microsoft) | ❌ missing: Owner invites admins by hand (PLAN §8 editor handoff) | Invite list from WP users with role mapping (administrator→ADMIN, editor→EDITOR, author→AUTHOR, contributor→CONTRIBUTOR); passwords never migrate. | S / low | P2 | 2/2 |
 
 ### Forms
@@ -227,7 +227,7 @@ Columns: the WordPress feature · its EmDash 1.5 home (evidence level in italics
 | 7 | P0 | Feeds: `/feed/` + category feeds from posts; redirect/410 rule and verify check for sites without posts | `rss` | S | Done 2026-11-20: RSS 2.0 site and archive feeds with autodiscovery (verify `feeds`); sites without posts keep the 301/410 rule. |
 | 8 | P0 | Custom post type mapper (collection per type, fields, urlPattern, templates) | `cpt` | L | Done 2026-11-21 (docs/spikes/cpt-findings.md): collection per public type, core fields, permalinks, archives, term archives, references, seed/load/verify; tested on a synthetic site and a local EmDash end to end. |
 | 9 | P1 | Search page + `/?s=` redirect; other WP query URLs (`?cat`, `?tag`, `?author`, `?attachment_id`, `?feed`) and attachment pages | `search`, `wp-query-urls`, `attachment-pages` | S | Done 2026-11-20 except the search page: WordPress-URL rule set in the starter middleware (search → home until a `/search` page exists). |
-| 10 | P1 | Comments import (spike the write path first) | `comments`, `comment-settings` | M | No admin bulk-create route found; site-transfer `comment` records are the likely path. |
+| 10 | P1 | Comments import (spike the write path first) | `comments`, `comment-settings` | M | Done 2026-11-21 (docs/spikes/comments-findings.md): kit import route writes pending rows, EmDash's bulk moderation approves; settings per collection; starter list + form; tested on a synthetic blog and a local EmDash. |
 | 11 | P1 | Third-party scripts: snippet recognizer (in progress), consent banner, chat/embeds allowlist, Customizer CSS | `snippets`, `consent`, `custom-css`, `embeds`, `widgets-3p` | M | The consent banner is P0 for EU/UK clients. Customizer CSS done 2026-11-20 (reported, carried by decision). |
 | 12 | P1 | Elementor adapter | `elementor` | L | Most common builder after Gutenberg. |
 | 13 | P1 | DOM-fallback adapter (any builder, flagged) | `other-builders` | L | Universal safety net in the PLAN; not built. |
@@ -243,7 +243,7 @@ Columns: the WordPress feature · its EmDash 1.5 home (evidence level in italics
 | 23 | P1 | Forms: Ninja/Formidable/Elementor extractors, file uploads, conditional logic | `forms-other`, `forms-features` | M |  |
 | 24 | P1 | Post-launch 404 → redirect suggestions; sitemaps for posts/terms | `404-log`, `sitemaps` | S | Check overlap with packages/health. |
 
-**P2:** `page-hierarchy`, `page-template`, `menu-order`, `excerpt`, `featured-image`, `post-formats`, `reusable-blocks`, `global-parts`, `term-meta`, `caption-title`, `video-audio`, `media-folders`, `mega-menu`, `popups`, `social`, `404`, `comment-settings`, `users`, `form-entries`, `redirects`, `og-twitter`, `jsonld`, `breadcrumbs`, `sitemaps`, `kml`, `verification`, `fonts`, `maintenance`, `legal`, `i18n`, `events`. Each row in §2 gives its approach.
+**P2:** `page-hierarchy`, `page-template`, `menu-order`, `excerpt`, `featured-image`, `post-formats`, `reusable-blocks`, `global-parts`, `term-meta`, `caption-title`, `video-audio`, `media-folders`, `mega-menu`, `popups`, `social`, `404`, `users`, `form-entries`, `redirects`, `og-twitter`, `jsonld`, `breadcrumbs`, `sitemaps`, `kml`, `verification`, `fonts`, `maintenance`, `legal`, `i18n`, `events`. Each row in §2 gives its approach.
 
 **Out of scope (detected, migration stops for an owner decision):**
 
@@ -265,7 +265,7 @@ Columns: the WordPress feature · its EmDash 1.5 home (evidence level in italics
 - Entry system columns: no parent, menu_order or template; statuses `draft|published|archived` (`schema/registry.ts`, `query.ts`).
 - Taxonomy, menu, widget, section and byline tables plus their REST routes (`astro/routes/api/{taxonomies,menus,widget-areas,sections}`).
 - Content create/update accept `bylines` and `publishedAt`; `publishedAt` requires `content:publish_any` (`api/schemas/content.ts`).
-- Comments: table, statuses, one-level threading, Turnstile; only the per-entry public submission route was found (`comments/public-submission.ts`, `routes/api/comments/[collection]/[contentId]`).
+- Comments: table, statuses, one-level threading, Turnstile; the public route stamps the current time and the admin routes only moderate; the Exporter-plugin import (`importCommentsFromPlugin`) reads the live WordPress site; site transfer needs an empty target. The kit adds an admin-only import route (docs/spikes/comments-findings.md).
 - Redirects (301/302/307/308/410/451, `[param]` patterns, 404 log) and auto-redirects on slug change.
 - `SiteSettings` keys: `title tagline logo favicon url staging postsPerPage dateFormat timezone social seo{titleSeparator defaultOgImage robotsTxt disallowAiTraining googleVerification bingVerification}` (`settings/types.ts`).
 - Sitemaps cover only collections that are both SEO-enabled and routable, with no taxonomy or author sitemaps; the robots.txt route exists.
@@ -286,7 +286,7 @@ Columns: the WordPress feature · its EmDash 1.5 home (evidence level in italics
 
 - ~~Token scopes and `publishedAt`~~: verified 2026-11-20 — `content:publish_any` is a role permission (Editor+), not a token scope; bylines need the `admin` token scope (docs/spikes/blog-findings.md).
 - ~~REST schedule endpoint~~: `POST /content/{c}/{id}/schedule` {scheduledAt}, verified 2026-11-20.
-- A write path for comments: `emdash site import` with `comment` records, or `importCommentsFromPlugin`. Neither is exercised yet.
+- ~~A write path for comments~~: verified 2026-11-21 — neither fits (site import needs an empty site; `importCommentsFromPlugin` is not exported and its route fetches from the live WordPress); the kit's own route writes pending rows, EmDash's bulk moderation approves (docs/spikes/comments-findings.md).
 - Which `options` keys the Exporter returns: timezone, date_format and posts_per_page were not confirmed (M3 lists identity, front page, permalink structure and site icon).
 - Which WordPress widget REST routes work with an application password on WP ≥ 5.8.
 - ~~Date-based permalinks in `urlPattern`~~: verified 2026-11-20 — one placeholder per path segment (schema/url-pattern.ts); the kit stores the WordPress path as the slug with `/{slug}`.

@@ -11,6 +11,7 @@ import site from "../../site.config.json";
 import { type CollectionConfig, type CollectionFieldConfig, entryHref, fieldText, hasValue, jsonLines } from "../../utils/collections";
 import type { CollectionEntry } from "../../utils/collections-data";
 import { fillTokens, hasContent } from "../../utils/pt";
+import Comments from "../comments/Comments.astro";
 
 interface Props {
 	collection: CollectionConfig;
@@ -113,6 +114,7 @@ const fileHref = (v: any) => v?.src ?? v?.url ?? (v?.meta?.storageKey ? `/_emdas
 			</div>
 		)
 	}
+	<Comments collection={collection.slug} contentId={String(d.id ?? "")} closed={d.comments_closed} publishedAt={d.publishedAt} />
 </article>
 
 <style>

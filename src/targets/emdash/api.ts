@@ -156,6 +156,42 @@ export class EmDashApi {
 	async createField(collection: string, field: Record<string, unknown>): Promise<void> {
 		await this.request("POST", `/schema/collections/${encodeURIComponent(collection)}/fields`, { validation: null, ...field });
 	}
+	/** A collection with its fields and comment settings (GET /schema/collections/{slug}?includeFields=true). */
+	async collection(slug: string): Promise<{ slug: string; commentsEnabled?: boolean; commentsModeration?: string; commentsClosedAfterDays?: number; fields?: { slug: string }[] }> {
+		return (await this.request<{ item: never }>("GET", `/schema/collections/${encodeURIComponent(slug)}?includeFields=true`)).item;
+	}
+	/** Collection settings (`updateCollectionBody`): here only the comment settings. Needs schema:write. */
+	async updateCollection(slug: string, input: { commentsEnabled?: boolean; commentsModeration?: "all" | "first_time" | "none"; commentsClosedAfterDays?: number }): Promise<void> {
+		await this.request("PUT", `/schema/collections/${encodeURIComponent(slug)}`, input);
+	}
+
+	// ── comments (admin routes need the admin scope) ──
+	/** The kit's import plugin (@wp2emdash/comments); NOT_FOUND when it is not registered on the target. */
+	async commentsPluginStatus(): Promise<{ plugin: string; version: string }> {
+		// POST: EmDash's private plugin routes want the X-EmDash-Request header from a session even on GET, which this
+		// client only sends on writes (the route answers any method).
+		return this.request("POST", "/plugins/wp2emdash-comments/status", {});
+	}
+	/** Write a batch of migrated comments as pending (packages/comments/src/import.ts). */
+	async importComments(comments: unknown[]): Promise<{ results: ({ id: string; outcome: "created" } | { id: string; outcome: "exists"; status: string } | { id: string; outcome: "rejected"; reason: string })[]; created: number; error?: string }> {
+		return this.request("POST", "/plugins/wp2emdash-comments/import", { comments });
+	}
+	/** EmDash's bulk moderation (at most 100 ids): approve also purges the cached pages of the entries. */
+	async moderateComments(ids: string[], action: "approve" | "spam" | "trash"): Promise<number> {
+		return (await this.request<{ affected: number }>("POST", "/admin/comments/bulk", { ids, action })).affected;
+	}
+	/** Every comment with this status (admin inbox, paged by 100). Only ids, entries and status are kept. */
+	async commentIds(status: "approved" | "pending" | "spam" | "trash", collection?: string): Promise<{ id: string; contentId: string; status: string }[]> {
+		const out: { id: string; contentId: string; status: string }[] = [];
+		let cursor: string | undefined;
+		do {
+			const q = new URLSearchParams({ status, limit: "100", ...(collection ? { collection } : {}), ...(cursor ? { cursor } : {}) });
+			const r = await this.request<{ items: { id: string; contentId: string; status: string }[]; nextCursor?: string }>("GET", `/admin/comments?${q}`);
+			for (const c of r.items) out.push({ id: c.id, contentId: c.contentId, status: c.status });
+			cursor = r.nextCursor;
+		} while (cursor);
+		return out;
+	}
 
 	// ── taxonomies (WRITE needs taxonomies:manage, which content:write grants) ──
 	async taxonomies(): Promise<{ name: string; collections: string[]; hierarchical: boolean }[]> {

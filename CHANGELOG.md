@@ -8,12 +8,10 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ### Added
 - Elementor adapter (`src/adapters/elementor`): containers and legacy sections, Kit globals, Theme Builder header/footer, Pro forms and popups (synthetic fixtures; no real Elementor site yet).
+- Comments migration: approved WordPress comments with dates, authors and threads (`@wp2emdash/comments` admin-only import route; EmDash moderation approves them), threaded display and a moderated comment form.
 
 ### Changed
 - Form messages (the forms outbox and its admin page) is on by default for sites that are not `sensitiveData`; `forms: { outbox: false }` turns it off.
-
-### In progress
-- Comments migration.
 
 ## 2026-11-21 — Change requests, custom post types
 

@@ -545,7 +545,7 @@ before consent, trackers after Accept all) and the existing axe pass. Facts and 
 | **Site-wide snippets** | `src/transform/snippets.ts`, run in transform: every `<script>/<noscript>/<iframe>/<link>/<meta>` in `<head>` or at body level of the saved pages, plus active Header Footer Code Manager snippets (`raw/code-snippets.json`), deduplicated → `ir/site-snippets.json` and the coverage report. Kinds: tracker (SEO & Analytics), verification (Settings → SEO), page-meta (starter/SEO plugin), provider-loader (with the embed sections; a section without its own loader gets the site-wide src-only script), widget (site widget by provider + ID: `siteWidgets` in kit.config / site.config.json, `components/SiteWidgets.astro` + `public/scripts/site-widgets.js`, CSP from the registry, production only), wordpress (not needed, listed), unknown (never auto-carried). Gate check `site-snippets` fails while any item needs a decision; decisions live in `overrides.ts` → `snippets`. |
 | **SEO** | Yoast/Rank Math fields via exporter; JSON-LD regenerated (Organization/LocalBusiness/MedicalBusiness, BreadcrumbList, FAQPage from `faq`, Article for posts); sitemap + robots generated; OG images; hreflang if multilingual. |
 | **Analytics & consent** | GA4/GTM/pixels carried over once; header/footer scripts from theme options reviewed one by one; consent banner if the source had one or jurisdiction requires it. |
-| **Blog** | Posts, categories, tags, authors/bylines, featured images, pagination, RSS feed (built 2026-11-20); search page still to do. Comments: import (EmDash supports them) or drop by decision. |
+| **Blog** | Posts, categories, tags, authors/bylines, featured images, pagination, RSS feed (built 2026-11-20); search page still to do. Comments: imported since 2026-11-21 (approved, threaded one level, settings per collection, starter list + form; `docs/spikes/comments-findings.md`), or left out by decision (`overrides.ts comments`). |
 | **Search** | EmDash search or AI Search plugin if the source site had search. |
 | **i18n** | WPML/Polylang detected in audit; v1 flags it as out of scope, v2 maps to EmDash i18n. |
 | **Accessibility** | WCAG 2.2 AA target; axe in verify; fixed issues from the source site noted as improvements, not regressions. |
@@ -709,7 +709,7 @@ Any failed assumption changes the plan before code depends on it.
 - **Blog and custom post types — built,** tested on a synthetic WordPress blog and a local EmDash; not yet on a real blog ([blog](spikes/blog-findings.md), [CPT](spikes/cpt-findings.md)).
 - **Bricks (v2 row) — adapter built and measured** on one real Bricks site through three visual parity rounds ([Bricks findings](spikes/bricks-findings.md)).
 - **Built, awaiting a real site:** Elementor adapter (2026-11-21).
-- **In progress:** comments migration.
+- **Built, awaiting a real site:** comments migration (2026-11-21; synthetic blog + local EmDash).
 - **M8a, M9, M10 — not started** (M8a: kit docs refreshed 2026-11-21; the docs review checklist and the full configuration reference remain).
 
 ---

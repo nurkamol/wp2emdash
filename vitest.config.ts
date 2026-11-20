@@ -11,6 +11,7 @@ export default defineConfig({
 	// Kit packages importing each other (@wp2emdash/health → forms, seo) resolve to their sources, as `link:` does in a site.
 	resolve: {
 		alias: [
+			{ find: "emdash/runtime", replacement: new URL("./test/stubs/emdash-runtime.ts", import.meta.url).pathname },
 			{ find: "emdash/middleware", replacement: new URL("./test/stubs/emdash-middleware.ts", import.meta.url).pathname },
 			{ find: /^emdash$/, replacement: new URL("./test/stubs/emdash.ts", import.meta.url).pathname },
 			{ find: "cloudflare:workers", replacement: new URL("./test/stubs/cloudflare-workers.ts", import.meta.url).pathname },

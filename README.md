@@ -94,8 +94,8 @@ Nothing the old site had is dropped silently: whatever the kit does not carry is
 
 | WordPress | On the new site |
 |---|---|
-| Pages (WPBakery/Salient, Gutenberg, classic, Bricks), header/footer, menus, popups, announcement bar, forms, media in use, SEO meta, JSON-LD, analytics, plugin redirects | Migrated |
-| Comments | In progress |
+| Pages (WPBakery/Salient, Gutenberg, classic, Bricks, Elementor), header/footer, menus, popups, announcement bar, forms, media in use, SEO meta, JSON-LD, analytics, plugin redirects | Migrated |
+| Comments (approved, threaded) | EmDash comments with their WordPress date, author name and thread (one level), shown under posts and entries with a moderated comment form (Turnstile, honeypot); pending only with `comments.includePending`; spam, trash and pingbacks counted, not imported; off on `sensitiveData` sites until decided |
 | Blog posts (Gutenberg, classic, WPBakery, Bricks) | A `posts` collection, only on sites that have posts (or `blog: true` in kit.config): Gutenberg/classic bodies as EmDash Portable Text (EmDash's own converter after the kit's shortcode pass: `[caption]`, `[gallery]`, `[embed]`, `[audio]`, `[video]`, oEmbed URLs), builder posts keep their sections; at their WordPress address with the WordPress publish date, excerpt, featured image, sticky → "featured", post format, SEO; scheduled posts scheduled; drafts as drafts; private and password-protected posts need `protectedPosts: { as: "draft" \| "skip" \| "publish", reason }` |
 | Categories, tags, custom taxonomies of posts | EmDash taxonomies with every term (hierarchy and descriptions kept) and each post's assignments |
 | Authors with posts | Guest bylines (name, bio, an avatar the site hosted; no emails, no user accounts), credited on their posts. Skip with `authors: { as: "skip", reason }` |

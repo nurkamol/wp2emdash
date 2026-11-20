@@ -88,7 +88,12 @@ export interface SeedInput {
 	blog?: { plan: BlogPlan; posts: IrPage[] };
 	/** Custom post types (ir/collections.json): their collections, taxonomies, bylines and entries. */
 	collections?: { plan: CptPlan; entries: IrPage[] };
+	/** WordPress comments (ir/comments.json): collections whose comment form is on get commentsEnabled and the "Comments closed" field. */
+	comments?: { form: string[] };
 }
+
+/** Per-entry "closed to new comments" (WordPress comment_status "closed"): the starter hides the form, the middleware refuses new comments. */
+export const COMMENTS_CLOSED_FIELD = { slug: "comments_closed", label: "Comments closed (no new comments; existing ones still show)", type: "boolean" } as const;
 
 /**
  * The `posts` collection (EmDash field types verified in docs/spikes/blog-findings.md). `body` is Portable Text for
@@ -188,6 +193,12 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 		const bylines = (seed.bylines ?? []) as unknown[];
 		bylines.push(...i.collections.plan.bylines.map((b) => ({ id: bylineId(b.slug), slug: b.slug, displayName: b.displayName, ...(b.bio ? { bio: b.bio } : {}), isGuest: true })));
 		if (bylines.length) seed.bylines = bylines;
+	}
+	// Comments: EmDash's seed sets commentsEnabled only (moderation and closing are load's collection update).
+	for (const c of seed.collections as { slug: string; commentsEnabled?: boolean; fields: unknown[] }[]) {
+		if (!i.comments?.form.includes(c.slug)) continue;
+		c.commentsEnabled = true;
+		c.fields = [...c.fields, { ...COMMENTS_CLOSED_FIELD }]; // a copy: POSTS_COLLECTION's fields are shared
 	}
 	if (i.includeContent) {
 		seed.content = {
