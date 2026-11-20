@@ -8,7 +8,7 @@ handle it. Nothing is fixed by hand in the generated project or in `ir/`: a full
 
 | Rule | How | Where |
 |---|---|---|
-| Exactly one `<h1>` | Later `<h1>`s become `<h2>`; a page whose first heading is lower gets it as its `<h1>` | `starter/src/utils/outline.ts`, applied by the middleware (Cloudflare `HTMLRewriter`) to `<main>`, before the page is cached |
+| Exactly one `<h1>` | Later `<h1>`s become `<h2>`; a page whose first heading is lower gets it as its `<h1>`; footer headings start at `<h2>` (a site part never holds the page's h1) | `starter/src/utils/outline.ts`, applied by the middleware (Cloudflare `HTMLRewriter`) to `<main>`, before the page is cached |
 | No skipped heading levels | A heading more than one level below its parent moves up, with its siblings and children (h1 → h3 becomes h1 → h2) | same |
 | Headings keep their look | A re-levelled heading gets its original level's class (`heading--h3`), which outranks the tag selector | `starter/src/styles/base.css` |
 | A heading on every page | A page whose sections have no heading at all (a login or booking widget page) gets a visually hidden `<h1>` with its title | `starter/src/pages/[...slug].astro` (`hasHeading`) |
@@ -16,7 +16,7 @@ handle it. Nothing is fixed by hand in the generated project or in `ir/`: a full
 | A map for AI assistants | `/llms.txt` (llmstxt.org): name, tagline, public pages and newest posts with their descriptions; noindex and protected entries left out; route-cached and purged with the pages | `starter/src/pages/llms.txt.ts` |
 | Indexable, canonical, sitemap, structured data | Carried from WordPress and checked by verify (`seo-*`, `sitemap`) | load, verify |
 
-Header, footer and popups are outside `<main>` and never re-levelled.
+The footer has its own outline starting at `<h2>` (a footer `<h4>` after the page content was a skipped level on every page); the header and popups are left alone.
 
 ## 2. Text the owner rewrites (a decision in `overrides.ts`)
 

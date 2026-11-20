@@ -14,18 +14,23 @@ describe("heading outline (starter middleware)", () => {
 	it("never skips a level: h1 → h3 becomes h1 → h2, and children follow", () => expect(plan([1, 3, 3, 4, 2])).toEqual([1, 2, 2, 3, 2]));
 	it("a page whose first heading is an h3 gets it as its h1", () => expect(plan([3, 4])).toEqual([1, 2]));
 	it("moves a whole sub-tree with its parent", () => expect(plan([1, 4, 5, 4, 2, 4])).toEqual([1, 2, 3, 2, 2, 3]));
+	it("footer headings start at h2, never h1 (an h4 after the page content becomes h2)", () => {
+		const s = newOutline(2);
+		expect([4, 5, 1, 4].map((l) => outlineLevel(s, l))).toEqual([2, 3, 2, 3]);
+	});
 	it("leaves a correct outline alone", () => expect(plan([1, 2, 3, 2, 3])).toEqual([1, 2, 3, 2, 3]));
 
 	it("re-tags inside <main> only and keeps the look with the original level's class", () => {
 		type H = { element(el: { tagName: string; getAttribute(n: string): string | null; setAttribute(n: string, v: string): void }): void };
 		const els = [{ tagName: "h1", cls: "heading heading--h1" }, { tagName: "h1", cls: "heading heading--h1" }, { tagName: "h3", cls: "" }].map((e) => ({ tagName: e.tagName, attrs: { class: e.cls } as Record<string, string>, getAttribute(n: string) { return this.attrs[n] || null; }, setAttribute(n: string, v: string) { this.attrs[n] = v; } }));
-		let selector = "";
+		const selectors: string[] = [];
 		class FakeRewriter {
-			on(sel: string, h: H) { selector = sel; for (const el of els) h.element(el); return this; }
+			on(sel: string, h: H) { selectors.push(sel); if (selectors.length === 1) for (const el of els) h.element(el); return this; }
 			transform(r: Response) { return r; }
 		}
 		fixOutline(new Response("<main></main>"), FakeRewriter as never);
-		expect(selector.split(",").every((x) => x.trim().startsWith("main h"))).toBe(true);
+		expect(selectors[0]?.split(",").every((x) => x.trim().startsWith("main h"))).toBe(true);
+		expect(selectors[1]?.split(",").every((x) => x.trim().startsWith(".site-footer h"))).toBe(true);
 		expect(els.map((e) => `${e.tagName}.${e.attrs.class}`)).toEqual(["h1.heading heading--h1", "h2.heading heading--h1", "h3."]);
 	});
 
