@@ -3,6 +3,10 @@
 // `siteWidgets`, carried over from WordPress by provider + ID) and starts each one the way the provider's own snippet
 // does, from its ID only. Every ID is checked again here against the provider's format (the same patterns as
 // src/utils/providers.ts); anything else is ignored. No free-form code is ever run.
+//
+// With the built-in consent banner on (window.siteConsent, public/scripts/site-consent.js, which runs first): the old
+// site's consent tools (CookieYes, Cookiebot, Termly, iubenda) are not loaded — one banner, not two — and chat and
+// review widgets wait for the "preferences" category.
 (() => {
 	const meta = document.querySelector('meta[name="site-widgets"]');
 	let list = [];
@@ -74,14 +78,37 @@
 		termly: [UUID, (id) => add(`https://app.termly.io/resource-blocker/${id}`)],
 		iubenda: [UUID, (id) => add(`https://embeds.iubenda.com/widgets/${id}.js`)],
 	};
+	const consent = window.siteConsent && typeof window.siteConsent.state === "function" ? window.siteConsent : undefined;
+	const CONSENT_TOOLS = new Set(["cookieyes", "cookiebot", "termly", "iubenda"]);
+	const PREFERENCES = new Set(["tawkto", "crisp", "intercom", "hubspot-chat", "elfsight", "trustindex"]);
+	const waiting = [];
 	const seen = new Set();
 	for (const w of list) {
 		const entry = w && typeof w.provider === "string" && Object.hasOwn(START, w.provider) ? START[w.provider] : undefined;
 		if (!entry || typeof w.id !== "string" || !entry[0].test(w.id) || seen.has(`${w.provider}:${w.id}`)) continue;
 		seen.add(`${w.provider}:${w.id}`);
+		if (consent && CONSENT_TOOLS.has(w.provider)) continue;
+		if (consent && PREFERENCES.has(w.provider) && !consent.state().preferences) {
+			waiting.push([entry[1], w.id]);
+			continue;
+		}
 		// Deferred script: <body> exists for the widgets that add a box.
 		try {
 			entry[1](w.id);
+			if (PREFERENCES.has(w.provider)) window.siteWidgetsStarted = true;
 		} catch {}
+	}
+	if (waiting.length) {
+		const startWaiting = (e) => {
+			if (!e || !e.detail || e.detail.preferences !== true) return;
+			document.removeEventListener("site-consent", startWaiting);
+			for (const [start, id] of waiting.splice(0)) {
+				try {
+					start(id);
+					window.siteWidgetsStarted = true;
+				} catch {}
+			}
+		};
+		document.addEventListener("site-consent", startWaiting);
 	}
 })();

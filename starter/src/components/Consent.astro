@@ -1,0 +1,47 @@
+---
+/**
+ * Consent banner (Privacy & consent, @wp2emdash/consent): its settings as JSON in <meta name="site-consent"> and the
+ * banner script, a real file (public/scripts/site-consent.js) for the same reason as analytics — the public CSP allows
+ * no inline scripts. Rendered the same for every visitor (pages are cached for everyone): the visitor's choice and
+ * region are read in the browser. Comes before SiteWidgets and Analytics in <head>: deferred scripts run in order, so
+ * the choice is known before any tracker or widget starts. Not for signed-in editors (never tracked, never cached).
+ */
+import { isEditor } from "../utils/editor";
+import { pageConsent } from "../utils/consent";
+
+const { runtime } = await pageConsent(Astro.locals, isEditor(Astro.cookies, Astro.url));
+---
+
+{runtime && <meta name="site-consent" content={JSON.stringify(runtime)} />}
+{runtime && <script is:inline src="/scripts/site-consent.js" defer></script>}
+
+<style is:global>
+	/* Colours from the site's tokens: the banner's text and buttons use the body text and background pair, which the
+	   design already keeps readable. Accept and Reject look the same (rejecting is as easy as accepting). */
+	.consent { position: fixed; z-index: 950; inset-inline: 0; bottom: 0; background: var(--color-bg, #fff); color: var(--color-text, #1a1a1a); border-top: 1px solid var(--color-line-strong, rgb(0 0 0 / 0.28)); box-shadow: 0 -8px 28px rgb(0 0 0 / 0.12); font-family: var(--font-body, system-ui, sans-serif); font-size: 0.9375rem; line-height: 1.5; }
+	.consent[hidden] { display: none; }
+	.consent--card { inset-inline: auto 1rem; bottom: 1rem; width: min(27rem, calc(100% - 2rem)); border: 1px solid var(--color-line-strong, rgb(0 0 0 / 0.28)); border-radius: var(--radius-card, 12px); }
+	.consent__inner { width: min(100% - 2 * var(--gutter, 1rem), var(--container, 72rem)); margin-inline: auto; padding-block: 1rem; max-height: min(80vh, 40rem); overflow-y: auto; }
+	.consent--card .consent__inner { width: auto; padding: 1rem 1.25rem; }
+	.consent__title { font-size: 1.125rem; line-height: 1.3; margin: 0 0 0.35rem; }
+	.consent__title:focus { outline: none; }
+	.consent__title:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+	.consent__text, .consent__note { margin: 0 0 0.75rem; }
+	.consent__text a, .consent-link { color: inherit; text-decoration: underline; text-underline-offset: 0.18em; }
+	.consent__choices { border: 0; padding: 0; margin: 0 0 0.75rem; min-width: 0; }
+	.consent__legend { font-weight: 600; padding: 0; margin-bottom: 0.25rem; }
+	.consent__cat { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.6rem; align-items: start; padding-block: 0.5rem; border-top: 1px solid var(--color-line, rgb(0 0 0 / 0.14)); }
+	.consent__cat input { width: 1.25rem; height: 1.25rem; margin: 0.15rem 0 0; accent-color: var(--color-text, #1a1a1a); }
+	.consent__cat label { font-weight: 600; cursor: pointer; }
+	.consent__desc { grid-column: 2; margin: 0; font-size: 0.875rem; }
+	.consent__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+	.consent__btn { font: inherit; font-weight: 600; min-height: 44px; padding: 0.55em 1.25em; border-radius: var(--radius-button, 6px); border: 1px solid var(--color-text, #1a1a1a); cursor: pointer; }
+	.consent__btn[hidden] { display: none; }
+	.consent__btn--solid { background: var(--color-text, #1a1a1a); color: var(--color-bg, #fff); }
+	.consent__btn--ghost { background: transparent; color: var(--color-text, #1a1a1a); }
+	.consent__btn:focus-visible { outline: 2px solid var(--color-text, #1a1a1a); outline-offset: 3px; }
+	.consent-footer { margin: 0; padding: 0.75rem var(--gutter, 1rem); text-align: center; background: var(--color-bg, #fff); color: var(--color-text, #1a1a1a); font-size: var(--font-size-small, 0.8125rem); }
+	.consent-link { background: none; border: 0; padding: 0.4rem; font: inherit; cursor: pointer; min-height: 24px; }
+	@media (max-width: 600px) { .consent__btn { flex: 1 1 100%; } }
+	@media print { .consent { display: none; } }
+</style>

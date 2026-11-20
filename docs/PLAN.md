@@ -465,6 +465,23 @@ scaffold, like IndexNow), alerts/report switchable in Settings, never on staging
 `CF_ANALYTICS_TOKEN`. Verify: `health-plugin` (heartbeat route, or the `status` route with an admin-scoped token;
 live sites must have run within 30 minutes). Facts and limits: docs/spikes/health-findings.md.
 
+## 7f. Privacy & consent (on by default; `consent: false` turns it off)
+`packages/consent` (`@wp2emdash/consent`, 0.1, experimental; in-house PixelKraft). Built-in banner in the starter
+(`components/Consent.astro`, `public/scripts/site-consent.js`, before SiteWidgets and Analytics in `<head>`), no inline
+script. Modes off / notice / opt-in / **auto (default)**: opt-in for EU/EEA/UK/CH/Québec and unknown, notice elsewhere,
+from `GET /_consent/region` answered by the middleware from `request.cf` (never route-cached, `no-store`). Pages stay
+identical for every visitor; the choice is kept in the browser (localStorage + `site_consent` cookie: version,
+revision, flags, time; 180 days). Categories: analytics (GA4/Google tag/GTM, Clarity, Hotjar), marketing (Google Ads,
+Meta Pixel), preferences (chat, reviews widgets); Cloudflare Web Analytics cookieless, always on. The analytics loader
+with `banner: true`: Consent Mode v2 default denied first, Google loaded only once allowed (basic mode), Meta
+`grant`/`revoke`, Clarity `consentv2`; GPC → marketing off. Admin page **Privacy & consent** (Block Kit, admins only):
+mode, position, wording (plain text, limits), policy page picker, category descriptions, service table, footer link,
+preview (`?consent-preview=1`), "Ask every visitor again" (revision), optional consent log (public POST route, counts
+per day only, 90 days). Saving purges the cached pages (SEO suite mechanism). Migration: transform writes
+`ir/consent.json` (old consent plugin/service from the audit HTML + carried site widgets → mode and wording; coverage
+report "Consent banner"); a kept consent service → mode off. Verify: `consent-runtime` (live; Playwright: nothing
+before consent, trackers after Accept all) and the existing axe pass. Facts and limits: docs/spikes/consent-findings.md.
+
 ## 8. Everything else a migration touches
 
 | Area | Plan |

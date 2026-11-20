@@ -30,6 +30,7 @@ import { mapLimit } from "../audit/http.js";
 import { diffSections, groupSections, type SectionDiff } from "../verify/sections.js";
 import { type CacheProbe, cacheMisses, measurePayload, median, type PayloadResult, probeCache } from "../verify/perf.js";
 import { liveTrackers, pageRuntime, type PageRuntime, runtimeAnalyticsProblem } from "../verify/runtime.js";
+import { type ConsentRun, consentProblem, consentRun } from "../verify/consent.js";
 import type { PhaseContext } from "./index.js";
 import { ensureDevServer } from "./load.js";
 
@@ -369,9 +370,12 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		// missing image is never mistaken for a layout difference.
 		const incomplete: string[] = [];
 		let runtime: PageRuntime | undefined;
+		let consent: ConsentRun | undefined;
 		try {
 			// Live: what the home page really loads in a browser (tracker requests, CSP-blocked scripts).
 			if (live && (carried.size || liveIds)) runtime = await pageRuntime(browser, `${base}/`).catch(() => undefined);
+			// Live with the built-in consent banner (Privacy & consent): nothing before consent, everything after "Accept all".
+			if (live && /<meta\s+name="site-consent"/.test(homeHtml)) consent = await consentRun(browser, `${base}/`).catch(() => undefined);
 			const shots = await captureScreenshots(browser, results.filter((r) => r.status === 200).map((r) => r.targetUrl), config, join(outDir, "screens"), reporter, "no-preference");
 			// WP2EMDASH_RECAPTURE_SOURCE=1: photograph the live WordPress pages again (read-only) with the current capture
 			// code, replacing the audit's screenshots — without rerunning the audit's design capture.
@@ -465,6 +469,10 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		if (live && expected && (carried.size || liveIds)) {
 			const rtProblem = runtime ? runtimeAnalyticsProblem(runtime, expected) : "home page could not be loaded in the browser";
 			check("analytics-runtime", "Analytics scripts load in a browser, nothing blocked by the CSP", !rtProblem, rtProblem || runtime?.trackers.map((u) => new URL(u).pathname).join(", "));
+		}
+		if (consent) {
+			const c = consentProblem(consent, !!expected && (expected.google.length > 0 || [expected.gtm ?? []].flat().length > 0 || (expected.meta ?? []).length > 0 || !!expected.clarity || !!expected.hotjar));
+			check("consent-runtime", "Consent banner: no analytics or marketing request before consent, trackers start after Accept all", !c.problem, c.problem || c.detail);
 		}
 		check("analytics", live ? "Analytics carried over and loading" : "Analytics carried over, not loaded before go-live", !analyticsProblem, analyticsProblem || (live && adminManaged && !loads ? "no tracker switched on in SEO & Analytics → Analytics (owner's choice)" : carried.size ? `${[...carried].join(", ")}${(want as string) === "production" ? "" : " (production only)"}${adminManaged ? "; managed in SEO & Analytics" : ""}` : "none on the old site"));
 		// Site health (@wp2emdash/health): registered on the target, and on a live site its checks ran recently.

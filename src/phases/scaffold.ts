@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
 import { healthOptions, mailBaselineFrom } from "../scaffold/health.js";
+import { consentScaffold } from "../scaffold/consent.js";
 import { analyticsOptions, carriedAnalytics, describeCarried, detectFromSnapshot, hasCarried, lookupRumSite } from "../scaffold/analytics.js";
 import { credentialsFor } from "../commands/provision.js";
 import { carriedWidgets } from "../scaffold/widgets.js";
@@ -467,6 +468,23 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		reporter.emit({ type: "log", level: "info", message: `site health on (@wp2emdash/health): alerts to ${health.alertsTo.length} address(es), monthly report to ${health.reportTo.length}${health.mail ? `, mail DNS baseline of ${health.mail.records.length} record(s)` : ", no mail DNS baseline yet (cutover preflight)"}${health.live ? "" : "; emails start once production.live is set"}` });
 		if (!health.alertsTo.length) reporter.emit({ type: "log", level: "warn", message: "site health: no alert recipients (set health.alertsTo or email.stagingTo in kit.config.ts); admins can add them on the page" });
 	}
+	// Privacy & Consent (@wp2emdash/consent, on by default; consent: false turns it off): always copied — the starter's
+	// middleware and Consent component import it; the plugin is registered and the banner configured only when on.
+	rmSync(join(project, "packages", "consent"), { recursive: true, force: true });
+	cpSync(join(KIT_ROOT, "packages", "consent"), join(project, "packages", "consent"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
+	const consent = consentScaffold({
+		config,
+		productionUrl: siteConfig.productionUrl,
+		irDir: ir,
+		pages: pages.flatMap((p) => (p.source.status === "publish" && p.route?.path ? [{ path: p.route.path, slug: p.source.slug, title: p.title }] : [])),
+		siteWidgets,
+		analytics: { admin: !!seoPanel?.analytics, ...(analytics && hasAnalytics ? { seed: analytics } : {}), ...(rum?.autoInstall ? { zoneBeacon: true } : {}) },
+		trailingSlash: trailing,
+	});
+	if (consent) {
+		(siteConfig as { consent?: unknown }).consent = consent.site;
+		reporter.emit({ type: "log", level: "info", message: `privacy & consent on (@wp2emdash/consent): banner "${consent.mode}" — ${consent.why}${consent.site.defaults.policy ? `; privacy policy ${consent.site.defaults.policy}` : "; no privacy policy page found (admins pick one)"}` });
+	}
 	// Performance package (src/scaffold/perf.ts): route-cache defaults, hashed brand files with sizes, favicons.
 	const perf = await perfSite(join(project, "public"), config.performance, brand, siteConfig.header.logoHeight);
 	Object.assign(siteConfig, perf.site, { header: { ...siteConfig.header, ...perf.header } }, brandHashes(join(project, "public"), brand));
@@ -567,6 +585,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			"@wp2emdash/forms": "link:./packages/forms",
 			...(og ? { "@wp2emdash/og": "link:./packages/og", ...OG_DEPENDENCIES } : {}),
 			"@wp2emdash/seo": "link:./packages/seo",
+			"@wp2emdash/consent": "link:./packages/consent",
 			...(health ? { "@wp2emdash/health": "link:./packages/health" } : {}),
 			...Object.fromEntries(config.sandboxedPlugins.map((sp) => [sp.package, sp.version])),
 			astro: STACK.astro,
@@ -586,7 +605,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";${ap.imports}${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${health ? '\nimport { healthPlugin } from "@wp2emdash/health";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
+import emdash from "emdash/astro";${ap.imports}${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${health ? '\nimport { healthPlugin } from "@wp2emdash/health";' : ""}${consent ? '\nimport { consentPlugin } from "@wp2emdash/consent";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
 
 export default defineConfig({
 	site: ${JSON.stringify(siteConfig.productionUrl)},
@@ -600,11 +619,12 @@ ${ap.options}	integrations: [
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
-			mcp: false,${config.forms.outbox || og || seoPanel || health ? `
+			mcp: false,${config.forms.outbox || og || seoPanel || health || consent ? `
 			// Admin plugins: Form messages (form outbox, admins only — @wp2emdash/forms), Sharing images (@wp2emdash/og),
 			// SEO & Analytics (@wp2emdash/seo): editor panel, dashboard, tracking codes, conversion events, Visits;
 			// Site health (@wp2emdash/health, admins only): scheduled checks, alerts, monthly report.
-			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : "", health ? `healthPlugin(${JSON.stringify(health)})` : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
+			// Privacy & consent (@wp2emdash/consent, admins only): cookie banner mode, wording, consent log.
+			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : "", health ? `healthPlugin(${JSON.stringify(health)})` : "", consent ? `consentPlugin(${JSON.stringify(consent.options)})` : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
 			// Only the reviewed plugins above: no installs from the public registry through the admin.
 			...(sandboxedHere.length ? { sandboxed: sandboxedHere, sandboxRunner: sandbox(), registry: false } : {}),` : ""}
 		}),
@@ -649,6 +669,7 @@ ${ap.options}	integrations: [
 			...(seoPanel ? { seoPanel: true } : {}),
 			...(config.performance.routeCache ? { routeCache: true } : {}),
 			...(health ? { health: { alertsTo: health.alertsTo, reportTo: health.reportTo, footer: health.brand.footer } } : {}),
+			...(consent ? { consent: { mode: consent.mode, ...(consent.options.keptTools ? { keptTools: consent.options.keptTools } : {}) } } : {}),
 			sensitiveData: config.sensitiveData,
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
 		}),

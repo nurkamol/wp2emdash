@@ -53,6 +53,8 @@ export interface ClientRepoInput {
 	routeCache?: boolean;
 	/** Site health & monthly report (@wp2emdash/health): default recipients and the report footer. */
 	health?: { alertsTo: string[]; reportTo: string[]; footer: string };
+	/** Privacy & consent (@wp2emdash/consent): the banner mode it starts with, and consent tools kept from the old site. */
+	consent?: { mode: string; keptTools?: string[] };
 	sensitiveData: boolean;
 	stack: Record<string, string>;
 }
@@ -108,6 +110,38 @@ npx wrangler secret put CF_ZONE_READ_TOKEN   # certificate expiry: Cloudflare to
 \`\`\`
 
 The monthly report's visits use the same \`CF_ANALYTICS_TOKEN\` as the SEO & Analytics Visits tab.`
+		: "";
+
+/** The editor guide's Privacy & consent section. */
+const consentGuide = (c: ClientRepoInput["consent"]) =>
+	c
+		? `
+## Privacy and the cookie banner
+
+**Plugins → Privacy & consent** (administrators only) controls the site's own cookie banner:
+
+- **Mode**: *Off* (no banner), *Notice* (US style: everything on until a visitor opts out), *Opt-in* (EU/UK style:
+  nothing that stores data on a visitor's device loads until they agree), or *By visitor region* (recommended: opt-in
+  for visitors from the EU/EEA, the UK, Switzerland and Québec, a notice for everyone else). This site starts in
+  **${c.mode}**${c.keptTools?.length ? ` because the old site's ${c.keptTools.join(", ")} was kept (two banners would ask twice); choosing a mode switches to the built-in banner and stops ${c.keptTools.join(", ")}` : ""}.
+- **Wording** (plain text, length-limited), the **privacy policy page** (picked from the site's pages), the
+  description of each category and where the banner sits (bottom bar or corner card).
+- **What each category covers**: analytics (Google Analytics, Tag Manager, Clarity, Hotjar), marketing (Google Ads,
+  Meta Pixel), preferences (chat and review widgets). Cloudflare Web Analytics stores nothing on devices and always
+  runs. The list follows the tracking codes in SEO & Analytics → Analytics.
+- **Consent log** (off by default): counts per day of accepted / rejected / chosen — no IP, no identifier.
+- **Preview the banner** opens the saved banner on the site; **Ask every visitor again** after adding a new kind of
+  tracking.
+
+Visitors change their choice with **Cookie settings** at the bottom of every page (any link or button with the
+\`data-consent-open\` attribute does the same). Browsers that send Global Privacy Control get marketing off. Google
+consent mode v2 starts denied and follows the choice; Meta and Clarity get their consent signals.
+
+For developers: settings in the site's database (\`plugin:privacy-consent:settings\`, read by \`src/utils/consent.ts\`),
+the banner in \`public/scripts/site-consent.js\` (choice kept in the visitor's browser: \`site_consent\` cookie and
+localStorage), the region answer at \`/_consent/region\` (\`src/middleware.ts\`, never cached). Pages stay one cached
+HTML for everyone. Saving purges the cached pages.
+`
 		: "";
 
 /** The editor guide's Site health section. */
@@ -367,7 +401,7 @@ hidden from search, and the sharing image. Enter a **focus keyword** (what peopl
 to check it is in the title, description, main heading, first paragraph and address. **Check my unsaved changes**
 checks the page before you save; changes to the SEO fields themselves show after saving. A good score helps, but
 rankings also depend on content quality, links from other sites and the Google Business Profile.
-` : ""}${healthGuide(i.health, i.productionUrl)}`);
+` : ""}${healthGuide(i.health, i.productionUrl)}${consentGuide(i.consent)}`);
 
 	const formRows = i.forms.map((f) => `| ${f.title} (\`${f.id}\`) | ${f.fields.join(", ") || "—"} | ${f.withheld.length ? f.withheld.join(", ") : "—"} |`).join("\n");
 	files["docs/forms-and-integrations.md"] = md(`
@@ -423,8 +457,9 @@ ${i.analyticsAdmin ? `Everything about how people find and use the site is in on
   links (\`contact\` / \`Contact\`), booking links (\`schedule\` / \`Schedule\`) and, off by default, other outbound
   links. They go to every tracking code that understands them. Nothing a visitor typed is ever sent — only which kind
   of action happened (and the form's name or the booking service).
-- **Consent mode** (off by default): for sites that add a cookie banner later. On, Google tags start with consent
-  denied and Meta, Clarity and Hotjar wait until the banner calls \`siteAnalytics.grantConsent()\` in the browser.
+- **Consent mode** (off by default): for a third-party cookie banner. On, Google tags start with consent denied and
+  Meta, Clarity and Hotjar wait until the banner calls \`siteAnalytics.grantConsent()\` in the browser. With the
+  built-in banner (Privacy & consent) on, the trackers follow the visitor's choice by themselves.
 - **Ownership verification**: Google Search Console and Bing tags are edited in Settings → SEO; tags of other
   services carried over from the old site are listed here, read-only.
 

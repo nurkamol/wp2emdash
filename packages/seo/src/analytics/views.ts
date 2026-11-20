@@ -85,7 +85,7 @@ export function analyticsTab(v: AnalyticsView): Block[] {
 					block_id: "an-switches",
 					fields: [
 						...EVENT_KINDS.map((k) => ({ type: "toggle", action_id: `event:${k}`, label: EVENT_INFO[k].label, description: EVENT_INFO[k].sends, initial_value: s.events[k] })),
-						{ type: "toggle", action_id: "consent", label: "Consent mode", description: "Off by default. On: Google tags start with consent denied (cookieless) and Meta, Clarity and Hotjar wait until a consent banner calls siteAnalytics.grantConsent(). The site has no banner yet — turn this on only together with one.", initial_value: s.consent },
+						{ type: "toggle", action_id: "consent", label: "Consent mode", description: "Off by default. On: Google tags start with consent denied (cookieless) and Meta, Clarity and Hotjar wait until a third-party consent banner calls siteAnalytics.grantConsent(). Not needed with the built-in banner (Privacy & consent): the trackers follow the visitor's choice there by themselves.", initial_value: s.consent },
 					],
 					submit: { label: "Save switches", action_id: "an-switches" },
 				}

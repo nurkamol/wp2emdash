@@ -35,6 +35,11 @@ export async function pageRuntime(browser: Browser, url: string, waitMs = 5000):
 	});
 	try {
 		await page.goto(url, { waitUntil: "load", timeout: 45_000 });
+		// The site's own consent banner (Privacy & consent) in opt-in: accept, as a visitor who agrees would — the
+		// trackers must then load (src/verify/consent.ts checks that nothing loads before).
+		const accept = page.locator("[data-consent-banner]:not([hidden]) [data-consent-accept]").first();
+		await page.waitForTimeout(Math.min(waitMs, 1500));
+		if (await accept.isVisible().catch(() => false)) await accept.click({ timeout: 3000 }).catch(() => {});
 		await page.waitForTimeout(waitMs);
 	} finally {
 		await page.close();
