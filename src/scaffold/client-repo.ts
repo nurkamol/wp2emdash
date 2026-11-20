@@ -6,6 +6,7 @@
  * config, the IR and the generated forms; nothing here is client-specific in the kit itself.
  */
 import { type MediaDocInput, mediaDoc, mediaGuide } from "./media-docs.js";
+import { type ChangeRequestsDocInput, changeRequestsDoc, changeRequestsGuide } from "./change-requests.js";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { LegacyAnalytics } from "../../packages/seo/src/analytics/trackers.js";
@@ -60,6 +61,8 @@ export interface ClientRepoInput {
 	backups?: { alertsTo: string[]; daily: number; monthly: number; offsite: boolean; database?: string };
 	/** Media Assistant (@wp2emdash/media): AI alt text, upload queue, largest original (docs/media.md). */
 	media?: MediaDocInput;
+	/** Change requests (@wp2emdash/change-requests): retention and whether a webhook feeds the agency tracker. */
+	changeRequests?: ChangeRequestsDocInput;
 	sensitiveData: boolean;
 	stack: Record<string, string>;
 	/** Blog sites: the posts page, archive bases and feed (docs/writing-posts.md). */
@@ -490,7 +493,7 @@ hidden from search, and the sharing image. Enter a **focus keyword** (what peopl
 to check it is in the title, description, main heading, first paragraph and address. **Check my unsaved changes**
 checks the page before you save; changes to the SEO fields themselves show after saving. A good score helps, but
 rankings also depend on content quality, links from other sites and the Google Business Profile.
-` : ""}${healthGuide(i.health, i.productionUrl)}${consentGuide(i.consent)}${backupsGuide(i.backups)}${mediaGuide(i.media)}`);
+` : ""}${healthGuide(i.health, i.productionUrl)}${consentGuide(i.consent)}${backupsGuide(i.backups)}${mediaGuide(i.media)}${changeRequestsGuide(i.changeRequests)}`);
 
 	const formRows = i.forms.map((f) => `| ${f.title} (\`${f.id}\`) | ${f.fields.join(", ") || "—"} | ${f.withheld.length ? f.withheld.join(", ") : "—"} |`).join("\n");
 	if (i.blog) {
@@ -761,6 +764,7 @@ updates:
 	// One environment (default): README, deployment, go-live, CI and the PR checklist describe production only.
 	if (i.backups) files["docs/backups.md"] = backupsDoc(i.backups, { productionUrl: i.productionUrl });
 	if (i.media) files["docs/media.md"] = md(mediaDoc(i.media, { sensitiveData: i.sensitiveData }));
+	if (i.changeRequests) files["docs/change-requests.md"] = md(changeRequestsDoc(i.changeRequests, { sensitiveData: i.sensitiveData }));
 	if (single) Object.assign(files, singleEnvFiles(i, { admin, prodNow, setup }));
 	return files;
 }

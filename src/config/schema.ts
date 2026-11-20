@@ -320,6 +320,26 @@ export const kitConfigSchema = z.object({
 		])
 		.prefault({}),
 	/**
+	 * Change requests (@wp2emdash/change-requests): Plugins → Change requests for editors and admins — the client asks
+	 * the agency for changes in the admin (page, priority, private screenshots/PDFs) and follows the status. On by
+	 * default; `changeRequests: false` turns it off.
+	 */
+	changeRequests: z
+		.union([
+			z.literal(false),
+			z.object({
+				/** Who gets an email for each new request. Default: email.stagingTo (the agency). */
+				agencyTo: z.array(z.string().email()).optional(),
+				/** Admins with an email at these domains act for the agency. Default: every admin. */
+				agencyDomains: z.array(z.string().regex(/^@?[a-z0-9.-]+\.[a-z]{2,}$/i)).default([]),
+				/** Optional webhook to the agency's tracker (https; Zapier/Make/Slack…). Signed with the Worker secret CHANGE_REQUESTS_WEBHOOK_SECRET. */
+				webhook: z.string().url().startsWith("https://").optional(),
+				/** Keep closed requests this many months (then they and their files are deleted). */
+				retentionMonths: z.number().int().min(1).max(120).default(12),
+			}),
+		])
+		.prefault({}),
+	/**
 	 * Third-party EmDash plugins that run in EmDash's sandbox (Cloudflare Worker Loader, Workers Paid). Each is pinned
 	 * to a reviewed version and enabled per environment; admin installs from the public registry stay off.
 	 */

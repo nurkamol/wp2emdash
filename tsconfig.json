@@ -25,6 +25,9 @@
       "astro": [
         "./test/stubs/astro.ts"
       ],
+      "react": [
+        "./test/stubs/react.ts"
+      ],
       "@cf-wasm/satori": [
         "./test/stubs/cf-wasm-satori.ts"
       ],
