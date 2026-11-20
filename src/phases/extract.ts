@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fetchUrl, mapLimit } from "../audit/http.js";
+import { usersDir, WP_USERS_FILE, wpUsersFromRest } from "../transform/users.js";
 import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import { extractReport } from "../extract/report.js";
@@ -330,6 +331,17 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 		write(join(raw, "widgets", "widgets.json"), widgets.map((w) => ({ id: w.id, id_base: w.id_base, sidebar: w.sidebar, ...(w.instance?.raw ? { instance: { raw: w.instance.raw } } : {}), ...(w.rendered ? { rendered: w.rendered } : {}) })));
 		const used = sidebars.filter((s) => s.id !== "wp_inactive_widgets" && (s.widgets ?? []).length);
 		if (used.length) notes.push(`Widget areas: ${used.map((s) => `${s.name ?? s.id} (${(s.widgets ?? []).length})`).join(", ")} — mapped in transform (coverage report → Widgets).`);
+	}
+	// Users for the team invite list (src/transform/users.ts): name, e-mail and roles only — personal data, written under
+	// sites/<slug>/users/ (never raw/, ir/, reports or logs; counts only elsewhere). Needs an administrator's application password.
+	{
+		const rows = await restAll<{ id: number; name?: string; email?: string; roles?: string[] }>("wp/v2/users");
+		const file = join(usersDir(paths.root), WP_USERS_FILE);
+		if (rows) {
+			mkdirSync(usersDir(paths.root), { recursive: true });
+			writeFileSync(file, `${JSON.stringify(wpUsersFromRest(rows), null, 2)}\n`, { mode: 0o600 });
+			notes.push(`Users: ${rows.length} read for the team invite list (sites/<slug>/users/; counts per role in the transform report). No accounts are created.`);
+		}
 	}
 	const taxonomies = (await client.tryGet<unknown[]>("emdash/v1/taxonomies")) ?? [];
 	write(join(exp, "taxonomies.json"), taxonomies);

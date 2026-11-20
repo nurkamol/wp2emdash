@@ -280,6 +280,11 @@ export class EmDashApi {
 		const r = await this.request<{ item?: { id: string }; id?: string }>("POST", `/menus/${encodeURIComponent(menu)}/items`, item);
 		return { id: r.item?.id ?? (r.id as string) };
 	}
+	// ── invites (EmDash 1.5 POST /_emdash/api/auth/invite: admin user, token scope admin) ──
+	/** Creates an invite. EmDash e-mails it when the site has an e-mail provider; otherwise it returns the link instead. */
+	async invite(email: string, role: number): Promise<{ message?: string; inviteUrl?: string }> {
+		return await this.request<{ message?: string; inviteUrl?: string }>("POST", "/auth/invite", { email, role });
+	}
 	// ── sections (EmDash 1.5 /_emdash/api/sections: GET content:read, WRITE content:write; role EDITOR for sections:manage) ──
 	/** The section with this slug, or undefined when there is none (404). */
 	async section(slug: string): Promise<{ id: string; slug: string; title: string; source?: string } | undefined> {

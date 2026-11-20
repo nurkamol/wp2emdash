@@ -37,6 +37,7 @@ import { type BlogByline, blogIndexPath, type BlogPlan, blogReport, blogTaxonomi
 import { applyMeasuredPadding } from "../transform/measured.js";
 import { pageAttributes, pageAttributesReport, showsFeaturedImage } from "../transform/pages.js";
 import { planSections, sectionsReport } from "../transform/sections.js";
+import { inviteCounts, planInvites, usersDir, usersReport, type WpUser, WP_USERS_FILE, writeInvites } from "../transform/users.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
 import { shortcodeSummary, shortcodesReport } from "../transform/shortcodes.js";
 import { loadSiteEnv } from "../extract/credentials.js";
@@ -1107,6 +1108,15 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const sectionsPlan = planSections(content("wp_block"), { mediaIdForUrl, reusable: (id) => reusable.get(id) });
 	if (sectionsPlan.sections.length || sectionsPlan.skipped.length) write(join(paths.ir, "sections.json"), sectionsPlan);
 
+	// ── Users → team invite list (names and e-mails only under sites/<slug>/users/; ir/users.json holds counts) ──────
+	const wpUsers = readJson<WpUser[]>(join(usersDir(paths.root), WP_USERS_FILE));
+	rmSync(join(paths.ir, "users.json"), { force: true });
+	const userCounts = wpUsers ? inviteCounts(planInvites(wpUsers, overrides.users), overrides.users.roles) : undefined;
+	if (wpUsers && userCounts) {
+		writeInvites(paths.root, config.name, planInvites(wpUsers, overrides.users));
+		write(join(paths.ir, "users.json"), userCounts);
+	}
+
 	// ── Report ─────────────────────────────────────────────────────────────────
 	const reportDir = join(paths.reports, "transform");
 	write(join(reportDir, "coverage.json"), {
@@ -1127,7 +1137,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const shortcodes = shortcodeSummary(results);
 	rmSync(join(paths.ir, "shortcodes.json"), { force: true });
 	if (shortcodes.used.length) write(join(paths.ir, "shortcodes.json"), shortcodes);
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

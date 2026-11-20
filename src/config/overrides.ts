@@ -133,6 +133,17 @@ export const overridesSchema = z.object({
 	 * choice). Unknown widgets without a decision fail the transform gate `widgets-handled`.
 	 */
 	widgets: z.record(z.string(), z.enum(["html", "skip"])).default({}),
+	/**
+	 * Team invite list (src/transform/users.ts): `roles` maps a WordPress role to an EmDash role or "skip" (defaults:
+	 * administrator → ADMIN, editor → EDITOR, author → AUTHOR, contributor → CONTRIBUTOR, subscriber → skip; plugin roles
+	 * such as shop_manager are skipped until mapped); `skip` leaves WordPress user ids off the list (former staff).
+	 */
+	users: z
+		.object({
+			roles: z.record(z.string(), z.enum(["ADMIN", "EDITOR", "AUTHOR", "CONTRIBUTOR", "SUBSCRIBER", "skip"])).default({}),
+			skip: z.array(z.number().int()).default([]),
+		})
+		.default({ roles: {}, skip: [] }),
 });
 
 function decision<T extends string>(values: [T, ...T[]]) {

@@ -142,6 +142,28 @@ program
 	});
 
 program
+	.command("invite")
+	.description("Team invites from the WordPress users (sites/<slug>/users/invites.json): shows the plan; --send creates them through EmDash — only with the owner's go-ahead. Never part of load.")
+	.argument("<slug>")
+	.option("--send", "create the pending invites on the target (EmDash e-mails them when the site has an e-mail provider)")
+	.option("--json")
+	.action(async (slug: string, o: { send?: boolean; json?: boolean }) => {
+		const { invite } = await import("../commands/invite.js");
+		try {
+			const r = await invite(slug, { send: !!o.send });
+			if (o.json) console.log(JSON.stringify(r, null, 2));
+			else {
+				console.log(`Target: ${r.target} · to invite: ${Object.entries(r.plan).map(([k, n]) => `${n} ${k}`).join(", ") || "nobody"} · pending: ${r.pending}`);
+				if (r.applied) console.log(`Sent: ${r.sent.emailed} e-mailed, ${r.sent.createdNotEmailed} created without e-mail, ${r.sent.exists} already had an account, ${r.sent.errors} failed`);
+				if (r.next.length) console.log(`\nNext:\n${r.next.map((n) => `  - ${n}`).join("\n")}`);
+			}
+			process.exit(r.applied && (r.sent.errors || r.stoppedNoEmail) ? 2 : 0);
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
 	.command("golive")
 	.description("Owner-approved traffic switch: Worker routes for the domain, smoke test, production.live (prints the plan and changes nothing without --yes)")
 	.argument("<slug>")

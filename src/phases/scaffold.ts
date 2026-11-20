@@ -802,6 +802,11 @@ ${sess.options}${ap.options}	integrations: [
 			sensitiveData: config.sensitiveData,
 			...(blogPlan ? { blog: { index: blogPlan.index, archives: blogPlan.taxonomies.map((t) => ({ label: t.label, base: t.base })), ...(blogPlan.bylines.length ? { authorBase: blogPlan.authorBase } : {}), feedFull: blogPlan.feed.full } } : {}),
 			...(cptPlan?.collections.length ? { collections: cptPlan.collections.map((c) => ({ label: c.label, labelSingular: c.labelSingular, slug: c.slug, ...(c.archive && c.routable ? { archive: c.archive } : {}), ...(c.base && c.routable ? { base: c.base } : {}), fields: c.fields.map((f) => ({ label: f.label, type: f.type })), hierarchical: c.hierarchical, taxonomies: c.taxonomies.map((t) => t.label) })) } : {}),
+			// Team invites: counts per role only (ir/users.json); names and addresses stay in sites/<slug>/users/.
+			...(() => {
+				const u = readJson<{ invite?: Record<string, number> }>(join(ir, "users.json"));
+				return u?.invite && Object.keys(u.invite).length ? { invites: u.invite } : {};
+			})(),
 			...(commentsSite && commentsFile ? { comments: { collections: commentsFile.collections.map((c) => ({ slug: c.slug, form: c.form, moderation: c.moderation, closedAfterDays: c.closedAfterDays, approved: commentsFile.migrate ? c.approved : 0 })), turnstile: !!config.forms.turnstileSiteKey } } : {}),
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
 		}),
