@@ -21,7 +21,7 @@ error 10001 *after* Wrangler had auto-provisioned the `SESSION` namespace. Every
   check runs against `env.staging.kv_namespaces` for a staging build (KV bindings are not inherited by environments).
 - Wrangler's provisioning (`collectPendingResources`, `KVHandler.isFullySpecified() = !!binding.id`) creates a
   namespace for a KV binding without an id, named `${scriptName}-${binding.toLowerCase().replaceAll("_", "-")}` —
-  `studio-a-session`, `studio-a-staging-session`. A later deploy of a Worker that already has the binding
+  `<worker>-session`, `<worker>-staging-session`. A later deploy of a Worker that already has the binding
   inherits it (`canInherit`), which is why existing sites kept working.
 
 **Checked.** `cloudflareConfigCustomizer({ needsSessionKVBinding: true })` returns `kv_namespaces: undefined` for a
