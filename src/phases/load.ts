@@ -577,7 +577,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				for (const m of json.matchAll(/"provider":"local","id":"([^"]+)"/g)) if (!mediaIds.has(m[1] as string)) missingMedia.push(`${c}/${it.slug}: media ${m[1]}`);
 			}
 		}
-		check("counts", "Entry counts on the target equal the IR, no duplicate slugs", counts.length === 0 && dupes.length === 0, [...counts, ...dupes.map((d) => `duplicate ${d}`)].join("; ") || undefined);
+		if (!onlySettings) check("counts", "Entry counts on the target equal the IR, no duplicate slugs", counts.length === 0 && dupes.length === 0, [...counts, ...dupes.map((d) => `duplicate ${d}`)].join("; ") || undefined);
 		check("no-wordpress-leftovers", "No WordPress links, upload URLs or shortcodes in stored content", leftovers.length === 0, [...new Set(leftovers)].slice(0, 8).join("; ") || undefined);
 		check("media-integrity", "Every media id in stored content exists on the target", missingMedia.length === 0, missingMedia.slice(0, 5).join("; ") || undefined);
 		const idMapComplete = docs.every((d) => idMap.content[`${d.source.type}:${d.source.wpId}`]);
