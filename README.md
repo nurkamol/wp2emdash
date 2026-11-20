@@ -172,10 +172,25 @@ Claude never accepts a gate (only `wp2emdash accept` with the owner's reason) an
 | `transform` | WPBakery/Salient, Gutenberg, classic, Bricks 2.4–2.5 (elements, global classes, palette, components, header/footer/popup templates, forms; not yet measured on a live Bricks site) → section IR, coverage & text-conservation gate; announcement/top bars (Announcer, WPFront Notification Bar, Salient secondary header, Astra above-header; other bar-like rows reported for a decision) rebuilt from the live HTML as an editable site part above the header | ✅ |
 | `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, analytics, seed; client README, docs and GitHub CI; builds + local preview | ✅ |
 | `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map. Default target: production (workers.dev) on a provisioned single-environment site, else local; after go-live only with `--force` + a D1 bookmark | ✅ local, staging, production (`WP2EMDASH_LOAD_TARGET`) |
-| `verify` | Old site vs production (default, single environment) or staging, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |
+| `verify` | Old site vs production (default, single environment) or staging, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), every old address accounted for (`urls-accounted`), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |
 | `cutover` | Preflight (read-only: resources, secrets, Turnstile, go-live token separate and zone-scoped, zone and DNS record, alias domains, runbook), then the owner-approved switch with `wp2emdash golive`: Worker routes, smoke, `production.live`, rollback; alias domains → one Single Redirect rule each, `check-aliases` (README "Two sites, one domain") | Preflight ✅ · `golive` built and unit-tested (mocked Cloudflare), not yet run on a launch |
 
 Each phase ends in a gate; the next phase won't run until it passes or is accepted with a recorded reason.
+
+## What gets migrated
+
+Nothing the old site had is dropped silently: whatever the kit does not carry is listed in `reports/transform/coverage.md` and keeps a gate red until it is decided in `overrides.ts` (with the owner's reason; `decisions.md` holds the longer story). Full feature matrix: [WordPress → EmDash parity](docs/parity/wp-to-emdash.md).
+
+| WordPress | On the new site |
+|---|---|
+| Pages (WPBakery/Salient, Gutenberg, classic, Bricks), header/footer, menus, popups, announcement bar, forms, media in use, SEO meta, JSON-LD, analytics, plugin redirects | Migrated |
+| Posts built with WPBakery or Bricks | Migrated as pages at their WordPress address |
+| Gutenberg/classic posts, custom post types (services, portfolio, products…) | Listed with counts and sample URLs; transform gate `content-types-handled` fails until each type is decided: `contentTypes: { portfolio: { as: "skip" \| "pages", reason: "…" } }` (no posts collection or CPT mapper yet) |
+| Categories, tags, custom taxonomies with terms in use; authors with posts | Listed; decided with `taxonomies: { category: { as: "skip", reason } }` / `authors: { as: "skip", reason }` (no taxonomies or bylines yet) |
+| Feeds, search, category/tag/author/date archives, attachment pages, `?s=` `?cat=` `?tag=` `?author=` `?attachment_id=` `?feed=` `?m=` | One 301 to the most sensible migrated page, or a 410, by a rule set decided per site (coverage report → "WordPress URLs"; change with `wpUrls: { feed: "/blog/" \| "home" \| "gone", … }`). Defaults and the feed SEO reasoning: [wp-urls findings](docs/spikes/wp-urls-findings.md) |
+| `/?p=`, `/?page_id=`, old upload and sitemap URLs | 301 to the page or the file in the media library; unknown ids answer 404 |
+| Customizer "Additional CSS" | Reported (size, selectors, media queries, images, external imports); carried only with `customCss: "carry"`, as its own stylesheet loaded after the starter's CSS (never inline) |
+| Anything else the old site answered | Verify gate `urls-accounted`: every audited address answers 200, one 301 to a 200, or 404/410 only by decision (`gone: { "/locations.kml": "reason" }`, patterns with `*`) |
 
 ## Environments
 
@@ -444,7 +459,7 @@ Smart Placement stays off (`performance: { smartPlacement: true }` to try it): s
 ## Docs
 
 - [Plan](docs/PLAN.md)
-- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md) · [Analytics in the SEO suite (storage, purge, CSP hosts, GraphQL)](docs/spikes/analytics-findings.md) · [Provider registry hosts and site widgets](docs/spikes/providers-findings.md)
+- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md) · [Analytics in the SEO suite (storage, purge, CSP hosts, GraphQL)](docs/spikes/analytics-findings.md) · [Provider registry hosts and site widgets](docs/spikes/providers-findings.md) · [WordPress URLs, content inventory, Additional CSS](docs/spikes/wp-urls-findings.md)
 - [Site workspaces](sites/README.md)
 - [Environment setup](docs/staging-setup.md) — production on `workers.dev` (default) and opt-in staging: resources, build → migrate → deploy, first admin sign-in (passkeys), API token, CI, after go-live (`load --force`, preview URLs), troubleshooting
 - [Single-environment findings](docs/spikes/single-env-findings.md) — D1 Time Travel and Workers preview URLs checked against Wrangler 4.163.0

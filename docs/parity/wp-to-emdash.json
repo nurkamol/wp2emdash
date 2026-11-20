@@ -5,10 +5,10 @@
 	"summary": {
 		"areas": 110,
 		"inScope": 103,
-		"done": 31,
+		"done": 35,
 		"superseded": 6,
-		"partial": 28,
-		"missing": 38,
+		"partial": 31,
+		"missing": 31,
 		"outOfScope": 7
 	},
 	"rows": [
@@ -103,7 +103,7 @@
 			"emdash": "Any collection with `urlPattern`; `@emdash-cms/gutenberg-to-portable-text` converter ships with EmDash",
 			"emdashConfidence": "src",
 			"status": "missing",
-			"kit": "Seed has only `pages`, `site_parts`, `popups` (seed.ts); transform skips Gutenberg/classic posts with a note “imported by the EmDash importer” (transform.ts ~L268) but no phase runs an importer; builder posts go to `pages` (load.ts `COLLECTION.post = \"pages\"`)",
+			"kit": "Seed has only `pages`, `site_parts`, `popups` (seed.ts); builder (WPBakery/Bricks) posts go to `pages` (load.ts `COLLECTION.post = \"pages\"`); Gutenberg/classic posts are listed in coverage and keep transform gate `content-types-handled` red until decided (`overrides.ts contentTypes.post`: skip, or pages = migrated as pages at their WordPress address)",
 			"gap": "Add a `posts` collection (title, excerpt, featured_image, body portableText, optional `content` blocks, seo, search). Convert body with the EmDash converter + the kit shortcode pass; load through the id-map. Do not use EmDash's own import route: it writes SEO into `seo_title` fields instead of `_emdash_seo` (import/wordpress-plugin/execute.ts ~L979) and bypasses the id-map.",
 			"effort": "L",
 			"risk": "med",
@@ -243,7 +243,7 @@
 			"emdash": "`_emdash_bylines` (+ guest, custom byline fields), many bylines per entry; create/update accept `bylines`",
 			"emdashConfidence": "src",
 			"status": "missing",
-			"kit": "extract keeps `analyze.authors` (emails stripped); nothing created",
+			"kit": "extract keeps `analyze.authors` (emails stripped); nothing created. Authors with published posts are listed in coverage and gated (`content-types-handled`, `overrides.ts authors: skip`)",
 			"gap": "Create one byline per WP author (no email), link with `bylines` on post create; avatar via media upload.",
 			"effort": "M",
 			"risk": "low",
@@ -256,9 +256,9 @@
 			"feature": "Custom post types (services, team, portfolio, testimonials, events…)",
 			"emdash": "Collections with any of 17 field types, `urlPattern`, `routable`",
 			"emdashConfidence": "src",
-			"status": "missing",
-			"kit": "extract fetches every type; transform only handles page/post/popup/salient_g_sections/bricks_template — other non-empty types are neither migrated nor listed in the coverage report (breaks the never-silently-drop rule)",
-			"gap": "1) Now: list every non-empty unhandled type in coverage + a transform gate (S). 2) Generic mapper: collection per type from `analyze` (supports, taxonomies, custom fields), urlPattern from the live permalinks, body through the adapters, archive/single templates.",
+			"status": "partial",
+			"kit": "extract fetches every type; transform migrates page/post (builder)/popup/salient_g_sections/bricks_template/wp_block. Every other non-empty type is listed in coverage (counts, sample URLs) and keeps transform gate `content-types-handled` red until decided (`overrides.ts contentTypes`: skip, or pages = migrated as pages); configuration types (ACF field groups, builder libraries, orders) listed as internal (src/transform/content-types.ts)",
+			"gap": "Generic mapper: collection per type from `analyze` (supports, taxonomies, custom fields), urlPattern from the live permalinks, body through the adapters, archive/single templates.",
 			"effort": "L",
 			"risk": "med",
 			"priority": "P0",
@@ -439,7 +439,7 @@
 			"emdash": "`_emdash_taxonomy_defs` (hierarchical/flat), `taxonomies`, `content_taxonomies`; REST `/taxonomies/{name}/terms`, `bulk-tag`",
 			"emdashConfidence": "src",
 			"status": "missing",
-			"kit": "extract writes raw/exporter/taxonomies.json; not transformed or loaded",
+			"kit": "extract writes raw/exporter/taxonomies.json; not transformed or loaded. Taxonomies with terms in use are listed in coverage and gated (`content-types-handled`, `overrides.ts taxonomies: skip`); their archive URLs follow the WordPress-URL rules",
 			"gap": "Seed taxonomy defs, load terms (parent, slug, description) via REST, assign on posts.",
 			"effort": "M",
 			"risk": "low",
@@ -453,7 +453,7 @@
 			"emdash": "Same as above (custom names allowed)",
 			"emdashConfidence": "src",
 			"status": "missing",
-			"kit": "As above",
+			"kit": "As above (listed and gated; plugin-internal ones such as Bricks template tags and media folders listed as internal)",
 			"gap": "Same path, driven by `analyze` (taxonomies per type); skip plugin-internal ones (FileBird folders, template tags) by named rule.",
 			"effort": "S",
 			"risk": "low",
@@ -606,12 +606,12 @@
 			"feature": "Attachment pages (`/?attachment_id=N`, `/parent/file-name/`)",
 			"emdash": "None",
 			"emdashConfidence": "none",
-			"status": "missing",
-			"kit": "Audit discovers them (discover.ts media `link`); no redirect",
-			"gap": "301 to the file (or parent page) from the media manifest.",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P1",
+			"status": "done",
+			"kit": "Starter middleware (utils/wp-urls.ts): attachment pages and `?attachment_id=` → parent page if migrated, else the file from the media library, else home (rule `attachment`); verify `urls-accounted` checks every one discovery found",
+			"gap": "—",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": ""
 		},
 		{
@@ -789,7 +789,7 @@
 			"emdash": "No injected routes; helpers `getEntriesByTerm`, `getEntriesByByline`, cursor/offset queries",
 			"emdashConfidence": "src",
 			"status": "missing",
-			"kit": "Starter has only `[...slug].astro`, `404.astro`, `api/forms`",
+			"kit": "Starter has only `[...slug].astro`, `404.astro`, `api/forms`. Archive URLs of a site that does not rebuild them follow the WordPress-URL rules (301 to the blog page, else 410 / home; verify `urls-accounted`)",
 			"gap": "Starter routes: posts page, `/category/[slug]/`, `/tag/[slug]/`, `/author/[slug]/` (or 301 by decision), `/page/N/`; date archives → 301 to the index unless indexable.",
 			"effort": "M",
 			"risk": "med",
@@ -816,9 +816,9 @@
 			"feature": "Site search + results page",
 			"emdash": "FTS5 (`search`, `searchCollection`, `LiveSearch.astro`, widget `core:search`)",
 			"emdashConfidence": "src",
-			"status": "missing",
-			"kit": "`pages` collection has `search` support; no `/search` route; `/?s=` falls to the home page",
-			"gap": "`/search` page + 301 `/?s=q` → `/search?q=`; keeps the Rank Math WebSite SearchAction valid.",
+			"status": "partial",
+			"kit": "No `/search` route yet; `/?s=q` and `/search/q/` → 301 home, or `/search/?q=` when a migrated `/search/` page exists (WordPress-URL rule `search`; verify `urls-accounted`)",
+			"gap": "`/search` page (FTS5) in the starter; then the rule sends the query there and the Rank Math WebSite SearchAction resolves.",
 			"effort": "S",
 			"risk": "low",
 			"priority": "P1",
@@ -830,9 +830,9 @@
 			"feature": "RSS/Atom feeds (`/feed/`, category/comment feeds)",
 			"emdash": "None (no feed route or helper in src)",
 			"emdashConfidence": "none",
-			"status": "missing",
-			"kit": "Not handled; both sites linked feeds on every page",
-			"gap": "Starter `/feed/` (RSS 2.0 from posts), `/category/x/feed/`; `/comments/feed/` → 410. Sites without posts: 301 `/feed/` → `/` or 410 by decision, and a verify check.",
+			"status": "partial",
+			"kit": "Sites without posts: `/feed/`, `?feed=`, `/wp-rss2.php` → 301 home (or the blog page), `/comments/feed/` → 410, `/<page>/feed/` → the page; verify `urls-accounted`. Reasoning: docs/spikes/wp-urls-findings.md. Sites with posts get the same redirect plus a coverage flag (`feedPending`): no RSS is generated yet",
+			"gap": "Starter `/feed/` (RSS 2.0 from posts) and `/category/x/feed/` with the blog milestone; then the feed rule stops redirecting.",
 			"effort": "S",
 			"risk": "low",
 			"priority": "P0",
@@ -999,7 +999,7 @@
 			"emdash": "Query-string sources never match (M0 A6)",
 			"emdashConfidence": "src",
 			"status": "partial",
-			"kit": "Middleware `wpIds` — pages only",
+			"kit": "Middleware `wpIds` (pages, and entries of types decided `pages`); unknown ids answer 404 (WordPress-URL matcher); verify `urls-accounted` checks a sample per type",
 			"gap": "Include posts and CPT entries.",
 			"effort": "S",
 			"risk": "low",
@@ -1012,12 +1012,12 @@
 			"feature": "`/?cat=`, `/?tag=`, `/?author=`, `/?s=`, `/?attachment_id=`, `/?feed=`",
 			"emdash": "As above",
 			"emdashConfidence": "src",
-			"status": "missing",
-			"kit": "Not handled",
-			"gap": "Same middleware map, from extract (terms, authors, media).",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P1",
+			"status": "done",
+			"kit": "Starter middleware (utils/wp-urls.ts, rule set from transform → site.config.json `wpUrls`): `?s=`, `?feed=`, `?cat=`, `?tag=`, `?author=`, `?attachment_id=`, `?m=` → one 301 or 410; verify `urls-accounted` checks them",
+			"gap": "—",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": ""
 		},
 		{
@@ -1026,12 +1026,12 @@
 			"feature": "Archive URLs not rebuilt (`/category/x/`, `/tag/x/`, `/author/x/`, `/2024/05/`, `/page/2/`)",
 			"emdash": "Redirects (`[param]`/`[...splat]` patterns)",
 			"emdashConfidence": "src",
-			"status": "missing",
-			"kit": "Audit discovers terms and authors (discover.ts) but verify only checks audited URLs that are published IR pages (verify.ts ~L118–121): everything else is never checked",
-			"gap": "Verify gate: every audited URL answers 200, a single-hop 301 to a mapped target, or 410 recorded in decisions.md. Generate pattern redirects for archives not rebuilt.",
-			"effort": "M",
-			"risk": "med",
-			"priority": "P0",
+			"status": "done",
+			"kit": "Verify `urls-accounted` (src/verify/urls-accounted.ts): every audited URL plus every entry/term/author/attachment page REST discovery found, the upload files the pages used, feeds, search and the query forms answer 200, one 301/308 to a 200, or 404/410 by decision (`overrides.ts gone`, the WordPress-URL rules, a skip decision); unaccounted ones listed by kind. Archives not rebuilt follow the rules (category/tag/date → blog page, else 410; author → blog page, else home; live archive bases detected)",
+			"gap": "—",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "1/2"
 		},
 		{
@@ -1181,7 +1181,7 @@
 			"emdash": "—",
 			"emdashConfidence": "none",
 			"status": "missing",
-			"kit": "Not migrated (non-HTML file in the audit)",
+			"kit": "Not migrated; now surfaces in verify `urls-accounted` (both real sites) until regenerated or recorded in `overrides.ts gone`",
 			"gap": "Regenerate from the business data or 410 by decision.",
 			"effort": "S",
 			"risk": "low",
@@ -1264,12 +1264,12 @@
 			"feature": "Customizer Additional CSS",
 			"emdash": "None",
 			"emdashConfidence": "none",
-			"status": "missing",
-			"kit": "`custom_css` is in extract `SKIP_TYPES` (extract.ts L25): never read or reported",
-			"gap": "Extract it, list it in coverage, carry reviewed rules to a `custom.css` (selectors rarely match the new markup).",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P1",
+			"status": "done",
+			"kit": "Read from the live pages (`<style id=\"wp-custom-css\">`) or the `custom_css` post (extract → raw/custom-css.json); coverage lists size, selectors, media queries, uploads and external imports; transform gate `custom-css` until `overrides.ts customCss: carry | drop`; carry → scaffold writes `public/styles/custom-<hash>.css`, linked first in `<body>` (after the bundled CSS, never inline)",
+			"gap": "Selectors written for the WordPress theme rarely match the new markup: review before carrying.",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "0/2"
 		},
 		{
@@ -1577,7 +1577,7 @@
 				"archive-urls"
 			],
 			"effort": "M",
-			"notes": "Closes the silent hole: today only published IR pages are checked (verify.ts ~L118)."
+			"notes": "Done 2026-11-20: verify `urls-accounted` (docs/spikes/wp-urls-findings.md)."
 		},
 		{
 			"rank": 3,
@@ -1587,7 +1587,7 @@
 				"cpt"
 			],
 			"effort": "S",
-			"notes": "Never-silently-drop rule; prerequisite for the CPT mapper."
+			"notes": "Done 2026-11-20: transform `content-types-handled` (types, taxonomies in use, authors with posts; `overrides.ts contentTypes` skip | pages)."
 		},
 		{
 			"rank": 4,
@@ -1629,7 +1629,7 @@
 				"rss"
 			],
 			"effort": "S",
-			"notes": "Both real sites linked feeds on every page."
+			"notes": "Sites without posts done 2026-11-20 (feed → 301, comment feeds → 410, verify). Real RSS from posts remains, with the blog milestone."
 		},
 		{
 			"rank": 8,
@@ -1651,7 +1651,7 @@
 				"attachment-pages"
 			],
 			"effort": "S",
-			"notes": "Keeps the WebSite SearchAction valid."
+			"notes": "Done 2026-11-20 except the search page: WordPress-URL rule set in the starter middleware (search → home until a `/search` page exists)."
 		},
 		{
 			"rank": 10,
@@ -1676,7 +1676,7 @@
 				"widgets-3p"
 			],
 			"effort": "M",
-			"notes": "The consent banner is P0 for EU/UK clients."
+			"notes": "The consent banner is P0 for EU/UK clients. Customizer CSS done 2026-11-20 (reported, carried by decision)."
 		},
 		{
 			"rank": 12,
