@@ -5,9 +5,9 @@
 	"summary": {
 		"areas": 110,
 		"inScope": 103,
-		"done": 58,
+		"done": 65,
 		"superseded": 6,
-		"partial": 26,
+		"partial": 19,
 		"missing": 13,
 		"outOfScope": 7
 	},
@@ -33,7 +33,7 @@
 			"emdash": "No private status (`draft|published|archived`, src/query.ts)",
 			"emdashConfidence": "src",
 			"status": "done",
-			"kit": "load.ts: non-`publish` → draft (unpublished)",
+			"kit": "transform `access: { kind: \"private\", as: \"draft\" }` by default (overrides.ts `protectedContent.private`: draft | skip | publish); load → draft; verify counts the address as gone by that decision",
 			"gap": "Equivalent: drafts are not public. Logged-in WP viewers lose access; acceptable.",
 			"effort": "",
 			"risk": "",
@@ -211,14 +211,14 @@
 		{
 			"id": "password-protected",
 			"area": "Content",
-			"feature": "Password-protected and private posts",
-			"emdash": "None (EmDash importers turn them into drafts)",
+			"feature": "Password-protected and private posts and pages",
+			"emdash": "None (EmDash importers turn them into drafts, verified in import/wordpress/execute.ts)",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "Posts: transform gate `protected-posts` until overrides.ts `protectedPosts` (draft | skip | publish, with reason); the password field name in the export is unverified (private status is)",
-			"gap": "Pages: not detected. Cloudflare Access or a middleware password if an owner needs it.",
-			"effort": "M",
-			"risk": "med",
+			"status": "done",
+			"kit": "extract reads post passwords over REST (`context=edit`; `content.protected` without it) and hashes them at once (raw/protected.json, PBKDF2-SHA256 100k, never in clear); transform `protectedContent` (password: protect | draft | skip | publish, default protect; private: draft, default) for pages and posts, plus WordPress's password form in the audit snapshot; gate `protected-content`; load `access_password` (hash, an owner's change kept) and posts' body in non-searchable `access_body`, noindex, no description; starter password page (accessible form, `/api/access`, rate limited, signed cookie per entry 10 days), `Cache-Control: private, no-store`, no route-cache rule; verify `protected-pages` (docs/spikes/content-forms-findings.md)",
+			"gap": "A password the owner types in the admin is stored as typed (as WordPress did); a `content:beforeSave` hook could hash it. Not yet loaded into a live EmDash.",
+			"effort": "",
+			"risk": "",
 			"priority": "P1",
 			"sitesUsed": "0/2"
 		},
@@ -424,13 +424,13 @@
 			"feature": "Unknown / plugin shortcodes in content",
 			"emdash": "Not expanded by EmDash (docs)",
 			"emdashConfidence": "docs",
-			"status": "partial",
-			"kit": "Parsed as nodes and reported `unmapped` (blocks transform for published content); form shortcodes mapped",
-			"gap": "Ongoing handler work; WordPress core `[caption]`, `[audio]`, `[video]`, `[embed]`, `[playlist]` handlers should be checked with fixtures (only `[gallery]` confirmed, wpbakery/index.ts).",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P1",
-			"sitesUsed": ""
+			"status": "done",
+			"kit": "Registry src/adapters/shortcodes.ts (~170 names): form shortcodes (CF7, Gravity, WPForms, Fluent, Ninja, Formidable, Forminator, WS Form) → form sections; breadcrumbs (Rank Math, Yoast, AIOSEO…) → left out and flagged (ir/shortcodes.json); layout leftovers (`[row]`, `[one_half]`, `[su_box]`…) stripped with content kept; `[button]` → button; share/social/review/sign-up widgets → warning; content widgets (TablePress, sliders, galleries, PDF viewers…) and unknown plugin shortcodes → `unmapped` (blocking); core `[gallery]` `[caption]` `[embed]` `[video]` `[audio]` handled in pages (fixture plugin-shortcodes) and posts; coverage report \"Shortcodes\" (name, count, sample page, blocking)",
+			"gap": "New plugins: add them to the registry or a handler with a fixture.",
+			"effort": "",
+			"risk": "",
+			"priority": "",
+			"sitesUsed": "0/2"
 		},
 		{
 			"id": "categories-tags",
@@ -480,12 +480,12 @@
 			"feature": "Media library files (dedupe)",
 			"emdash": "`media` table, R2, content-hash dedupe, 50 MB default limit",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "extract downloads the whole library (raw/media); load uploads only media referenced by the IR (sha1 dedupe, load.ts)",
-			"gap": "Option `media.uploadAll` (or all non-image files) so library-only items (PDFs sent by email, files linked from outside) stay reachable; legacy upload redirect then finds them.",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P1",
+			"status": "done",
+			"kit": "load uploads what content uses, every file it links to, and library documents nobody links (overrides.ts `media.library`: documents (default) | referenced | all), so the starter's `legacyUpload` finds them at the old address; one media item per file content (sha1; duplicates counted)",
+			"gap": "`media.library: \"all\"` also uploads unused pictures (large libraries).",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "2/2"
 		},
 		{
@@ -506,13 +506,13 @@
 			"id": "caption-title",
 			"area": "Media",
 			"feature": "Captions, titles, descriptions",
-			"emdash": "`caption`; no title/description column",
+			"emdash": "`alt` and `caption` only (api/schemas/media.ts mediaUploadMetadataForm)",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "Manifest keeps caption/title; upload sends alt only (`api.mediaUpload`)",
-			"gap": "Send caption; title/description dropped by named rule (reported).",
-			"effort": "S",
-			"risk": "low",
+			"status": "done",
+			"kit": "Upload sends alt (from the content, else the library) and the caption (plain text); attachment titles that say more than the file name and descriptions are listed by load (EmDash has no field for them)",
+			"gap": "Lost by platform design: reported, never silent.",
+			"effort": "",
+			"risk": "",
 			"priority": "P2",
 			"sitesUsed": ""
 		},
@@ -534,14 +534,14 @@
 			"id": "pdf",
 			"area": "Media",
 			"feature": "PDFs and documents linked in content",
-			"emdash": "Allowed type (`pdf` in upload allowlist)",
+			"emdash": "Global allowlist: images, audio, video, PDF; other types only through a file field's `allowedMimeTypes` (`fieldId`, api/handlers/media-allowlist.ts)",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "Linked upload URLs are rewritten only when the file was uploaded (load.ts `fixHref`)",
-			"gap": "Collect `href` upload links as `file` media refs in transform, upload them, gate on it.",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P1",
+			"status": "done",
+			"kit": "load collects upload links (href, and href/src in raw HTML) → the file extract downloaded (library or not) → media library (Word/Excel/PowerPoint/OpenDocument/ZIP… via the `wp_documents` file field on pages) → links rewritten, also inside raw HTML; gate `documents`; extract finds more document types under uploads",
+			"gap": "EmDash serves documents as attachments: a PDF downloads instead of opening in the tab (reported). Not yet loaded into a live EmDash.",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "0/2"
 		},
 		{
@@ -887,7 +887,7 @@
 			"emdash": "No forms in core (`@emdash-cms/plugin-forms` referenced, not installed)",
 			"emdashConfidence": "src",
 			"status": "done",
-			"kit": "Fluent over REST, others from plugin export files (extract/plugin-exports.ts); `@wp2emdash/forms` endpoint, Turnstile, outbox, admin inbox",
+			"kit": "Fluent over REST, others from plugin export files (extract/plugin-exports.ts); `@wp2emdash/forms` endpoint, Turnstile, outbox, admin inbox; CF7 5.8+ hash ids resolved; CF7 sections now match their definitions (provider name fix)",
 			"gap": "—",
 			"effort": "",
 			"risk": "",
@@ -900,11 +900,11 @@
 			"feature": "Ninja Forms, Formidable, Elementor forms, WS Form, Forminator",
 			"emdash": "—",
 			"emdashConfidence": "none",
-			"status": "partial",
-			"kit": "Shortcodes recognised (wpbakery handlers `ninja_form`, `formidable`); Elementor Pro form widgets → form definitions from the widget settings (src/adapters/elementor/forms.ts); no extractor for the others",
-			"gap": "Export parsers per plugin when a site needs it.",
-			"effort": "M",
-			"risk": "low",
+			"status": "done",
+			"kit": "Export parsers: Ninja Forms .nff, Formidable XML, WS Form JSON, Forminator JSON (synthetic fixtures + goldens); Elementor Pro forms from the widget settings (uploads and steps since 2026-11-21); a live form without an export is rebuilt from the audit's HTML with a blocking warning; audit reads their form ids",
+			"gap": "Check each parser against the first real export a client sends (formats from the plugins' documentation, not real files).",
+			"effort": "",
+			"risk": "",
 			"priority": "P1",
 			"sitesUsed": "0/2"
 		},
@@ -914,11 +914,11 @@
 			"feature": "File uploads, multi-step, conditional logic, payments",
 			"emdash": "—",
 			"emdashConfidence": "none",
-			"status": "partial",
-			"kit": "File upload fields dropped with a warning (plugin-exports.ts ~L228); signature/consent supported (forms 1.3)",
-			"gap": "Uploads to R2 with size/type limits (never for sensitive sites); conditional logic in the form schema; payments OOS.",
-			"effort": "M",
-			"risk": "med",
+			"status": "done",
+			"kit": "forms 1.7: file fields (first-bytes checks, R2 under `backups/form-uploads/`, one-time signed download link in the email, retention purge, FORM_FILE_SECRET; off on sensitiveData sites unless `forms.uploads.sensitive`), `showIf` (one field, is / is not; richer logic reported) and steps (client-side, progressive; the server validates all); payment fields → blocking warning (out of scope)",
+			"gap": "Payments stay with a provider; complex conditions are rebuilt by hand when needed.",
+			"effort": "",
+			"risk": "",
 			"priority": "P1",
 			"sitesUsed": ""
 		},
@@ -1750,7 +1750,7 @@
 				"pdf"
 			],
 			"effort": "S",
-			"notes": ""
+			"notes": "Done 2026-11-21 (content & forms batch): linked documents, library documents, captions, dedupe report."
 		},
 		{
 			"rank": 19,
@@ -1782,7 +1782,7 @@
 				"password-protected"
 			],
 			"effort": "M",
-			"notes": ""
+			"notes": "Password-protected and private content done 2026-11-21 (password page, hashed WordPress password)."
 		},
 		{
 			"rank": 22,
@@ -1803,7 +1803,7 @@
 				"forms-features"
 			],
 			"effort": "M",
-			"notes": ""
+			"notes": "Done 2026-11-21: Ninja, Formidable, WS Form, Forminator, HTML fallback; forms 1.7 uploads, conditions, steps."
 		},
 		{
 			"rank": 24,

@@ -8,8 +8,15 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ### Added
 - Elementor adapter (`src/adapters/elementor`): containers and legacy sections, Kit globals, Theme Builder header/footer, Pro forms and popups (synthetic fixtures; no real Elementor site yet).
+- **Password-protected and private content:** protected pages and posts are published behind a password page with the WordPress password (hashed by extract, never stored in clear; noindex, never cached, out of the sitemap and the search index); private ones become drafts. `overrides.ts protectedContent`; gates `protected-content` (transform), `protected-pages` (verify). See docs/spikes/content-forms-findings.md.
+- **Linked documents:** PDFs, Word, Excel, ZIP… linked from content go into the media library and the links point at them (Word/Excel/ZIP through a `wp_documents` file field's allowlist); library documents are uploaded too (`overrides.ts media.library`); captions carried, duplicates collapsed, lost titles/descriptions reported; load gate `documents`.
+- **More form plugins:** Ninja Forms, Formidable, WS Form and Forminator exports; a live form without an export is rebuilt from the page's HTML (flagged).
+- **`@wp2emdash/forms` 1.7:** file upload fields (private R2 storage, one-time signed download links, retention), conditional fields (`showIf`) and multi-step forms; kit config `forms.uploads`.
+- **Shortcode registry** (`src/adapters/shortcodes.ts`): forms, breadcrumbs, layout wrappers, widgets and core media shortcodes; unknown plugin shortcodes block; coverage report "Shortcodes".
 
 ### Changed
+- Private posts no longer need a decision: they become drafts by default (as private pages already did); password-protected posts are protected by default. `protectedPosts` still works.
+- Form sections from `[contact-form-7]` now match their definitions (they used the provider name `cf7`).
 - Form messages (the forms outbox and its admin page) is on by default for sites that are not `sensitiveData`; `forms: { outbox: false }` turns it off.
 
 ### In progress
