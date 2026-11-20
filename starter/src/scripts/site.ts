@@ -4,6 +4,7 @@
  */
 import { mountSignaturePads } from "@wp2emdash/forms/signature-pad";
 import { classifyLink } from "@wp2emdash/seo/analytics/events";
+import { prefetchable, slowConnection } from "../utils/prefetch";
 
 /**
  * Conversion events (SEO & Analytics → Analytics): handed to the analytics loader (public/scripts/site-analytics.js),
@@ -482,4 +483,31 @@ for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog.person
 		ring?.classList.remove("is-on");
 		dialog.closest(".person")?.querySelector<HTMLElement>("[data-person-open]")?.focus({ preventScroll: true });
 	});
+}
+
+/** Page preloading on hover / focus / first touch (utils/prefetch.ts). Off when <html data-prefetch="off">. */
+if (document.documentElement.dataset.prefetch !== "off") {
+	const done = new Set<string>();
+	const supportsPrefetch = document.createElement("link").relList?.supports?.("prefetch") ?? false;
+	const go = (a: Element | null) => {
+		if (!(a instanceof HTMLAnchorElement) || a.target === "_blank" || a.hasAttribute("download") || a.dataset.prefetch === "false") return;
+		if (slowConnection((navigator as { connection?: { saveData?: boolean; effectiveType?: string } }).connection)) return;
+		const url = prefetchable(a.href, location);
+		if (!url || done.has(url) || done.size >= 20) return;
+		done.add(url);
+		if (supportsPrefetch) {
+			const l = document.createElement("link");
+			l.rel = "prefetch";
+			l.href = url;
+			document.head.append(l);
+		} else fetch(url, { credentials: "same-origin", priority: "low" } as RequestInit).catch(() => {});
+	};
+	let timer: number | undefined;
+	document.addEventListener("mouseover", (e) => {
+		const a = (e.target as Element | null)?.closest?.("a") ?? null;
+		clearTimeout(timer);
+		if (a) timer = window.setTimeout(() => go(a), 65);
+	}, { passive: true });
+	document.addEventListener("focusin", (e) => go((e.target as Element | null)?.closest?.("a") ?? null), { passive: true });
+	document.addEventListener("touchstart", (e) => go((e.target as Element | null)?.closest?.("a") ?? null), { passive: true });
 }

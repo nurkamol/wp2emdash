@@ -145,7 +145,7 @@ if (post) {
 	[{ older, newer }, related] = await Promise.all([neighbours(post.data.publishedAt), relatedPosts(post)]);
 	cacheBlog(Astro.cache);
 }
-cachePage(Astro.cache);
+cachePage(Astro.cache, page ? "page" : "other");
 if (chrome) cacheChrome(Astro.cache, chrome);
 
 const entry = (page ?? post ?? found?.entry) as any;

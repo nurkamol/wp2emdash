@@ -132,7 +132,7 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 ---
 
 <!doctype html>
-<html lang={site.lang} class:list={{ "has-announcement": !!announcement && !announcementLater, "motion-calm": (site as { motion?: string }).motion === "calm", "video-phones": (site as { phoneVideo?: boolean }).phoneVideo === true }}>
+<html lang={site.lang} data-prefetch={(site as { prefetch?: boolean }).prefetch === false ? "off" : undefined} class:list={{ "has-announcement": !!announcement && !announcementLater, "motion-calm": (site as { motion?: string }).motion === "calm", "video-phones": (site as { phoneVideo?: boolean }).phoneVideo === true }}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />

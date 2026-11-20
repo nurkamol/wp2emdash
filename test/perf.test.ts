@@ -20,14 +20,17 @@ const tmp = mkdtempSync(join(tmpdir(), "wp2emdash-perf-"));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 describe("route caching config", () => {
-	it("is on by default with an hour's lifetime and a day of stale-while-revalidate", () => {
-		expect(perf()).toEqual({ routeCache: true, maxAge: 3600, swr: 86400, responsiveImages: true, warmup: true, smartPlacement: false, phoneVideo: false });
+	it("is on by default: pages for 7 days (purged on every edit), the rest for an hour, a day of stale-while-revalidate", () => {
+		expect(perf()).toEqual({ routeCache: true, pageMaxAge: 604800, maxAge: 3600, swr: 86400, responsiveImages: true, warmup: true, prefetch: true, smartPlacement: false, phoneVideo: false });
 	});
 
 	it("has one rule per public page plus the sitemaps and image variants, tagged with EmDash collection names", () => {
 		const rules = routeRules(perf(), ["/", "/about-us/", "services/physical-therapy", "/about-us"]);
 		expect(Object.keys(rules)).toEqual(["/", "/about-us", "/services/physical-therapy", "/sitemap.xml", "/sitemap-[collection].xml", "/_image"]);
-		expect(rules["/"]).toEqual({ maxAge: 3600, swr: 86400, tags: ["pages", "site_parts", "popups"] });
+		expect(rules["/"]).toEqual({ maxAge: 604800, swr: 86400, tags: ["pages", "site_parts", "popups"] });
+		// A blog or collections site: pages also carry those tags (footer widgets such as Recent posts show them).
+		expect(routeRules(perf(), ["/"], ["posts", "team"])["/"]?.tags).toEqual(["pages", "site_parts", "popups", "posts", "team"]);
+		expect(rules["/sitemap.xml"]?.maxAge).toBe(3600);
 		expect(rules["/sitemap.xml"]?.tags).toEqual(["pages"]);
 		expect(rules["/_image"]).toEqual({ maxAge: 86400, swr: 604800, tags: ["emdash:media"] });
 	});
@@ -42,7 +45,7 @@ describe("route caching config", () => {
 		const a = astroPerf(perf(), ["/", "/faq/"], imageHosts(["https://fixture.example", "https://fixture-staging.acct.workers.dev", undefined]));
 		expect(a.imports).toBe('\nimport { cacheCloudflare } from "@astrojs/cloudflare/cache";');
 		expect(a.options).toContain("cache: { provider: cacheCloudflare() },");
-		expect(a.options).toContain('"/faq": {maxAge: 3600, swr: 86400, tags: ["pages", "site_parts", "popups"]},');
+		expect(a.options).toContain('"/faq": {maxAge: 604800, swr: 86400, tags: ["pages", "site_parts", "popups"]},');
 		expect(a.options).toContain('domains: ["fixture-staging.acct.workers.dev","fixture.example","www.fixture.example"]');
 		const off = astroPerf(perf({ routeCache: false, responsiveImages: false }), ["/"], ["fixture.example"]);
 		expect(off.imports).toBe("");
@@ -181,7 +184,7 @@ describe("brand files", () => {
 		expect(out.header.logoOnTopImg?.src).toMatch(/^\/brand\/h\/logo-on-dark\.[0-9a-f]{10}\.svg$/);
 		// 192px WebP is larger than the (synthetic) original: the original is kept instead.
 		expect((out.site.icons ?? []).map((i) => `${i.rel} ${i.type} ${i.sizes ?? ""}`)).toEqual(["icon image/png 32x32", "icon image/png 512x512", "apple-touch-icon image/png 180x180"]);
-		expect(out.site.routeCache).toEqual({ maxAge: 3600, swr: 86400 });
+		expect(out.site.routeCache).toEqual({ maxAge: 3600, swr: 86400, pageMaxAge: 604800 });
 		for (const f of readdirSync(join(pub, "brand", "h"))) expect(f).toMatch(/^[\w-]+\.[0-9a-f]{10}\.\w+$/);
 		// Without an encoder (no Chromium) the originals are copied under hashed names, with their size.
 		const plain = await perfSite(pub, perf({ routeCache: false }), { logo: "/brand/logo.png" }, 56, async () => undefined);
@@ -231,7 +234,7 @@ describe("starter: route cache, CSP, announcement schedule, background video", (
 	it("sets every route-cache tag in the page's frontmatter (a layout renders after the headers are sent)", () => {
 		const slug = starter("pages/[...slug].astro");
 		expect(slug).toContain('await Promise.all([getEmDashEntry("pages", slug), loadChrome()])');
-		expect(slug).toContain("cachePage(Astro.cache);\nif (chrome) cacheChrome(Astro.cache, chrome);");
+		expect(slug).toContain("cachePage(Astro.cache, page ? \"page\" : \"other\");\nif (chrome) cacheChrome(Astro.cache, chrome);");
 		expect(slug).toContain("<Base chrome={chrome}");
 		const chrome = starter("utils/chrome.ts");
 		for (const call of ["getSiteSettingsWithCacheHint()", 'getMenuWithCacheHint("primary")', 'getMenuWithCacheHint("secondary")', 'getEmDashEntry("site_parts", "footer")', 'getEmDashCollection("popups", { status: "published" })', 'getEmDashEntry("site_parts", "announcement")']) expect(chrome).toContain(call);

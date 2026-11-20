@@ -217,7 +217,9 @@ export const kitConfigSchema = z.object({
 	/**
 	 * Performance package (docs/spikes/performance-findings.md), on by default:
 	 * - routeCache: rendered pages kept in Cloudflare's Workers cache (Astro route caching, EmDash purges on publish);
-	 *   maxAge/swr in seconds. false = every page rendered per request.
+	 *   pageMaxAge: lifetime of pages (default 7 days — EmDash purges them on every publish, menu, settings and widget
+	 *   change); maxAge/swr: everything else (blog posts, archives, collections: 1 hour, because EmDash does not purge on
+	 *   byline edits). Seconds. false = every page rendered per request.
 	 * - responsiveImages: srcset/sizes through EmDash's image endpoint (Cloudflare Images binding, no zone setting;
 	 *   counts against the account's Images transformations — 5,000 unique/month free; a failed transform falls back to
 	 *   the original file). false = original files only.
@@ -227,10 +229,13 @@ export const kitConfigSchema = z.object({
 	performance: z
 		.object({
 			routeCache: z.boolean().default(true),
+			pageMaxAge: z.number().int().positive().default(604800),
 			maxAge: z.number().int().positive().default(3600),
 			swr: z.number().int().nonnegative().default(86400),
 			responsiveImages: z.boolean().default(true),
 			warmup: z.boolean().default(true),
+			/** Preload a page when a visitor hovers over, focuses or touches its link (site pages only; not on data saver). */
+			prefetch: z.boolean().default(true),
 			smartPlacement: z.boolean().default(false),
 			/** Background videos also play on phones (< 768px) after load; default false: phones keep the picture. */
 			phoneVideo: z.boolean().default(false),

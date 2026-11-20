@@ -16,7 +16,10 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - Comments migration: approved WordPress comments with dates, authors and threads (`@wp2emdash/comments` admin-only import route; EmDash moderation approves them), threaded display and a moderated comment form.
 - Footer credit: "Website by PixelKraft" on every migrated site whose footer has no credit of its own (`credit` in kit.config; `false` turns it off).
 
+- **Faster pages:** pages stay in Cloudflare's cache for 7 days (`performance.pageMaxAge`; EmDash purges them on every publish, menu, settings and widget change; posts and collections keep 1 hour because byline edits do not purge), and a page starts loading when a visitor hovers over, focuses or touches its link (`performance.prefetch`; site pages only, never files, off on data saver).
+
 ### Fixed
+- Coming-soon mode now purges cached pages when it is saved (a cached page never reaches the middleware), and the middleware reads the switch on every render so a stale isolate cannot re-cache the public page.
 - Blog load reruns: child categories were created again ("term already exists") because EmDash returns a hierarchical taxonomy as a tree; the term list is now flattened.
 
 ### Changed

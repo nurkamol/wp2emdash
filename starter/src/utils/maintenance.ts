@@ -2,14 +2,15 @@
  * Coming-soon / maintenance mode. An admin switches it on in Site health → Settings (@wp2emdash/health, stored in the
  * plugin's KV: EmDash `options` row `plugin:site-health:maintenance`); the migration never does. While it is on, visitors
  * get a branded holding page with 503 + Retry-After and noindex (search engines keep the old index and come back), and
- * signed-in people (an admin session cookie) see the site as usual. The middleware reads the row at most every 30
- * seconds per isolate.
+ * signed-in people (an admin session cookie) see the site as usual. The middleware reads the row on every request it
+ * renders (cached pages never reach it; saving the switch purges them): an isolate that trusted an older read could
+ * re-cache the public page for the whole page lifetime right after the purge.
  *
  * No imports here: this file must load in Node (kit tests) and in the Worker (starter).
  */
 export const MAINTENANCE_OPTION = "plugin:site-health:maintenance";
-/** How long an isolate trusts the last read of the switch. */
-export const MAINTENANCE_TTL_MS = 30_000;
+/** How long an isolate trusts the last read of the switch: 0 = read it on every rendered request (one D1 row). */
+export const MAINTENANCE_TTL_MS = 0;
 
 export interface MaintenanceState {
 	on: boolean;

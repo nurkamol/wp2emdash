@@ -169,3 +169,27 @@ matches the video's first frame).
   numbers above come from Playwright/CDP on an unthrottled connection.
 - Purge propagation was measured from one location; Cloudflare documents purge as global.
 - Production is unchanged: it still renders every page until the next production deploy (owner approval).
+
+## Page lifetime and preloading (2026-11-21)
+
+Measured on a live single-environment site (one location, two requests per page): cached HTML 0.25–0.36 s TTFB;
+`MISS`/`EXPIRED` 2.4–2.9 s. `age` topped out near 3,500 s: with `maxAge` 3600 each page expired hourly per Cloudflare
+location, and on a low-traffic site most visitors met an expired copy. `swr` 86400 did not help: the `EXPIRED`
+responses were rendered synchronously (2.4 s).
+
+- **Pages now live 7 days** (`performance.pageMaxAge` 604800). Safe because every edit that shows on a page purges it:
+  content publish/unpublish/schedule (EmDash, incl. the scheduled-publish sweep, which purges incrementally), menus,
+  settings, widget areas, taxonomies (chrome hints set in the page frontmatter), comment moderation (EmDash's
+  moderation routes), SEO & Analytics and consent saves (`purgePages`), and — fixed now — the coming-soon switch.
+  Pages also carry `posts` and the collections' tags, since footer widgets (Recent posts) show them.
+- **Posts, archives and collection entries keep `maxAge` 3600:** EmDash 1.5's byline routes only call
+  `invalidateBylineCache()` (object cache), never an edge purge, so a byline edit would otherwise show for days.
+- **Coming-soon race:** the middleware cached the switch for 30 s per isolate; after a purge a stale isolate could
+  re-cache the public page for the whole page lifetime. `MAINTENANCE_TTL_MS` is now 0 (one D1 row per rendered request;
+  cached hits never run it).
+- **404s stay uncached on purpose:** Site health's Missing pages reads EmDash's 404 log, which a cached 404 never reaches.
+- **Preloading:** own ~30-line script (`starter/src/utils/prefetch.ts` + `site.ts`), not Astro's `prefetchAll`, which
+  would also fetch PDFs and other files on hover. Hover (65 ms), focus and touchstart; same-origin pages only; skips
+  files, `/_emdash`, `/api`, `/_image`, `/wp-content`, feeds, previews, searches, `target=_blank`, `download`, data saver
+  and 2G; at most 20 per page. `<link rel=prefetch>` where supported, else a low-priority `fetch` (Safari), which still
+  renders an uncached page at the edge before the click.

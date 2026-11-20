@@ -24,7 +24,7 @@ import { ancestorSlugs, breadcrumbListItems, pageTrail, postTrail } from "../sta
 import { comingSoonHtml, maintenanceBypass, parseMaintenance, retryAfter } from "../starter/src/utils/maintenance.js";
 import { excerptAround, highlight, matchesAll, mergeHits, resultExcerpt, resultHref, searchHref, searchParams } from "../starter/src/utils/search.js";
 import { memoryKv } from "./health-fixtures.js";
-import { env } from "./stubs/cloudflare-workers.js";
+import { cache as cfCache, env } from "./stubs/cloudflare-workers.js";
 
 const blog = JSON.parse(readFileSync(join(import.meta.dirname, "fixtures", "blog", "site.json"), "utf8"));
 const fx = JSON.parse(readFileSync(join(import.meta.dirname, "fixtures", "site-features", "site.json"), "utf8"));
@@ -287,7 +287,13 @@ describe("coming-soon mode (starter middleware + Site health)", () => {
 		const bad = await call({ type: "form_submit", action_id: "save-maintenance", values: { on: true, until: "next week" } });
 		expect(bad.toast?.message).toMatch(/Not saved/);
 		expect(await kv.get(KEYS.maintenance)).toBeNull();
+		const purge = vi.fn(async (_o: { tags?: string[] }) => ({ success: true, errors: [] }));
+		cfCache.purge = purge;
 		const r = await call({ type: "form_submit", action_id: "save-maintenance", values: { on: true, heading: "Opening soon", message: "New site in December", until: "2026-12-01 09:00" } });
+		// Cached pages never reach the middleware: saving purges them (every page carries these tags).
+		expect(purge).toHaveBeenCalledTimes(1);
+		expect(purge.mock.calls[0]?.[0].tags).toEqual(expect.arrayContaining(["emdash:settings"]));
+		delete cfCache.purge;
 		expect(r.toast?.message).toMatch(/Coming-soon mode is on/);
 		expect(await kv.get(KEYS.maintenance)).toMatchObject({ on: true, heading: "Opening soon", message: "New site in December", until: "2026-12-01T09:00:00.000Z" });
 		expect(parseMaintenance(JSON.stringify(await kv.get(KEYS.maintenance))).on).toBe(true);

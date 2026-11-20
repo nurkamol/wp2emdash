@@ -17,6 +17,7 @@
  */
 import { definePlugin, pluginResponse } from "emdash";
 import { parseRecipients } from "@wp2emdash/forms/outbox";
+import { purgePages, type PurgeApi } from "@wp2emdash/seo/analytics/store";
 import { type MailEnv, mailReady, type PluginEmail, sendMail } from "../email.js";
 import type { HealthOptions } from "../index.js";
 import { HEALTH_PLUGIN } from "../meta.js";
@@ -212,7 +213,9 @@ export function createPlugin(options: HealthOptions) {
 						const message = text(v.message, 1000);
 						const next: MaintenanceSetting = { on: v.on === true, ...(heading ? { heading } : {}), ...(message ? { message } : {}), ...(until.until ? { until: until.until } : {}), at: new Date().toISOString() };
 						await ctx.kv.set(KEYS.maintenance, next);
-						ctx.log?.info("health coming-soon mode saved", { on: next.on });
+						// Cached pages never reach the middleware: purge them, or visitors keep the public copy for the page lifetime.
+						const purged = await purgePages(((await import("cloudflare:workers")) as unknown as { cache?: PurgeApi }).cache);
+						ctx.log?.info("health coming-soon mode saved", { on: next.on, purge: purged });
 						return { blocks: await show(TABS.settings), toast: { message: next.on ? "Coming-soon mode is on: visitors see the holding page within a minute." : "Coming-soon mode is off: the site is public again within a minute.", type: "success" } };
 					}
 					if (i.type === "block_action" && act === "test-email") {

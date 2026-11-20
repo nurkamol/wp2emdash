@@ -33,9 +33,11 @@ export const CHROME_TAGS = ["site_parts", "popups"] as const;
  * both URL styles), plus the sitemaps (robots.txt is not: EmDash answers it with no-store). Never a catch-all: a rule matches by path whatever the route,
  * so "/[...slug]" would also cache EmDash's admin and API (/_emdash) and the form endpoints (/api).
  */
-export function routeRules(perf: PerfConfig, pagePaths: string[]): Record<string, RouteRule> {
+export function routeRules(perf: PerfConfig, pagePaths: string[], contentTags: string[] = []): Record<string, RouteRule> {
 	if (!perf.routeCache) return {};
-	const page = { maxAge: perf.maxAge, swr: perf.swr, tags: ["pages", ...CHROME_TAGS] };
+	// Pages live long (pageMaxAge): every edit that shows on a page purges it. contentTags (posts, collections) because
+	// footer widgets such as Recent posts show them on every page.
+	const page = { maxAge: perf.pageMaxAge, swr: perf.swr, tags: ["pages", ...CHROME_TAGS, ...contentTags] };
 	const rules: Record<string, RouteRule> = {};
 	const norm = (p: string) => (p === "/" ? "/" : `/${p.replace(/^\/+|\/+$/g, "")}`);
 	for (const p of [...new Set(pagePaths.map(norm))].sort()) {
@@ -64,10 +66,10 @@ export function imageHosts(urls: (string | undefined)[]): string[] {
 }
 
 /** Lines for astro.config.mjs: the import, and the `image`, `cache` and `routeRules` options. */
-export function astroPerf(perf: PerfConfig, pagePaths: string[], hosts: string[]): { imports: string; options: string } {
+export function astroPerf(perf: PerfConfig, pagePaths: string[], hosts: string[], contentTags: string[] = []): { imports: string; options: string } {
 	const image = `image: { layout: "constrained", responsiveStyles: true${perf.responsiveImages && hosts.length ? `, domains: ${JSON.stringify(hosts)}` : ""} },`;
 	if (!perf.routeCache) return { imports: "", options: `\t${image}\n` };
-	const rules = routeRules(perf, pagePaths);
+	const rules = routeRules(perf, pagePaths, contentTags);
 	const body = Object.entries(rules)
 		.map(([k, v]) => `\t\t${JSON.stringify(k)}: ${JSON.stringify(v).replace(/"(\w+)":/g, "$1: ").replace(/,/g, ", ")},`)
 		.join("\n");
@@ -94,8 +96,8 @@ export function wranglerPerf(perf: PerfConfig): string {
 }
 
 /** Site config the starter reads (src/utils/cache.ts): the default lifetime for pages added after the migration. */
-export function perfSiteConfig(perf: PerfConfig): { routeCache?: { maxAge: number; swr: number } } {
-	return perf.routeCache ? { routeCache: { maxAge: perf.maxAge, swr: perf.swr } } : {};
+export function perfSiteConfig(perf: PerfConfig): { routeCache?: { maxAge: number; swr: number; pageMaxAge: number }; prefetch?: false } {
+	return { ...(perf.routeCache ? { routeCache: { maxAge: perf.maxAge, swr: perf.swr, pageMaxAge: perf.pageMaxAge } } : {}), ...(perf.prefetch ? {} : { prefetch: false as const }) };
 }
 
 /**
