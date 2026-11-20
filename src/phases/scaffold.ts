@@ -634,7 +634,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			react: STACK.react,
 			"react-dom": STACK["react-dom"],
 		},
-		devDependencies: { "@astrojs/check": STACK["@astrojs/check"], "@cloudflare/workers-types": STACK["@cloudflare/workers-types"], typescript: STACK.typescript, wrangler: STACK.wrangler },
+		devDependencies: { "@astrojs/check": STACK["@astrojs/check"], "@cloudflare/workers-types": STACK["@cloudflare/workers-types"], typescript: STACK.typescript, wrangler: STACK.wrangler, ...(changeRequests ? { "@types/react": "19.2.18" } : {}) }, // @types/react: the change-requests upload page is a React admin page (astro check needs its types)
 	});
 	writePerfFiles(project, config.performance);
 	const pagePaths = pages.flatMap((p) => (p.source.status === "publish" && p.route?.path ? [p.route.path] : []));

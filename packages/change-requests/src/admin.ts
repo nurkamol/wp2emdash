@@ -95,7 +95,7 @@ export function AttachPage() {
 	const box = { maxWidth: "720px", padding: "24px", display: "grid", gap: "16px" };
 	if (error) return h("div", { style: box }, h("h1", { style: { fontSize: "1.5rem" } }, "Add files"), h("p", { role: "alert" }, error));
 	if (!data) return h("div", { style: box }, h("p", null, "Loading…"));
-	const current = data.requests.find((r) => r.id === chosen);
+	const current = data.requests.find((r: Summary) => r.id === chosen);
 	const left = current ? data.max - current.attachments : 0;
 	return h(
 		"div",
@@ -110,7 +110,7 @@ export function AttachPage() {
 					h(
 						"select",
 						{ value: chosen, onChange: (e: { target: { value: string } }) => setChosen(e.target.value), disabled: busy, style: { padding: "8px" } },
-						data.requests.map((r) => h("option", { key: r.id, value: r.id }, `#${r.number} ${r.title} (${r.attachments}/${data.max} files)`)),
+						data.requests.map((r: Summary) => h("option", { key: r.id, value: r.id }, `#${r.number} ${r.title} (${r.attachments}/${data.max} files)`)),
 					),
 				)
 			: h("p", null, "There is no open request that can take more files."),
@@ -131,7 +131,7 @@ export function AttachPage() {
 				? h("p", null, `This request has ${data.max} files already.`)
 				: null,
 		busy ? h("p", { "aria-live": "polite" }, "Uploading…") : null,
-		lines.length ? h("ul", { "aria-live": "polite", style: { margin: 0, paddingLeft: "20px" } }, lines.map((l, n) => h("li", { key: n, style: { color: l.ok ? "inherit" : "#b42318" } }, `${l.name}: ${l.message}`))) : null,
+		lines.length ? h("ul", { "aria-live": "polite", style: { margin: 0, paddingLeft: "20px" } }, lines.map((l: Line, n: number) => h("li", { key: n, style: { color: l.ok ? "inherit" : "#b42318" } }, `${l.name}: ${l.message}`))) : null,
 		h("p", { style: { margin: 0 } }, h("a", { href: current ? `${data.back}/${current.id}` : data.back }, current ? `Back to request #${current.number}` : "Back to Change requests")),
 	);
 }
