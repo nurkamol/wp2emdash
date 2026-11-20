@@ -33,17 +33,21 @@ export interface Visits {
 	topReferrers: { host: string; views: number }[];
 }
 
-/** The GraphQL request for the 7 days before `now` (UTC). */
-export function visitsQuery(cfg: Pick<VisitsConfig, "accountId" | "host" | "siteTag">, now = Date.now()): { query: string; variables: Record<string, string> } {
-	const until = new Date(now);
-	const since = new Date(now - 7 * DAY);
+/**
+ * The GraphQL request for the 7 days before `now` (UTC), or for `range` (ms; @wp2emdash/health asks for a calendar
+ * month for its monthly report, and the daily rows then cover every day of it).
+ */
+export function visitsQuery(cfg: Pick<VisitsConfig, "accountId" | "host" | "siteTag">, now = Date.now(), range?: { since: number; until: number }): { query: string; variables: Record<string, string> } {
+	const until = new Date(range?.until ?? now);
+	const since = new Date(range?.since ?? now - 7 * DAY);
+	const dayLimit = Math.max(10, Math.ceil((until.getTime() - since.getTime()) / DAY) + 1);
 	const by = cfg.siteTag ? "siteTag: $key" : "requestHost: $key";
 	const filter = `{ datetime_geq: $since, datetime_lt: $until, ${by} }`;
 	const query = `query Visits($accountTag: String!, $since: Time!, $until: Time!, $key: String!) {
   viewer {
     accounts(filter: { accountTag: $accountTag }) {
       total: rumPageloadEventsAdaptiveGroups(limit: 1, filter: ${filter}) { count sum { visits } }
-      days: rumPageloadEventsAdaptiveGroups(limit: 10, orderBy: [date_ASC], filter: ${filter}) { count sum { visits } dimensions { date } }
+      days: rumPageloadEventsAdaptiveGroups(limit: ${dayLimit}, orderBy: [date_ASC], filter: ${filter}) { count sum { visits } dimensions { date } }
       pages: rumPageloadEventsAdaptiveGroups(limit: ${PAGE_LIMIT}, orderBy: [count_DESC], filter: ${filter}) { count sum { visits } dimensions { requestPath } }
       referrers: rumPageloadEventsAdaptiveGroups(limit: 10, orderBy: [count_DESC], filter: ${filter}) { count dimensions { refererHost } }
     }
@@ -82,9 +86,9 @@ export function viewsOfPath(v: Visits, path: string): { views: number; visits: n
 
 export class VisitsError extends Error {}
 
-/** Fetches the 7-day numbers. Errors are short, plain and token-free. */
-export async function fetchVisits(cfg: VisitsConfig, fetchFn: typeof fetch = fetch, now = Date.now()): Promise<Visits> {
-	const { query, variables } = visitsQuery(cfg, now);
+/** Fetches the 7-day numbers (or those of `range`). Errors are short, plain and token-free. */
+export async function fetchVisits(cfg: VisitsConfig, fetchFn: typeof fetch = fetch, now = Date.now(), range?: { since: number; until: number }): Promise<Visits> {
+	const { query, variables } = visitsQuery(cfg, now, range);
 	const scrub = (s: string) => (cfg.token ? s.split(cfg.token).join("[token]") : s).slice(0, 200);
 	let res: Response;
 	try {

@@ -51,6 +51,8 @@ export interface ClientRepoInput {
 	seoPanel?: boolean;
 	/** Performance package (kit.config performance): route cache + warm-up after deploy (src/scaffold/perf.ts). */
 	routeCache?: boolean;
+	/** Site health & monthly report (@wp2emdash/health): default recipients and the report footer. */
+	health?: { alertsTo: string[]; reportTo: string[]; footer: string };
 	sensitiveData: boolean;
 	stack: Record<string, string>;
 }
@@ -92,6 +94,53 @@ export function deployScripts(o: { staging: boolean; stagingFingerprint?: string
 }
 
 const PROVIDERS: Record<string, string> = { brevo: "Brevo", resend: "Resend", postmark: "Postmark", sendgrid: "SendGrid", mailgun: "Mailgun", emdash: "EmDash's email settings" };
+
+/** Optional Worker secrets for Site health (deployment docs, both environment layouts). */
+const healthSecrets = (h: ClientRepoInput["health"]) =>
+	h
+		? `
+
+Optional, for **Site health** (each check explains itself on the page while its secret is missing):
+
+\`\`\`bash
+npx wrangler secret put CRUX_API_KEY         # real-visitor speed: a free Google Cloud API key with the Chrome UX Report API enabled
+npx wrangler secret put CF_ZONE_READ_TOKEN   # certificate expiry: Cloudflare token with Zone → Zone → Read and Zone → SSL and Certificates → Read, this zone only
+\`\`\`
+
+The monthly report's visits use the same \`CF_ANALYTICS_TOKEN\` as the SEO & Analytics Visits tab.`
+		: "";
+
+/** The editor guide's Site health section. */
+const healthGuide = (h: ClientRepoInput["health"], productionUrl: string) =>
+	h
+		? `
+## Site health and the monthly report
+
+**Plugins → Site health** (administrators only) watches the site around the clock and shows the result in one place:
+
+- **Overall status** at the top — **Healthy**, **Attention** (the site is up but something needs a look) or **Down** —
+  and the same on the dashboard.
+- **Checks**, each with its last run and the last 14 days: uptime (the home page and a rotating sample of pages every 5
+  minutes), whether search engines may index the site, form email (the outbox), broken links (daily; links to other
+  sites weekly), the domain's email records (unchanged since go-live), the security certificate, speed (real-visitor
+  Core Web Vitals from Google, when set up) and whether the pages still carry the tracking codes switched on in
+  SEO & Analytics.
+- **Incidents**: when the site or a page failed two checks in a row (5 minutes apart), and when it answered again.
+- **Broken links**: the link, its answer and the pages that link to it — fix it in the page editor.
+- **Run checks now** re-checks everything except links (which continue in the background).
+
+**Emails.** When the site goes down and comes back, when new broken links appear, and when search-engine access, form
+email, the email DNS records, the certificate or the analytics tags start failing, an email goes to the alert
+recipients${h.alertsTo.length ? ` (by default ${h.alertsTo.join(", ")})` : ""} — at most one per issue per day. On the
+1st of each month a **report** for the month before goes to ${h.reportTo.length ? h.reportTo.join(", ") : "the report recipients"} (with a copy to the alert
+recipients): availability and outages, speed, visits and the most viewed pages, how many form messages arrived (the
+number only, never their content), pages published and updated, broken links found and fixed, and the average SEO
+score. Change the recipients, or switch alerts or the report off, under **Site health → Settings**; **Send a test
+email** checks that they arrive. Reports are kept under **Reports** for 12 months — **Download** gives a page to print
+or save as PDF. Emails start once ${productionUrl} shows this site (after the switch-over) and use the same email
+service as the website's forms. The footer reads "${h.footer}".
+`
+		: "";
 
 export function clientRepoFiles(input: ClientRepoInput): Record<string, string> {
 	const i = { ...input, email: { ...input.email, provider: PROVIDERS[input.email.provider] ?? input.email.provider } };
@@ -221,7 +270,7 @@ npx wrangler secret put TURNSTILE_SECRET_KEY              # production only; sta
 Leave out \`--env staging\` for production. Losing \`EMDASH_ENCRYPTION_KEY\` makes settings stored in the admin
 (such as email credentials) unreadable, so keep each environment's key somewhere safe. A key in any other format makes
 Settings → Email fail with "Failed to save email settings" (\`wrangler tail\` shows *EMDASH_ENCRYPTION_KEY entry is
-malformed*): set it again from the generated value.
+malformed*): set it again from the generated value.${healthSecrets(i.health)}
 `);
 
 	const sectionRows = i.sections.map((s) => `| ${s.label} | ${s.description} |`).join("\n");
@@ -295,7 +344,7 @@ hidden from search, and the sharing image. Enter a **focus keyword** (what peopl
 to check it is in the title, description, main heading, first paragraph and address. **Check my unsaved changes**
 checks the page before you save; changes to the SEO fields themselves show after saving. A good score helps, but
 rankings also depend on content quality, links from other sites and the Google Business Profile.
-` : ""}`);
+` : ""}${healthGuide(i.health, i.productionUrl)}`);
 
 	const formRows = i.forms.map((f) => `| ${f.title} (\`${f.id}\`) | ${f.fields.join(", ") || "—"} | ${f.withheld.length ? f.withheld.join(", ") : "—"} |`).join("\n");
 	files["docs/forms-and-integrations.md"] = md(`
@@ -425,7 +474,7 @@ monitoring period). Content edited here after the switch has to be copied back b
 - SEO: in the migration kit set \`production.live: true\`, rerun scaffold and deploy — IndexNow then notifies search
   engines on every publish. In the admin, **Plugins → SEO → Google**: **Submit sitemap**, and **IndexNow → Notify search
   engines about every page** once.` : ""}
-- Check form deliveries and Worker errors for the first two weeks.
+${i.health ? "- Site health: with \`production.live\` set, rerun scaffold and deploy so alerts and the monthly report start; then **Plugins → Site health → Settings → Send a test email**.\n" : ""}- Check form deliveries and Worker errors for the first two weeks.
 - Later, with the owner's approval: replace the routes with a Worker Custom Domain and retire WordPress hosting
   (keep the final backup).
 `);
@@ -676,7 +725,7 @@ npx wrangler secret put TURNSTILE_SECRET_KEY
 
 Losing \`EMDASH_ENCRYPTION_KEY\` makes settings stored in the admin (such as email credentials) unreadable, so keep the
 key somewhere safe. A key in any other format makes Settings → Email fail with "Failed to save email settings"
-(\`wrangler tail\` shows *EMDASH_ENCRYPTION_KEY entry is malformed*): set it again from the generated value.
+(\`wrangler tail\` shows *EMDASH_ENCRYPTION_KEY entry is malformed*): set it again from the generated value.${healthSecrets(i.health)}
 
 ## Backups
 
@@ -728,7 +777,7 @@ monitoring period). Content edited here after the switch has to be copied back b
 - Watch the 404 log (admin → Redirects) and add redirects for old addresses people still use.${i.seoPanel ? `
 - SEO: in the admin, **Plugins → SEO → Google**: **Submit sitemap**, and **IndexNow → Notify search engines about
   every page** once (after the rescaffold and deploy above).` : ""}
-- Check form deliveries and Worker errors for the first two weeks.
+${i.health ? "- Site health: with \`production.live\` set, rerun scaffold and deploy so alerts and the monthly report start; then **Plugins → Site health → Settings → Send a test email**.\n" : ""}- Check form deliveries and Worker errors for the first two weeks.
 - Later, with the owner's approval: replace the routes with a Worker Custom Domain and retire WordPress hosting
   (keep the final backup).
 `);

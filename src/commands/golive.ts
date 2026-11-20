@@ -483,7 +483,7 @@ async function primarySwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult>
 		} else next.push(`Set EmDash's Site URL to https://${c.canonical} (admin → Settings), so sign-in links use the real domain`);
 		const single = !siteEnvironments(c.config, readJson<CfFile>(c.cfFile) as never).staging;
 		next.push(
-			`pnpm wp2emdash run ${c.slug} scaffold, then pnpm deploy:production in the project (IndexNow and the client docs pick up "live"${single ? "; the client CI stops deploying on push to main (target.ciDeploy)" : ""})`,
+			`pnpm wp2emdash run ${c.slug} scaffold, then pnpm deploy:production in the project (IndexNow, Site health's alerts and monthly report, and the client docs pick up "live"${single ? "; the client CI stops deploying on push to main (target.ciDeploy)" : ""})`,
 			...(single
 				? [
 						`Forms: messages sent from https://${c.canonical} now go to email.to — no redeploy needed (FORM_LIVE_HOST); messages from workers.dev or preview links stay tests (email.stagingTo only), including any still queued from before launch. Send one test form from the domain`,

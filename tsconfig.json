@@ -30,6 +30,12 @@
       ],
       "@cf-wasm/resvg": [
         "./test/stubs/cf-wasm-resvg.ts"
+      ],
+      "@wp2emdash/forms/*": [
+        "./packages/forms/src/*.ts"
+      ],
+      "@wp2emdash/seo/*": [
+        "./packages/seo/src/*.ts"
       ]
     }
   },

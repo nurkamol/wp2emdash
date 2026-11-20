@@ -191,7 +191,13 @@ export function runtimeSecrets(ctx: SiteContext, env: EnvName): { name: string; 
 		{ name: "EMDASH_ENCRYPTION_KEY", required: true, why: "Encrypts settings stored in the admin (email credentials). Separate per environment; keep a copy in the password manager." },
 		{ name: "EMAIL_API_KEY", required: hasForms && needKey, why: held ? "Form email is held in the outbox (forms.outbox.hold): not needed until it is released." : ctx.config.email.provider === "emdash" ? "EMAIL_PROVIDER=emdash sends through EmDash's Settings → Email: no key secret." : `${ctx.config.email.provider} API key for form emails.` },
 		{ name: "TURNSTILE_SECRET_KEY", required: hasForms && env === "production", why: env === "production" ? "The production Turnstile widget's secret (forms)." : "Staging uses Cloudflare's test keys: not needed." },
-		...(ctx.config.seo?.panel !== false && ctx.config.analytics !== false ? [{ name: "CF_ANALYTICS_TOKEN", required: false, why: "Optional: the admin dashboard's Visits widget (Cloudflare Web Analytics, last 7 days). A token with only Account Analytics: Read." }] : []),
+		...(ctx.config.seo?.panel !== false && ctx.config.analytics !== false ? [{ name: "CF_ANALYTICS_TOKEN", required: false, why: `Optional: the admin dashboard's Visits widget (Cloudflare Web Analytics, last 7 days)${ctx.config.health !== false ? " and the visits in Site health's monthly report" : ""}. A token with only Account Analytics: Read.` }] : []),
+		...(ctx.config.health !== false
+			? [
+					{ name: "CRUX_API_KEY", required: false, why: "Optional: Site health's real-visitor Core Web Vitals (Google Chrome UX Report API key). Without it the speed check uses the page build time only." },
+					{ name: "CF_ZONE_READ_TOKEN", required: false, why: "Optional: Site health reads the certificate expiry (Zone Read + SSL and Certificates Read on this zone only). Cloudflare renews certificates itself." },
+				]
+			: []),
 	];
 	// Anything else the project declares for local development (.dev.vars.example): names only.
 	const example = join(ctx.paths.project, ".dev.vars.example");

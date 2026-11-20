@@ -224,6 +224,31 @@ export const kitConfigSchema = z.object({
 	/** SEO & Analytics suite (@wp2emdash/seo): editor panel, dashboard, Search Console, IndexNow, tracking codes, conversion events and Visits. On by default; { panel: false } turns the whole suite off (the site then loads exactly `analytics`). */
 	seo: z.object({ panel: z.boolean().default(true) }).default({ panel: true }),
 	/**
+	 * Site health & monthly report (@wp2emdash/health): scheduled uptime, indexability, form-outbox, broken-link,
+	 * mail-DNS, certificate, speed and analytics checks; a Site health admin page (admins only); email alerts; a branded
+	 * monthly report on the 1st. On by default; `health: false` turns it off.
+	 */
+	health: z
+		.union([
+			z.literal(false),
+			z.object({
+				/** Alert recipients (site down, broken links, indexability, form email…). Default: email.stagingTo (the agency). */
+				alertsTo: z.array(z.string().email()).optional(),
+				/** Monthly report recipients (the client). Default: email.to. The alert recipients get a copy. */
+				reportTo: z.array(z.string().email()).optional(),
+				/** Footer line of the report and alerts. */
+				brand: z.string().min(1).max(120).default("Prepared by PixelKraft"),
+				/** Email the monthly report (admins can switch it off on the page too). */
+				monthlyReport: z.boolean().default(true),
+				/**
+				 * Weekly sampled check of links to other sites (HEAD requests to hosts the site links to — the only checks that
+				 * leave the site's own host and Cloudflare/Google). false = only the site's own links are checked.
+				 */
+				externalLinks: z.boolean().default(true),
+			}),
+		])
+		.prefault({}),
+	/**
 	 * Third-party EmDash plugins that run in EmDash's sandbox (Cloudflare Worker Loader, Workers Paid). Each is pinned
 	 * to a reviewed version and enabled per environment; admin installs from the public registry stay off.
 	 */
