@@ -381,7 +381,7 @@ staging; Automatic.css (ACSS) rules read from the live `automatic.css` / `automa
   `panel` (bg, radius, item padding desktop/phones, divider, exclusive) from the accordion and its rounded ancestor;
   `<details name>` for native exclusivity, site.ts animates the height (260ms; none under reduced motion) and keeps
   one open where `name` is not supported. Salient FAQs (`lines` / `card`) are unchanged — no `name`, no script.
-- **Call-to-action panels** (FAQ and /events/ "Still got questions?"): a row box with `#f7f7f7`, 25px corners and 40px
+- **Call-to-action panels** (after an FAQ and on an events page): a row box with `#f7f7f7`, 25px corners and 40px
   padding: heading (Pinyon 24px) and text (`_width: var(--width-m)` = 546px) left, a NextBricks ripple v2 button right
   (black, white text, 25px corners, 10px 30px). Kit: columns `card` (bg, radius, padding, text width) from the panel the
   columns came from; ripple buttons carry their own colours, corners and padding (button `look`). Phones: text, then
