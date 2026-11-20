@@ -179,11 +179,14 @@ describe("announcement in the starter", () => {
 		const base = starter("layouts/Base.astro");
 		expect(base.indexOf("<Announcement")).toBeGreaterThan(base.indexOf('class="skip-link"'));
 		expect(base.indexOf("<Announcement")).toBeLessThan(base.indexOf("<SiteHeader"));
-		expect(base).toContain('getEmDashEntry("site_parts", "announcement")');
+		expect(starter("utils/chrome.ts")).toContain('getEmDashEntry("site_parts", "announcement")');
 		const c = starter("components/Announcement.astro");
 		expect(c).toMatch(/<section class="announcement" aria-label="Announcement"/);
 		expect(c).toMatch(/<button type="button" class="announcement__close" data-announcement-close aria-label="Close announcement">/);
-		expect(c).toMatch(/<script is:inline>[\s\S]*localStorage\.getItem\("announcement:" \+ b\.dataset\.version\)[\s\S]*--announce-h/);
+		// The pre-paint script is a fixed file, inlined verbatim and allowed by the CSP through its hash (test/perf.test.ts).
+		expect(c).toContain('import announcementScript from "../scripts/inline/announcement.js?raw";');
+		expect(c).toContain("<script is:inline set:html={announcementScript} />");
+		expect(starter("scripts/inline/announcement.js")).toMatch(/localStorage\.getItem\("announcement:" \+ b\.dataset\.version\)[\s\S]*--announce-h/);
 		expect(starter("components/Sections.astro")).toContain("section_announcement: SitePartOnly");
 		const css = starter("styles/base.css");
 		expect(css).toMatch(/\.site-header \{ position: fixed; inset: var\(--announce-offset, 0px\) 0 auto;/);

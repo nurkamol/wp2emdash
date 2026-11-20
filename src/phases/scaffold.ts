@@ -23,6 +23,7 @@ import { loadOverrides } from "../config/overrides.js";
 import { applySensitivePolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
 import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras, stackBreakpoint } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
+import { astroPerf, imageHosts, type PerfConfig, perfSite, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
@@ -97,7 +98,7 @@ export function workerVars(config: Pick<KitConfig, "email" | "forms">, o: { stag
  * preview URL (docs/spikes/single-env-findings.md). Opt-in staging: `env.staging` with its own Worker, data and vars
  * (unchanged from before 2026-11-20).
  */
-export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms">; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; productionHost: string }): string {
+export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms">; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; productionHost: string; perf?: PerfConfig }): string {
 	const { config, workerName, cf } = o;
 	const loader = (e: "staging" | "production") => o.sandboxedEnvs.some((envs) => envs.includes(e));
 	const d1 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "DB", database_name: cf[env]?.d1?.name ?? fallback, ...(cf[env]?.d1?.id ? { database_id: cf[env]?.d1?.id } : {}) });
@@ -147,7 +148,7 @@ export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms">; w
 	// The SEO dashboard reads this site's robots.txt, sitemap and home page through itself (a fetch to its own
 	// address would skip the Worker: on workers.dev nothing answers, on the domain the old origin would).
 	"services": [${JSON.stringify({ binding: "SELF", service: workerName })}],` : ""}
-	"observability": { "enabled": true },${o.staging ? stagingEnv : singleEnv}
+${o.perf ? wranglerPerf(o.perf) : ""}	"observability": { "enabled": true },${o.staging ? stagingEnv : singleEnv}
 }
 `;
 }
@@ -423,6 +424,9 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	else rmSync(join(project, "public", `${indexNowKey}.txt`), { force: true });
 	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: ["pages"], ...(og ? { ogCards: true } : {}), indexNow: { key: indexNowKey, live: !!readJson<CloudflareResources>(join(paths.root, "cloudflare.json"))?.production?.live } } : undefined;
 	if (seoPanel) cpSync(join(KIT_ROOT, "packages", "seo"), join(project, "packages", "seo"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
+	// Performance package (src/scaffold/perf.ts): route-cache defaults, hashed brand files with sizes, favicons.
+	const perf = await perfSite(join(project, "public"), config.performance, brand, siteConfig.header.logoHeight);
+	Object.assign(siteConfig, perf.site, { header: { ...siteConfig.header, ...perf.header } });
 	write(join(project, "src", "site.config.json"), siteConfig);
 	write(join(project, "src", "styles", "tokens.css"), tokens.css + bricksBodyWeight(bricksDesignOut) + bricksLayoutTokens(bricksDesignOut?.layout) + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);
@@ -499,7 +503,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		// The Cloudflare adapter flattens wrangler.jsonc at BUILD time: the environment is chosen with CLOUDFLARE_ENV during
 		// the build. EmDash core migrations run BEFORE the new build serves traffic; emdash migrate reads
 		// CLOUDFLARE_API_TOKEN/ACCOUNT_ID from the shell. Not named "deploy": that is a pnpm built-in command.
-		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }) },
+		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...withWarmup(deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }), { staging: cf.staging?.worker?.url, production: cf.production?.live ? siteConfig.productionUrl : (cf.production as { worker?: { url?: string } } | undefined)?.worker?.url }, config.performance) },
 		dependencies: {
 			"@astrojs/cloudflare": STACK["@astrojs/cloudflare"],
 			"@astrojs/react": STACK["@astrojs/react"],
@@ -515,6 +519,9 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		},
 		devDependencies: { "@astrojs/check": STACK["@astrojs/check"], "@cloudflare/workers-types": STACK["@cloudflare/workers-types"], typescript: STACK.typescript, wrangler: STACK.wrangler },
 	});
+	writePerfFiles(project, config.performance);
+	const pagePaths = pages.flatMap((p) => (p.source.status === "publish" && p.route?.path ? [p.route.path] : []));
+	const ap = astroPerf(config.performance, pagePaths, imageHosts([siteConfig.productionUrl, cf.staging?.worker?.url, (cf.production as { worker?: { url?: string } } | undefined)?.worker?.url]));
 	write(
 		join(project, "astro.config.mjs"),
 		`// Generated by wp2emdash scaffold. Runtime: workerd (V8) with nodejs_compat; build: Node ${STACK.node}.
@@ -522,7 +529,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
+import emdash from "emdash/astro";${ap.imports}${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
 
 export default defineConfig({
 	site: ${JSON.stringify(siteConfig.productionUrl)},
@@ -531,8 +538,7 @@ export default defineConfig({
 	// (${trailing}) is enforced for page paths in src/middleware.ts via site.config.json.
 	trailingSlash: "ignore",
 	adapter: cloudflare(),
-	image: { layout: "constrained", responsiveStyles: true },
-	integrations: [
+${ap.options}	integrations: [
 		react(),
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
@@ -551,7 +557,7 @@ export default defineConfig({
 	);
 	for (const e of envs.staging ? (["staging", "production"] as const) : (["production"] as const)) if (cf[e]?.d1?.id && !cf[e]?.session?.id) reporter.emit({ type: "log", level: "warn", message: `${e}: no SESSION namespace recorded in cloudflare.json; run \`wp2emdash provision ${config.slug} ${e}\` so the first deploy does not auto-provision it` });
 	if (!envs.staging && !config.forms.turnstileSiteKey && forms.length) reporter.emit({ type: "log", level: "warn", message: `single environment: production forms refuse messages until forms.turnstileSiteKey is set (one Turnstile widget for ${new URL(siteConfig.productionUrl).host} and the account's workers.dev subdomain) and its secret is put (wrangler secret put TURNSTILE_SECRET_KEY)` });
-	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, productionHost: new URL(siteConfig.productionUrl).host }));
+	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, productionHost: new URL(siteConfig.productionUrl).host, perf: config.performance }));
 	// Local dev: Turnstile's always-pass test keys so forms work under `astro dev` (kept if the developer edited the file).
 	const devVars = join(project, ".dev.vars");
 	if (!existsSync(devVars)) write(devVars, "# Local only (gitignored). Turnstile always-pass test keys; add EMAIL_API_KEY and FORM_FROM to test real delivery.\nTURNSTILE_SITE_KEY=1x00000000000000000000AA\nTURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA\n");
@@ -582,6 +588,7 @@ export default defineConfig({
 			...(hasAnalytics && analytics ? { analytics } : {}),
 			...(og ? { ogCards: true } : {}),
 			...(seoPanel ? { seoPanel: true } : {}),
+			...(config.performance.routeCache ? { routeCache: true } : {}),
 			sensitiveData: config.sensitiveData,
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
 		}),

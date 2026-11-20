@@ -156,6 +156,10 @@ export const kitConfigSchema = z.object({
 			lighthousePerformance: z.number().min(0).max(100).default(90),
 			maxLcpMs: z.number().default(2500),
 			maxCls: z.number().default(0.1),
+			/** Verify (remote targets): time to first byte of a cached page, median of 3, from the machine running verify. */
+			maxCachedTtfbMs: z.number().positive().default(600),
+			/** Verify: bytes the home page transfers until its load event (desktop), background video excluded by design. */
+			maxPayloadKb: z.number().positive().default(1500),
 		})
 		.prefault({}),
 
@@ -187,6 +191,26 @@ export const kitConfigSchema = z.object({
 	 * default reveal; "none" keeps the default.
 	 */
 	motion: z.enum(["calm", "none"]).optional(),
+	/**
+	 * Performance package (docs/spikes/performance-findings.md), on by default:
+	 * - routeCache: rendered pages kept in Cloudflare's Workers cache (Astro route caching, EmDash purges on publish);
+	 *   maxAge/swr in seconds. false = every page rendered per request.
+	 * - responsiveImages: srcset/sizes through EmDash's image endpoint (Cloudflare Images binding, no zone setting;
+	 *   counts against the account's Images transformations — 5,000 unique/month free; a failed transform falls back to
+	 *   the original file). false = original files only.
+	 * - warmup: deploy scripts request every sitemap URL once after `wrangler deploy`.
+	 * - smartPlacement: Workers Smart Placement (off: not shown to help this stack, see the findings).
+	 */
+	performance: z
+		.object({
+			routeCache: z.boolean().default(true),
+			maxAge: z.number().int().positive().default(3600),
+			swr: z.number().int().nonnegative().default(86400),
+			responsiveImages: z.boolean().default(true),
+			warmup: z.boolean().default(true),
+			smartPlacement: z.boolean().default(false),
+		})
+		.prefault({}),
 	/** SEO panel, dashboard, Search Console and IndexNow (@wp2emdash/seo). On by default; { panel: false } turns it off. */
 	seo: z.object({ panel: z.boolean().default(true) }).default({ panel: true }),
 	/**
