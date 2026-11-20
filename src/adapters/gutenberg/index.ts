@@ -8,6 +8,7 @@ import { embedOrLegacy, type Fragment, type HandlerCtx, mediaFrom, richFromHtml 
 import { adaptWpbakery, mergeRich, recognise, type Row, splitRow } from "../wpbakery/index.js";
 import type { Col } from "../wpbakery/elements.js";
 import type { FormDefinitionOut } from "../../scaffold/forms.js";
+import { oembedMarkup } from "./oembed.js";
 import { isLibRow, LIB_CONTAINERS, LIB_LEAF, type LibEnv, libColumns, libraryOf, libStyle } from "./libraries.js";
 
 export interface Block {
@@ -159,7 +160,8 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 				const url = str(b.attrs.url) ?? "";
 				const provider = str(b.attrs.providerNameSlug) ?? "";
 				if (/youtube|vimeo/.test(provider) || /youtu|vimeo/.test(url)) return [{ kind: "video", embedUrl: url }];
-				return embedOrLegacy(`<a href="${url}">${url}</a>`, ctx, `embed ${provider || url}`);
+				// The provider's official embed markup when it follows from the URL (src/adapters/gutenberg/oembed.ts).
+				return embedOrLegacy(oembedMarkup(url) ?? `<a href="${url}">${url}</a>`, ctx, `embed ${provider || url}`);
 			}
 			case "core/video": {
 				const src = /<video[^>]+src="([^"]+)"/.exec(b.innerHTML)?.[1];

@@ -27,7 +27,7 @@ import { siteEnvironments } from "../core/environments.js";
 import { KIT_ROOT } from "../core/paths.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
-import { resolveGoogleHref, selfHostGoogleFonts } from "../scaffold/fonts.js";
+import { resolveGoogleHref, selfHostGoogleFonts, typekitKit } from "../scaffold/fonts.js";
 import { clientRepoFiles, deployScripts, writeClientRepo } from "../scaffold/client-repo.js";
 import { loadOverrides } from "../config/overrides.js";
 import { applySensitivePolicy, applyUploadPolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
@@ -466,6 +466,15 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		}
 	}
 	write(join(project, "src", "styles", "fonts.css"), fontsCss);
+	// Adobe Fonts: the live site's project embed is kept (licence tied to the kit); the CSP allows Typekit only then.
+	{
+		const htmlDir = join(paths.snapshot, "html");
+		const kit = typekitKit(existsSync(htmlDir) ? readdirSync(htmlDir).filter((f) => f.endsWith(".html")).sort().map((f) => readFileSync(join(htmlDir, f), "utf8")) : []);
+		if (kit.href) {
+			siteConfig.fonts = { ...siteConfig.fonts, typekitHref: kit.href };
+			reporter.emit({ type: "log", level: "info", message: `Adobe Fonts project kept: ${kit.href} (Typekit allowed in the CSP)` });
+		} else if (kit.jsKit) reporter.emit({ type: "log", level: "warn", message: `Adobe Fonts: the live site uses the JavaScript embed (kit ${kit.jsKit}); switch the project to the CSS embed in Adobe Fonts and rerun scaffold to keep its fonts` });
+	}
 	// Calm entrance motion: the owner's setting, else on for a Bricks or Elementor site whose live pages animate content on entry.
 	const elementorAnimations = readJson<{ entranceAnimations?: number }>(join(paths.reports, "transform", "elementor-design.json"))?.entranceAnimations ?? 0;
 	const entranceMotion = config.motion ?? ((bricksDesignOut?.entranceAnimations ?? 0) >= 3 || elementorAnimations >= 3 ? "calm" : undefined);

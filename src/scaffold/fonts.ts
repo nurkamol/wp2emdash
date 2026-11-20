@@ -90,3 +90,18 @@ export async function selfHostGoogleFonts(href: string, publicDir: string, want:
 	}
 	return { css: `/* Self-hosted from Google Fonts by wp2emdash scaffold (latin, latin-ext). */\n${out.join("\n")}\n`, preload: [...new Set(preload)], files };
 }
+
+/**
+ * The Adobe Fonts (Typekit) web project the live site loads, as its CSS embed (`https://use.typekit.net/<id>.css`, a
+ * <link> or an @import). Adobe's licence ties the fonts to the project, so the kit keeps the embed instead of
+ * self-hosting (audit: "keep"). The older JavaScript embed (`<id>.js` + `Typekit.load()`) is reported, not converted.
+ */
+export function typekitKit(htmls: string[]): { href?: string; jsKit?: string } {
+	let jsKit: string | undefined;
+	for (const html of htmls) {
+		const css = /https:\/\/use\.typekit\.net\/([a-z0-9]{5,12})\.css\b/i.exec(html);
+		if (css) return { href: `https://use.typekit.net/${(css[1] as string).toLowerCase()}.css` };
+		jsKit ??= /(?:https:)?\/\/use\.typekit\.net\/([a-z0-9]{5,12})\.js\b/i.exec(html)?.[1];
+	}
+	return jsKit ? { jsKit } : {};
+}

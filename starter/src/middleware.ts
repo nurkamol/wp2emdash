@@ -7,6 +7,7 @@ import { defineMiddleware } from "astro:middleware";
 import site from "./site.config.json";
 import { isEditor } from "./utils/editor";
 import { embedCsp, providerCsp } from "./utils/providers";
+import { fontCsp } from "./utils/fonts";
 import { siteWidgets } from "./utils/widgets";
 import { matchWpUrl, type WpUrlRules } from "./utils/wp-urls";
 import { type CspHosts, cspSources } from "@wp2emdash/seo/analytics/csp";
@@ -29,6 +30,8 @@ import { commentsConfig } from "./utils/comments-data";
  */
 const embeds = embedCsp();
 const widgets = providerCsp(siteWidgets().map((w) => w.provider));
+/** Adobe Fonts hosts, only when the site keeps a Typekit project (utils/fonts.ts). */
+const fontHosts = fontCsp((site as { fonts?: { typekitHref?: string } }).fonts);
 const join = (...lists: string[][]) => [...new Set(lists.flat())].join(" ");
 /*
  * Analytics hosts: exactly the services this page loads (components/Analytics.astro, the same per-request list), from
@@ -51,8 +54,8 @@ function csp(editor: boolean, hashes: string, analytics: CspHosts): string {
 	return [
 		"default-src 'self'",
 		`script-src 'self' ${turnstile} ${join(embeds.script, widgets.script)} ${analytics.script.join(" ")}${editor ? " 'unsafe-inline'" : ` ${hashes}`}`,
-		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${join(embeds.style, widgets.style)} ${(analytics.style ?? []).join(" ")}`,
-		`font-src 'self' data: https://fonts.gstatic.com ${join(embeds.font, widgets.font)} ${(analytics.font ?? []).join(" ")}`,
+		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${join(embeds.style, widgets.style, fontHosts.style)} ${(analytics.style ?? []).join(" ")}`,
+		`font-src 'self' data: https://fonts.gstatic.com ${join(embeds.font, widgets.font, fontHosts.font)} ${(analytics.font ?? []).join(" ")}`,
 		"img-src 'self' data: blob: https:",
 		`media-src 'self' blob: ${join(embeds.media, widgets.media)}`,
 		`connect-src 'self' ${turnstile} ${join(embeds.connect, widgets.connect)} ${analytics.connect.join(" ")}`,
