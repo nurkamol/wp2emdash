@@ -1,0 +1,288 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "image",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "#2a1d14",
+          "image": {
+            "wpId": 21,
+            "kind": "image"
+          }
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[0]",
+        "rawHash": "342dbfe1a7",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Bread baked before sunrise",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Sourdough, rye and pastries from our wood-fired oven on Harbor Lane, every day from 6am.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Order for pickup",
+            "href": "/order/",
+            "style": "primary"
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "media_text",
+      "variant": "inline",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#fbf6ee"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[1]",
+        "rawHash": "1e05bfc53b",
+        "row": 1
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 31,
+            "kind": "image",
+            "alt": "Fresh loaves on a rack"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Our story",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Two neighbours started baking in a garage in 2009. Today the ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t8",
+                "text": "Harbor Lane",
+                "marks": [
+                  "strong"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": " team bakes 400 loaves a night.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "Organic flour, milled locally",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tc",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "td",
+                "text": "48-hour fermentation",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Meet the bakers",
+            "href": "/about/#team",
+            "style": "secondary"
+          }
+        ],
+        "mediaSide": "left",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "anchorId": "faq",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "311cc611fa",
+        "row": 2
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "te",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tf",
+                "text": "Questions",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "Do you bake gluten-free bread?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Yes, on Fridays, in a separate oven.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Can I order a wedding cake?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "We take cake orders four weeks ahead. ",
+                    "marks": []
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "tl",
+                    "text": "Write to us",
+                    "marks": [
+                      "tk"
+                    ]
+                  },
+                  {
+                    "_type": "span",
+                    "_key": "tm",
+                    "text": ".",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [
+                  {
+                    "_type": "link",
+                    "_key": "tk",
+                    "href": "https://bakery.example/contact/"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "flagged",
+      "message": "Rebuilt from the live page's rendered HTML (fixture (avada)); check it visually against the live page, then record the review in overrides.ts domFallbackReviewed",
+      "path": "dom",
+      "tag": "dom-fallback"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "left out of the rebuilt page: footer ×1, header ×1, cookie banner ×1, theme page title ×1, empty box / spacer ×2",
+      "path": "dom"
+    }
+  ],
+  "forms": []
+}

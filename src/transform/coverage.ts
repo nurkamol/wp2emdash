@@ -8,7 +8,7 @@ import { ptText } from "../ir/portable-text.js";
 import type { IrMenuItem, IrPage, Section } from "../ir/schema.js";
 
 /** Theme chrome that is not page content (header, menus, search, skip links, popups, scripts). */
-const CHROME = [
+export const CHROME = [
 	"script",
 	"style",
 	"noscript",

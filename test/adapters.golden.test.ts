@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { adaptBricks, type BricksElement, bricksSite, liveVariables } from "../src/adapters/bricks/index.js";
 import { adaptDivi, diviSite } from "../src/adapters/divi/index.js";
+import { adaptDomFallback } from "../src/adapters/dom-fallback/index.js";
 import { adaptElementor, type ElementorElement, elementorKit } from "../src/adapters/elementor/index.js";
 import { adaptGutenberg } from "../src/adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../src/adapters/wpbakery/index.js";
@@ -85,6 +86,27 @@ const adapters = {
 			title: f.title ?? "Fixture page",
 			siteTitle: "Fixture Studio",
 			menuItems: (id) => f.menus?.[id],
+		});
+	},
+	// DOM fallback (pages of builders without an adapter, rebuilt from the audit's saved HTML): hand-written pages in the
+	// style of Avada, Beaver Builder, Oxygen, Thrive, SiteOrigin, Flatsome, Breakdance and a plain theme, invented
+	// businesses on .example domains. First line: <!-- fixture {"builder", "postId", "postCount"} -->. Upload URLs end
+	// in -<id>(-WxH).ext, which the stub media library resolves; this site's absolute links become paths.
+	"dom-fallback": (src: string) => {
+		const f = JSON.parse(/^<!-- fixture (\{.*?\}) -->/.exec(src)?.[1] ?? "{}") as { builder?: string; postId?: number; postCount?: number };
+		return adaptDomFallback(src, {
+			kind: "page",
+			keys: new Keys("t"),
+			popupFor,
+			postCount: f.postCount ?? 0,
+			postId: f.postId ?? 10,
+			title: "Fixture page",
+			reason: { builder: f.builder ?? "unknown", why: `fixture (${f.builder ?? "unknown"})` },
+			mediaIdForUrl: (u) => {
+				const m = /^https:\/\/[a-z]+\.example\/wp-content\/uploads\/(?:.*\/)?[a-z]+-(\d+)(?:-\d+x\d+)?\.[a-z0-9]+$/i.exec(u);
+				return m ? Number(m[1]) : undefined;
+			},
+			relHref: (u) => u.replace(/^https:\/\/[a-z]+\.example(?=\/|$)/, "") || "/",
 		});
 	},
 	// Announcement bars: one saved page of HTML → what detection found and the site part it becomes.

@@ -7,8 +7,8 @@
 		"inScope": 103,
 		"done": 74,
 		"superseded": 6,
-		"partial": 18,
-		"missing": 5,
+		"partial": 19,
+		"missing": 4,
 		"outOfScope": 7
 	},
 	"rows": [
@@ -407,12 +407,12 @@
 		{
 			"id": "other-builders",
 			"area": "Builders",
-			"feature": "Beaver Builder, Oxygen, Breakdance, Avada/Fusion, Thrive, SiteOrigin",
+			"feature": "Beaver Builder, Oxygen, Breakdance, Avada/Fusion, Thrive, SiteOrigin, Brizy, Visual Composer, Flatsome, Enfold, theme markup",
 			"emdash": "—",
 			"emdashConfidence": "none",
-			"status": "missing",
-			"kit": "No adapter; PLAN's `dom-fallback` adapter not built (src/adapters has bricks, elementor, gutenberg, wpbakery only)",
-			"gap": "Build the DOM-fallback adapter (rendered HTML from the audit → sections, flagged) as the universal safety net; dedicated adapters only on demand.",
+			"status": "partial",
+			"kit": "src/adapters/dom-fallback (built 2026-11-21, docs/spikes/dom-fallback-findings.md): pages no adapter claims (builder post meta, an unknown shortcode family, builder markup in post_content, the live page's body classes, or empty post_content with a rendered page) are rebuilt from the audit's saved HTML: theme chrome removed (header, menus, footer, sidebar, cookie banners, popups, title bar, breadcrumbs, comments), top-level boxes → rows, column classes/inline widths/flex rows → columns, then the shared recognisers; text → Portable Text, images (lazy attributes, upload URL → media library id), button-styled links, iframes via the embed registry, plugin forms by id, builder/theme forms → definitions rebuilt from their HTML, accordions/tabs/testimonials/galleries/image sliders only from unambiguous markup, inline background colour/gradient/image/video and light text; tables, unknown iframes and objects → sanitised legacy_html (gate-blocking); every page flagged and gated (`dom-fallback-reviewed`, overrides.ts `domFallbackReviewed`); 8 synthetic fixtures + goldens",
+			"gap": "Never run on a real site of any of these builders. Backgrounds and spacing set in stylesheets (not inline) are lost; layouts drawn with CSS grid/absolute positioning may come out as stacked text; JavaScript-rendered content (sliders built by scripts, lazy widgets) is missing when the audit saved the server HTML; links around whole boxes are dropped (reported). Dedicated adapters only on demand.",
 			"effort": "L",
 			"risk": "high",
 			"priority": "P1",
@@ -1696,7 +1696,7 @@
 				"other-builders"
 			],
 			"effort": "L",
-			"notes": "Universal safety net in the PLAN; not built."
+			"notes": "Built 2026-11-21 (docs/spikes/dom-fallback-findings.md): rendered HTML → sections, flagged and gated until the owner reviews each page; not yet run on a real site."
 		},
 		{
 			"rank": 14,

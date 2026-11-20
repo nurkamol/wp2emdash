@@ -11,6 +11,7 @@ import { readBricksOptions } from "../extract/bricks.js";
 import { activeKit, adaptElementor, elementorDesign, elementorElements, elementorEntranceAnimations, elementorKit, isElementor, popupAutoOpen, siteTemplates as elementorSiteTemplates, templateType as elementorTemplateType } from "../adapters/elementor/index.js";
 import { readElementorOptions } from "../extract/elementor.js";
 import { adaptDivi, diviDesign, diviSite, isDivi, themeBuilderParts } from "../adapters/divi/index.js";
+import { adaptDomFallback, type FallbackReason, fallbackReason, liveContentWords } from "../adapters/dom-fallback/index.js";
 import { readDiviOptions } from "../extract/divi.js";
 import type { FormDefinitionOut } from "../scaffold/forms.js";
 import { adaptGutenberg } from "../adapters/gutenberg/index.js";
@@ -149,6 +150,9 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const diviForms = new Map<string, FormDefinitionOut>();
 	// Block-library form blocks (Kadence, Spectra, CoBlocks) on Gutenberg pages.
 	const blockForms = new Map<string, FormDefinitionOut>();
+	// DOM fallback: builder/theme forms rebuilt from the live HTML, and why each page was rebuilt from it.
+	const domForms = new Map<string, FormDefinitionOut>();
+	const domReasons = new Map<string, FallbackReason>();
 	const siteUrl = config.source.url.replace(/\/$/, "");
 	const siteHosts = new Set([new URL(siteUrl).host, ...config.source.alternateHosts].map((h) => h.replace(/^www\./, "")));
 	// Media library id of an upload URL (WordPress size variants and -scaled copies point at the original).
@@ -283,20 +287,44 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		}
 		return marianaTenantCache ?? undefined;
 	};
+	/** The audit's saved HTML of a page or post (snapshot/html), when it has one. */
+	const snapHtmlOf = (id: number) => {
+		const snap = snapPages.get(id);
+		const f = snap ? join(paths.snapshot, "html", `${snap.name}.html`) : undefined;
+		return f && existsSync(f) ? readFileSync(f, "utf8") : undefined;
+	};
+	/**
+	 * DOM fallback (src/adapters/dom-fallback): a classic/empty page that is really built with a builder without an
+	 * adapter, or whose post_content is empty while the live page shows content. Never for pages an adapter handles,
+	 * the posts page, the shop page or a password-protected page.
+	 */
+	const domFallbackFor = (p: ExporterPost, builder: Builder): { reason: FallbackReason; html?: string } | undefined => {
+		if (builder !== "classic" && builder !== "empty") return undefined;
+		if (p.id === Number(options.page_for_posts ?? 0) || p.id === Number(options.woocommerce_shop_page_id ?? 0)) return undefined;
+		const html = snapHtmlOf(p.id);
+		if (html && isPasswordFormHtml(html)) return undefined;
+		const reason = fallbackReason(builder, p.content ?? "", p.meta, html ? { html, words: builder === "empty" ? liveContentWords(html, p.id) : 0 } : undefined);
+		return reason ? { reason, ...(html ? { html } : {}) } : undefined;
+	};
 	/** `elements`: a Bricks template's element list (its meta key depends on the template type). */
 	const adapt = (p: ExporterPost, kind: Exclude<IrPage["kind"], "entry">, elements?: BricksElement[], role?: "header" | "footer") => {
-		const builder: Builder = elements ? "bricks" : detectBuilder(p.content ?? "", p.meta);
+		let builder: Builder = elements ? "bricks" : detectBuilder(p.content ?? "", p.meta);
+		const fallback = !elements && !role && (kind === "page" || kind === "post") ? domFallbackFor(p, builder) : undefined;
+		if (fallback?.html) builder = "dom-fallback";
 		const keys = new Keys(`${p.id.toString(36)}_`);
 		const common = { kind, keys, popupFor, postCount: posts.filter((x) => x.status === "publish").length, rowOverrides: rowOverridesFor(p.slug) };
 		let sections: Section[] = [];
 		let diagnostics: Diagnostic[] = [];
 		try {
-			const r = builder === "bricks" ? adaptBricksPost(p, common, elements) : builder === "elementor" ? adaptElementorPost(p, common, role) : builder === "divi" ? adaptDiviPost(p, common, role) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenbergPost(p, common);
+			const r = builder === "dom-fallback" && fallback?.html ? adaptDomFallbackPost(p, common, { reason: fallback.reason, html: fallback.html }) : builder === "bricks" ? adaptBricksPost(p, common, elements) : builder === "elementor" ? adaptElementorPost(p, common, role) : builder === "divi" ? adaptDiviPost(p, common, role) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenbergPost(p, common);
 			sections = r.sections;
 			diagnostics = r.diagnostics;
 		} catch (e) {
 			diagnostics.push({ level: "error", code: "parse", message: `Adapter crashed: ${(e as Error).message}`, carriesContent: true });
 		}
+		if (fallback && !fallback.html) diagnostics.push({ level: "error", code: "unmapped", message: `Built with ${fallback.reason.builder} (${fallback.reason.why}), which has no adapter, and the audit saved no HTML of this page to rebuild it from: rerun audit with this page in the crawl, then transform`, path: "dom", carriesContent: true, tag: "dom-fallback" });
+		const reviewed = builder === "dom-fallback" ? overrides.domFallbackReviewed[p.slug] : undefined;
+		if (reviewed) for (const d of diagnostics) if (d.tag === "dom-fallback" && d.code === "flagged") Object.assign(d, { level: "info", message: `${d.message} — reviewed (overrides.ts domFallbackReviewed): ${reviewed}` });
 		diagnostics.push(...completeMarianaEmbeds(sections, sections.some((s) => s.type === "embed" && s.fields.provider === "marianatek") ? marianaTenantOfSite() : undefined));
 		for (const provider of new Set(completeProviderLoaders(sections, loaders))) diagnostics.push({ level: "info", code: "lossy", message: `${provider} embed got the site-wide loader script (it had none of its own)` });
 		// legacy_html approved by overrides is downgraded to info.
@@ -323,6 +351,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	function adaptDiviPost(p: ExporterPost, common: { kind: Exclude<IrPage["kind"], "entry">; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, role?: "header" | "footer") {
 		const r = adaptDivi(p.content ?? "", { ...common, ...(role ? { role } : {}), site: divi, postId: p.id, title: p.title, siteTitle, menuItems: (id) => { const m = menusRaw.find((x) => String(x.id) === id); return m ? menuTree(m) : undefined; } });
 		for (const f of r.forms) diviForms.set(f.id, f);
+		return r;
+	}
+
+	/** A page of a builder without an adapter, rebuilt from the audit's saved HTML of it (flagged for review). */
+	function adaptDomFallbackPost(p: ExporterPost, common: { kind: Exclude<IrPage["kind"], "entry">; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, fb: { reason: FallbackReason; html: string }) {
+		const r = adaptDomFallback(fb.html, { ...common, postId: p.id, title: p.title, reason: fb.reason, mediaIdForUrl, relHref });
+		for (const f of r.forms) domForms.set(f.id, f);
+		domReasons.set(p.slug, fb.reason);
 		return r;
 	}
 
@@ -366,7 +402,8 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			continue;
 		}
 		const { builder, sections, diagnostics } = adapt(p, "page");
-		paddedEdges += applyMeasuredPadding(sections, boxesFor(routeOf(p)), false);
+		// Audit section boxes are paired by builder row; rows found in rendered HTML have no such pairing.
+		if (builder !== "dom-fallback") paddedEdges += applyMeasuredPadding(sections, boxesFor(routeOf(p)), false);
 		const template = typeof p.meta._wp_page_template === "string" && p.meta._wp_page_template !== "default" ? p.meta._wp_page_template : undefined;
 		const parentPath = p.parent && byId.get(p.parent) ? routeOf(byId.get(p.parent) as ExporterPost) : undefined;
 		emit(
@@ -443,7 +480,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	};
 	for (const p of blogOn ? blogPosts : postsDecided ? [] : posts) {
 		const builder = detectBuilder(p.content ?? "", p.meta);
-		const isBuilder = builder === "wpbakery" || builder === "bricks" || builder === "elementor" || builder === "divi";
+		const isBuilder = builder === "wpbakery" || builder === "bricks" || builder === "elementor" || builder === "divi" || !!domFallbackFor(p, builder);
 		if (!blogOn && !isBuilder) {
 			notTransformed.push(`post ${p.slug}: ${builder} content: no posts collection (kit.config blog: false)`);
 			continue;
@@ -460,7 +497,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const doc: IrPage = {
 			version: IR_VERSION,
 			kind: "post",
-			source: { wpId: p.id, type: "post", status: p.status, slug: p.slug || `post-${p.id}`, builder, modifiedGmt: p.modified_gmt },
+			source: { wpId: p.id, type: "post", status: p.status, slug: p.slug || `post-${p.id}`, builder: adapted?.builder ?? builder, modifiedGmt: p.modified_gmt },
 			route: { path: postRoute(p) },
 			title: p.title,
 			seo: seoOf(p),
@@ -832,6 +869,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	for (const f of elementorForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
 	for (const f of diviForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
 	for (const f of blockForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
+	for (const f of domForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
 	// Divi theme options and global colours (for comparison with the design capture).
 	if (results.some((r) => r.doc.source.builder === "divi")) write(join(paths.reports, "transform", "divi-design.json"), { optionsPresent: divi.present, ...diviDesign(divi), themeBuilder: { ...(diviParts.template ? { template: diviParts.template.id } : {}), ...(diviParts.header ? { header: diviParts.header } : {}), ...(diviParts.footer ? { footer: diviParts.footer } : {}), ...(diviParts.body ? { body: diviParts.body } : {}) } });
 	// Elementor Kit design values (for comparison with the design capture) and the entrance animations count (motion).
@@ -849,6 +887,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 
 	const legacy = inScope.flatMap((r) => r.doc.sections.filter((s) => s.type === "legacy_html" && !overrides.approvedLegacy.includes(`${r.doc.source.slug}:${s.sourceRef.path}`)).map((s) => `${r.doc.source.slug}:${s.sourceRef.path}`));
 	check("legacy-html", "No unapproved legacy_html sections", legacy.length === 0, legacy.join(", ") || undefined);
+
+	// ── Pages rebuilt from rendered HTML (DOM fallback): visible until the owner reviewed each one ──
+	const domPages = inScope.filter((r) => r.doc.source.builder === "dom-fallback");
+	if (domPages.length) {
+		const open = domPages.filter((r) => !overrides.domFallbackReviewed[r.doc.source.slug]);
+		check("dom-fallback-reviewed", "Pages rebuilt from rendered HTML checked against the live page (overrides.ts domFallbackReviewed)", open.length === 0, open.length ? `${open.length} of ${domPages.length} page(s) rebuilt from the live HTML (no adapter for their builder), not yet reviewed: ${open.slice(0, 8).map((r) => `${r.doc.source.slug} (${domReasons.get(r.doc.source.slug)?.builder ?? "unknown"})`).join(", ")} — compare each with the live page (coverage report → Rebuilt from rendered HTML), fix rows with overrides.ts elements / approvedLegacy, then record domFallbackReviewed: { "<slug>": "<who checked it, when>" }` : `${domPages.length} page(s), all reviewed`);
+	}
 
 	// ── Media references resolve to the extract ────────────────────────────────
 	const ids = new Set(manifest.filter((m) => m.id !== undefined && m.status !== "failed").map((m) => m.id as number));
@@ -925,7 +970,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	check("links", "Internal links point at migrated pages, anchors, popups or files", brokenLinks.length === 0, brokenLinks.slice(0, 8).join("; ") || undefined);
 
 	// ── Text conservation vs the live page HTML ─────────────────────────────────
-	const formText = [...readFormText(join(paths.raw, "forms")), ...[...bricksForms.values(), ...diviForms.values(), ...blockForms.values()].flatMap((f) => [f.submitLabel, ...f.fields.flatMap((x) => [x.label, ...(x.placeholder ? [x.placeholder] : []), ...(x.options ?? [])])])];
+	const formText = [...readFormText(join(paths.raw, "forms")), ...[...bricksForms.values(), ...diviForms.values(), ...blockForms.values(), ...domForms.values()].flatMap((f) => [f.submitLabel, ...f.fields.flatMap((x) => [x.label, ...(x.placeholder ? [x.placeholder] : []), ...(x.options ?? [])])])];
 	const footerDocs = results.filter((r) => r.doc.kind === "partial" && r.published).map((r) => r.doc);
 	const lowPages: string[] = [];
 	for (const r of results.filter((x) => (x.doc.kind === "page" || x.doc.kind === "entry") && x.published && !x.doc.access)) {
@@ -1100,7 +1145,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 
 	// ── Report ─────────────────────────────────────────────────────────────────
 	const reportDir = join(paths.reports, "transform");
+	// Pages rebuilt from rendered HTML (DOM fallback): which, why, what came out, reviewed or not.
+	const domDocs = results.filter((r) => r.doc.source.builder === "dom-fallback");
+	const domFallback = domDocs.map((r) => ({ slug: r.doc.source.slug, path: r.doc.route?.path, builder: domReasons.get(r.doc.source.slug)?.builder ?? "unknown", why: domReasons.get(r.doc.source.slug)?.why ?? "", sections: r.doc.sections.length, legacy: r.doc.sections.filter((s) => s.type === "legacy_html").length, reviewed: overrides.domFallbackReviewed[r.doc.source.slug] ?? null }));
+	const domReport = domFallback.length
+		? ["", "## Rebuilt from rendered HTML (DOM fallback)", "", "No adapter knows these pages' builder, so they were rebuilt from the audit's saved HTML of the live page: compare each with the live page (sections, columns, backgrounds, pictures, forms), fix rows with `overrides.ts → elements` or `approvedLegacy`, then record the review in `overrides.ts → domFallbackReviewed`.", "", "| Page | Builder | Why | Sections | legacy_html | Reviewed |", "|---|---|---|---|---|---|", ...domFallback.map((d) => `| ${d.path ?? d.slug} | ${d.builder} | ${d.why.replace(/\|/g, "\\|")} | ${d.sections} | ${d.legacy || ""} | ${d.reviewed ? `✅ ${d.reviewed.replace(/\|/g, "\\|")}` : "⚠️ not yet"} |`)]
+		: [];
 	write(join(reportDir, "coverage.json"), {
+		...(domFallback.length ? { domFallback } : {}),
 		documents: results.map((r) => ({ file: r.file, published: r.published, builder: r.doc.source.builder, sections: r.doc.sections.map((s) => `${s.type}${s.variant ? `:${s.variant}` : ""}`), diagnostics: r.doc.diagnostics, conservation: r.conservation && { ratio: r.conservation.ratio, missing: r.conservation.missing } })),
 		notTransformed,
 		announcement: announcementReport,
@@ -1118,7 +1170,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const shortcodes = shortcodeSummary(results);
 	rmSync(join(paths.ir, "shortcodes.json"), { force: true });
 	if (shortcodes.used.length) write(join(paths.ir, "shortcodes.json"), shortcodes);
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

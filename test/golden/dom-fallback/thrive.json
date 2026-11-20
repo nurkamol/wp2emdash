@@ -1,0 +1,342 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "image",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "image": {
+            "wpId": 91,
+            "kind": "image"
+          }
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[0]",
+        "rawHash": "a7e6a5b6c8",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Lead your team with confidence",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "One-to-one leadership coaching for new managers. Twelve weeks, one goal: a team that trusts you.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Apply now",
+            "href": "/apply/",
+            "style": "primary"
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[1]",
+        "rawHash": "84579d0cd6",
+        "row": 1
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Clarity",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Find the three priorities that matter this quarter.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Feedback",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Give feedback that people act on.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Delegation",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Hand over work without losing sleep.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
+    },
+    {
+      "type": "tabs",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "fad95b562b",
+        "row": 2
+      },
+      "fields": {
+        "tabs": [
+          {
+            "label": "Format",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Twelve weekly video calls of 50 minutes, plus messages between sessions.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "label": "Price",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "$2,400 for the full programme; payment plans available.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "testimonials",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "rgb(20, 33, 61)"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[3]",
+        "rawHash": "82dd307802",
+        "row": 3
+      },
+      "fields": {
+        "items": [
+          {
+            "quote": "Summit turned my worst quarter into my best one.",
+            "name": "Priya N.",
+            "role": "Engineering manager",
+            "photo": {
+              "wpId": 55,
+              "kind": "image",
+              "alt": "Priya"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[4]",
+        "rawHash": "bf22350d4c",
+        "row": 4
+      },
+      "fields": {
+        "html": "<object data=\"https://coaching.example/brochure.swf\" type=\"application/x-shockwave-flash\"></object>",
+        "reason": "object"
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "stack",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[4]",
+        "rawHash": "bf22350d4c",
+        "row": 4
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 60,
+            "kind": "image",
+            "alt": "Your coach"
+          }
+        ],
+        "layout": "stack",
+        "lightbox": false
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "flagged",
+      "message": "Rebuilt from the live page's rendered HTML (fixture (thrive-architect)); check it visually against the live page, then record the review in overrides.ts domFallbackReviewed",
+      "path": "dom",
+      "tag": "dom-fallback"
+    },
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (object); replace with a section or approve in decisions.md",
+      "path": "dom[4]/div[3]/object[1]",
+      "carriesContent": true
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "left out of the rebuilt page: footer ×1, header ×1, divider / icon ×1",
+      "path": "dom"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Row with a legacy collection: 1 image(s) carried as separate sections after it",
+      "path": "dom[4]"
+    }
+  ],
+  "forms": []
+}

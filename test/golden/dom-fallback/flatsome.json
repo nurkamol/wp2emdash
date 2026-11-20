@@ -1,0 +1,239 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "video",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "color": "rgb(9, 52, 74)",
+          "image": {
+            "wpId": 70,
+            "kind": "image"
+          },
+          "video": {
+            "url": "https://surf.example/wp-content/uploads/waves.mp4",
+            "kind": "video"
+          }
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[0]",
+        "rawHash": "141910a002",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Catch your first wave",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Group and private lessons on Pebble Bay beach, boards and wetsuits included.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book a lesson",
+            "href": "/book/",
+            "style": "primary"
+          },
+          {
+            "label": "See prices",
+            "href": "/prices/",
+            "style": "secondary"
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "carousel",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[1]",
+        "rawHash": "b78378a378",
+        "row": 1
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 73,
+            "kind": "image",
+            "alt": "Beach"
+          },
+          {
+            "wpId": 74,
+            "kind": "image",
+            "alt": "A lesson"
+          },
+          {
+            "wpId": 75,
+            "kind": "image",
+            "alt": "Sunset session"
+          }
+        ],
+        "layout": "carousel",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "8fe282362f",
+        "row": 2
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Lesson times",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Lessons follow the tide. This week:",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "8fe282362f",
+        "row": 2
+      },
+      "fields": {
+        "html": "<iframe src=\"https://tides.example/widget?spot=pebble-bay\" width=\"100%\" height=\"300\" title=\"Tide table\"></iframe>",
+        "reason": "iframe"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "8fe282362f",
+        "row": 2
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "[ux_tide_table spot=\"pebble\"]",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "flagged",
+      "message": "Rebuilt from the live page's rendered HTML (fixture (flatsome)); check it visually against the live page, then record the review in overrides.ts domFallbackReviewed",
+      "path": "dom",
+      "tag": "dom-fallback"
+    },
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (iframe); replace with a section or approve in decisions.md",
+      "path": "dom[2]/iframe[5]",
+      "carriesContent": true
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "shortcode text shown literally on the live page (a plugin that is no longer active?): [ux_tide_table spot=\"pebble\"]; kept as text",
+      "path": "dom[2]/p[7]"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "left out of the rebuilt page: footer ×1, header ×2, empty box / spacer ×1",
+      "path": "dom"
+    }
+  ],
+  "forms": []
+}

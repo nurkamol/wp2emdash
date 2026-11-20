@@ -1,0 +1,425 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "stacked",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[0]",
+        "rawHash": "85e23fbf4b",
+        "row": 0
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 12,
+            "kind": "image",
+            "alt": "The studio at dawn"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Willow Creek Yoga is a small studio above the old mill. Classes run seven days a week for every level.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "New students get ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "t4",
+                "text": "two weeks free",
+                "marks": [
+                  "em"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": " — just bring a mat.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "The main studio at dawn.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [],
+        "mediaSide": "right",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[1]",
+        "rawHash": "534373d37d",
+        "row": 1
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Getting here",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "We are at 4 Mill Road. Parking is free behind the building.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "map",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[1]",
+        "rawHash": "534373d37d",
+        "row": 1
+      },
+      "fields": {
+        "embedUrl": "https://www.google.com/maps/embed?pb=!1m18!1m12"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "401855ffa6",
+        "row": 2
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tc",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "td",
+                "text": "Prices",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "te",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tf",
+                "text": "Drop-in class: $18",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          },
+          {
+            "_type": "block",
+            "_key": "tg",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "th",
+                "text": "10-class card: $150",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "401855ffa6",
+        "row": 2
+      },
+      "fields": {
+        "html": "<table class=\"prices\"><thead><tr><th>Plan</th><th>Price</th></tr></thead><tbody><tr><td>Monthly unlimited</td><td>$120</td></tr></tbody></table>",
+        "reason": "table"
+      }
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[3]",
+        "rawHash": "9c05519cf7",
+        "row": 3
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "ti",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tj",
+                "text": "FAQ",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "items": [
+          {
+            "question": "Do I need to book?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "tk",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tl",
+                    "text": "Booking is recommended; walk-ins welcome when space allows.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Are mats provided?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "tm",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tn",
+                    "text": "Yes, free of charge.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "calendly",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[4]",
+        "rawHash": "4038e00202",
+        "row": 4
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "to",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tp",
+                "text": "Book a class",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "provider": "calendly",
+        "html": "<div class=\"calendly-inline-widget\" data-url=\"https://calendly.com/willow-creek-yoga\" style=\"min-width:320px;height:630px;\"></div><script type=\"text/javascript\" src=\"https://assets.calendly.com/assets/external/widget.js\" async=\"\"></script>"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[4]",
+        "rawHash": "4038e00202",
+        "row": 4
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tq",
+            "style": "blockquote",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tr",
+                "text": "The kindest teachers in town.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ts",
+            "style": "blockquote",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tt",
+                "text": "Local Paper",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "flagged",
+      "message": "Rebuilt from the live page's rendered HTML (fixture (unknown)); check it visually against the live page, then record the review in overrides.ts domFallbackReviewed",
+      "path": "dom",
+      "tag": "dom-fallback"
+    },
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (table); replace with a section or approve in decisions.md",
+      "path": "dom[2]/table",
+      "carriesContent": true
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "element hidden on desktop (a phone/tablet copy?) not migrated: \"Tap to call: 555 0123\"",
+      "path": "dom[5]"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "left out of the rebuilt page: theme chrome (header, menus, skip links) ×2, footer ×1, sidebar ×1, cookie banner ×2, theme page title ×1, comments / post navigation ×1",
+      "path": "dom"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Stacked image + text in one column converted to media_text",
+      "path": "dom[0]"
+    }
+  ],
+  "forms": []
+}

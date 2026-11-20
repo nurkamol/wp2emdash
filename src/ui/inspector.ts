@@ -142,6 +142,7 @@ function rawFor(path: string, content: string | undefined, builder: string | und
 	const clip = (t: string, note: string) => ({ text: t.length > RAW_MAX ? `${t.slice(0, RAW_MAX)}\n… (${t.length - RAW_MAX} more characters)` : t, note });
 	const row = rowPathOf(path);
 	if (builder === "divi") return { text: "", note: "Divi modules: the page's post_content in raw/exporter/content holds this element's [et_pb_…] shortcodes (or divi/ blocks)." };
+	if (builder === "dom-fallback") return { text: "", note: "Rebuilt from the live page's rendered HTML (DOM fallback): see the page's file in snapshot/html; dom[n] is the n-th box of its main content area." };
 	if (/^(?:vc_row|vc_section|loose)\[/.test(row)) {
 		const t = wpbakeryRows(content).get(row);
 		return t === undefined ? undefined : clip(t, "WPBakery shortcode source of this row (raw/exporter/content)");

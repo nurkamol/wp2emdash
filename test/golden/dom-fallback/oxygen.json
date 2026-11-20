@@ -1,0 +1,348 @@
+{
+  "sections": [
+    {
+      "type": "hero",
+      "variant": "plain",
+      "theme": {
+        "tone": "dark",
+        "background": {
+          "gradient": "linear-gradient(135deg, #0f3b4c 0%, #1d6f86 100%)"
+        }
+      },
+      "spacing": "normal",
+      "fullHeight": true,
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[0]",
+        "rawHash": "47420bc463",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h1",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Gentle dentistry for the whole family",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Check-ups, cleanings and implants at Cedar Ridge since 1998.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Make an appointment",
+            "href": "/appointments/",
+            "style": "primary"
+          },
+          {
+            "label": "Call 555 0199",
+            "href": "tel:5550199",
+            "style": "secondary"
+          }
+        ],
+        "align": "center"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[1]#0",
+        "rawHash": "2d613aafd7",
+        "row": 1
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Why patients choose us",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "image-cards",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[1]#1",
+        "rawHash": "2d613aafd7",
+        "row": 1
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Modern rooms",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Digital X-rays with a fraction of the radiation.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 77,
+              "kind": "image",
+              "alt": "Treatment chair"
+            }
+          },
+          {
+            "title": "Calm team",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Nervous patients get extra time, always.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 78,
+              "kind": "image",
+              "alt": "Our dentists"
+            }
+          },
+          {
+            "title": "Clear prices",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Every treatment priced before we start.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "url": "https://cdn.stock.example/smile.jpg",
+              "kind": "image",
+              "alt": "Smiling patient"
+            }
+          }
+        ],
+        "columns": 3
+      }
+    },
+    {
+      "type": "testimonials",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f4f1ea"
+        }
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[2]",
+        "rawHash": "f7b5411e9b",
+        "row": 2
+      },
+      "fields": {
+        "items": [
+          {
+            "quote": "I actually look forward to my check-ups now. Thank you!",
+            "name": "Dana R.",
+            "role": "Patient since 2015"
+          },
+          {
+            "quote": "They fixed a tooth two other clinics gave up on.",
+            "name": "Sam K."
+          }
+        ]
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[3]",
+        "rawHash": "8a11e1a79d",
+        "row": 3
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "ti",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tj",
+                "text": "Request a call back",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "formRef": {
+          "provider": "html",
+          "id": "10-1"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "dom-fallback",
+        "path": "dom[3]",
+        "rawHash": "8a11e1a79d",
+        "row": 3
+      },
+      "fields": {
+        "html": "<table><tbody><tr><td>Mon–Fri</td><td>8–18</td></tr><tr><td>Sat</td><td>9–13</td></tr></tbody></table>",
+        "reason": "table"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "flagged",
+      "message": "Rebuilt from the live page's rendered HTML (fixture (oxygen)); check it visually against the live page, then record the review in overrides.ts domFallbackReviewed",
+      "path": "dom",
+      "tag": "dom-fallback"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "form rebuilt from the rendered HTML (3 fields; recipients, success message and conditional fields are not in the HTML): check it against the live form",
+      "path": "dom[3]/form[3]",
+      "tag": "form:html"
+    },
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (table); replace with a section or approve in decisions.md",
+      "path": "dom[3]/div[5]/div[0]/table[0]",
+      "carriesContent": true
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "left out of the rebuilt page: footer ×1, header ×1",
+      "path": "dom"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "Row mixes form + legacy; secondary items emitted as separate sections",
+      "path": "dom[3]"
+    }
+  ],
+  "forms": [
+    {
+      "id": "html-10-1",
+      "title": "html form 10-1",
+      "submitLabel": "Call me back",
+      "successMessage": "Thank you — we will be in touch.",
+      "fields": [
+        {
+          "name": "cb_name",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "cb_phone",
+          "label": "Phone",
+          "type": "tel",
+          "required": true,
+          "autocomplete": "tel"
+        },
+        {
+          "name": "cb_when",
+          "label": "Best time",
+          "type": "select",
+          "options": [
+            "Morning",
+            "Afternoon"
+          ]
+        }
+      ],
+      "warnings": [
+        "rebuilt from the live page's HTML (no plugin export): check labels, options, the success message, conditional fields and steps against the live form, then accept"
+      ]
+    }
+  ]
+}

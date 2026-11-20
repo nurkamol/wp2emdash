@@ -96,8 +96,11 @@ export const sectionTheme = z.object({
 });
 
 export const sourceRef = z.object({
-	/** html = rebuilt from the live page HTML (audit snapshot), e.g. a plugin's announcement bar. */
-	adapter: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "elementor", "divi", "html"]),
+	/**
+	 * html = rebuilt from the live page HTML (audit snapshot), e.g. a plugin's announcement bar; dom-fallback = a page of
+	 * a builder without an adapter, rebuilt from its rendered HTML (src/adapters/dom-fallback).
+	 */
+	adapter: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "elementor", "divi", "html", "dom-fallback"]),
 	/** Path inside the source tree, e.g. `vc_row[2]` or `blocks[4]`. */
 	path: z.string(),
 	/** Short hash of the raw source of this section, to detect changes in the cutover delta. */
@@ -490,7 +493,7 @@ export type IrEntry = z.infer<typeof irEntry>;
 export const irPage = z.object({
 	version: z.literal(IR_VERSION),
 	kind: z.enum(["page", "post", "partial", "popup", "entry"]),
-	source: z.object({ wpId: z.number().int(), type: z.string(), status: z.string(), slug: z.string(), builder: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "elementor", "divi", "empty", "html"]), modifiedGmt: z.string().optional() }),
+	source: z.object({ wpId: z.number().int(), type: z.string(), status: z.string(), slug: z.string(), builder: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "elementor", "divi", "empty", "html", "dom-fallback"]), modifiedGmt: z.string().optional() }),
 	route: z.object({ path: z.string(), parentPath: z.string().optional(), template: z.string().optional(), isFrontPage: z.boolean().optional() }).optional(),
 	title: z.string(),
 	seo: z
