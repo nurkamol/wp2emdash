@@ -1,0 +1,197 @@
+{
+  "sections": [
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "ac2447410a"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Send us a message",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "We reply within one business day.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "formRef": {
+          "provider": "fluent-forms",
+          "id": "4"
+        },
+        "aside": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Call us",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t8",
+                "text": "+1 (555) 010-0100",
+                "marks": [
+                  "t7"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t7",
+                "href": "tel:+15550100"
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "fa fa-phone"
+            }
+          },
+          {
+            "_type": "block",
+            "_key": "t9",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "hello@studio.example",
+                "marks": [
+                  "ta"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "ta",
+                "href": "mailto:hello@studio.example"
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "fa fa-envelope"
+            }
+          },
+          {
+            "_type": "block",
+            "_key": "tc",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "td",
+                "text": "Hours",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "te",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tf",
+                "text": "Mon–Fri: 6 AM – 9 PM",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tg",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "th",
+                "text": "Visit us",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ti",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tj",
+                "text": "A quiet studio for every level",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tk",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tl",
+                "text": "100 Example Street, Houston, TX 77000",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "icon": {
+              "library": "fontawesome",
+              "name": "fa fa-location-dot"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": []
+}

@@ -32,6 +32,11 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .prose > * + * { margin-top: var(--para-gap, 0.9em); }
 /* Builder themes space paragraphs below themselves; after a heading only the heading's own margin applies. */
 .prose > :is(h1, h2, h3, h4, h5, h6) + * { margin-top: 0; }
+/* A line with an icon in front (contact lines beside a form: phone, email, address). */
+.prose .icon-line { display: flex; align-items: center; gap: 0.6em; }
+.prose .icon-line + .icon-line { margin-top: 0.5em; }
+.prose .icon-line > p { margin: 0; }
+.icon-line__icon { flex: none; width: 1.15em; height: 1.15em; }
 .prose ul, .prose ol { padding-left: var(--list-indent, 1.25em); }
 .prose li + li { margin-top: var(--li-gap, 0.35em); }
 .prose blockquote { margin: 0; padding-left: 1em; border-left: 3px solid currentColor; }

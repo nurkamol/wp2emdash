@@ -28,6 +28,8 @@ export const ptBlock = z.object({
 	level: z.number().int().min(1).optional(),
 	children: z.array(ptSpan),
 	markDefs: z.array(ptLinkDef).default([]),
+	/** An icon drawn before the line (a contact line next to a form: phone, email, address), from the source's icon font. */
+	icon: z.object({ library: z.string(), name: z.string() }).optional(),
 });
 export type PtSpan = z.infer<typeof ptSpan>;
 export type PtBlock = z.infer<typeof ptBlock>;

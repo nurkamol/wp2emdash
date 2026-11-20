@@ -38,6 +38,8 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 - **SEO rules on every page** ([docs/seo-rules.md](docs/seo-rules.md)): one `<h1>` and no skipped heading levels (the middleware re-levels headings in `<main>` before caching, keeping their look), a visually hidden `<h1>` on heading-less pages, the logo in 1x/2x with `srcset`, `/llms.txt`; verify check `seo-rules`; `overrides.ts seo` for titles and descriptions the owner rewrites after an audit.
 
+- Contact icons beside a form (phone, email, address, hours) are carried: each lands on the line it stands for (a `tel:` link, an email, a street address, opening hours), drawn by the starter in front of the line.
+
 ### Fixed
 - An inlined component script (the comment form, under Astro's 4 KB inline limit) was blocked by the public CSP on every page: generated projects never inline scripts (`vite.build.assetsInlineLimit: 0`) and the comment script renders only where the comment form does.
 - Verify crashed before the old-address check (`archivePaths` used before it was defined).

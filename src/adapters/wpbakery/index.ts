@@ -552,6 +552,31 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 		const extraCollections = collections.filter((k) => k !== mainCollection && !(mainCollection === "feature" && k === "feature"));
 		if (extraCollections.length) ctx.diag({ level: "warn", code: "lossy", message: `Row mixes ${[mainCollection, ...extraCollections].join(" + ")}; secondary items emitted as separate sections`, path: row.path });
 
+		// Contact icons beside a form (phone, email, address, hours): each on the contact line it stands for — matched by
+		// meaning (a tel: link, an email, a street address, opening hours), else in order when the counts match.
+		let iconsPlaced = false;
+		const withIcons = (blocks: RichText): RichText => {
+			if (!icons.length) return blocks;
+			const lines = blocks.filter((x) => !isHeading(x) && words([x]) > 0);
+			const text = (x: PtBlock) => x.children.map((c) => c.text).join("");
+			const href = (x: PtBlock) => x.markDefs.map((m) => m.href ?? "").join(" ");
+			const kinds: [RegExp, (x: PtBlock) => boolean][] = [
+				[/phone|call|mobile|tel/i, (x) => /^tel:|\btel:/.test(href(x)) || /\+?\d[\d\s().-]{7,}\d/.test(text(x))],
+				[/mail|envelope/i, (x) => /mailto:/.test(href(x)) || /[\w.+-]+@[\w-]+\.[\w.]+/.test(text(x))],
+				[/location|map|marker|pin|address|direction/i, (x) => /\b\d{1,6}\s+\w[\w\s.]*\b(?:st|street|rd|road|ave|avenue|blvd|dr|drive|ln|lane|way|ct|pkwy|hwy|suite)\b|,\s*[A-Z]{2}\s+\d{5}/i.test(text(x)) || /maps\.google|goo\.gl\/maps|maps\.app/.test(href(x))],
+				[/clock|time|hour/i, (x) => /\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b|\b(?:mon|tue|wed|thu|fri|sat|sun)\w*\b/i.test(text(x))],
+			];
+			const given = new Map<PtBlock, (typeof icons)[number]>();
+			for (const ic of icons) {
+				const test = kinds.find(([k]) => k.test(ic.name))?.[1];
+				const line = test && lines.find((x) => !given.has(x) && test(x));
+				if (line) given.set(line, ic);
+			}
+			if (given.size < icons.length && lines.length === icons.length) lines.forEach((x, k) => given.set(x, icons[k] as (typeof icons)[number]));
+			if (given.size < icons.length) return blocks;
+			iconsPlaced = true;
+			return blocks.map((x) => (given.has(x) ? { ...x, icon: given.get(x) as { library: string; name: string } } : x));
+		};
 		const build = (kind: CollectionKind, heading: RichText | undefined, intro: RichText, main: boolean) => {
 			const h = heading ? { heading } : {};
 			const items = <K extends Fragment["kind"]>(k: K) => all.filter((f): f is Extract<Fragment, { kind: K }> => f.kind === k);
@@ -598,7 +623,8 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					for (const [i, f] of items("form").entries()) {
 						// Text between two forms introduces the second one (never dropped).
 						const between = i === 0 ? [] : all.slice(all.indexOf(items("form")[i - 1] as Fragment) + 1, all.indexOf(f)).flatMap((x) => (x.kind === "rich" ? x.blocks : []));
-						push({ ...base("form"), fields: { ...(i === 0 ? h : {}), intro: i === 0 ? intro : between, formRef: { provider: f.provider, id: f.id }, aside: main && i === 0 ? [...richAfter(all, "form"), ...buttons.map((b) => linkBlock(b, { keys: ctx.keys } as HandlerCtx))] : [] } });
+						const aside = main && i === 0 ? withIcons([...richAfter(all, "form"), ...buttons.map((b) => linkBlock(b, { keys: ctx.keys } as HandlerCtx))]) : [];
+						push({ ...base("form"), fields: { ...(i === 0 ? h : {}), intro: i === 0 ? intro : between, formRef: { provider: f.provider, id: f.id }, aside } });
 					}
 					break;
 				case "embed":
@@ -639,7 +665,7 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 		if (buttons.length && !buttonsPlaced) push({ ...base("rich_text"), fields: { body: [], width: "normal", align: "left", buttons } });
 		const carried = [looseMedia.length ? `${looseMedia.length} image(s)` : "", buttons.length && !buttonsPlaced ? `${buttons.length} button(s)` : ""].filter(Boolean);
 		if (carried.length) ctx.diag({ level: "info", code: "lossy", message: `Row with a ${mainCollection} collection: ${carried.join(" and ")} carried as separate sections after it`, path: row.path });
-		if (icons.length) ctx.diag({ level: "warn", code: "lossy", message: `Row with a ${mainCollection} collection: ${icons.length} icon(s) have no place in it and are not carried`, path: row.path });
+		if (icons.length && !iconsPlaced) ctx.diag({ level: "warn", code: "lossy", message: `Row with a ${mainCollection} collection: ${icons.length} icon(s) have no place in it and are not carried`, path: row.path });
 		return sections;
 	}
 

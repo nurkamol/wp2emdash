@@ -1,13 +1,40 @@
 ---
-/** Portable Text with dynamic tokens filled ({year}). */
+/**
+ * Portable Text with dynamic tokens filled ({year}). A block that carries an icon (a contact line beside a form: phone,
+ * email, address — carried from the WordPress icon font) renders as its own line with the icon in front.
+ */
 import { PortableText } from "emdash/ui";
 import { fillTokens, hasContent } from "../utils/pt";
+import Icon from "./Icon.astro";
 
 interface Props {
 	value?: any[] | null;
 	class?: string;
 }
 const { value, class: extra } = Astro.props;
+const blocks = hasContent(value) ? fillTokens(value as any[]) : [];
+// Runs of plain blocks stay one PortableText (lists keep their numbering); each icon line is its own run.
+const runs: { icon?: { name: string }; blocks: any[] }[] = [];
+for (const b of blocks) {
+	if (b?.icon?.name) runs.push({ icon: b.icon, blocks: [b] });
+	else if (runs.length && !runs.at(-1)?.icon) runs.at(-1)?.blocks.push(b);
+	else runs.push({ blocks: [b] });
+}
 ---
 
-{hasContent(value) && <div class:list={["prose", extra]}><PortableText value={fillTokens(value as any[])} /></div>}
+{
+	blocks.length > 0 && (
+		<div class:list={["prose", extra]}>
+			{runs.map((r) =>
+				r.icon ? (
+					<div class="icon-line">
+						<Icon name={r.icon.name} class="icon-line__icon" />
+						<PortableText value={r.blocks} />
+					</div>
+				) : (
+					<PortableText value={r.blocks} />
+				),
+			)}
+		</div>
+	)
+}
