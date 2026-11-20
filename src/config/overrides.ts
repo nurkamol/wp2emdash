@@ -91,6 +91,12 @@ export const overridesSchema = z.object({
 	 * loaded after the starter's CSS; drop = not carried. Selectors written for the WordPress theme rarely match.
 	 */
 	customCss: z.enum(["carry", "drop"]).optional(),
+	/**
+	 * Classic-theme widgets the kit has no mapping for (coverage report → "Widgets", ids like `calendar-2`): html = keep
+	 * the widget's rendered HTML as a content widget in the same EmDash widget area; skip = not carried (the owner's
+	 * choice). Unknown widgets without a decision fail the transform gate `widgets-handled`.
+	 */
+	widgets: z.record(z.string(), z.enum(["html", "skip"])).default({}),
 });
 
 function decision<T extends string>(values: [T, ...T[]]) {

@@ -6,6 +6,7 @@
  * FAQ sections add their own FAQPage.
  */
 import site from "../site.config.json";
+import { breadcrumbListItems, type Crumb } from "../utils/breadcrumbs";
 
 interface Props {
 	/** Absolute canonical URL of this page. */
@@ -17,8 +18,10 @@ interface Props {
 	sameAs?: string[];
 	/** The logo an editor picked in Settings → General (else the migrated brand logo). */
 	logo?: string;
+	/** The visible breadcrumb trail (utils/breadcrumbs.ts), when the page shows one: the BreadcrumbList follows it. */
+	trail?: Crumb[];
 }
-const { canonical, pageTitle, description, sameAs: sameAsProp, logo: logoProp } = Astro.props;
+const { canonical, pageTitle, description, sameAs: sameAsProp, logo: logoProp, trail } = Astro.props;
 
 type Business = { type: string; name: string; description?: string; url?: string; email?: string; telephone?: string; priceRange?: string; address?: Record<string, string>; geo?: { latitude: string; longitude: string }; hasMap?: string; openingHours?: string[]; sameAs?: string[] };
 const sd = (site as { structuredData?: { business?: Business; pageTypes?: Record<string, string> } }).structuredData ?? {};
@@ -69,10 +72,12 @@ if (!isHome) {
 	graph.push({
 		"@type": "BreadcrumbList",
 		"@id": `${canonical}#breadcrumb`,
-		itemListElement: [
-			{ "@type": "ListItem", position: 1, name: "Home", item: `${origin}/` },
-			{ "@type": "ListItem", position: 2, name: pageTitle, item: canonical },
-		],
+		itemListElement: trail?.length
+			? breadcrumbListItems(trail, origin, canonical)
+			: [
+					{ "@type": "ListItem", position: 1, name: "Home", item: `${origin}/` },
+					{ "@type": "ListItem", position: 2, name: pageTitle, item: canonical },
+				],
 	});
 }
 // JSON in a script element: "<" escaped so content can never close the tag.

@@ -221,7 +221,7 @@
 		"kind": "search",
 		"status": 301,
 		"ok": true,
-		"why": "301 → / (200)"
+		"why": "301 → /search/?q=wp2emdash (200)"
 	},
 	{
 		"path": "/2024/",

@@ -37,6 +37,8 @@ import { astroPerf, brandHashes, imageHosts, type PerfConfig, perfSite, withWarm
 import { BLOCK_TYPES } from "../starter/library.js";
 import { customStylesheet } from "../transform/custom-css.js";
 import type { WpUrlRules } from "../transform/wp-urls.js";
+import type { SiteFeatures } from "../transform/site-features.js";
+import { starterWidgetAreas, type WidgetPlan } from "../transform/widgets.js";
 import { type BlogPlan, starterBlogConfig } from "../transform/blog.js";
 import { type CptPlan, starterCollectionsConfig } from "../transform/cpt.js";
 import type { MediaEntry } from "./extract.js";
@@ -298,6 +300,11 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const cptPlan = readJson<CptPlan>(join(ir, "collections.json"));
 	const entries = (cptPlan?.collections ?? []).flatMap((c) => loadDir(`entries/${c.slug}`)).filter((p) => p.kind === "entry" && p.entry);
 	const partials = site.partials.map((p) => readJson<IrPage>(join(ir, p.file))).filter((p): p is IrPage => !!p);
+	// Classic-theme widget areas and the site features the old theme showed (transform: ir/widgets.json, ir/site-features.json).
+	const widgetPlan = readJson<WidgetPlan>(join(ir, "widgets.json"));
+	const features = readJson<SiteFeatures>(join(ir, "site-features.json"));
+	const widgetAreas = widgetPlan ? starterWidgetAreas(widgetPlan) : undefined;
+	const footerMenu = !site.partials.some((p) => p.role === "footer") && (site.menus.find((m) => m.role === "footer")?.items.length ?? 0) > 0;
 	const popups = site.popups.map((p) => readJson<IrPage>(join(ir, p.file))).filter((p): p is IrPage => !!p);
 
 	// ── Inputs from the audit ──────────────────────────────────────────────────
@@ -391,7 +398,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	if (siteWidgets.length) reporter.emit({ type: "log", level: "info", message: `site widgets (production domain only): ${siteWidgets.map((w) => `${w.provider} ${w.id}`).join(", ")}` });
 	const siteConfig = {
 		...baseConfig,
-		header: { ...baseConfig.header, ...(bricksHeader ? { bricks: bricksHeader } : {}), panelExtras: panelExtras(interactions.menus, primaryLabels, (site.menus.find((mm) => mm.role === "secondary")?.items ?? []).filter((i) => i.button).map((i) => i.label)), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
+		header: { ...baseConfig.header, ...(bricksHeader ? { bricks: bricksHeader } : {}), ...(features?.headerSearch ? { search: true } : {}), panelExtras: panelExtras(interactions.menus, primaryLabels, (site.menus.find((mm) => mm.role === "secondary")?.items ?? []).filter((i) => i.button).map((i) => i.label)), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
 		trailingSlash: trailing,
 		...(hasAnalytics ? { analytics } : {}),
 		// Trackers managed in SEO & Analytics, starting from `analytics`; seo.panel false or analytics: false turn it off.
@@ -405,6 +412,10 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		...(blogPlan ? { blog: starterBlogConfig(blogPlan) } : {}),
 		...(cptPlan && starterCollectionsConfig(cptPlan).length ? { collections: starterCollectionsConfig(cptPlan) } : {}),
 		...(Object.keys(verification).length ? { verification } : {}),
+		// Where the old theme showed widget areas (footer columns, blog sidebar), visible breadcrumbs, a classic footer menu.
+		...(widgetAreas ? { widgetAreas } : {}),
+		...(features?.breadcrumbs ? { breadcrumbs: { pages: features.breadcrumbs.pages, posts: features.breadcrumbs.posts, ...(features.breadcrumbs.home ? { home: features.breadcrumbs.home } : {}) } } : {}),
+		...(footerMenu ? { footerMenu: true } : {}),
 		// Structured data: the business (from the live site's JSON-LD) and each page's schema type (AboutPage, ContactPage…).
 		structuredData: {
 			...(site.business ? { business: site.business } : {}),
@@ -597,7 +608,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Seed (with the migrated content for local preview)
 	const sep = /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-";
 	const drops: string[] = [];
-	const seed = buildSeed({ name: config.name, site, pages, partials, popups, media, titleSeparator: sep, forms, includeContent: true, onDrop: (m) => drops.push(m), ...(blogPlan ? { blog: { plan: blogPlan, posts } } : {}), ...(cptPlan?.collections.length ? { collections: { plan: cptPlan, entries } } : {}) });
+	const seed = buildSeed({ name: config.name, site, pages, partials, popups, media, titleSeparator: sep, forms, includeContent: true, onDrop: (m) => drops.push(m), ...(blogPlan ? { blog: { plan: blogPlan, posts } } : {}), ...(cptPlan?.collections.length ? { collections: { plan: cptPlan, entries } } : {}), ...(widgetPlan ? { widgets: widgetPlan } : {}) });
 	for (const d of drops) reporter.emit({ type: "log", level: "info", message: `not stored (no matching field): ${d}` });
 	write(join(project, "seed", "seed.json"), seed);
 

@@ -13,6 +13,7 @@ import { type CspHosts, cspSources } from "@wp2emdash/seo/analytics/csp";
 import { typesOf } from "@wp2emdash/seo/analytics/trackers";
 import { pageAnalytics } from "./utils/analytics";
 import { REGION_PATH, regionResponse } from "./utils/consent";
+import { comingSoonHtml, MAINTENANCE_OPTION, MAINTENANCE_TTL_MS, maintenanceBypass, type MaintenanceState, parseMaintenance, retryAfter } from "./utils/maintenance";
 import announcementScript from "./scripts/inline/announcement.js?raw";
 
 /**
@@ -136,6 +137,21 @@ function imageOriginal(url: URL): string | undefined {
 	}
 }
 
+/** The coming-soon switch (Site health → Settings), read from D1 at most every 30 seconds per isolate; off when unreadable. */
+let maintenanceCache: { at: number; state: MaintenanceState } | undefined;
+async function maintenanceState(): Promise<MaintenanceState> {
+	const now = Date.now();
+	if (maintenanceCache && now - maintenanceCache.at < MAINTENANCE_TTL_MS) return maintenanceCache.state;
+	let state: MaintenanceState = { on: false };
+	const db = (env as { DB?: { prepare(q: string): { bind(...v: unknown[]): { first<T>(): Promise<T | null> } } } }).DB;
+	try {
+		const row = db ? await db.prepare("SELECT value FROM options WHERE name = ? LIMIT 1").bind(MAINTENANCE_OPTION).first<{ value: string }>() : null;
+		state = row ? parseMaintenance(row.value) : { on: false };
+	} catch {}
+	maintenanceCache = { at: now, state };
+	return state;
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
 	// Consent banner, mode "auto": the visitor's opt-in rule from Cloudflare's geolocation of this request. Answered
 	// here, never from the route cache and never stored by a browser or CDN (no-store), so pages stay one cached HTML
@@ -154,6 +170,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const u = context.url;
 	if (bare(u.hostname) === bare(PRODUCTION.hostname) && (u.hostname !== PRODUCTION.hostname || u.protocol === "http:")) {
 		return redirect(`${PRODUCTION.origin}${u.pathname}${u.search}`, 301);
+	}
+	// Coming-soon mode (an admin's switch, never the migration's): visitors get the holding page with 503 + Retry-After
+	// and noindex; anyone signed in to the admin sees the site. Never kept in the route cache.
+	if (!maintenanceBypass(u.pathname) && !context.cookies.get("astro-session")) {
+		const m = await maintenanceState();
+		if (m.on) {
+			if (context.cache?.enabled) context.cache.set(false);
+			const header = site.header as { logo?: string };
+			return new Response(context.request.method === "HEAD" ? null : comingSoonHtml(m, { siteName: site.name, ...(header.logo ? { logo: header.logo } : {}), lang: site.lang }), { status: 503, headers: { "Content-Type": "text/html; charset=utf-8", "Retry-After": String(retryAfter(m)), "Cache-Control": "no-store", "X-Robots-Tag": "noindex", ...HEADERS } });
+		}
 	}
 	// A WordPress address the owner's rule set says is gone (410), or an unknown ?p= id (404): the 404 page, that status.
 	let goneStatus: 404 | 410 | undefined;

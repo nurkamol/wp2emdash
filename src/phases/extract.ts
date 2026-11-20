@@ -257,6 +257,38 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	write(join(exp, "options.json"), options);
 	const menus = (await client.tryGet<{ id: number; name: string; label?: string; locations: string[]; items: unknown[] }[]>("emdash/v1/menus")) ?? [];
 	write(join(exp, "menus.json"), menus);
+	// Menu item descriptions, title attributes and classes (WordPress REST, WP ≥ 5.9) and the classic theme's widget areas
+	// (wp/v2/sidebars + wp/v2/widgets, WP ≥ 5.8): both need an administrator's application password. Optional — when
+	// WordPress refuses, transform works from the exporter's menus and reports no widgets (the note says why).
+	const restAll = async <T>(path: string): Promise<T[] | undefined> => {
+		const out: T[] = [];
+		try {
+			for (let page = 1; page <= 20; page++) {
+				const rows = await client.tryGet<T[]>(path, { context: "edit", per_page: 100, page });
+				if (!rows) return page === 1 ? undefined : out;
+				out.push(...rows);
+				if (rows.length < 100) break;
+			}
+			return out;
+		} catch (e) {
+			notes.push(`${path}: not read (${e instanceof WpHttpError ? `HTTP ${e.status}` : (e as Error).message}); it needs an administrator's application password.`);
+			return undefined;
+		}
+	};
+	rmSync(join(raw, "menu-items.json"), { force: true });
+	rmSync(join(raw, "widgets"), { recursive: true, force: true });
+	if (menus.length) {
+		const items = await restAll<{ id: number; description?: string; attr_title?: string; classes?: string[]; target?: string; xfn?: string[] }>("wp/v2/menu-items");
+		if (items) write(join(raw, "menu-items.json"), items.map((i) => ({ id: i.id, ...(i.description ? { description: i.description } : {}), ...(i.attr_title ? { attr_title: i.attr_title } : {}), ...(i.classes?.filter(Boolean).length ? { classes: i.classes.filter(Boolean) } : {}), ...(i.target ? { target: i.target } : {}) })));
+	}
+	const sidebars = await restAll<{ id: string; name?: string; description?: string; status?: string; widgets?: string[] }>("wp/v2/sidebars");
+	if (sidebars?.length) {
+		const widgets = (await restAll<{ id: string; id_base: string; sidebar?: string; instance?: { raw?: Record<string, unknown> }; rendered?: string }>("wp/v2/widgets")) ?? [];
+		write(join(raw, "widgets", "sidebars.json"), sidebars.map((s) => ({ id: s.id, name: s.name, description: s.description, status: s.status, widgets: s.widgets ?? [] })));
+		write(join(raw, "widgets", "widgets.json"), widgets.map((w) => ({ id: w.id, id_base: w.id_base, sidebar: w.sidebar, ...(w.instance?.raw ? { instance: { raw: w.instance.raw } } : {}), ...(w.rendered ? { rendered: w.rendered } : {}) })));
+		const used = sidebars.filter((s) => s.id !== "wp_inactive_widgets" && (s.widgets ?? []).length);
+		if (used.length) notes.push(`Widget areas: ${used.map((s) => `${s.name ?? s.id} (${(s.widgets ?? []).length})`).join(", ")} — mapped in transform (coverage report → Widgets).`);
+	}
 	const taxonomies = (await client.tryGet<unknown[]>("emdash/v1/taxonomies")) ?? [];
 	write(join(exp, "taxonomies.json"), taxonomies);
 	let comments: unknown[] = [];

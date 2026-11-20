@@ -26,7 +26,8 @@ import { adminUrl, alertRecipients, emailReport, type HealthEnv, makeReport, typ
 import { TICK_SCHEDULE, TICK_TASK } from "../schedule.js";
 import { type Cwv, type DayRow, type Incident, KEYS, type Kv, type LinksResult, readState, type Settings, type Today } from "../store.js";
 import { monthOf, previousMonth } from "../util.js";
-import { adminsOnly, overallOf, PAGE, type PageData, page, reportView, TABS, WIDGET, widget } from "./views.js";
+import type { NotFoundSummary } from "../checks/notfound.js";
+import { adminsOnly, type MaintenanceSetting, overallOf, PAGE, type PageData, page, reportView, TABS, WIDGET, widget } from "./views.js";
 
 const ADMIN_ROLE = 50;
 const DOWNLOAD_MS = 2 * 60_000;
@@ -88,7 +89,7 @@ function deps(ctx: Ctx, env: WorkerEnv, o: HealthOptions): RunDeps | undefined {
 
 async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Partial<PageData> = {}): Promise<PageData> {
 	const kv = ctx.kv;
-	const [state, today, history, incidents, links, job, cwv, reports, settings] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv)]);
+	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance)]);
 	const ready = mailReady(env as MailEnv, ctx.email);
 	return {
 		state,
@@ -107,8 +108,19 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 		secrets: { crux: !!env.CRUX_API_KEY?.trim(), zone: !!env.CF_ZONE_READ_TOKEN?.trim(), analytics: !!env.CF_ANALYTICS_TOKEN?.trim() },
 		selfBinding: !!env.SELF,
 		productionUrl: o.productionUrl,
+		notFound,
+		maintenance,
 		...extra,
 	};
+}
+
+/** "2026-12-01 09:00" (UTC) or an ISO time → ISO; empty → undefined; anything else → an error. */
+export function parseUntil(v: unknown): { until?: string; error?: string } {
+	const s = typeof v === "string" ? v.trim() : "";
+	if (!s) return {};
+	const m = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2}))?(?::\d{2}(?:\.\d+)?)?(?:Z| ?UTC)?$/i.exec(s);
+	const t = m ? Date.parse(`${m[1]}T${m[2] ?? "00:00"}:00Z`) : Number.NaN;
+	return Number.isNaN(t) ? { error: "Expected back: write the date as YYYY-MM-DD HH:MM (UTC), or leave it empty." } : { until: new Date(t).toISOString() };
 }
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -163,8 +175,8 @@ export function createPlugin(options: HealthOptions) {
 					if ((ctx.user?.role ?? 0) < ADMIN_ROLE) return { blocks: isWidget ? [] : adminsOnly };
 					const env = await workerEnv();
 					if (isWidget) {
-						const [state, today, incidents] = await Promise.all([readState(ctx.kv), ctx.kv.get<Today>(KEYS.today), ctx.kv.get<Incident[]>(KEYS.incidents)]);
-						return { blocks: widget({ state, today: today && today.d === new Date().toISOString().slice(0, 10) ? today : null, incidents: incidents ?? [] }) };
+						const [state, today, incidents, notFound, maintenance] = await Promise.all([readState(ctx.kv), ctx.kv.get<Today>(KEYS.today), ctx.kv.get<Incident[]>(KEYS.incidents), ctx.kv.get<NotFoundSummary>(KEYS.notFound), ctx.kv.get<MaintenanceSetting>(KEYS.maintenance)]);
+						return { blocks: widget({ state, today: today && today.d === new Date().toISOString().slice(0, 10) ? today : null, incidents: incidents ?? [], notFound, maintenance }) };
 					}
 					await ensureCron(ctx.cron).catch(() => {});
 					const i = (ctx.input ?? {}) as Interaction;
@@ -190,6 +202,18 @@ export function createPlugin(options: HealthOptions) {
 						// Counts only: never the addresses.
 						ctx.log?.info("health settings saved", { alerts: next.alerts, report: next.report, alertRecipients: a.list.length, reportRecipients: r.list.length });
 						return { blocks: await show(TABS.settings), toast: { message: "Settings saved.", type: "success" } };
+					}
+					if (i.type === "form_submit" && act === "save-maintenance") {
+						const v = i.values ?? {};
+						const until = parseUntil(v.until);
+						if (until.error) return { blocks: await show(TABS.settings, { errors: [until.error] }), toast: { message: "Not saved. See the errors.", type: "error" } };
+						const text = (x: unknown, max: number) => (typeof x === "string" && x.trim() ? x.trim().slice(0, max) : undefined);
+						const heading = text(v.heading, 120);
+						const message = text(v.message, 1000);
+						const next: MaintenanceSetting = { on: v.on === true, ...(heading ? { heading } : {}), ...(message ? { message } : {}), ...(until.until ? { until: until.until } : {}), at: new Date().toISOString() };
+						await ctx.kv.set(KEYS.maintenance, next);
+						ctx.log?.info("health coming-soon mode saved", { on: next.on });
+						return { blocks: await show(TABS.settings), toast: { message: next.on ? "Coming-soon mode is on: visitors see the holding page within a minute." : "Coming-soon mode is off: the site is public again within a minute.", type: "success" } };
 					}
 					if (i.type === "block_action" && act === "test-email") {
 						const state = await readState(ctx.kv);

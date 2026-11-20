@@ -1,7 +1,7 @@
 {
 	"feed": "/",
 	"commentsFeed": "gone",
-	"search": "/",
+	"search": "/search/",
 	"category": "gone",
 	"tag": "gone",
 	"author": "/",

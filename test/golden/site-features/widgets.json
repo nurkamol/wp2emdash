@@ -1,0 +1,270 @@
+{
+	"areas": [
+		{
+			"name": "sidebar-1",
+			"label": "Blog Sidebar",
+			"description": "Next to posts",
+			"wpId": "sidebar-1",
+			"placement": "sidebar",
+			"shown": true,
+			"widgets": [
+				{
+					"wpId": "search-2",
+					"idBase": "search",
+					"title": "Search",
+					"type": "component",
+					"componentId": "core:search",
+					"props": {
+						"placeholder": "Search…"
+					}
+				},
+				{
+					"wpId": "recent-posts-2",
+					"idBase": "recent-posts",
+					"title": "Latest",
+					"type": "component",
+					"componentId": "core:recent-posts",
+					"props": {
+						"count": 3,
+						"showDate": true,
+						"urlTemplate": "/:slug"
+					}
+				},
+				{
+					"wpId": "categories-2",
+					"idBase": "categories",
+					"type": "component",
+					"componentId": "core:categories",
+					"props": {
+						"showCount": true,
+						"hierarchical": true
+					}
+				},
+				{
+					"wpId": "block-5",
+					"idBase": "block",
+					"type": "component",
+					"componentId": "core:search",
+					"props": {
+						"placeholder": "Type a word"
+					},
+					"title": "Find"
+				},
+				{
+					"wpId": "calendar-2",
+					"idBase": "calendar",
+					"title": "Calendar",
+					"type": "content",
+					"content": [
+						{
+							"_type": "htmlBlock",
+							"_key": "wcalendar2_h",
+							"html": "<div id=\"calendar_wrap\"><table><caption>May 2024</caption></table></div>"
+						}
+					],
+					"decided": "html"
+				}
+			]
+		},
+		{
+			"name": "footer-1",
+			"label": "Footer 1",
+			"wpId": "footer-1",
+			"placement": "footer",
+			"shown": true,
+			"widgets": [
+				{
+					"wpId": "text-2",
+					"idBase": "text",
+					"title": "About",
+					"type": "content",
+					"content": [
+						{
+							"_type": "block",
+							"_key": "wtext2_5",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "wtext2_0",
+									"text": "We are a "
+								},
+								{
+									"_type": "span",
+									"_key": "wtext2_1",
+									"text": "movement studio",
+									"marks": [
+										"strong"
+									]
+								},
+								{
+									"_type": "span",
+									"_key": "wtext2_2",
+									"text": ". "
+								},
+								{
+									"_type": "span",
+									"_key": "wtext2_4",
+									"text": "Read more",
+									"marks": [
+										"wtext2_3"
+									]
+								}
+							],
+							"markDefs": [
+								{
+									"_type": "link",
+									"_key": "wtext2_3",
+									"href": "https://blog.example.test/about/"
+								}
+							]
+						},
+						{
+							"_type": "image",
+							"_key": "wtext2_6",
+							"asset": {
+								"_type": "reference",
+								"_ref": "https://blog.example.test/wp-content/uploads/2024/05/photo-300x200.jpg",
+								"url": "https://blog.example.test/wp-content/uploads/2024/05/photo-300x200.jpg"
+							},
+							"alt": "The studio",
+							"_media": {
+								"wpId": 31,
+								"kind": "image",
+								"alt": "The studio"
+							}
+						}
+					]
+				},
+				{
+					"wpId": "nav_menu-2",
+					"idBase": "nav_menu",
+					"title": "Explore",
+					"type": "menu",
+					"menuName": "footer"
+				}
+			]
+		},
+		{
+			"name": "footer-2",
+			"label": "Footer 2",
+			"wpId": "footer-2",
+			"placement": "footer",
+			"shown": true,
+			"widgets": [
+				{
+					"wpId": "custom_html-3",
+					"idBase": "custom_html",
+					"title": "Hours",
+					"type": "content",
+					"content": [
+						{
+							"_type": "block",
+							"_key": "wcustomhtml3_1",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "wcustomhtml3_0",
+									"text": "Mon–Fri 9–5"
+								}
+							]
+						}
+					]
+				},
+				{
+					"wpId": "block-6",
+					"idBase": "block",
+					"type": "content",
+					"content": [
+						{
+							"_type": "block",
+							"_key": "wblock6_3",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "wblock6_0",
+									"text": "Call us: "
+								},
+								{
+									"_type": "span",
+									"_key": "wblock6_2",
+									"text": "555-0100",
+									"marks": [
+										"wblock6_1"
+									]
+								}
+							],
+							"markDefs": [
+								{
+									"_type": "link",
+									"_key": "wblock6_1",
+									"href": "tel:+15550100"
+								}
+							]
+						}
+					]
+				},
+				{
+					"wpId": "media_image-2",
+					"idBase": "media_image",
+					"type": "content",
+					"content": [
+						{
+							"_type": "image",
+							"_key": "wmediaimage2_0",
+							"asset": {
+								"_type": "reference",
+								"_ref": "32",
+								"url": "https://blog.example.test/wp-content/uploads/2024/06/team.jpg"
+							},
+							"alt": "Our team",
+							"caption": "The team",
+							"_media": {
+								"wpId": 32,
+								"kind": "image",
+								"alt": "Our team"
+							}
+						}
+					]
+				},
+				{
+					"wpId": "tag_cloud-2",
+					"idBase": "tag_cloud",
+					"title": "Tags",
+					"type": "component",
+					"componentId": "core:tags",
+					"props": {
+						"showCount": false
+					}
+				}
+			]
+		},
+		{
+			"name": "header-top",
+			"label": "Header Top Bar",
+			"wpId": "header-top",
+			"placement": "header",
+			"shown": false,
+			"widgets": []
+		}
+	],
+	"unknown": [],
+	"notCarried": [
+		{
+			"wpId": "archives-2",
+			"area": "wp_inactive_widgets",
+			"why": "inactive (Appearance → Widgets → Inactive widgets)"
+		}
+	],
+	"diagnostics": [
+		{
+			"level": "warn",
+			"code": "lossy",
+			"message": "image link not carried (EmDash image blocks have no link): https://blog.example.test/team/",
+			"path": "media_image",
+			"widget": "media_image-2"
+		}
+	]
+}

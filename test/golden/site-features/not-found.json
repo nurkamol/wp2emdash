@@ -1,0 +1,103 @@
+{
+	"version": 1,
+	"kind": "partial",
+	"source": {
+		"wpId": 0,
+		"type": "not-found",
+		"status": "publish",
+		"slug": "not-found",
+		"builder": "html"
+	},
+	"title": "Page not found (404)",
+	"seo": {
+		"jsonLdTypes": []
+	},
+	"sections": [
+		{
+			"type": "rich_text",
+			"theme": {
+				"tone": "light"
+			},
+			"spacing": "spacious",
+			"sourceRef": {
+				"adapter": "html",
+				"path": "not-found",
+				"rawHash": "359925aa24"
+			},
+			"fields": {
+				"body": [
+					{
+						"_type": "block",
+						"_key": "nf_0",
+						"style": "h1",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "nf_1",
+								"text": "Lost in the studio?",
+								"marks": []
+							}
+						],
+						"markDefs": []
+					},
+					{
+						"_type": "block",
+						"_key": "nf_2",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "nf_3",
+								"text": "That page took a rest day. Try our ",
+								"marks": []
+							},
+							{
+								"_type": "span",
+								"_key": "nf_5",
+								"text": "class schedule",
+								"marks": [
+									"nf_4"
+								]
+							},
+							{
+								"_type": "span",
+								"_key": "nf_6",
+								"text": " instead.",
+								"marks": []
+							}
+						],
+						"markDefs": [
+							{
+								"_type": "link",
+								"_key": "nf_4",
+								"href": "/classes/"
+							}
+						]
+					}
+				],
+				"width": "normal",
+				"align": "left",
+				"buttons": [
+					{
+						"label": "Contact us",
+						"href": "/contact/",
+						"style": "primary"
+					},
+					{
+						"label": "Back to home",
+						"href": "/",
+						"style": "secondary"
+					}
+				]
+			}
+		}
+	],
+	"diagnostics": [
+		{
+			"level": "info",
+			"code": "flagged",
+			"message": "404 page text rebuilt from the old site's 404 page (snapshot/not-found.html)",
+			"path": "not-found"
+		}
+	]
+}

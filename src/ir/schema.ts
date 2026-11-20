@@ -516,7 +516,7 @@ export const irPage = z.object({
 });
 export type IrPage = z.infer<typeof irPage>;
 
-export const irMenuItem: z.ZodType<IrMenuItem> = z.lazy(() => z.object({ label: z.string(), href: z.string(), newTab: z.boolean().optional(), opensPopup: z.string().optional(), button: z.boolean().optional(), hoverLabel: z.string().optional(), children: z.array(irMenuItem).default([]) }));
+export const irMenuItem: z.ZodType<IrMenuItem> = z.lazy(() => z.object({ label: z.string(), href: z.string(), newTab: z.boolean().optional(), opensPopup: z.string().optional(), button: z.boolean().optional(), hoverLabel: z.string().optional(), classes: z.array(z.string()).optional(), titleAttr: z.string().optional(), description: z.string().optional(), mega: z.boolean().optional(), children: z.array(irMenuItem).default([]) }));
 export interface IrMenuItem {
 	label: string;
 	href: string;
@@ -526,6 +526,14 @@ export interface IrMenuItem {
 	button?: boolean;
 	/** A button's second label, shown on hover (the kit's label swap). */
 	hoverLabel?: string;
+	/** The item's own CSS classes in WordPress (Appearance → Menus), minus the ones WordPress generates. */
+	classes?: string[];
+	/** The link's title attribute in WordPress (`attr_title`). */
+	titleAttr?: string;
+	/** The item's description (EmDash menus have no field for it: reported in the coverage report). */
+	description?: string;
+	/** A mega menu panel on the source (Max Mega Menu, theme mega menus): its children become columns of links. */
+	mega?: boolean;
 	children: IrMenuItem[];
 }
 

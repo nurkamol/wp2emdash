@@ -11,6 +11,7 @@ import { analyticsCheck, expectedTrackers } from "./checks/analytics.js";
 import { backupsCheck, readBackupBeat } from "./checks/backups.js";
 import { compareMail, dnsCheck } from "./checks/dns.js";
 import { mediaCheck, readMediaSummary } from "./checks/media.js";
+import { NOTFOUND_WINDOW, notFoundCheck, readNotFound, summarizeNotFound } from "./checks/notfound.js";
 import { formsCheck, readForms } from "./checks/forms.js";
 import { homeIndexing, indexabilityCheck, parseSiteFiles, sitemapLocs, sitemapPaths } from "./checks/indexability.js";
 import { linksCheck, type LinkJob, resultOf, startJob, stepJob, updateLedger } from "./checks/links.js";
@@ -125,19 +126,29 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 	const lastMonth = previousMonth(monthOf(now));
 	const plan = planRun(now, state, { host, linkJobActive: !!linkJob, reportDue: reportDue(now, reports.map((r) => r.month), lastMonth), manual: !!mode.manual });
 
+	// Coming-soon mode (Settings): visitors get the holding page (503) on purpose, so the checks that request the site
+	// pause instead of reporting the site down (no incidents, no alerts); the others run as usual.
+	const paused = (await kv.get<{ on?: boolean }>(KEYS.maintenance))?.on === true;
+	const pausedState = (): CheckState => ({ status: "off", summary: "Paused: coming-soon mode is on (visitors see the holding page). Switch it off in Settings.", at });
+
 	// ── Uptime (every run): home + one sitemap page (+ retries). The home page's HTML feeds the other light checks.
 	const { paths, cursor } = pickPaths(state.uptime, state.sitemap?.paths ?? []);
-	const probes = await Promise.all(paths.map(async (path) => ({ path, probe: await probe(d.self, `${origin}${path}`, { body: path === "/" }) })));
+	const probes = paused ? [] : await Promise.all(paths.map(async (path) => ({ path, probe: await probe(d.self, `${origin}${path}`, { body: path === "/" }) })));
 	const home = probes[0]?.probe ?? { url: `${origin}/`, status: 0, ms: 0 };
-	const change = applyProbes(state.uptime, probes, cursor, now);
+	const change = paused ? { uptime: state.uptime, opened: [] as Incident[], closed: [] as Incident[] } : applyProbes(state.uptime, probes, cursor, now);
 	state.uptime = change.uptime;
-	today = countHome(today, home);
-	checks.uptime = uptimeCheck(state.uptime, today, home, at);
+	if (!paused) today = countHome(today, home);
+	checks.uptime = paused ? pausedState() : uptimeCheck(state.uptime, today, home, at);
 	incidents = mergeIncidents(incidents, change.opened, change.closed, now);
 	ran.push("uptime");
+	if (paused) {
+		checks.indexability = pausedState();
+		checks.analytics = pausedState();
+		checks.links = pausedState();
+	}
 
 	// ── Search engines (hourly): robots.txt, the sitemap (its pages also drive the uptime rotation and link check).
-	if (plan.light.includes("index")) {
+	if (plan.light.includes("index") && !paused) {
 		const [robots, sitemap] = await Promise.all([probe(d.self, `${origin}/robots.txt`, { body: true }), probe(d.self, `${origin}/sitemap.xml`, { body: true })]);
 		let locs = sitemap.status === 200 ? sitemapLocs(sitemap.html ?? "") : [];
 		if (/<sitemapindex/i.test(sitemap.html ?? "")) {
@@ -151,7 +162,7 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 	}
 
 	// ── Analytics tags (hourly), from this run's home page.
-	if (plan.light.includes("analytics")) {
+	if (plan.light.includes("analytics") && !paused) {
 		const expected = o.analytics ? await expectedTrackers(o.analytics, env.DB) : undefined;
 		checks.analytics = analyticsCheck(expected, home.status === 200 ? (home.html ?? "") : undefined, at, { zoneBeacon: !!o.analytics?.zoneBeacon });
 		jobs.analytics = at;
@@ -172,6 +183,16 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 		ran.push("media");
 	}
 
+	// ── Missing pages (hourly): EmDash's 404 log, the last 7 days, with redirect suggestions from the sitemap (one D1 read).
+	if (plan.light.includes("notfound")) {
+		const rows = await readNotFound(env.DB, iso(now - NOTFOUND_WINDOW));
+		const summary = rows ? summarizeNotFound(rows, state.sitemap?.paths ?? [], at) : undefined;
+		if (summary) await kv.set(KEYS.notFound, summary);
+		checks.notfound = notFoundCheck(summary, at);
+		jobs.notfound = at;
+		ran.push("notfound");
+	}
+
 	// ── Form outbox (every 15 minutes): counts and email status only.
 	if (plan.light.includes("forms")) {
 		const f = await readForms(env, { emdashEmail: !!d.email, now }).catch(() => undefined);
@@ -188,6 +209,10 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 	let freshLinks: { url: string; status: number; on: string[] }[] = [];
 	const heavy = mode.manual ? (["dns", "ssl", "speed", "links"] as const) : plan.heavy ? [plan.heavy] : [];
 	for (const job of heavy) {
+		if (job === "links" && paused) {
+			jobs.links = at;
+			continue;
+		}
 		if (job === "links") {
 			if (!linkJob && (plan.startLinks || mode.manual)) {
 				const withExternal = o.externalLinks !== false && externalDue(state, now);
@@ -240,7 +265,7 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 			ran.push("report");
 		}
 	}
-	if (!checks.links && !linkJob) checks.links = linksCheck(await kv.get<LinksResult>(KEYS.links), undefined, at);
+	if (!checks.links && !linkJob && !paused) checks.links = linksCheck(await kv.get<LinksResult>(KEYS.links), undefined, at);
 	if (!checks.dns) checks.dns = dnsCheck(o.mail, undefined, at);
 	if (!checks.ssl) checks.ssl = env.CF_ZONE_READ_TOKEN ? { status: "unknown", summary: "Not checked yet: the certificate is read once a day.", at } : sslCheck(undefined, answered(home), at, now);
 	if (!checks.speed && today.ttfb.length) checks.speed = speedCheck(median(today.ttfb), await kv.get<Cwv>(KEYS.cwv), at);

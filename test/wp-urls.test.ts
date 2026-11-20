@@ -64,6 +64,8 @@ function fakeSite(rules: WpUrlRules, wpIds: Record<string, string>, pages: strin
 		const upload = /^\/wp-content\/uploads\/\d{4}\/\d{2}\/([^/]+)$/.exec(u.pathname)?.[1];
 		if (upload) return media(upload) ? redirect(media(upload) as string) : new Response("x", { status: 404 });
 		if (pages.includes(u.pathname)) return new Response("<html>", { status: 200 });
+		// The starter's search page (pages/search.astro) answers every query.
+		if (u.pathname === "/search/") return new Response("<html>", { status: 200 });
 		return new Response("x", { status: 404 });
 	};
 	return (async (input: string | URL) => answer(String(input))) as typeof fetch;
@@ -86,8 +88,11 @@ describe("WordPress-URL rules (starter middleware)", () => {
 		expect(m("/hello-world/feed/")).toEqual({ kind: "comments-feed", gone: true });
 	});
 	it("handles search, archives, query forms and pagination", () => {
-		expect(m("/?s=pilates")).toEqual({ kind: "search", to: "/" });
-		expect(m("/search/pilates/")).toEqual({ kind: "search", to: "/" });
+		// The starter's search page (EmDash full-text search) gets the query.
+		expect(m("/?s=pilates")).toEqual({ kind: "search", to: "/search/?q=pilates" });
+		expect(m("/search/pilates/")).toEqual({ kind: "search", to: "/search/?q=pilates" });
+		expect(m("/?s=")).toEqual({ kind: "search", to: "/search/" });
+		expect(m("/search/")).toBeUndefined();
 		for (const [p, kind] of [["/category/news/", "category"], ["/category/news/page/2/", "category"], ["/tag/tips/", "tag"], ["/author/admin/", "author"], ["/2024/05/", "date"], ["/2024/", "date"], ["/2024/05/10/", "date"], ["/?cat=7", "category"], ["/?tag=tips", "tag"], ["/?author=1", "author"], ["/?m=202405", "date"]] as const) expect(m(p), p).toEqual({ kind, to: "/blog/" });
 		expect(m("/page/2/")).toEqual({ kind: "paged", to: "/" });
 		expect(m("/services/page/3/")).toEqual({ kind: "paged", to: "/services/" });
@@ -118,9 +123,14 @@ describe("WordPress-URL rules (starter middleware)", () => {
 });
 
 describe("WordPress-URL defaults per site", () => {
-	it("brochure site (no posts, no blog page): feed → home, archives 410, author → home, search → home", () => {
+	it("brochure site (no posts, no blog page): feed → home, archives 410, author → home, search → the search page", () => {
 		const r = buildWpUrlPlan({ pages: ["/", "/about-us/"], routeById: new Map(), publishedPosts: 0, overrides: overridesSchema.parse({}), trailingSlash: "always" });
-		expect(Object.fromEntries(r.explain.map((e) => [e.rule, e.target]))).toEqual({ feed: "/", commentsFeed: "gone", search: "/", category: "gone", tag: "gone", author: "/", date: "gone", attachment: "/" });
+		expect(Object.fromEntries(r.explain.map((e) => [e.rule, e.target]))).toEqual({ feed: "/", commentsFeed: "gone", search: "/search/", category: "gone", tag: "gone", author: "/", date: "gone", attachment: "/" });
+		// URL style "never": /search, the query along; the owner can still send search home (overrides.ts wpUrls.search).
+		const never = buildWpUrlPlan({ pages: ["/", "/about-us"], routeById: new Map(), publishedPosts: 0, overrides: overridesSchema.parse({}), trailingSlash: "never" });
+		expect(matchWpUrl("/", new URLSearchParams("s=yoga mat"), never.rules)).toEqual({ kind: "search", to: "/search?q=yoga%20mat" });
+		const home = buildWpUrlPlan({ pages: ["/"], routeById: new Map(), publishedPosts: 0, overrides: overridesSchema.parse({ wpUrls: { search: "home" } }), trailingSlash: "always" });
+		expect(matchWpUrl("/", new URLSearchParams("s=x"), home.rules)).toEqual({ kind: "search", to: "/" });
 		expect(r.feedPending).toBe(false);
 	});
 	it("a /search/ page takes the query; overrides win and are reported", () => {

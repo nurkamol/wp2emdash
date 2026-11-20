@@ -136,6 +136,16 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 		detail: `${urlRecords.length} URLs: ${urlRecords.filter((r) => r.kind === "page").length} pages, ${urlRecords.filter((r) => r.kind === "redirect").length} redirects, ${urlRecords.filter((r) => r.kind === "error").length} errors${truncated ? " (TRUNCATED at maxUrls)" : ""}`,
 	});
 
+	// The theme's 404 page, from an address that cannot exist: transform carries its wording when it was customised.
+	rmSync(join(snap, "not-found.html"), { force: true });
+	{
+		const nf = await fetchUrl(`${site.origin}/wp2emdash-404-check/`).catch(() => undefined);
+		if (nf) {
+			write(join(snap, "not-found.json"), { status: nf.status, finalUrl: nf.finalUrl, redirects: nf.redirects });
+			if ((nf.status === 404 || nf.status === 410) && /text\/html/.test(nf.contentType) && nf.body) write(join(snap, "not-found.html"), nf.body);
+		}
+	}
+
 	// 3. Link check (external + internal 404s)
 	reporter.emit({ type: "step:start", step: "Link check" });
 	const linkMap = new Map<string, Set<string>>();

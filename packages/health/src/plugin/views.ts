@@ -3,6 +3,7 @@
  */
 import { MAX_RECIPIENTS } from "@wp2emdash/forms/outbox";
 import { missingText, RATING_LABEL, rate } from "../checks/speed.js";
+import type { NotFoundSummary } from "../checks/notfound.js";
 import type { ReportData } from "../report.js";
 import { headline } from "../report.js";
 import { CHECK_IDS, CHECK_LABELS, type CheckId, type Cwv, type DayRow, type HealthState, type Incident, type LinksResult, type Settings, type Status, type Today } from "../store.js";
@@ -12,7 +13,16 @@ export type Block = Record<string, unknown>;
 
 export const PAGE = "/health";
 export const WIDGET = "site-health";
-export const TABS = { overview: 0, incidents: 1, links: 2, speed: 3, reports: 4, settings: 5 } as const;
+export const TABS = { overview: 0, incidents: 1, links: 2, missing: 3, speed: 4, reports: 5, settings: 6 } as const;
+
+/** Coming-soon mode as stored (KEYS.maintenance; the starter's middleware reads the same row). */
+export interface MaintenanceSetting {
+	on: boolean;
+	heading?: string;
+	message?: string;
+	until?: string;
+	at?: string;
+}
 
 export type Overall = "healthy" | "attention" | "down" | "unknown";
 
@@ -58,6 +68,9 @@ export interface PageData {
 	productionUrl: string;
 	download?: { url: string; month: string };
 	errors?: string[];
+	/** The week's missing addresses (checks/notfound.ts). */
+	notFound?: NotFoundSummary | null;
+	maintenance?: MaintenanceSetting | null;
 }
 
 const uptimePct = (rows: { probes: number; fails: number }[]) => {
@@ -73,6 +86,7 @@ function overview(d: PageData): Block[] {
 	const problems = Object.values(d.state.checks).filter((c) => c?.status === "fail" || c?.status === "warn").length;
 	return [
 		{ type: "banner", ...OVERALL[o] },
+		...(d.maintenance?.on ? [{ type: "banner", title: "Coming-soon mode is on", description: "Visitors see the holding page (503, not indexed); anyone signed in sees the site. Uptime, search-engine, analytics and link checks are paused. Switch it off in Settings.", variant: "alert" }] : []),
 		...(!d.selfBinding ? [{ type: "banner", title: "Checks cannot reach the site", description: "This Worker has no SELF service binding in wrangler.jsonc, so it cannot request its own pages. Ask your developer to rerun the kit's scaffold and deploy.", variant: "error" }] : []),
 		...(!d.live && !d.staging ? [{ type: "context", text: "The domain does not show this site yet (before go-live): the checks run, but no alert or report is emailed until the site is live." }] : []),
 		{
@@ -166,6 +180,37 @@ function linksTab(d: PageData): Block[] {
 	];
 }
 
+function missingTab(d: PageData): Block[] {
+	const s = d.notFound;
+	if (!s) return [{ type: "empty", title: "Not read yet", description: "EmDash logs every address that does not exist; the list is read every hour. Run checks now to read it.", size: "base" }];
+	const host = (r: string | null | undefined) => {
+		try {
+			return r ? new URL(r).host : "";
+		} catch {
+			return "";
+		}
+	};
+	return [
+		{ type: "context", text: "Addresses visitors asked for that do not exist, seen in the last 7 days, most requested first (requests counted since the address first failed). Where a page of the site probably fits, it is suggested: add it in Redirects (source → suggested page), or fix the link on the page that sent people there." },
+		{
+			type: "table",
+			block_id: "missing",
+			page_action_id: "noop",
+			empty_text: "No missing pages were requested in the last 7 days.",
+			columns: [
+				{ key: "path", label: "Address" },
+				{ key: "hits", label: "Requests" },
+				{ key: "last", label: "Last asked", format: "relative_time" },
+				{ key: "from", label: "Came from" },
+				{ key: "suggest", label: "Suggested redirect" },
+			],
+			rows: s.top.map((r) => ({ path: r.path, hits: r.hits, last: r.lastSeen, from: host(r.referrer) || "—", suggest: r.suggest ?? "—" })),
+		},
+		{ type: "actions", elements: [{ type: "link", label: "Open Redirects", target: { kind: "external", url: "/_emdash/admin/redirects" }, appearance: "secondary" }] },
+		{ type: "context", text: `Read ${shortTime(s.at)}.${s.probes ? ` ${plural(s.probes, "bot probe")} (wp-login.php, .env and similar) left out: those addresses never existed here.` : ""}` },
+	];
+}
+
 function speedTab(d: PageData): Block[] {
 	const c = d.cwv;
 	const items: Block[] = [];
@@ -233,6 +278,19 @@ function settingsTab(d: PageData): Block[] {
 		},
 		{ type: "actions", elements: [{ type: "button", action_id: "test-email", label: "Send a test email to the alert recipients", style: "secondary" }] },
 		{ type: "context", text: "At most one email per issue per day (for example one \"site down\" and one \"back up\"), and at most six alerts a day in total. Emails go through the same email service as the website's forms." },
+		{ type: "header", text: "Coming-soon mode" },
+		{ type: "context", text: "Shows visitors a holding page with your logo and message instead of the site (HTTP 503 with Retry-After, so search engines keep the site's listing and come back later). Anyone signed in to the admin still sees the site. Takes up to a minute to switch everywhere. The migration never switches it on." },
+		{
+			type: "form",
+			block_id: "maintenance",
+			fields: [
+				{ type: "toggle", action_id: "on", label: "Show the coming-soon page to visitors", initial_value: d.maintenance?.on === true },
+				{ type: "text_input", action_id: "heading", label: "Heading", placeholder: "We'll be back soon", ...(d.maintenance?.heading ? { initial_value: d.maintenance.heading } : {}) },
+				{ type: "text_input", action_id: "message", label: "Message", placeholder: "The site is getting ready. Please check back shortly.", multiline: true, ...(d.maintenance?.message ? { initial_value: d.maintenance.message } : {}) },
+				{ type: "text_input", action_id: "until", label: "Expected back (optional, e.g. 2026-12-01 09:00 UTC)", placeholder: "YYYY-MM-DD HH:MM", ...(d.maintenance?.until ? { initial_value: d.maintenance.until.slice(0, 16).replace("T", " ") } : {}) },
+			],
+			submit: { label: "Save coming-soon mode", action_id: "save-maintenance" },
+		},
 		{ type: "header", text: "Optional extras (set by your developer)" },
 		{
 			type: "fields",
@@ -248,6 +306,7 @@ function settingsTab(d: PageData): Block[] {
 export function page(d: PageData, tab: number = TABS.overview): Block[] {
 	const open = d.incidents.filter((i) => !i.endedAt).length;
 	const broken = d.links?.broken.length ?? 0;
+	const missing = d.notFound?.top.length ?? 0;
 	return [
 		{ type: "header", text: "Site health" },
 		{
@@ -257,6 +316,7 @@ export function page(d: PageData, tab: number = TABS.overview): Block[] {
 				{ label: "Overview", blocks: overview(d) },
 				{ label: `Incidents${open ? ` (${open})` : ""}`, blocks: incidentsTab(d) },
 				{ label: `Broken links${broken ? ` (${broken})` : ""}`, blocks: linksTab(d) },
+				{ label: `Missing pages${missing ? ` (${missing})` : ""}`, blocks: missingTab(d) },
 				{ label: "Speed", blocks: speedTab(d) },
 				{ label: "Reports", blocks: reportsTab(d) },
 				{ label: "Settings", blocks: settingsTab(d) },
@@ -299,12 +359,15 @@ export function reportView(r: ReportData, stored: boolean): Block[] {
 	];
 }
 
-export function widget(d: Pick<PageData, "state" | "today" | "incidents">): Block[] {
+export function widget(d: Pick<PageData, "state" | "today" | "incidents"> & Partial<Pick<PageData, "notFound" | "maintenance">>): Block[] {
 	const o = overallOf(d.state);
 	const open = d.incidents.filter((i) => !i.endedAt).length;
 	const attention = CHECK_IDS.filter((id) => ["fail", "warn"].includes(d.state.checks[id]?.status ?? "")).map((id) => CHECK_LABELS[id]);
+	const missing = d.state.checks.notfound?.status === "warn" ? (d.notFound?.top.filter((r) => r.hits >= 3).length ?? 0) : 0;
 	return [
 		{ type: "banner", title: OVERALL[o].title, description: o === "attention" ? `Needs a look: ${attention.join(", ")}.` : OVERALL[o].description, variant: OVERALL[o].variant },
+		...(d.maintenance?.on ? [{ type: "context", text: "Coming-soon mode is on: visitors see the holding page." }] : []),
+		...(missing ? [{ type: "context", text: `${plural(missing, "missing address", "missing addresses")} visitors keep asking for: see Site health → Missing pages for suggested redirects.` }] : []),
 		{ type: "stats", items: [{ label: "Uptime today", value: d.today ? uptimePct([d.today]) : "—" }, { label: "Open incidents", value: open }] },
 		{ type: "actions", elements: [{ type: "link", label: "Open Site health", target: { kind: "plugin-page", path: PAGE }, appearance: "secondary" }] },
 	];

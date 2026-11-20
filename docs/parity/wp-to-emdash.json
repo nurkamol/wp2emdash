@@ -5,10 +5,10 @@
 	"summary": {
 		"areas": 110,
 		"inScope": 103,
-		"done": 58,
+		"done": 65,
 		"superseded": 6,
-		"partial": 26,
-		"missing": 13,
+		"partial": 23,
+		"missing": 9,
 		"outOfScope": 7
 	},
 	"rows": [
@@ -618,11 +618,11 @@
 			"id": "menus",
 			"area": "Navigation",
 			"feature": "Menus (nesting, custom links, target, classes)",
-			"emdash": "`_emdash_menus`, `_emdash_menu_items` (custom/page/post/taxonomy/collection), `getMenu`",
+			"emdash": "`_emdash_menus`, `_emdash_menu_items` (custom/page/post/taxonomy/collection; label, url, target, titleAttr, cssClasses — no description), `getMenu`",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "seed.ts + load.ts write `primary`, `secondary`, `footer`; menus with role `other` are not written; every item is a `custom` URL",
-			"gap": "Write every menu (named after the WP menu); link items to entries (`page`/`post` types) so slug changes follow.",
+			"status": "done",
+			"kit": "Every WordPress menu is written (src/transform/menus.ts `emdashMenuNames`: first of each header role as `primary`/`secondary`/`footer`, the rest by their own slug; seed.ts + load.ts), all nesting levels, `_blank` targets, the item's own CSS classes and title attribute (REST `wp/v2/menu-items` merged when allowed); descriptions listed in the coverage report (no EmDash field); starter panel shows a third level; a classic footer without a footer site part renders the `footer` menu; fixture + golden (test/site-features.test.ts)",
+			"gap": "Items stay `custom` URLs (EmDash redirects follow slug changes); linking them to entries is optional. `wp/v2/menu-items` not yet read on a real site.",
 			"effort": "S",
 			"risk": "low",
 			"priority": "P1",
@@ -648,9 +648,9 @@
 			"feature": "Mega menus (Max Mega Menu, builder mega menus)",
 			"emdash": "None",
 			"emdashConfidence": "none",
-			"status": "missing",
-			"kit": "Classes only",
-			"gap": "Header variant with column groups from menu item classes; images/widgets in mega panels reported.",
+			"status": "partial",
+			"kit": "Max Mega Menu panels (rendered `mega-menu-megamenu` items) and theme `megamenu` classes → item class `mega`: the menu panel shows its children as columns of links; reported as partial in the coverage report (src/transform/menus.ts)",
+			"gap": "Images, widgets and custom HTML inside a panel are not carried; Elementor/Bricks mega-menu widgets are reported as dynamic; no desktop dropdown in the starter header.",
 			"effort": "M",
 			"risk": "med",
 			"priority": "P2",
@@ -660,11 +660,11 @@
 			"id": "widgets",
 			"area": "Navigation",
 			"feature": "Widgets / sidebars (classic themes)",
-			"emdash": "`_emdash_widget_areas`, `_emdash_widgets` (content, menu, component `core:recent-posts|categories|tags|search|archives`), REST `/widget-areas`",
+			"emdash": "`_emdash_widget_areas`, `_emdash_widgets` (content, menu, component `core:recent-posts|categories|tags|search|archives`), seed `widgetAreas`, REST `/widget-areas`",
 			"emdashConfidence": "src",
-			"status": "missing",
-			"kit": "No extract (exporter has no widgets endpoint)",
-			"gap": "Read `wp/v2/sidebars` + `wp/v2/widgets` (auth, WP ≥ 5.8) or the `sidebars_widgets` option from the dump; text/HTML → content widgets, nav → menu widgets, core widgets → components.",
+			"status": "done",
+			"kit": "Extract `wp/v2/sidebars` + `wp/v2/widgets` (raw/widgets/) or a dump's `sidebars_widgets`; src/transform/widgets.ts: text/custom HTML/block → content widgets (Portable Text, images to the media library), image → image (link reported), nav menu → menu widget, search/recent posts/categories/archives/tag cloud → core components (blog ones only with a blog); unknown widgets → coverage + gate `widgets-handled` (`overrides.ts widgets: html | skip`); seed + load (check `widgets`); starter renders areas the old theme showed (footer columns, blog sidebar); fixture + golden",
+			"gap": "Not yet run against a real classic-theme site (the REST routes need an administrator's application password).",
 			"effort": "M",
 			"risk": "med",
 			"priority": "P1",
@@ -774,12 +774,12 @@
 			"feature": "404 page content",
 			"emdash": "Theme `/404`",
 			"emdashConfidence": "none",
-			"status": "partial",
-			"kit": "Generic starter 404 (starter/src/pages/404.astro)",
-			"gap": "Carry the source 404 text/links (Bricks `error` template, theme 404) into a `site_parts/404` entry.",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P2",
+			"status": "done",
+			"kit": "Audit fetches `/wp2emdash-404-check/` (snapshot/not-found.html); a customised page (more than the stock wording) becomes the site part `not-found` (rich text + up to 3 links), shown by starter/src/pages/404.astro; stock pages keep the starter's text (src/transform/site-features.ts; fixture + golden)",
+			"gap": "Bricks/Elementor 404 templates are read from the rendered page, not the template data.",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "1/2"
 		},
 		{
@@ -814,14 +814,14 @@
 			"id": "search",
 			"area": "Navigation",
 			"feature": "Site search + results page",
-			"emdash": "FTS5 (`search`, `searchCollection`, `LiveSearch.astro`, widget `core:search`)",
+			"emdash": "FTS5 (`search`, `searchCollection`, `LiveSearch.astro`, widget `core:search`); blocks fields cannot be searchable",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "No `/search` route yet; `/?s=q` and `/search/q/` → 301 home, or `/search/?q=` when a migrated `/search/` page exists (WordPress-URL rule `search`; verify `urls-accounted`)",
-			"gap": "`/search` page (FTS5) in the starter; then the rule sends the query there and the Rank Math WebSite SearchAction resolves.",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P1",
+			"status": "done",
+			"kit": "starter/src/pages/search.astro at `/search/?q=`: EmDash FTS (posts, collections, page titles) + the pages' section text (utils/search.ts `mergeHits`), type, excerpt with marked words, numbered pages, no-results state, accessible form; results uncached, empty form cached; header search link when the old header had one; WordPress-URL rule `search` → `/search/?q=` (verify `urls-accounted`); load check `search` switches FTS on (admin scope)",
+			"gap": "Page sections are matched by scanning up to 300 pages per query (EmDash 1.5 cannot index a blocks field).",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "2/2"
 		},
 		{
@@ -982,14 +982,14 @@
 			"id": "404-log",
 			"area": "Redirects & URLs",
 			"feature": "404 monitoring after launch",
-			"emdash": "`_emdash_404_log`, `/redirects/404s`",
+			"emdash": "`_emdash_404_log` (hits, last_seen_at), `/redirects/404s`, `/redirects/404s/summary`",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "EmDash logs; kit post-launch monitor not built (PLAN §10b #7)",
-			"gap": "Scheduled check: new 404s → suggested redirects in the dashboard (check overlap with packages/health, in progress).",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P1",
+			"status": "done",
+			"kit": "Site health check `notfound` (hourly, one D1 read): the week's most requested missing addresses with a suggested redirect from the sitemap, bot probes counted; tab Missing pages, dashboard hint, never an alert (packages/health/src/checks/notfound.ts)",
+			"gap": "Suggestions are added by hand in Redirects (no one-click create).",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": ""
 		},
 		{
@@ -1136,15 +1136,15 @@
 			"id": "breadcrumbs",
 			"area": "SEO",
 			"feature": "Visible breadcrumbs",
-			"emdash": "Page context `breadcrumbs` (JSON-LD only)",
+			"emdash": "Page context `breadcrumbs` (core prints no BreadcrumbList)",
 			"emdashConfidence": "src",
-			"status": "missing",
-			"kit": "Breadcrumb JSON-LD only",
-			"gap": "Breadcrumb component for nested pages/posts when the source showed one.",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P2",
-			"sitesUsed": ""
+			"status": "done",
+			"kit": "Detected in the audited HTML (Rank Math, Yoast, NavXT, theme) → site.config `breadcrumbs`; starter shows the trail on pages (nested paths with parent titles) and posts (posts page), and StructuredData's BreadcrumbList uses the same trail (starter/src/utils/breadcrumbs.ts)",
+			"gap": "Archives and collection entries keep the 2-level JSON-LD only.",
+			"effort": "",
+			"risk": "",
+			"priority": "",
+			"sitesUsed": "0/2"
 		},
 		{
 			"id": "sitemaps",
@@ -1418,12 +1418,12 @@
 			"feature": "Maintenance / coming-soon mode",
 			"emdash": "None (`staging` = noindex only)",
 			"emdashConfidence": "none",
-			"status": "missing",
-			"kit": "—",
-			"gap": "Middleware flag (setting or plugin) serving a 503 page to visitors, editors bypass.",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P2",
+			"status": "done",
+			"kit": "Site health → Settings switch (plugin KV `plugin:site-health:maintenance`); the starter middleware serves a branded holding page with 503 + Retry-After + noindex, never cached, signed-in people bypass; uptime/index/analytics/link checks pause; never enabled by the migration, an old maintenance plugin is reported (src/transform/site-features.ts)",
+			"gap": "Needs the health plugin (on by default).",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "0/2"
 		},
 		{
@@ -1651,7 +1651,7 @@
 				"attachment-pages"
 			],
 			"effort": "S",
-			"notes": "Done 2026-11-20 except the search page: WordPress-URL rule set in the starter middleware (search → home until a `/search` page exists)."
+			"notes": "Done 2026-11-20; the search page 2026-11-21 (`/search/?q=`, EmDash FTS + page sections; `?s=` 301s there)."
 		},
 		{
 			"rank": 10,
@@ -1726,10 +1726,11 @@
 			"priority": "P1",
 			"title": "Menus: write every menu, link items to entries",
 			"rows": [
-				"menus"
+				"menus",
+				"mega-menu"
 			],
 			"effort": "S",
-			"notes": "`other`-role menus are dropped today."
+			"notes": "Done 2026-11-21: every menu, classes, title attribute, targets, depth; mega menus as columns (partial)."
 		},
 		{
 			"rank": 17,
@@ -1739,7 +1740,7 @@
 				"widgets"
 			],
 			"effort": "M",
-			"notes": "Classic-theme footers and sidebars."
+			"notes": "Done 2026-11-21 (docs/spikes/site-features-findings.md); not yet on a real classic-theme site."
 		},
 		{
 			"rank": 18,
@@ -1814,7 +1815,7 @@
 				"sitemaps"
 			],
 			"effort": "S",
-			"notes": "Check overlap with packages/health."
+			"notes": "404 monitoring done 2026-11-21 (Site health → Missing pages)."
 		}
 	],
 	"p2": [
@@ -1833,19 +1834,16 @@
 		"mega-menu",
 		"popups",
 		"social",
-		"404",
 		"comment-settings",
 		"users",
 		"form-entries",
 		"redirects",
 		"og-twitter",
 		"jsonld",
-		"breadcrumbs",
 		"sitemaps",
 		"kml",
 		"verification",
 		"fonts",
-		"maintenance",
 		"legal",
 		"i18n",
 		"events"

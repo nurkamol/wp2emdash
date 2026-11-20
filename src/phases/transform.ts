@@ -34,6 +34,9 @@ import { type BlogByline, blogIndexPath, type BlogPlan, blogReport, blogTaxonomi
 import { applyMeasuredPadding } from "../transform/measured.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
 import { announcementDoc, describeBar, detectAnnouncement } from "../transform/announcement.js";
+import { emdashMenuNames, isMegaClass, megaItems, megaMenuIds, menusReport, ownClasses, type WpMenuItemRest } from "../transform/menus.js";
+import { breadcrumbsOf, headerSearch, maintenancePlugin, notFoundContent, notFoundDoc, type SiteFeatures, siteFeaturesReport } from "../transform/site-features.js";
+import { planWidgets, type WpSidebar, type WpWidget, widgetsFromOptions, widgetsReport } from "../transform/widgets.js";
 import type { BricksBox, RootVariables, ScreenshotResult } from "../audit/browser.js";
 import type { ExporterPost, MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
@@ -61,7 +64,7 @@ interface MenuRaw {
 	id?: number;
 	name: string;
 	locations: string[];
-	items: { id: number; parent_id: number | null; sort_order: number; type: string; object: string; object_id: number; url: string; title: string; target: string; classes: string | string[] | null }[];
+	items: { id: number; parent_id: number | null; sort_order: number; type: string; object: string; object_id: number; url: string; title: string; target: string; classes: string | string[] | null; description?: string; attr_title?: string }[];
 }
 
 export interface DocResult {
@@ -83,6 +86,8 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const content = (type: string) => readJson<ExporterPost[]>(join(exp, "content", `${type}.json`)) ?? [];
 	const options = readJson<Record<string, unknown>>(join(exp, "options.json")) ?? {};
 	const menusRaw = readJson<MenuRaw[]>(join(exp, "menus.json")) ?? [];
+	// Description, title attribute and classes per item from WordPress's REST API (extract: raw/menu-items.json).
+	const menuItemsRest = new Map((readJson<WpMenuItemRest[]>(join(paths.raw, "menu-items.json")) ?? []).map((i) => [i.id, i]));
 	const manifest = readJson<MediaEntry[]>(join(paths.raw, "media-manifest.json")) ?? [];
 	// Section boxes from the audit screenshots: real padding per source row (desktop + phone).
 	const shots = readJson<ScreenshotResult[]>(join(paths.snapshot, "screens.json")) ?? [];
@@ -170,18 +175,26 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	};
 
 	/** A WordPress menu's items as a tree (links made site-relative, popup triggers resolved). */
+	let megaIds: Set<number> | undefined;
 	const menuTree = (m: MenuRaw): IrMenuItem[] => {
-		const build = (parent: number | null): IrMenuItem[] =>
+		// Max Mega Menu panels, from the live home page (the plugin keeps its settings in item meta the exporter does not read).
+		megaIds ??= megaMenuIds(snapshotHtml.find((h) => h.name === "home")?.html ?? snapshotHtml[0]?.html);
+		const build = (parent: number | null, depth: number): IrMenuItem[] =>
 			m.items
 				.filter((i) => (i.parent_id ?? 0) === (parent ?? 0))
 				.sort((a, b) => a.sort_order - b.sort_order)
 				.map((i) => {
+					const rest = menuItemsRest.get(i.id);
 					const classes = Array.isArray(i.classes) ? i.classes.join(" ") : (i.classes ?? "");
 					const href = relHref(i.url);
 					const popup = popupFor({ href, classes });
-					return { label: i.title, href, ...(i.target === "_blank" ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}), children: build(i.id) };
+					const own = ownClasses(rest?.classes ?? i.classes);
+					const titleAttr = (rest?.attr_title ?? i.attr_title ?? "").trim();
+					const description = (rest?.description ?? i.description ?? "").trim();
+					const mega = depth === 1 && (megaIds?.has(i.id) || isMegaClass(own));
+					return { label: i.title, href, ...((rest?.target ?? i.target) === "_blank" ? { newTab: true } : {}), ...(popup ? { opensPopup: popup } : {}), ...(own.length ? { classes: own } : {}), ...(titleAttr ? { titleAttr } : {}), ...(description ? { description } : {}), ...(mega ? { mega: true } : {}), children: build(i.id, depth + 1) };
 				});
-		return build(null);
+		return build(null, 1);
 	};
 
 	// ── Routes ─────────────────────────────────────────────────────────────────
@@ -599,6 +612,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const why = overrides.announcement === "drop" ? "not rebuilt: overrides.announcement is \"drop\"" : `possible announcement bar, not rebuilt (${bar.plugin === "generic" ? "matched by class name only" : "on fewer than half of the saved pages"}); set announcement: "keep" in overrides.ts to rebuild it or "drop" to confirm`;
 		notTransformed.push(`announcement bar ${describeBar(bar)} — ${why}`);
 	}
+	// The old 404 page (audit: snapshot/not-found.html), when it said more than the theme's stock wording: the site part
+	// "not-found", shown by the starter's 404 page (src/transform/site-features.ts).
+	const notFoundHtml = existsSync(join(paths.snapshot, "not-found.html")) ? readFileSync(join(paths.snapshot, "not-found.html"), "utf8") : undefined;
+	const notFound = notFoundHtml ? notFoundContent(notFoundHtml, [...siteHosts]) : undefined;
+	if (notFound?.customised) {
+		emit(notFoundDoc(notFound, new Keys("nf_"), relHref), "partials/not-found.json", true);
+		partials.push({ role: "other", file: "partials/not-found.json" });
+	}
 	for (const s of announcement.scriptOnly) notTransformed.push(`announcement bar: ${s} is loaded by a script, so its text is not in the saved HTML; check the live site and add it in the admin (Header & footer → announcement) if needed`);
 	for (const o of bricksParts.others) notTransformed.push(`bricks_template ${o.post.slug} (${o.type}, ${o.post.status}): applies to ${o.conditions}; only the site-wide ${o.type} is migrated`);
 	const offChrome = pages.filter((p) => isBricks(p.meta) && ["headerDisabled", "footerDisabled"].some((k) => (p.meta._bricks_page_settings as Record<string, unknown> | undefined)?.[k]));
@@ -933,6 +954,28 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	write(join(paths.ir, "wp-urls.json"), wpUrlPlan);
 	if (wpUrlPlan.feedPending) notTransformed.push("feeds: the site has published posts but no feed is generated yet; /feed/ redirects (coverage report → WordPress URLs)");
 
+	// ── Widget areas and site features (src/transform/widgets.ts, site-features.ts) ─────────────────────────
+	const menuNames = emdashMenuNames(site.menus);
+	const wpSidebars = readJson<WpSidebar[]>(join(paths.raw, "widgets", "sidebars.json"));
+	const widgetSource = wpSidebars ? { sidebars: wpSidebars, widgets: readJson<WpWidget[]>(join(paths.raw, "widgets", "widgets.json")) ?? [] } : widgetsFromOptions({ ...options, ...readJson<Record<string, unknown>>(join(paths.raw, "bricks-options.json")) });
+	const widgetPlan = widgetSource ? planWidgets({ ...widgetSource, menuName: (id) => menuNames[menusRaw.findIndex((m) => m.id === id)], blog: !!blogPlan, pages: snapshotHtml.map((h) => h.html), mediaIdForUrl, decisions: overrides.widgets, postUrlTemplate: "/:slug" }) : undefined;
+	rmSync(join(paths.ir, "widgets.json"), { force: true });
+	if (widgetPlan && (widgetPlan.areas.some((a) => a.widgets.length) || widgetPlan.unknown.length)) {
+		write(join(paths.ir, "widgets.json"), widgetPlan);
+		check("widgets-handled", "Every widget is mapped to an EmDash widget or decided (overrides.ts widgets)", widgetPlan.unknown.length === 0, widgetPlan.unknown.length ? `${widgetPlan.unknown.length} widget(s) without a mapping (coverage report → Widgets): ${widgetPlan.unknown.slice(0, 6).map((u) => `${u.wpId} (${u.idBase})`).join(", ")}; overrides.ts widgets: { "<id>": "html" | "skip" }` : `${widgetPlan.areas.reduce((n, a) => n + a.widgets.length, 0)} widgets in ${widgetPlan.areas.filter((a) => a.widgets.length).length} area(s)`);
+	}
+	const crumbs = breadcrumbsOf(snapshotHtml);
+	const maintenance = maintenancePlugin(readJson<{ plugins?: { slug: string }[] }>(join(paths.snapshot, "fingerprint.json"))?.plugins ?? [], snapshotHtml);
+	const features: SiteFeatures = {
+		headerSearch: headerSearch(snapshotHtml.find((h) => h.name === "home")?.html ?? snapshotHtml[0]?.html),
+		...(crumbs ? { breadcrumbs: crumbs } : {}),
+		notFound: notFound ? (notFound.customised ? "rebuilt" : "stock") : "not-audited",
+		...(maintenance ? { maintenance } : {}),
+	};
+	write(join(paths.ir, "site-features.json"), features);
+	if (features.maintenance) reporter.emit({ type: "log", level: "warn", message: `The old site had ${features.maintenance}: the new site's coming-soon mode stays off (Site health → Settings switches it on).` });
+	for (const m of megaItems(site.menus)) notTransformed.push(`mega menu ${m}: partial — rebuilt as columns of links; images, widgets and custom HTML in the panel are not carried`);
+
 	// ── Report ─────────────────────────────────────────────────────────────────
 	const reportDir = join(paths.reports, "transform");
 	write(join(reportDir, "coverage.json"), {
@@ -948,7 +991,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		consent: { found: consentPlan.found, keptWidgets: consentPlan.keptWidgets, mode: config.consent === false ? "off" : (config.consent.mode ?? consentPlan.mode), reason: consentPlan.reason },
 		wpUrls: { rules: wpUrlPlan.explain, attachments: Object.keys(wpUrlPlan.rules.attachments ?? {}).length, feedPending: wpUrlPlan.feedPending },
 	});
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...wpUrlsReport(wpUrlPlan), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

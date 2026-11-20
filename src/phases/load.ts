@@ -17,7 +17,9 @@ import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
-import { menuItemExtras, POSTS_COLLECTION, productionCanonical, routeToSlug } from "../scaffold/seed.js";
+import { menuItemExtras, PAGES_SEARCHABLE, POSTS_COLLECTION, productionCanonical, routeToSlug } from "../scaffold/seed.js";
+import { emdashMenuLabel, emdashMenuNames } from "../transform/menus.js";
+import type { WidgetPlan } from "../transform/widgets.js";
 import type { BlogPlan } from "../transform/blog.js";
 import { type CptCollection, type CptPlan, collectionFields } from "../transform/cpt.js";
 import { BLOCK_TYPES } from "../starter/library.js";
@@ -237,6 +239,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		// Custom post types (ir/collections.json): their collections, fields, taxonomies and bylines.
 		const cptPlan = readJson<CptPlan>(join(paths.ir, "collections.json"));
 		const cptCols = cptPlan?.collections ?? [];
+		// Classic-theme widget areas (ir/widgets.json).
+		const widgetPlan = readJson<WidgetPlan>(join(paths.ir, "widgets.json"));
 		const colBySlug = new Map(cptCols.map((c) => [c.slug, c]));
 		// ── Schema on the target ─────────────────────────────────────────────────
 		try {
@@ -340,6 +344,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		};
 		for (const d of docs) collect([d.sections, d.featuredImage, d.post?.body ?? [], d.entry?.fields ?? {}, d.entry?.body ?? []]);
 		for (const b of blogPlan?.bylines ?? []) if (b.avatar) refs.set(mediaKey(b.avatar), b.avatar);
+		// Images in classic-theme widgets (ir/widgets.json).
+		for (const a of widgetPlan?.areas ?? []) for (const w of a.widgets) collect(w.content ?? []);
 		// Social sharing image (og:image from the SEO plugin): uploaded like any other picture and set as the page's SEO image.
 		const uploadPath = (u: string) => /\/(?:wp-content\/uploads|storage)\/(.+)$/.exec(u.split(/[?#]/)[0] ?? "")?.[1]?.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/i, "").toLowerCase();
 		const ogRef = (d: IrPage): MediaRef | undefined => {
@@ -666,21 +672,22 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 
 		// ── Menus & settings ─────────────────────────────────────────────────────
 		const menuErrors: string[] = [];
-		for (const role of ["primary", "secondary", "footer"] as const) {
-			const m = site.menus.find((x) => x.role === role);
-			if (!m) continue;
+		// Every WordPress menu: the first of each header role under the role's name, the others under their own (src/transform/menus.ts).
+		const menuNames = emdashMenuNames(site.menus);
+		for (const [at, m] of site.menus.entries()) {
+			const name = menuNames[at] as string;
 			try {
-				if (await api.menu(role)) await api.deleteMenu(role);
-				await api.createMenu(role, `${role[0]?.toUpperCase()}${role.slice(1)} navigation`);
+				if (await api.menu(name)) await api.deleteMenu(name);
+				await api.createMenu(name, emdashMenuLabel(name, m));
 				const add = async (items: typeof m.items, parentId?: string) => {
 					for (const [i, it] of items.entries()) {
-						const created = await api.createMenuItem(role, { type: "custom", label: it.label, customUrl: it.opensPopup ? `#${it.opensPopup}` : fixHref(it.href), sortOrder: i, ...(it.newTab ? { target: "_blank" } : {}), ...menuItemExtras(it), ...(parentId ? { parentId } : {}) });
+						const created = await api.createMenuItem(name, { type: "custom", label: it.label, customUrl: it.opensPopup ? `#${it.opensPopup}` : fixHref(it.href), sortOrder: i, ...(it.newTab ? { target: "_blank" } : {}), ...menuItemExtras(it), ...(parentId ? { parentId } : {}) });
 						if (it.children.length) await add(it.children, created.id);
 					}
 				};
 				await add(m.items);
 			} catch (e) {
-				menuErrors.push(`${role}: ${(e as Error).message}`);
+				menuErrors.push(`${name}: ${(e as Error).message}`);
 			}
 		}
 		try {
@@ -698,7 +705,57 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		} catch (e) {
 			menuErrors.push(`settings: ${(e as Error).message}`);
 		}
-		check("menus", "Menus written", menuErrors.length === 0, menuErrors.join("; ") || site.menus.map((m) => `${m.role} ${m.items.length}`).join(", "));
+		check("menus", "Menus written", menuErrors.length === 0, menuErrors.join("; ") || site.menus.map((m, at) => `${menuNames[at]} ${m.items.length}`).join(", "));
+
+		// ── Widget areas (classic themes; ir/widgets.json): each area rewritten with its widgets, after the menus they name ──
+		if (widgetPlan?.areas.some((a) => a.widgets.length)) {
+			const widgetErrors: string[] = [];
+			let written = 0;
+			const existingAreas = new Set((await api.widgetAreas().catch(() => [])).map((a) => a.name));
+			for (const a of widgetPlan.areas.filter((x) => x.widgets.length)) {
+				try {
+					if (existingAreas.has(a.name)) await api.deleteWidgetArea(a.name);
+					await api.createWidgetArea({ name: a.name, label: a.label, ...(a.description ? { description: a.description } : {}) });
+					for (const w of a.widgets) {
+						await api.createWidget(a.name, { type: w.type, ...(w.title ? { title: w.title } : {}), ...(w.type === "content" ? { content: fixLinks(resolvePostBody(w.content ?? [], postMedia)) } : {}), ...(w.menuName ? { menuName: w.menuName } : {}), ...(w.componentId ? { componentId: w.componentId, componentProps: w.props ?? {} } : {}) });
+						written++;
+					}
+				} catch (e) {
+					const err = e as EmDashHttpError;
+					widgetErrors.push(`${a.name}: ${err.code === "INSUFFICIENT_SCOPE" ? "the API token needs the content:write scope (and an editor or admin owner)" : err.message}`);
+				}
+			}
+			check("widgets", "Widget areas written", widgetErrors.length === 0, widgetErrors.slice(0, 4).join("; ") || `${written} widgets in ${widgetPlan.areas.filter((x) => x.widgets.length).length} area(s)`);
+		}
+
+		// ── Site search: EmDash's full-text index on for pages (title), posts and collections: the starter's /search/ page ──
+		{
+			const searchErrors: string[] = [];
+			const searchable = ["pages", ...(blogPlan ? ["posts"] : []), ...cptCols.filter((c) => c.routable).map((c) => c.slug)];
+			let enabled: Record<string, { indexed: number }> = {};
+			try {
+				enabled = await api.searchStats();
+			} catch (e) {
+				searchErrors.push(`search stats: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the admin scope to switch search on" : (e as Error).message}`);
+			}
+			if (!searchErrors.length) {
+				try {
+					// Sites set up before the search page: mark the pages' title searchable (seeded so on new sites).
+					const fields = await api.collectionFields("pages");
+					for (const f of fields.filter((x) => PAGES_SEARCHABLE.includes(x.slug) && !x.searchable)) await api.updateField("pages", f.slug, { searchable: true, validation: f.validation ?? null });
+				} catch (e) {
+					searchErrors.push(`pages fields: ${(e as Error).message}`);
+				}
+				for (const c of searchable.filter((x) => !enabled[x])) {
+					try {
+						await api.enableSearch(c);
+					} catch (e) {
+						searchErrors.push(`${c}: ${(e as Error).message}`);
+					}
+				}
+			}
+			check("search", "Full-text search on for the site's pages and posts (the /search/ page)", searchErrors.length === 0, searchErrors.slice(0, 3).join("; ") || `${searchable.join(", ")}${searchable.some((x) => !enabled[x]) ? " (switched on now)" : ""}`);
+		}
 		}
 
 		// ── Site settings (Settings → General, Social Links, SEO) from ir/settings.json ──────────────────────

@@ -41,6 +41,11 @@ const toggleLeft = h.togglePosition === "left";
 const popupOf = (i: Item) => /(?:^|\s)popup-([\w-]+)/.exec(i.cssClasses ?? "")?.[1];
 const isButton = (i: Item) => !!popupOf(i) || /(?:^|\s)button(?:\s|$)/.test(i.cssClasses ?? "");
 const isPhone = (i: Item) => /^tel:/i.test(i.url);
+/** A mega menu panel on the source (menu item class `mega`): its children are column headings with their links under them. */
+const isMega = (i: Item) => /(?:^|\s)mega(?:\s|$)/.test(i.cssClasses ?? "");
+const blank = (i: Item) => (i.target === "_blank" ? { target: "_blank", rel: "noopener" } : {});
+/** The old header had a search icon (audit): a link to the search page. */
+const searchHref = (h as { search?: boolean }).search ? ((site as { trailingSlash?: string }).trailingSlash === "never" ? "/search" : "/search/") : undefined;
 const path = Astro.url.pathname;
 // Without a panel capture, the secondary links (minus buttons already in the header) lead the panel.
 const extras = (h as { panelExtras?: { lead: { label: string; href: string; smallOnly?: boolean }[]; contacts: { icon: string; href: string; label: string }[]; credit: boolean; buttons?: boolean } }).panelExtras ?? {
@@ -130,7 +135,7 @@ const ICONS: Record<string, string> = {
 					<ul role="list">
 						{primary.map((i) => (
 							<li>
-								<a href={safeHref(i.url) ?? "#"} aria-current={i.url === path ? "page" : undefined}>
+								<a href={safeHref(i.url) ?? "#"} aria-current={i.url === path ? "page" : undefined} {...blank(i)}>
 									{i.label}
 								</a>
 							</li>
@@ -140,6 +145,13 @@ const ICONS: Record<string, string> = {
 			)
 		}
 		<div class="site-header__actions">
+			{
+				searchHref && (
+					<a href={searchHref} class="header-link header-search" aria-label="Search">
+						<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+					</a>
+				)
+			}
 			{secondary.map((i) => {
 				const popup = popupOf(i);
 				return (
@@ -210,7 +222,7 @@ const ICONS: Record<string, string> = {
 			{
 				primary.map((i, n) => (
 					<li style={`--i:${extras.lead.length + n}`} class:list={{ "has-children": i.children && i.children.length > 0 }}>
-						<a href={safeHref(i.url) ?? "#"} aria-current={i.url === path ? "page" : undefined}>
+						<a href={safeHref(i.url) ?? "#"} aria-current={i.url === path ? "page" : undefined} {...blank(i)}>
 							{i.label}
 						</a>
 						{i.children && i.children.length > 0 && (
@@ -219,10 +231,19 @@ const ICONS: Record<string, string> = {
 									<span class="visually-hidden">Show {i.label} pages</span>
 									<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6" /></svg>
 								</button>
-								<ul role="list" id={`sub-${n}`} class="menu-panel__sub">
+								<ul role="list" id={`sub-${n}`} class:list={["menu-panel__sub", { "menu-panel__mega": isMega(i) }]}>
 									{i.children.map((c) => (
-										<li>
-											<a href={safeHref(c.url) ?? "#"}>{c.label}</a>
+										<li class:list={{ "menu-panel__col": isMega(i) && !!c.children?.length }}>
+											<a href={safeHref(c.url) ?? "#"} {...blank(c)}>{c.label}</a>
+											{c.children && c.children.length > 0 && (
+												<ul role="list" class="menu-panel__deep">
+													{c.children.flatMap((g) => [g, ...(g.children ?? [])]).map((g) => (
+														<li>
+															<a href={safeHref(g.url) ?? "#"} {...blank(g)}>{g.label}</a>
+														</li>
+													))}
+												</ul>
+											)}
 										</li>
 									))}
 								</ul>
