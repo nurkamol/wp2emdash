@@ -147,6 +147,8 @@ const base = {
 	spaceBefore: z.number().int().min(0).max(400).optional(),
 	/** The button group: every button as wide as the longest (`equal`; stacked on phones, as the source does). */
 	buttonsWidth: z.enum(["auto", "equal", "full"]).optional(),
+	/** Its top padding is the source box's own gap to the section before it (one builder row split in two): kept as set. */
+	innerGap: z.boolean().optional(),
 	/** Padding measured on the source page (px, or fluid clamp between phone and desktop); wins over spacing. */
 	pad: z.object({ top: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), bottom: z.string().regex(/^(?:\d+(?:\.\d+)?px|clamp\(\d+(?:\.\d+)?px, -?\d+(?:\.\d+)?px \+ -?\d+(?:\.\d+)?vw, \d+(?:\.\d+)?px\))$/).optional(), /** Tablet (691–999px) value where the source's tablet padding is off the phone→desktop line. */ topTablet: z.number().min(0).max(600).optional(), bottomTablet: z.number().min(0).max(600).optional() }).optional(),
 	sourceRef,

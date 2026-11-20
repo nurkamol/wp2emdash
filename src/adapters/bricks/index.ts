@@ -1000,6 +1000,21 @@ export function adaptBricks(elements: BricksElement[], opts: BricksOptions): Bri
 		const tail = out.at(-1);
 		if (row.pad && head && head.type !== "hero" && !head.fullHeight && row.pad.top) head.pad = { ...head.pad, top: row.pad.top, ...(row.pad.topTablet !== undefined ? { topTablet: row.pad.topTablet } : {}) };
 		if (row.pad && tail && tail.type !== "hero" && !tail.fullHeight && row.pad.bottom) tail.pad = { ...tail.pad, bottom: row.pad.bottom, ...(row.pad.bottomTablet !== undefined ? { bottomTablet: row.pad.bottomTablet } : {}) };
+		// One row split into several sections (an FAQ, then its call-to-action card): between them only the box's own row
+		// gap (measured per screen), not two section paddings. `innerGap` tells the measured-padding pass to keep it.
+		if (out.length > 1 && row.el) {
+			const kids = childrenOf(row.el).filter((k) => !hidden(k, "", false));
+			const box = kids.length === 1 && STRUCTURE.has(kids[0]?.name ?? "") ? (kids[0] as BricksElement) : row.el;
+			const g = fluidGap(box, "row");
+			if (g) for (let k = 1; k < out.length; k++) {
+				const before = out[k - 1] as Section;
+				const after = out[k] as Section;
+				if (before.type === "hero" || after.type === "hero" || before.fullHeight || after.fullHeight) continue;
+				before.pad = { ...before.pad, bottom: "0px" };
+				after.pad = { ...after.pad, top: g };
+				after.innerGap = true;
+			}
+		}
 		sections.push(...out);
 	}
 	return { sections, diagnostics, forms: [...forms.values()] };

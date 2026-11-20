@@ -55,6 +55,8 @@ export function applyMeasuredPadding(sections: Section[], boxes: { desktop?: Sec
 			const before = sections[g.targetIndexes[k - 1] as number];
 			const after = sections[g.targetIndexes[k] as number];
 			if (!before || !after || SKIP.has(before.type) || SKIP.has(after.type) || before.fullHeight || after.fullHeight) continue;
+			// The adapter measured this gap itself (Bricks: the box's row gap); only Bricks sets innerGap.
+			if (after.innerGap) continue;
 			before.pad = { ...before.pad, bottom: "0px" };
 			after.pad = { ...after.pad, top: fluid(INNER_GAP.phone, INNER_GAP.desktop) };
 			applied += 2;
