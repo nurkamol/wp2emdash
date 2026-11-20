@@ -4,76 +4,89 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>wp2emdash — WordPress to EmDash migration kit</title>
-<meta name="description" content="An open-source kit that migrates WordPress sites (WPBakery, Salient, Gutenberg, classic) to EmDash on Cloudflare Workers — and proves the result with automated gates.">
-<meta property="og:title" content="wp2emdash — WordPress to EmDash, verified">
+<meta name="description" content="An open-source kit that migrates WordPress sites (WPBakery, Salient, Gutenberg, classic, Bricks) to EmDash on Cloudflare Workers, ships each site with an admin plugin suite, and proves the result with automated gates.">
+<meta property="og:title" content="wp2emdash — WordPress to EmDash, proven by gates">
 <meta property="og:description" content="Audit, extract, transform, scaffold, load, verify, cut over. Every phase ends in a gate.">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#0f1115">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ff7a45'/%3E%3Cpath d='M8 16h16' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta property="og:image" content="social-preview.png">
+<meta property="og:image:width" content="2560">
+<meta property="og:image:height" content="1280">
+<meta property="og:image:alt" content="wp2emdash — WordPress to EmDash, proven by gates">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#4F46E5">
+<link rel="icon" type="image/svg+xml" href="mark.svg">
 <style>
 :root {
-	--bg: #fbfaf8; --surface: #ffffff; --text: #16181d; --muted: #5d6270; --line: #e7e4df;
-	--accent: #ff7a45; --accent-ink: #1b0d05; --ok: #1f9d6b; --code-bg: #f3f1ed;
+	--bg: #fbfbfd; --surface: #ffffff; --text: #0f172a; --muted: #526077; --line: #e3e6ee;
+	--accent: #4f46e5; --accent-2: #0891b2; --btn: #4f46e5; --btn-ink: #ffffff; --ok: #0e6a48; --code-bg: #f2f4f8;
 	--radius: 14px; --max: 1120px;
 	--font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-	:root:not([data-theme="light"]) { --bg: #0f1115; --surface: #161922; --text: #eceef3; --muted: #9aa1b2; --line: #262a35; --code-bg: #1b1f29; --accent-ink: #1b0d05; color-scheme: dark; }
+	:root:not([data-theme="light"]) { --bg: #0b0f19; --surface: #121827; --text: #e8ecf4; --muted: #9aa5ba; --line: #232b3d; --code-bg: #171e2e; --accent: #a5b4fc; --accent-2: #67e8f9; --ok: #4fd39a; color-scheme: dark; }
 }
-:root[data-theme="dark"] { --bg: #0f1115; --surface: #161922; --text: #eceef3; --muted: #9aa1b2; --line: #262a35; --code-bg: #1b1f29; color-scheme: dark; }
+:root[data-theme="dark"] { --bg: #0b0f19; --surface: #121827; --text: #e8ecf4; --muted: #9aa5ba; --line: #232b3d; --code-bg: #171e2e; --accent: #a5b4fc; --accent-2: #67e8f9; --ok: #4fd39a; color-scheme: dark; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--font); -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
+code { font-family: var(--mono); font-size: 0.9em; background: var(--code-bg); padding: 1px 5px; border-radius: 5px; }
 .wrap { width: min(100% - 32px, var(--max)); margin-inline: auto; }
-.skip { position: absolute; left: 16px; top: -48px; background: var(--text); color: var(--bg); padding: 8px 12px; border-radius: 8px; }
+.skip { position: absolute; left: 16px; top: -48px; background: var(--text); color: var(--bg); padding: 8px 12px; border-radius: 8px; z-index: 20; }
 .skip:focus { top: 12px; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+[id] { scroll-margin-top: 72px; }
 
 /* nav */
 header.nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--line); }
 .nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 16px; }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; letter-spacing: -0.01em; }
-.brand-mark { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; }
-.brand-mark::after { content: ""; width: 12px; height: 2.5px; background: #fff; border-radius: 2px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 750; text-decoration: none; letter-spacing: -0.02em; font-size: 17px; }
+.brand img { width: 28px; height: 28px; display: block; }
+.brand .two { color: var(--accent); }
 .nav-links { display: flex; gap: 22px; align-items: center; font-size: 14px; }
 .nav-links a { text-decoration: none; color: var(--muted); }
 .nav-links a:hover { color: var(--text); }
 .nav-links .gh { color: var(--text); border: 1px solid var(--line); padding: 6px 12px; border-radius: 999px; }
-@media (max-width: 720px) { .nav-links a:not(.gh) { display: none; } }
+@media (max-width: 860px) { .nav-links a:not(.gh) { display: none; } }
 
 /* hero */
 .hero { padding: clamp(56px, 10vw, 120px) 0 clamp(40px, 6vw, 72px); }
 .eyebrow { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); border: 1px solid var(--line); padding: 5px 12px; border-radius: 999px; background: var(--surface); }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
 h1 { font-size: clamp(36px, 6.2vw, 68px); line-height: 1.04; letter-spacing: -0.035em; margin: 22px 0 18px; max-width: 16ch; }
-h1 em { font-style: normal; color: var(--accent); }
-.lead { font-size: clamp(17px, 2vw, 20px); color: var(--muted); max-width: 60ch; margin: 0; }
+h1 em { font-style: normal; color: var(--accent); background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.lead { font-size: clamp(17px, 2vw, 20px); color: var(--muted); max-width: 62ch; margin: 0; }
+.lead a { color: var(--text); }
 .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 15px; border: 1px solid transparent; }
-.btn-primary { background: var(--accent); color: var(--accent-ink); }
-.btn-primary:hover { filter: brightness(1.05); }
+.btn-primary { background: var(--btn); color: var(--btn-ink); }
+.btn-primary:hover { filter: brightness(1.08); }
 .btn-ghost { border-color: var(--line); background: var(--surface); }
-.terminal { margin-top: 44px; background: #0d0f14; color: #d7dbe5; border-radius: var(--radius); border: 1px solid #222634; overflow: hidden; box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.45); }
-.terminal-bar { display: flex; gap: 6px; padding: 12px 14px; border-bottom: 1px solid #1d212c; }
-.terminal-bar i { width: 10px; height: 10px; border-radius: 50%; background: #2c313f; }
+.terminal { margin-top: 44px; background: #0b0f19; color: #d7dbe5; border-radius: var(--radius); border: 1px solid #222a3c; overflow: hidden; box-shadow: 0 30px 60px -30px rgb(15 23 42 / 0.45); }
+.terminal-bar { display: flex; gap: 6px; padding: 12px 14px; border-bottom: 1px solid #1c2334; }
+.terminal-bar i { width: 10px; height: 10px; border-radius: 50%; background: #2c3346; }
 .terminal pre { margin: 0; padding: 18px 20px 22px; font: 13.5px/1.75 var(--mono); overflow-x: auto; }
-.t-dim { color: #7b8296; } .t-ok { color: #4fd39a; } .t-acc { color: #ff9d73; } .t-cmd { color: #fff; }
+.t-dim { color: #8089a0; } .t-ok { color: #4fd39a; } .t-acc { color: #a5b4fc; } .t-cmd { color: #fff; }
 
 /* sections */
 section.block { padding: clamp(56px, 8vw, 96px) 0; border-top: 1px solid var(--line); }
 h2 { font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -0.025em; line-height: 1.12; margin: 0 0 12px; }
-.sub { color: var(--muted); max-width: 62ch; margin: 0 0 36px; }
+h3.group { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 36px 0 12px; }
+.sub { color: var(--muted); max-width: 64ch; margin: 0 0 36px; }
 .grid { display: grid; gap: 16px; }
-@media (min-width: 760px) { .grid-3 { grid-template-columns: repeat(3, 1fr); } .grid-2 { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 760px) { .grid-3 { grid-template-columns: repeat(3, 1fr); } .grid-2 { grid-template-columns: repeat(2, 1fr); } .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1000px) { .grid-4 { grid-template-columns: repeat(4, 1fr); } }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
 .card h3 { margin: 0 0 6px; font-size: 17px; letter-spacing: -0.01em; }
 .card p { margin: 0; color: var(--muted); font-size: 15px; }
+.card .where { display: block; margin-top: 12px; font: 12.5px/1.5 var(--mono); color: var(--muted); }
 .icon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); margin-bottom: 14px; }
 .icon svg { width: 18px; height: 18px; }
+a.card { text-decoration: none; }
+a.card:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 
 /* pipeline */
 .pipeline { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; counter-reset: p; }
@@ -85,7 +98,6 @@ h2 { font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -0.025em; line-height:
 .badge { position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
 .done { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
 .next { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
-.plan { background: var(--code-bg); color: var(--muted); }
 
 /* proof */
 .stats { display: grid; gap: 16px; grid-template-columns: repeat(2, 1fr); }
@@ -97,18 +109,19 @@ h2 { font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -0.025em; line-height:
 /* table */
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 560px; }
-th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: 13px; color: var(--muted); font-weight: 600; }
 tr:last-child td { border-bottom: 0; }
-.yes { color: var(--ok); font-weight: 600; }
-.soon { color: var(--muted); }
-.upcoming { color: var(--accent); font-weight: 600; }
+.yes { color: var(--ok); font-weight: 600; white-space: nowrap; }
+.part { color: var(--accent); font-weight: 600; white-space: nowrap; }
+.soon { color: var(--muted); white-space: nowrap; }
 
 /* code */
-.code { background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; overflow-x: auto; font: 14px/1.8 var(--mono); }
+.code { background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; overflow-x: auto; font: 14px/1.8 var(--mono); margin: 0; }
 .code .c { color: var(--muted); }
+.note { color: var(--muted); font-size: 14px; margin: 16px 0 0; max-width: 72ch; }
 footer { border-top: 1px solid var(--line); padding: 36px 0 48px; color: var(--muted); font-size: 14px; }
-footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; align-items: center; }
 .theme-toggle { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 6px 10px; cursor: pointer; font: inherit; font-size: 13px; }
 </style>
 </head>
@@ -116,13 +129,13 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav">
 	<div class="wrap">
-		<a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span>wp2emdash</a>
+		<a class="brand" href="#top"><img src="mark.svg" alt="" width="28" height="28"><span>wp<span class="two">2</span>emdash</span></a>
 		<nav class="nav-links" aria-label="Main">
 			<a href="#how">How it works</a>
-			<a href="#features">Features</a>
-			<a href="#seo">SEO</a>
-			<a href="#workflow">Workflow</a>
-			<a href="#builders">Builders</a>
+			<a href="#migrates">What it migrates</a>
+			<a href="#plugins">Plugins</a>
+			<a href="#launch">Launch</a>
+			<a href="#performance">Performance</a>
 			<a href="#start">Get started</a>
 			<a class="gh" data-repo-link href="#">GitHub</a>
 		</nav>
@@ -132,25 +145,25 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 <main id="main">
 	<section class="hero" id="top">
 		<div class="wrap">
-			<span class="eyebrow"><span class="dot" aria-hidden="true"></span>Open source · MIT · audit → verify running on a real site</span>
+			<span class="eyebrow"><span class="dot" aria-hidden="true"></span>Open source · MIT · run end to end on real WordPress sites</span>
 			<h1>Move WordPress to EmDash. <em>Prove</em> nothing was lost.</h1>
-			<p class="lead">wp2emdash migrates WordPress sites built with WPBakery, Salient, Gutenberg or the classic editor to <a href="https://docs.emdashcms.com/">EmDash</a> on Cloudflare Workers. It rebuilds pages as editable sections, keeps every URL, image, form and menu animation, and stops at a gate whenever something doesn't match.</p>
+			<p class="lead">wp2emdash migrates WordPress sites built with WPBakery, Salient, Gutenberg, the classic editor or Bricks to <a href="https://docs.emdashcms.com/">EmDash</a> on Cloudflare Workers. It rebuilds pages as editable sections, carries posts, custom content, media, forms, SEO and every old URL, ships the site with an admin plugin suite, and stops at a gate whenever the result doesn't match the live site.</p>
 			<div class="cta">
 				<a class="btn btn-primary" href="#start">Get started</a>
 				<a class="btn btn-ghost" data-repo-link href="#">View on GitHub →</a>
 			</div>
-			<div class="terminal" role="img" aria-label="Example terminal session running the transform phase">
+			<div class="terminal" role="img" aria-label="Example terminal session: the verify phase passes its checks">
 				<div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i></div>
-<pre><span class="t-dim">$</span> <span class="t-cmd">pnpm wp2emdash run acme transform</span>
+<pre><span class="t-dim">$</span> <span class="t-cmd">pnpm wp2emdash run acme verify</span>
 
-<span class="t-acc">▶ transform</span>
-  <span class="t-ok">✔</span> Adapt content <span class="t-dim">— 15 documents</span>
-  <span class="t-ok">✔</span> IR validates against the schema
-  <span class="t-ok">✔</span> No unmapped content in published pages, footer and popups
-  <span class="t-ok">✔</span> Every image used by published content is in the IR
-  <span class="t-ok">✔</span> Internal links point at migrated pages, anchors, popups or files
-  <span class="t-ok">✔</span> Live page text found in the IR ≥ 99% <span class="t-dim">— lowest 100.0%</span>
-<span class="t-ok">✔ transform gate passed</span></pre>
+<span class="t-acc">▶ verify</span>
+  <span class="t-ok">✔</span> Page text carried over <span class="t-dim">— lowest 100.0%</span>
+  <span class="t-ok">✔</span> Every old address answers 200, one 301 or a decided 410 <span class="t-dim">— urls-accounted</span>
+  <span class="t-ok">✔</span> Titles, descriptions, canonicals, structured data, sitemap
+  <span class="t-ok">✔</span> Forms submit; analytics wait for consent
+  <span class="t-ok">✔</span> Pages served from the route cache on the second request
+  <span class="t-ok">✔</span> Accessibility (axe) and security headers
+<span class="t-ok">✔ verify gate passed</span></pre>
 			</div>
 		</div>
 	</section>
@@ -158,49 +171,92 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 	<section class="block" id="how">
 		<div class="wrap">
 			<h2>Eight phases. Each one ends in a gate.</h2>
-			<p class="sub">A phase runs only when every earlier gate has passed or was accepted with a written reason. Gates are data — checks with ids and pass/fail — so the terminal, a CI job, the dashboard and Claude Code all read the same result.</p>
+			<p class="sub">A phase runs only when every earlier gate has passed or was accepted by the owner with a written reason. Gates are data — checks with ids and pass/fail — so the terminal, a CI job, the dashboard and Claude Code all read the same result.</p>
 			<ol class="pipeline">
-				<li class="phase"><span class="badge done">ready</span><h3>init</h3><p>Workspace, config, access &amp; backup checklist the owner signs off.</p></li>
-				<li class="phase"><span class="badge done">ready</span><h3>audit</h3><p>Crawl, screenshots, design tokens, menu motion, forms &amp; integrations — public site only.</p></li>
-				<li class="phase"><span class="badge done">ready</span><h3>extract</h3><p>Raw content, meta, SEO, menus, form definitions and media via the EmDash Exporter. Read-only.</p></li>
-				<li class="phase"><span class="badge done">ready</span><h3>transform</h3><p>Builder layouts → a typed section format, with coverage and text-conservation gates.</p></li>
-				<li class="phase"><span class="badge done">ready</span><h3>scaffold</h3><p>EmDash project: section library, tokens, header &amp; burger menu from the recipe, local preview.</p></li>
-				<li class="phase"><span class="badge done">ready</span><h3>load</h3><p>Content and media into local, staging or production through the EmDash API; an id-map makes reruns idempotent.</p></li>
-				<li class="phase"><span class="badge done">ready</span><h3>verify</h3><p>Old vs new, URL by URL: text, SEO, links, forms, a11y, performance, and a visual diff per section on phone, tablet and desktop.</p></li>
-				<li class="phase"><span class="badge next">preflight ready</span><h3>cutover</h3><p>Read-only preflight and runbook; then, with the owner's approval, a Worker route in front of WordPress, smoke tests and one-step rollback.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>init</h3><p>Workspace, config, and the access &amp; backup checklist the owner signs off.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>audit</h3><p>Crawl, screenshots, design tokens, menu motion, forms, integrations and builder fingerprint — public site only.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>extract</h3><p>Content, meta, SEO, menus, forms, plugin exports and media via the EmDash Exporter. Read-only.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>transform</h3><p>Builder layouts, posts and custom content → a typed section format, with coverage, text-conservation and content-type gates.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>scaffold</h3><p>EmDash project: section library, tokens, header &amp; menu motion, plugin suite, performance package, client repo docs and CI.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>load</h3><p>Content, media, menus, taxonomies, redirects and settings through the EmDash API; an id-map makes reruns idempotent.</p></li>
+				<li class="phase"><span class="badge done">ready</span><h3>verify</h3><p>Old vs new, URL by URL: text, SEO, every old address, links, forms, consent, cache, a11y and a visual diff per section.</p></li>
+				<li class="phase"><span class="badge next">preflight ready</span><h3>cutover</h3><p>Read-only preflight and runbook, then the owner-approved switch with <code>golive</code> and a one-step rollback.</p></li>
 			</ol>
 		</div>
 	</section>
 
-	<section class="block" id="features">
+	<section class="block" id="migrates">
 		<div class="wrap">
-			<h2>Built for migrations that have to be right</h2>
-			<p class="sub">The hard parts of leaving WordPress aren't the posts. They're page builders, theme options, forms, booking widgets, menus that animate, and URLs Google already knows. wp2emdash treats each of those as a check.</p>
-			<div class="grid grid-3">
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg></div><h3>Real builder adapters</h3><p>A shortcode parser and block parser, not regex. WPBakery rows, Salient elements and Gutenberg blocks become hero, FAQ, pricing, team and 16 more section types.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div><h3>Text conservation</h3><p>Every word on the live page is compared with the migrated content — against WordPress's own HTML, not the adapter's opinion of it.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h3>Motion parity</h3><p>The burger menu's animation is measured with the Web Animations API — durations, easing, stagger — and reproduced as CSS variables, with accessibility fixed rather than copied.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></div><h3>Forms &amp; integrations</h3><p>Every form and widget found, with fields, recipients and a decision: keep, rebuild natively, replace or drop. Booking embeds stay on an allowlist.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 7v6c0 4 3.5 7 8 8 4.5-1 8-4 8-8V7z"/></svg></div><h3>Safe by default</h3><p>Read-only towards WordPress. Never reads form submissions. Secrets stay in a local <code>.env</code>. Production changes need the owner's explicit approval.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H4zM8 20h8"/></svg></div><h3>Editable afterwards</h3><p>Pages arrive as EmDash sections with plain fields — the client edits text, images, buttons and menus in the admin; the design stays consistent.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/></svg></div><h3>Visual parity, measured</h3><p>Every section is compared with the live site at phone, tablet and desktop widths. Spacing and type come from the builder's own settings, measured on the live theme — not eyeballed.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg></div><h3>Forms that deliver</h3><p>A native endpoint with Turnstile, rate limiting and validation; email through Brevo, Resend, Postmark, SendGrid or Mailgun; an optional outbox in Workers KV that holds messages until email works.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></div><h3>SEO and old URLs kept</h3><p>Titles, descriptions, structured data, sharing images and the sitemap carry over; old upload and sitemap addresses redirect; analytics ids move without copying scripts. Optional: a branded sharing card for every page, drawn in the Worker.</p></div>
+			<h2>What it migrates</h2>
+			<p class="sub">Builders are adapters on one shared core. Anything the kit doesn't carry shows up in the coverage report and keeps a gate red until the owner decides — nothing is dropped silently. The feature-by-feature matrix is in the <a data-repo-link data-path="/blob/main/docs/parity/wp-to-emdash.md" href="#">parity audit</a>.</p>
+			<div class="table-wrap">
+				<table>
+					<caption class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Builders and content the kit migrates, with status</caption>
+					<thead><tr><th scope="col">Source</th><th scope="col">Status</th><th scope="col">What happens</th></tr></thead>
+					<tbody>
+						<tr><td>WPBakery + Salient</td><td class="yes">Supported</td><td>~70 element handlers and row recognisers: rows, columns, headings, CTAs, team, testimonials, pricing, marquees, global sections — spacing and type measured on the live theme</td></tr>
+						<tr><td>Gutenberg and classic editor</td><td class="yes">Supported</td><td>30 core blocks and reusable blocks; classic content paragraph-faithful, its shortcodes through the shortcode parser</td></tr>
+						<tr><td>Bricks 2.4.6 / 2.5</td><td class="yes">Supported</td><td>Elements, header/footer/popup templates, global classes, palette, components and forms; measured against a real Bricks site</td></tr>
+						<tr><td>Elementor</td><td>Built</td><td>Containers and legacy sections, Kit globals, Theme Builder header/footer, Pro forms and popups; awaiting its first real site</td></tr>
+						<tr><td>Blog</td><td class="yes">Supported</td><td>Posts as Portable Text, categories, tags and custom taxonomies, guest bylines, archives with pagination, RSS feeds — at their WordPress addresses</td></tr>
+						<tr><td>Custom post types</td><td class="yes">Supported</td><td>Each public type becomes its own collection with archives; ACF, Meta Box and Pods fields mapped to EmDash fields</td></tr>
+						<tr><td>Comments</td><td class="soon">In progress</td><td>Extracted today; loading into EmDash is being built</td></tr>
+						<tr><td>SEO</td><td class="yes">Supported</td><td>Titles, descriptions, canonicals, robots, JSON-LD, sharing images, verification tags, robots.txt and sitemap; Rank Math / Yoast data carried</td></tr>
+						<tr><td>Forms</td><td class="yes">Supported</td><td>Fluent Forms, Gravity Forms, WPForms and Contact Form 7 rebuilt on a native endpoint (incl. waivers with signatures); recipients set in the admin</td></tr>
+						<tr><td>Redirects and old URLs</td><td class="yes">Supported</td><td>Redirection, Rank Math and Yoast redirects imported; <code>?p=</code>, <code>?page_id=</code>, upload, sitemap, feed, search and archive URLs answered by a per-site rule set; verify accounts for every old address</td></tr>
+						<tr><td>Settings and site code</td><td class="yes">Supported</td><td>EmDash Settings prefilled from WordPress (logo, favicon, social links, SEO); Additional CSS by decision; tracking codes, chat and review widgets recognised from 46 known providers — unknown code never carried automatically</td></tr>
+						<tr><td>Header, menus, popups, announcement bars</td><td class="yes">Supported</td><td>Header layout and burger-menu motion measured from the live site; popups with their triggers; top bars as an editable site part</td></tr>
+						<tr><td>Divi, other builders, shops, memberships</td><td class="soon">Not yet</td><td>Detected by the audit, which stops for a decision</td></tr>
+					</tbody>
+				</table>
 			</div>
 		</div>
 	</section>
 
-	<section class="block" id="seo">
+	<section class="block" id="plugins">
 		<div class="wrap">
-			<h2>SEO built in, not bolted on</h2>
-			<p class="sub">Every migration keeps what Google already knows — titles, descriptions, canonicals, structured data, sitemap, old URLs — and verify proves it. Sites can also get an SEO toolkit their editors use every day, as EmDash plugins that run inside the site.</p>
+			<h2>An admin plugin suite in every site</h2>
+			<p class="sub">Each migrated site ships with in-house EmDash plugins built by PixelKraft — native pages inside the client's own admin, no extra accounts or services. All but Form messages are on by default; each turns off with one line in the site's config.</p>
+			<div class="grid grid-4">
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M14 4v16"/></svg></div><h3>SEO &amp; Analytics</h3><p>A score, Google preview and plain-words checklist next to every page; an SEO dashboard; Search Console and IndexNow; tracking codes by ID with conversion events; visits from Cloudflare Web Analytics.</p><span class="where">Page editor · Plugins → SEO &amp; Analytics</span></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h6M7 11h10"/></svg></div><h3>Sharing images</h3><p>A branded og:image for every page — logo, title, the site's colours and fonts — drawn in the Worker, stored in R2, previewed and redrawn from the admin.</p><span class="where">Plugins → Sharing images</span></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div><h3>Site health &amp; monthly report</h3><p>Uptime, search-engine visibility, broken links, form email, mail DNS and speed, checked on a schedule; alerts to the agency and a branded report to the client on the 1st.</p><span class="where">Plugins → Site health</span></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 7v6c0 4 3.5 7 8 8 4.5-1 8-4 8-8V7z"/></svg></div><h3>Privacy &amp; consent</h3><p>A built-in cookie banner — opt-in for EU/UK visitors, a notice elsewhere — that trackers and widgets follow, with Google Consent Mode v2. Prefilled from the old site's consent plugin.</p><span class="where">Plugins → Privacy &amp; consent</span></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7"/></svg></div><h3>Backups &amp; restore</h3><p>A nightly content backup to the site's own storage, downloads, and restore of the settings, the menus or a single page with a preview of every change.</p><span class="where">Plugins → Backups</span></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div><h3>Media assistant</h3><p>Media health, one-click optimizing with undo, alt text suggestions from Workers AI that a person reviews, focal points, and a 30-day media trash.</p><span class="where">Plugins → Media</span></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg></div><h3>Change requests</h3><p>The client asks the agency for a change inside the admin — page, priority, screenshots — and follows its status and replies, with email at each step.</p><span class="where">Plugins → Change requests</span></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16v12H4z"/><path d="m4 7 8 6 8-6"/></svg></div><h3>Form messages</h3><p>An outbox that holds form messages until email works, with an inbox, search, export and editable recipients. Opted into per site, because it stores what visitors wrote.</p><span class="where">Plugins → Form messages</span></div>
+			</div>
+		</div>
+	</section>
+
+	<section class="block" id="launch">
+		<div class="wrap">
+			<h2>Launch and operations</h2>
+			<p class="sub">One Cloudflare environment per site by default: production, reviewed on its <code>workers.dev</code> address until launch. Staging is opt-in. Nothing public changes until the owner approves the switch.</p>
 			<div class="grid grid-3">
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M14 4v16"/></svg></div><h3>SEO panel in the editor</h3><p>A score, the Google result preview and a plain-words checklist next to every page — title and description length, duplicates, headings, alt text, links — plus a focus keyword and a check of unsaved changes.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><h3>SEO dashboard</h3><p>Scores for every page, the most common issues and where they are, robots.txt and sitemap checks, and every image without a description — written in one form, saved to the media library.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></div><h3>Google Search Console</h3><p>Clicks, impressions, positions, top searches and pages, sitemaps and index status, inside the admin. Connected once with a service account; the key is stored encrypted.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></div><h3>IndexNow</h3><p>After go-live, publishing a page tells Bing, Yandex and the other IndexNow engines right away instead of waiting for a crawl.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h6M7 11h10"/></svg></div><h3>Branded sharing cards</h3><p>Every page gets its own og:image — logo, title, the site's colours and fonts — drawn in the Worker once, stored in R2, with signed links.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div><h3>Checked, not promised</h3><p>Verify fetches every sharing image, compares titles, descriptions, canonicals, robots and structured data with the old site, and fails the gate on any regression.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></div><h3>Go live with one command</h3><p><code>golive</code> prints its plan and changes nothing until the owner says go: then Worker routes for the domain, a smoke test, a DNS comparison and the live flag. Alias domains get their own redirect step.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div><h3>Rollback and bookmarks</h3><p><code>golive --rollback</code> removes exactly the routes it created. Every load into a live site and every go-live records a database bookmark first, with its restore command.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-4 1.5-4-2-6-2m12 4v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12 12 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></div><h3>Publish to the client's repo</h3><p><code>publish</code> scans for secrets, creates the client's private GitHub repository and pushes the project, whose CI deploys it. Code changes after launch go through Workers preview URLs.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><h3>Dashboard and launch cockpit</h3><p>Every site with its launch readiness, live runs, visual review, publish panel, environments and Worker secrets. Go-live steps need the domain typed and the owner's written approval.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div><h3>Watched after launch</h3><p>Site health checks uptime, indexability, form email, mail DNS and broken links from inside the site, and nightly backups keep 30 days plus 12 monthly copies.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1 0 8z"/></svg></div><h3>The client's own Cloudflare</h3><p>Production can run in the client's account: <code>provision</code> creates the database, storage, outbox and sessions bucket there, and the preflight checks the site and the domain share an account.</p></div>
+			</div>
+			<p class="note"><code>golive</code> and <code>publish</code> are built and unit-tested against mocked Cloudflare and GitHub; they have not yet been run on a launch.</p>
+		</div>
+	</section>
+
+	<section class="block" id="performance">
+		<div class="wrap">
+			<h2>Performance and security, by default</h2>
+			<p class="sub">Every generated site ships the same package, and verify measures it on the deployed site instead of assuming it.</p>
+			<div class="grid grid-3">
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h3>Route cache and warm-up</h3><p>Pages are kept in Cloudflare's cache next to visitors and purged within seconds of a publish; every deploy warms the cache. On staging a cached page answered in 80 ms instead of 0.8–1.8 s.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></div><h3>Responsive images, deferred video</h3><p>Sized images through the Cloudflare Images binding, hashed brand files and fonts cached for a year, and background video attached only after the page has painted.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 7v6c0 4 3.5 7 8 8 4.5-1 8-4 8-8V7z"/></svg></div><h3>Content-Security-Policy</h3><p>One provider table decides what may load: embeds, widgets and switched-on trackers by host, inline scripts on visitors' pages by hash. Trackers never load for signed-in editors or on test hosts.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div><h3>Consent that holds</h3><p>Analytics and marketing tags wait for the visitor's choice; verify checks in a real browser that nothing fires before it.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/></svg></div><h3>Sign-ins that stay signed in</h3><p>Admin sessions live in a private, strongly consistent R2 bucket instead of Workers KV, which signed editors out at random.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></div><h3>Forms without spam or leaks</h3><p>Turnstile, rate limiting and validation on a native endpoint; on health, legal or finance sites the owner picks a policy that keeps sensitive text out of the Worker and email.</p></div>
 			</div>
 		</div>
 	</section>
@@ -210,46 +266,22 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 			<h2>Run it your way</h2>
 			<p class="sub">One engine, three front-ends. <code>pnpm wp2emdash</code> asks once whether you want the terminal or the browser, and Claude Code works through the same commands — every decision ends up in versioned files, so a rerun reproduces it.</p>
 			<div class="grid grid-3">
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><h3>Terminal or browser</h3><p>A guided terminal wizard, or a local dashboard: every site with its launch readiness, live runs, a visual review of old against new, and the launch cockpit. Local only, token-protected.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg></div><h3>Claude Code built in</h3><p>An MCP server and four skills run phases, read reports and explain red gates. Claude proposes changes instead of making them: each one waits in an approval queue for a person to approve.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/></svg></div><h3>Secrets stay put</h3><p>Keys go into a write-only form or <code>.env</code>, never into chat or logs. The dashboard shows only whether a key is set and a short fingerprint; every report is scrubbed of them.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7"/></svg></div><h3>Plugin data, not guesswork</h3><p>After the audit, the owner's checklist lists the exact export for each form and redirect plugin found. Gravity Forms, WPForms, Contact Form 7, Fluent Forms, Redirection, Rank Math and Yoast exports are read as they are.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1 0 8z"/></svg></div><h3>The client's own Cloudflare</h3><p>Production can run in the client's account while staging stays in yours: <code>provision</code> creates the database, storage and outbox there, and the preflight checks the site and the domain share an account.</p></div>
-				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg></div><h3>Projects where you keep them</h3><p>Each client's deployable project can live next to their other files (<code>projectDir</code>), while the kit keeps its working data — exports, reports, screenshots — out of every repository.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div><h3>Terminal or browser</h3><p>A guided terminal wizard, or a local dashboard on 127.0.0.1, token-protected. Gates are recorded in the terminal; the dashboard reviews, approves and takes secrets.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4z"/></svg></div><h3>Claude Code built in</h3><p>An MCP server and four skills run phases, read reports and explain red gates. Claude proposes changes instead of making them: each one waits in an approval queue for a person.</p></div>
+				<div class="card"><div class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3"/></svg></div><h3>Secrets stay put</h3><p>Keys go into a write-only form or <code>.env</code>, never into chat or logs. The dashboard shows only whether a key is set and a short fingerprint; every report is scrubbed.</p></div>
 			</div>
 		</div>
 	</section>
 
 	<section class="block" id="proof">
 		<div class="wrap">
-			<h2>Tested on a real site first</h2>
-			<p class="sub">The pilot is a ten-page clinic site on Salient + WPBakery with Rank Math, Fluent Forms, Popup Maker and two booking systems. It runs in production on Cloudflare, waiting for the owner's go-live.</p>
+			<h2>Tested on real sites</h2>
+			<p class="sub">Every adapter is built against a real client site, not a demo. The pipeline has run end to end on a real WPBakery/Salient site and a real Bricks site; one launch was switched by hand before the <code>golive</code> command existed. Client content never enters the kit repository — test fixtures are synthetic.</p>
 			<div class="stats">
-				<div class="stat"><b>0</b><span>unmapped content nodes</span></div>
+				<div class="stat"><b>0</b><span>unmapped content nodes on the WPBakery/Salient site</span></div>
 				<div class="stat"><b>100%</b><span>of live-page words carried over</span></div>
-				<div class="stat"><b>162</b><span>sections compared with the live site at phone, tablet and desktop widths</span></div>
-				<div class="stat"><b>267</b><span>tests incl. golden fixtures per element</span></div>
-			</div>
-		</div>
-	</section>
-
-	<section class="block" id="builders">
-		<div class="wrap">
-			<h2>What it migrates</h2>
-			<p class="sub">Builders are adapters. Anything an adapter can't map shows up in the coverage report and blocks the gate — nothing is dropped silently.</p>
-			<div class="table-wrap">
-				<table>
-					<thead><tr><th scope="col">Source</th><th scope="col">Status</th><th scope="col">Notes</th></tr></thead>
-					<tbody>
-						<tr><td>WPBakery Page Builder</td><td class="yes">Supported</td><td>Rows, inner rows, columns, backgrounds, raw HTML, custom CSS spacing</td></tr>
-						<tr><td>Salient theme (nectar_*)</td><td class="yes">Supported</td><td>Headings, CTAs, team, testimonials, pricing lists, marquees, global sections, page headers</td></tr>
-						<tr><td>Gutenberg / block editor</td><td class="yes">Supported</td><td>Core blocks, reusable blocks, cover, media &amp; text, columns, details</td></tr>
-						<tr><td>Classic editor</td><td class="yes">Supported</td><td>wpautop-faithful paragraphs; shortcodes inside go through the shortcode adapter</td></tr>
-						<tr><td>Popup Maker, Fluent Forms, Rank Math</td><td class="yes">Supported</td><td>Popups → dialogs with their triggers; forms rebuilt on a native endpoint; SEO titles, descriptions and structured data</td></tr>
-						<tr><td>Form &amp; redirect plugins</td><td class="yes">Supported</td><td>Gravity Forms, WPForms, Contact Form 7 and Fluent Forms rebuilt from their exports; Redirection, Rank Math and Yoast redirects imported into EmDash</td></tr>
-						<tr><td>Bricks Builder</td><td class="upcoming">Built</td><td>Built from the Bricks 2.4.6 and 2.5 source: 35 elements, header and footer templates, popups, global classes, colour palette and forms. Measured against the first real client site next</td></tr>
-					</tbody>
-				</table>
+				<div class="stat"><b>110</b><span>WordPress features tracked in the parity audit</span></div>
+				<div class="stat"><b>957</b><span>automated tests, incl. golden fixtures per element</span></div>
 			</div>
 		</div>
 	</section>
@@ -261,6 +293,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: 
 <pre class="code"><span class="c"># install</span>
 git clone <span data-repo-clone>https://github.com/OWNER/wp2emdash</span>
 cd wp2emdash &amp;&amp; pnpm install
+cp .env.example .env          <span class="c"># Cloudflare token</span>
 pnpm wp2emdash doctor
 
 <span class="c"># create a site workspace (or just run `pnpm wp2emdash`: terminal wizard or browser dashboard)</span>
@@ -272,24 +305,19 @@ pnpm wp2emdash run acme extract
 pnpm wp2emdash run acme transform
 pnpm wp2emdash run acme scaffold
 
-<span class="c"># preview the migrated site locally (the project folder can live elsewhere: projectDir)</span>
-cd sites/acme/project &amp;&amp; pnpm dev
+<span class="c"># create the Cloudflare resources, then load and compare with the live site</span>
+pnpm wp2emdash provision acme
+pnpm wp2emdash run acme load
+pnpm wp2emdash run acme verify
 
-<span class="c"># load into staging and compare it with the live site</span>
-WP2EMDASH_LOAD_TARGET=staging pnpm wp2emdash run acme load
-WP2EMDASH_TARGET=staging pnpm wp2emdash run acme verify
-
-<span class="c"># optional, per site in sites/acme/kit.config.ts:</span>
-<span class="c">#   seo: { panel: true }   SEO panel, dashboard, Search Console, IndexNow</span>
-<span class="c">#   og:  { cards: true }   branded sharing images</span>
-
-<span class="c"># check everything the switch-over needs (read-only)</span>
-pnpm wp2emdash run acme cutover</pre>
+<span class="c"># check everything the switch needs (read-only), then plan the launch</span>
+pnpm wp2emdash run acme cutover
+pnpm wp2emdash golive acme       <span class="c"># prints the plan; --yes only with the owner's go-ahead</span></pre>
 			<div class="grid grid-2" style="margin-top:16px">
-				<a class="card" data-repo-link data-path="/blob/main/docs/PLAN.md" href="#" style="text-decoration:none"><h3>Read the plan →</h3><p>Architecture, phases, gates, section library and the roadmap.</p></a>
-				<a class="card" data-repo-link data-path="/tree/main/docs/spikes" href="#" style="text-decoration:none"><h3>Verified platform facts →</h3><p>Every EmDash and Cloudflare behaviour the kit relies on, checked against the installed versions.</p></a>
-				<a class="card" data-repo-link data-path="/blob/main/docs/staging-setup.md" href="#" style="text-decoration:none"><h3>Staging and production setup →</h3><p>Resources, deploys, the first admin sign-in, API tokens and troubleshooting.</p></a>
-				<a class="card" data-repo-link data-path="/blob/main/docs/cloudflare-api-token.md" href="#" style="text-decoration:none"><h3>Cloudflare API tokens →</h3><p>The reusable build and staging token, and the separate go-live token used only at cutover.</p></a>
+				<a class="card" data-repo-link data-path="#readme" href="#"><h3>Read the README →</h3><p>Commands, plugin suite, environments, launch and every option.</p></a>
+				<a class="card" data-repo-link data-path="/blob/main/docs/README.md" href="#"><h3>Browse the docs →</h3><p>The plan, the parity audit, environment setup, API tokens and every verified platform fact.</p></a>
+				<a class="card" data-repo-link data-path="/blob/main/docs/staging-setup.md" href="#"><h3>Environment setup →</h3><p>Production on workers.dev, opt-in staging, the first admin sign-in, CI and troubleshooting.</p></a>
+				<a class="card" data-repo-link data-path="/blob/main/CHANGELOG.md" href="#"><h3>Changelog →</h3><p>What changed, by day and milestone.</p></a>
 			</div>
 		</div>
 	</section>
@@ -297,7 +325,7 @@ pnpm wp2emdash run acme cutover</pre>
 
 <footer>
 	<div class="wrap">
-		<span>wp2emdash · MIT licensed · an independent project, not affiliated with EmDash or Cloudflare.</span>
+		<span>wp2emdash · built by PixelKraft · MIT licensed · an independent project, not affiliated with EmDash or Cloudflare.</span>
 		<span><a data-repo-link href="#">GitHub</a> · <button class="theme-toggle" type="button" data-theme-toggle>Toggle theme</button></span>
 	</div>
 </footer>
