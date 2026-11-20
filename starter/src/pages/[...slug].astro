@@ -21,6 +21,7 @@ import Archive from "../components/collections/Archive.astro";
 import Entry from "../components/collections/Entry.astro";
 import { collectionRoute } from "../utils/collections";
 import { cacheCollections, type CollectionEntry, collectionsConfig, findEntry, listEntries, termOf as collectionTermOf } from "../utils/collections-data";
+import Comments from "../components/comments/Comments.astro";
 
 const raw = Astro.params.slug ? decodeSlug(Astro.params.slug) : "home";
 const slug = raw || "home";
@@ -183,6 +184,7 @@ const byline = post?.data.bylines?.[0]?.byline as { displayName?: string } | und
 					<section class="section container"><h1 class="heading heading--h1">{data.title}</h1></section>
 				)
 			}
+			<Comments collection="pages" contentId={String(data.id ?? "")} closed={data.comments_closed} publishedAt={data.publishedAt} />
 		</Base>
 	)
 }

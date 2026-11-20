@@ -7,6 +7,7 @@ import { Image, PortableText } from "emdash/ui";
 import Sections from "../Sections.astro";
 import PostCard from "./PostCard.astro";
 import PostMeta from "./PostMeta.astro";
+import Comments from "../comments/Comments.astro";
 import { authorHref, type PostEntry, postHref } from "../../utils/blog-data";
 import { fillTokens, hasContent } from "../../utils/pt";
 
@@ -70,6 +71,7 @@ const byline = (d.bylines?.[0] as { byline?: { slug: string; displayName: string
 			}
 		</div>
 	</footer>
+	<Comments collection="posts" contentId={String(d.id ?? "")} closed={d.comments_closed} publishedAt={d.publishedAt} />
 	{
 		related.length > 0 && (
 			<section class="section space-normal post__related" aria-labelledby="related-heading">

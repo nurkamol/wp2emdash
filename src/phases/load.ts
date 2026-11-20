@@ -17,12 +17,13 @@ import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
-import { menuItemExtras, POSTS_COLLECTION, productionCanonical, routeToSlug } from "../scaffold/seed.js";
+import { COMMENTS_CLOSED_FIELD, menuItemExtras, POSTS_COLLECTION, productionCanonical, routeToSlug } from "../scaffold/seed.js";
 import type { BlogPlan } from "../transform/blog.js";
 import { type CptCollection, type CptPlan, collectionFields } from "../transform/cpt.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { svgToPng } from "../targets/emdash/svg.js";
 import { type ContentItem, EmDashApi, EmDashHttpError, type MediaItem } from "../targets/emdash/api.js";
+import { type CommentMapEntry, type CommentsFile, loadComments } from "../targets/emdash/comments.js";
 import { blockKey, sectionToBlock } from "../targets/emdash/blocks.js";
 import { faststart, needsFaststart } from "../targets/emdash/faststart.js";
 import { desiredSettings, planSettings, type SettingsRecord } from "../targets/emdash/settings.js";
@@ -42,6 +43,8 @@ export interface IdMap {
 	baseUrl: string;
 	media: Record<string, { id: string; sha1: string; url?: string; mime: string; faststart?: boolean }>;
 	content: Record<string, { collection: string; id: string; slug: string }>;
+	/** WordPress comment id → EmDash comment (src/targets/emdash/comments.ts). */
+	comments?: Record<string, CommentMapEntry>;
 }
 
 const MIME: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".avif": "image/avif", ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm", ".pdf": "application/pdf", ".ico": "image/x-icon" };
@@ -238,6 +241,10 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const cptPlan = readJson<CptPlan>(join(paths.ir, "collections.json"));
 		const cptCols = cptPlan?.collections ?? [];
 		const colBySlug = new Map(cptCols.map((c) => [c.slug, c]));
+		// WordPress comments (ir/comments.json): collections that take new comments get the "Comments closed" field.
+		const commentsFile = readJson<CommentsFile>(join(paths.ir, "comments.json"));
+		const commentForm = new Set((commentsFile?.collections ?? []).filter((c) => c.form).map((c) => c.slug));
+		const commentsClosed = new Set((commentsFile?.entries ?? []).filter((e) => e.closed).map((e) => e.key));
 		// ── Schema on the target ─────────────────────────────────────────────────
 		try {
 			const [bt, cols] = await Promise.all([api.blockTypesFull(), api.collections()]);
@@ -305,6 +312,30 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			const missingCols = ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.map((c) => c.slug)].filter((c) => !cols.some((x) => x.slug === c));
 			check("schema", "Section library in sync and collections present on the target", schemaErrors.length === 0 && missingCols.length === 0, [...schemaErrors.slice(0, 4), ...missingCols.map((c) => `collection ${c} missing`)].join("; ") || (schemaChanges.length ? schemaChanges.join(", ") : `${bt.length} block types up to date`));
 			if (schemaErrors.length || missingCols.length) return checks;
+			// Comment settings per collection (EmDash: commentsEnabled = the form takes new comments, moderation, closing
+			// after N days) from WordPress's discussion settings; the "Comments closed" field where the form is on. After
+			// go-live the target's settings are an editor's: kept.
+			if (commentsFile?.collections.length && !onlySettings) {
+				const errors: string[] = [];
+				const done: string[] = [];
+				for (const c of commentsFile.collections) {
+					try {
+						const have = await api.collection(c.slug);
+						if (c.form && !(have.fields ?? []).some((f) => f.slug === COMMENTS_CLOSED_FIELD.slug)) await api.createField(c.slug, { ...COMMENTS_CLOSED_FIELD });
+						if (remoteLive) {
+							done.push(`${c.slug} kept (live site)`);
+							continue;
+						}
+						const want = { commentsEnabled: c.form, commentsModeration: c.moderation, commentsClosedAfterDays: c.closedAfterDays };
+						if (have.commentsEnabled !== want.commentsEnabled || have.commentsModeration !== want.commentsModeration || have.commentsClosedAfterDays !== want.commentsClosedAfterDays) await api.updateCollection(c.slug, want);
+						done.push(`${c.slug}: form ${c.form ? "on" : "off"}, moderation ${c.moderation}, ${c.closedAfterDays ? `closes after ${c.closedAfterDays} days` : "never closes"}`);
+					} catch (e) {
+						const err = e as EmDashHttpError;
+						errors.push(`${c.slug}: ${err.code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : err.message}`);
+					}
+				}
+				check("comment-settings", "Comment settings of each collection on the target (form, moderation, closing)", errors.length === 0, errors.join("; ") || done.join("; "));
+			}
 		} catch (e) {
 			const cause = (e as { cause?: { code?: string; message?: string } }).cause;
 			check("target", `Target reachable and authenticated (${target})`, false, `${(e as Error).message}${cause ? ` (${cause.code ?? ""} ${cause.message ?? ""})`.trimEnd() : ""}`);
@@ -573,6 +604,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				const content = sections.map((s, j) => sectionToBlock(s, blockKey(doc.source.slug, j, s.type), resolver, (d) => drops.push(`${slug} ${s.type}#${j}: ${d.join(", ")}`)));
 				const data: Record<string, unknown> = col ? { title: doc.title, ...(col.core.sections ? { content } : {}) } : { title: doc.title, content };
 				const isPost = collection === "posts" && !!doc.post;
+				if (commentForm.has(collection)) data[COMMENTS_CLOSED_FIELD.slug] = commentsClosed.has(key);
 				if (col) {
 					Object.assign(data, fixLinks(entryFields(doc, col, resolver, postMedia)));
 					const featured = col.core.featuredImage ? resolver(doc.featuredImage) : undefined;
@@ -662,6 +694,16 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				}
 			}
 			check("references", "Reference fields and parents point at the migrated entries", refErrors.length === 0, refErrors.slice(0, 5).join("; ") || `${links} links in ${withRefs.length} entries`);
+		}
+
+		// ── Comments: WordPress comments through the kit's import route, approved through EmDash's moderation ──────
+		if (commentsFile && (commentsFile.migrate || commentsFile.items.length)) {
+			reporter.emit({ type: "step:start", step: "Comments", total: commentsFile.items.length });
+			idMap.comments ??= {};
+			const r = await loadComments(api, commentsFile, (k) => idMap.content[k]?.id, idMap.comments, saveMap);
+			saveMap();
+			reporter.emit({ type: "step:end", step: "Comments", ok: r.ok, detail: `${r.created} written, ${r.existing} already there, ${r.approved} approved` });
+			check("comments", "WordPress comments on the target, per entry, with their status", r.ok, r.detail);
 		}
 
 		// ── Menus & settings ─────────────────────────────────────────────────────

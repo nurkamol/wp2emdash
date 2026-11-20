@@ -31,6 +31,8 @@ import type { BlogPlan } from "../transform/blog.js";
 import type { CptPlan } from "../transform/cpt.js";
 import { validateRss } from "../verify/feeds.js";
 import { mapLimit } from "../audit/http.js";
+import type { CommentsPlan } from "../transform/comments.js";
+import { commentCountProblem } from "../verify/comments.js";
 import { diffSections, groupSections, type SectionDiff } from "../verify/sections.js";
 import { type CacheProbe, cacheMisses, measurePayload, median, type PayloadResult, probeCache } from "../verify/perf.js";
 import { liveTrackers, pageRuntime, type PageRuntime, runtimeAnalyticsProblem } from "../verify/runtime.js";
@@ -355,6 +357,21 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 				entryProblems.push(`${x.path}: ${(e as Error).message.split("\n")[0]}`);
 			}
 		});
+		// Comments: every published entry with migrated comments shows that many (check `comments`).
+		const commentsIr = readJson<CommentsPlan>(join(paths.ir, "comments.json"));
+		const commentPages = commentsIr?.migrate ? commentsIr.entries.filter((e) => e.approved > 0 && e.path && published.has(e.path)) : [];
+		const commentProblems: string[] = [];
+		await mapLimit(commentPages, Math.max(4, config.audit.concurrency), async (e) => {
+			try {
+				const res = await kitFetch(`${base}${e.path}`, { redirect: "manual" });
+				const html = await res.text();
+				if (res.status !== 200) return void commentProblems.push(`${e.path} HTTP ${res.status}`);
+				const p = commentCountProblem(html, e.approved);
+				if (p) commentProblems.push(`${e.path}: ${p}`);
+			} catch (err) {
+				commentProblems.push(`${e.path}: ${(err as Error).message.split("\n")[0]}`);
+			}
+		});
 		const postProblems: string[] = [];
 		const feedProblems: string[] = [];
 		let feedsChecked = 0;
@@ -578,6 +595,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			check("feeds", "RSS feeds (site, archives) are valid RSS 2.0 with the newest posts; autodiscovery link present", feedProblems.length === 0 && feedsChecked > 0, feedProblems.slice(0, 6).join("; ") || `${feedsChecked} feeds`);
 		}
 		if (cptIr?.collections.length) check("entries", "Every published custom post type entry answers at its WordPress address with its title; archives answer 200", entryProblems.length === 0, entryProblems.slice(0, 6).join("; ") || `${irEntries.length} entries, ${archivePaths.length} archive(s)`);
+		if (commentPages.length) check("comments", "Every published entry with migrated comments shows them (approved count per entry)", commentProblems.length === 0, commentProblems.slice(0, 6).join("; ") || `${commentPages.reduce((n, e) => n + e.approved, 0)} comments on ${commentPages.length} entr${commentPages.length === 1 ? "y" : "ies"}`);
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);
 		// Gate on sections where we can pair them; whole-page difference where we cannot (e.g. Gutenberg pages).
 		const sectionFails = results.flatMap((r) => Object.entries(r.sections).flatMap(([vp, list]) => list.filter((x) => x.ratio > g.visualDiff).map((x) => ({ text: `${r.path} ${vp} ${x.label} (${x.types.join("+")}) ${(x.ratio * 100).toFixed(1)}%`, ratio: x.ratio }))));

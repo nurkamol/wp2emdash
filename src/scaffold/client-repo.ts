@@ -69,6 +69,8 @@ export interface ClientRepoInput {
 	blog?: { index: string; archives: { label: string; base: string }[]; authorBase?: string; feedFull: boolean };
 	/** Collections made from WordPress custom post types (docs/editing-custom-content.md). */
 	collections?: { label: string; labelSingular: string; slug: string; archive?: string; base?: string; fields: { label: string; type: string }[]; hierarchical: boolean; taxonomies: string[] }[];
+	/** WordPress comments migrated or a comment form on (docs/moderating-comments.md): per collection, counts only. */
+	comments?: { collections: { slug: string; form: boolean; moderation: "all" | "first_time" | "none"; closedAfterDays: number; approved: number }[]; turnstile: boolean };
 }
 
 const md = (body: string) => `<!-- ${MARKER}. Delete this line to take the file over: later scaffold runs then leave it alone. -->\n${body.trim()}\n`;
@@ -536,6 +538,7 @@ A published post shows up in all of them within a moment: publishing clears the 
 	}
 
 	if (i.collections?.length) files["docs/editing-custom-content.md"] = md(customContentGuide(i.collections));
+	if (i.comments?.collections.length) files["docs/moderating-comments.md"] = md(commentsGuide(i.comments));
 
 	files["docs/forms-and-integrations.md"] = md(`
 # Forms and integrations
@@ -1061,6 +1064,57 @@ const FIELD_HELP: Record<string, string> = {
 	repeater: "a list of rows; add, remove and reorder rows",
 	json: "data kept exactly as WordPress stored it (edit with care, or ask your developer)",
 };
+
+const MODERATION_HELP = { all: "every new comment waits for approval", first_time: "a visitor's first comment waits for approval; once one of theirs is approved, the next ones appear straight away", none: "new comments appear straight away (spam protection still runs)" } as const;
+
+/** docs/moderating-comments.md: where comments are, how to moderate them, what the form does with visitors' data. */
+export function commentsGuide(c: NonNullable<ClientRepoInput["comments"]>): string {
+	const rows = c.collections.map((x) => `| ${x.slug} | ${x.approved} | ${x.form ? `on — ${MODERATION_HELP[x.moderation]}` : "off (comments are shown, no new ones)"} | ${x.form ? (x.closedAfterDays ? `${x.closedAfterDays} days after publishing` : "never") : "—"} |`).join("\n");
+	const anyForm = c.collections.some((x) => x.form);
+	return `
+# Moderating comments
+
+The comments your WordPress site had are here, under the same posts, with their original date and author name. Replies
+are kept one level deep: an answer to an answer sits in the same thread as the first answer.
+
+| Collection | Comments migrated | Comment form | Closes |
+|---|---|---|---|
+${rows}
+
+## Where they are
+
+Admin → **Comments**. The tabs are **Pending** (waiting for you), **Approved** (shown on the site), **Spam** and
+**Trash**. Each comment shows its author, the entry it belongs to and the text. Tick several and use the bulk buttons
+to approve, mark as spam or move to the trash; **Delete** removes a comment for good (its replies go with it).
+
+An approved comment shows on the page within a moment: approving clears the page from the cache.
+
+${anyForm ? `## New comments
+
+Visitors comment with a name, an e-mail address and the text. ${c.turnstile ? "A Cloudflare Turnstile check (usually invisible) stops automated posting; " : ""}a hidden trap field catches simple bots, and one visitor can post at most five comments in ten minutes. Depending on the setting above, a new comment either appears straight away or waits in **Pending**.
+
+- **Close comments on one entry:** open it and tick **Comments closed**. Its comments still show; the form disappears and
+  new comments are refused.
+- **Change the rules for all entries** (approval, closing after a number of days, the form on or off): ask your
+  developer — these are collection settings.
+
+## Visitors' data
+
+A commenter's e-mail address is stored with the comment so you can tell repeat commenters apart; it is never shown on
+the site, and the kit never copies it into reports or logs. The IP address is not stored (only a one-way fingerprint
+used for the rate limit). The form says so next to the button and links to your privacy policy. When someone asks for
+their comments to be removed, find them in **Comments** (search by name or address) and delete them.
+` : `## No new comments
+
+The comment form is off: the site shows the migrated comments, and visitors cannot add new ones. Ask your developer to
+switch it on.
+`}
+## Backups
+
+Comments are not in the nightly backups (they hold visitors' personal data). Cloudflare D1 Time Travel (30 days)
+restores the whole database, comments included, if something goes badly wrong — ask your developer.
+`;
+}
 
 /** docs/editing-custom-content.md: one section per collection made from a WordPress custom post type. */
 export function customContentGuide(cols: NonNullable<ClientRepoInput["collections"]>): string {

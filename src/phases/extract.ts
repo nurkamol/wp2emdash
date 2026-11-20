@@ -45,6 +45,8 @@ export interface ExporterPost {
 	rankmath?: Record<string, string>;
 	yoast?: Record<string, string>;
 	author?: unknown;
+	/** "open" | "closed" (Exporter 1.2): whether the entry took new comments. */
+	comment_status?: string;
 }
 
 export interface ExporterMedia {
@@ -265,6 +267,13 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 		if (!(e instanceof WpHttpError && e.status === 404)) throw e;
 	}
 	write(join(exp, "comments.json"), comments);
+	// Discussion settings REST exposes (whether new posts take comments); the rest comes from a backup (import-options).
+	rmSync(join(exp, "discussion.json"), { force: true });
+	if (comments.length) {
+		const wpSettings = await client.tryGet<Record<string, unknown>>("wp/v2/settings").catch(() => undefined);
+		const discussion = Object.fromEntries(["default_comment_status", "default_ping_status"].flatMap((k) => (wpSettings && typeof wpSettings[k] === "string" ? [[k, wpSettings[k]]] : [])));
+		if (Object.keys(discussion).length) write(join(exp, "discussion.json"), discussion);
+	}
 	reporter.emit({ type: "step:end", step: "Options, menus, taxonomies", ok: true, detail: `${menus.length} menus, ${comments.length} comments` });
 	const auditMenu = readJson<{ found?: boolean }[]>(join(paths.snapshot, "interactions.json"));
 	const siteHasMenu = Array.isArray(auditMenu) ? auditMenu.some((m) => m?.found) : true;

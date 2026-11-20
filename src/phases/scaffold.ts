@@ -39,6 +39,7 @@ import { customStylesheet } from "../transform/custom-css.js";
 import type { WpUrlRules } from "../transform/wp-urls.js";
 import { type BlogPlan, starterBlogConfig } from "../transform/blog.js";
 import { type CptPlan, starterCollectionsConfig } from "../transform/cpt.js";
+import { type CommentsPlan, starterCommentsConfig } from "../transform/comments.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
 
@@ -296,6 +297,12 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const posts = blogPlan ? loadDir("posts").filter((p) => p.kind === "post" && p.post) : [];
 	// Custom post types (transform wrote ir/collections.json): their collections, entries, archives.
 	const cptPlan = readJson<CptPlan>(join(ir, "collections.json"));
+	// WordPress comments (transform wrote ir/comments.json only when WordPress had comments).
+	const commentsFile = readJson<CommentsPlan & { items: unknown[] }>(join(ir, "comments.json"));
+	const commentsShown = commentsFile ? starterCommentsConfig(commentsFile) : undefined;
+	const commentsSite = commentsShown && commentsFile && commentsFile.collections.some((c) => c.form || (commentsFile.migrate && c.approved)) ? commentsShown : undefined;
+	/** The import route (@wp2emdash/comments) ships only while there are comments to import. */
+	const commentsImport = !!commentsFile?.migrate && commentsFile.items.length > 0;
 	const entries = (cptPlan?.collections ?? []).flatMap((c) => loadDir(`entries/${c.slug}`)).filter((p) => p.kind === "entry" && p.entry);
 	const partials = site.partials.map((p) => readJson<IrPage>(join(ir, p.file))).filter((p): p is IrPage => !!p);
 	const popups = site.popups.map((p) => readJson<IrPage>(join(ir, p.file))).filter((p): p is IrPage => !!p);
@@ -404,6 +411,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		wpIds: Object.fromEntries([...pages, ...posts.filter((p) => p.post?.visibility === "public"), ...entries].flatMap((p) => (p.source.wpId && p.route?.path && p.source.status === "publish" ? [[String(p.source.wpId), p.route.path]] : []))),
 		...(blogPlan ? { blog: starterBlogConfig(blogPlan) } : {}),
 		...(cptPlan && starterCollectionsConfig(cptPlan).length ? { collections: starterCollectionsConfig(cptPlan) } : {}),
+		...(commentsSite ? { comments: commentsSite } : {}),
 		...(Object.keys(verification).length ? { verification } : {}),
 		// Structured data: the business (from the live site's JSON-LD) and each page's schema type (AboutPage, ContactPage…).
 		structuredData: {
@@ -524,6 +532,12 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		cpSync(join(KIT_ROOT, "packages", "media"), join(project, "packages", "media"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
 		reporter.emit({ type: "log", level: "info", message: `media assistant on (@wp2emdash/media): AI alt text ${mediaAssistant.aiAlt ? "on (Workers AI binding AI)" : config.sensitiveData ? "off (sensitiveData)" : "off"}, upload queue ${mediaAssistant.autoOptimize ? "on" : "off"}, max ${mediaAssistant.limits?.maxDimension ?? 2500} px` });
 	}
+	// WordPress comments import route (@wp2emdash/comments): only while the site has comments to import.
+	rmSync(join(project, "packages", "comments"), { recursive: true, force: true });
+	if (commentsImport) {
+		cpSync(join(KIT_ROOT, "packages", "comments"), join(project, "packages", "comments"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
+		reporter.emit({ type: "log", level: "info", message: `comments import route on (@wp2emdash/comments): ${commentsFile?.items.length} comment(s) to load; forms ${commentsFile?.collections.map((c) => `${c.slug} ${c.form ? "on" : "off"}`).join(", ")}` });
+	}
 	// Change requests (@wp2emdash/change-requests, on by default); changeRequests: false turns it off.
 	rmSync(join(project, "packages", "change-requests"), { recursive: true, force: true });
 	const changeRequests = changeRequestsOptions({ config, productionUrl: siteConfig.productionUrl, collections: blogPlan ? ["pages", "posts"] : ["pages"] });
@@ -596,7 +610,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Seed (with the migrated content for local preview)
 	const sep = /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-";
 	const drops: string[] = [];
-	const seed = buildSeed({ name: config.name, site, pages, partials, popups, media, titleSeparator: sep, forms, includeContent: true, onDrop: (m) => drops.push(m), ...(blogPlan ? { blog: { plan: blogPlan, posts } } : {}), ...(cptPlan?.collections.length ? { collections: { plan: cptPlan, entries } } : {}) });
+	const seed = buildSeed({ name: config.name, site, pages, partials, popups, media, titleSeparator: sep, forms, includeContent: true, onDrop: (m) => drops.push(m), ...(blogPlan ? { blog: { plan: blogPlan, posts } } : {}), ...(cptPlan?.collections.length ? { collections: { plan: cptPlan, entries } } : {}), ...(commentsFile?.collections.some((c) => c.form) ? { comments: { form: commentsFile.collections.filter((c) => c.form).map((c) => c.slug) } } : {}) });
 	for (const d of drops) reporter.emit({ type: "log", level: "info", message: `not stored (no matching field): ${d}` });
 	write(join(project, "seed", "seed.json"), seed);
 
@@ -637,6 +651,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			...(backups ? { "@wp2emdash/backups": "link:./packages/backups" } : {}),
 			...(mediaAssistant ? { "@wp2emdash/media": "link:./packages/media" } : {}),
 			...(changeRequests ? { "@wp2emdash/change-requests": "link:./packages/change-requests" } : {}),
+			...(commentsImport ? { "@wp2emdash/comments": "link:./packages/comments" } : {}),
 			...Object.fromEntries(config.sandboxedPlugins.map((sp) => [sp.package, sp.version])),
 			astro: STACK.astro,
 			emdash: STACK.emdash,
@@ -659,7 +674,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig${sessions.store === "r2" ? ", sessionDrivers" : ""} } from "astro/config";
-import emdash from "emdash/astro";${ap.imports}${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${health ? '\nimport { healthPlugin } from "@wp2emdash/health";' : ""}${consent ? '\nimport { consentPlugin } from "@wp2emdash/consent";' : ""}${backups ? '\nimport { backupsPlugin } from "@wp2emdash/backups";' : ""}${mediaAssistant ? '\nimport { mediaPlugin } from "@wp2emdash/media";' : ""}${changeRequests ? '\nimport { changeRequestsPlugin } from "@wp2emdash/change-requests";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
+import emdash from "emdash/astro";${ap.imports}${config.forms.outbox ? '\nimport { formsPlugin } from "@wp2emdash/forms";' : ""}${og ? '\nimport { ogPlugin } from "@wp2emdash/og";' : ""}${seoPanel ? '\nimport { seoPlugin } from "@wp2emdash/seo";' : ""}${health ? '\nimport { healthPlugin } from "@wp2emdash/health";' : ""}${consent ? '\nimport { consentPlugin } from "@wp2emdash/consent";' : ""}${backups ? '\nimport { backupsPlugin } from "@wp2emdash/backups";' : ""}${mediaAssistant ? '\nimport { mediaPlugin } from "@wp2emdash/media";' : ""}${changeRequests ? '\nimport { changeRequestsPlugin } from "@wp2emdash/change-requests";' : ""}${commentsImport ? '\nimport { commentsPlugin } from "@wp2emdash/comments";' : ""}${sandboxed.length ? `\nimport { sandbox } from "@emdash-cms/cloudflare";\n${sandboxed.map((sp, i) => `import sandboxed${i} from ${JSON.stringify(sp.package)};`).join("\n")}\n\n// Sandboxed plugins (reviewed, pinned in kit.config.ts), per environment: the build picks the environment (CLOUDFLARE_ENV).\nconst buildEnv = process.env.CLOUDFLARE_ENV || "production";\nconst sandboxedHere = [${sandboxed.map((sp, i) => `[sandboxed${i}, ${JSON.stringify(sp.environments)}]`).join(", ")}].filter(([, envs]) => envs.includes(buildEnv)).map(([p]) => p);` : ""}
 
 export default defineConfig({
 	site: ${JSON.stringify(siteConfig.productionUrl)},
@@ -673,15 +688,15 @@ ${sess.options}${ap.options}	integrations: [
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
-			mcp: false,${config.forms.outbox || og || seoPanel || health || consent || backups || mediaAssistant || changeRequests ? `
+			mcp: false,${config.forms.outbox || og || seoPanel || health || consent || backups || mediaAssistant || changeRequests || commentsImport ? `
 			// Admin plugins: Form messages (form outbox, admins only — @wp2emdash/forms), Sharing images (@wp2emdash/og),
 			// SEO & Analytics (@wp2emdash/seo): editor panel, dashboard, tracking codes, conversion events, Visits;
 			// Site health (@wp2emdash/health, admins only): scheduled checks, alerts, monthly report.
 			// Privacy & consent (@wp2emdash/consent, admins only): cookie banner mode, wording, consent log;
 			// Backups (@wp2emdash/backups, admins only): nightly backups to R2, downloads, restore with a preview.
 			// Media (@wp2emdash/media, editors and admins): media health, optimize, alt text suggestions, media trash.
-			// Change requests (@wp2emdash/change-requests, editors and admins): ask the agency for changes, follow the status.
-			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : "", health ? `healthPlugin(${JSON.stringify(health)})` : "", consent ? `consentPlugin(${JSON.stringify(consent.options)})` : "", backups ? `backupsPlugin(${JSON.stringify(backups)})` : "", mediaAssistant ? `mediaPlugin(${JSON.stringify(mediaAssistant)})` : "", changeRequests ? `changeRequestsPlugin(${JSON.stringify(changeRequests)})` : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
+			// Change requests (@wp2emdash/change-requests, editors and admins): ask the agency for changes, follow the status.${commentsImport ? "\n\t\t\t// WordPress comments import (@wp2emdash/comments, admins and admin API tokens): the load phase's import route." : ""}
+			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : "", health ? `healthPlugin(${JSON.stringify(health)})` : "", consent ? `consentPlugin(${JSON.stringify(consent.options)})` : "", backups ? `backupsPlugin(${JSON.stringify(backups)})` : "", mediaAssistant ? `mediaPlugin(${JSON.stringify(mediaAssistant)})` : "", changeRequests ? `changeRequestsPlugin(${JSON.stringify(changeRequests)})` : "", commentsImport ? "commentsPlugin()" : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
 			// Only the reviewed plugins above: no installs from the public registry through the admin.
 			...(sandboxedHere.length ? { sandboxed: sandboxedHere, sandboxRunner: sandbox(), registry: false } : {}),` : ""}
 		}),
@@ -735,6 +750,7 @@ ${sess.options}${ap.options}	integrations: [
 			sensitiveData: config.sensitiveData,
 			...(blogPlan ? { blog: { index: blogPlan.index, archives: blogPlan.taxonomies.map((t) => ({ label: t.label, base: t.base })), ...(blogPlan.bylines.length ? { authorBase: blogPlan.authorBase } : {}), feedFull: blogPlan.feed.full } } : {}),
 			...(cptPlan?.collections.length ? { collections: cptPlan.collections.map((c) => ({ label: c.label, labelSingular: c.labelSingular, slug: c.slug, ...(c.archive && c.routable ? { archive: c.archive } : {}), ...(c.base && c.routable ? { base: c.base } : {}), fields: c.fields.map((f) => ({ label: f.label, type: f.type })), hierarchical: c.hierarchical, taxonomies: c.taxonomies.map((t) => t.label) })) } : {}),
+			...(commentsSite && commentsFile ? { comments: { collections: commentsFile.collections.map((c) => ({ slug: c.slug, form: c.form, moderation: c.moderation, closedAfterDays: c.closedAfterDays, approved: commentsFile.migrate ? c.approved : 0 })), turnstile: !!config.forms.turnstileSiteKey } } : {}),
 			stack: { node: STACK.node, astro: STACK.astro, emdash: STACK.emdash, wrangler: STACK.wrangler },
 		}),
 	);

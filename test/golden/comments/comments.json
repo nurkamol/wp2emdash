@@ -1,0 +1,160 @@
+{
+	"migrate": true,
+	"decided": false,
+	"needsDecision": false,
+	"includePending": false,
+	"settings": {
+		"defaultOpen": true,
+		"moderation": "first_time",
+		"closedAfterDays": 30,
+		"registration": false,
+		"threadDepth": 3,
+		"source": "REST settings + backup options"
+	},
+	"collections": [
+		{
+			"slug": "pages",
+			"form": false,
+			"moderation": "first_time",
+			"closedAfterDays": 30,
+			"approved": 1,
+			"pending": 0,
+			"why": "off: comments were closed in WordPress"
+		},
+		{
+			"slug": "posts",
+			"form": true,
+			"moderation": "first_time",
+			"closedAfterDays": 30,
+			"approved": 5,
+			"pending": 0,
+			"why": "on: WordPress took comments"
+		}
+	],
+	"entries": [
+		{
+			"key": "page:2",
+			"collection": "pages",
+			"slug": "home",
+			"path": "/",
+			"approved": 1,
+			"pending": 0,
+			"closed": false
+		},
+		{
+			"key": "post:10",
+			"collection": "posts",
+			"slug": "hello-gutenberg",
+			"path": "/hello-gutenberg/",
+			"approved": 3,
+			"pending": 0,
+			"closed": false
+		},
+		{
+			"key": "post:11",
+			"collection": "posts",
+			"slug": "classic-notes",
+			"path": "/classic-notes/",
+			"approved": 2,
+			"pending": 0,
+			"closed": true
+		}
+	],
+	"counts": {
+		"found": 12,
+		"approved": 8,
+		"pending": 1,
+		"imported": 6,
+		"skipped": {
+			"pending": 1,
+			"spam": 1,
+			"pingback": 1,
+			"entry-not-migrated": 1,
+			"trash": 1,
+			"empty": 1
+		},
+		"flattened": 1,
+		"reparented": 1,
+		"authorUrls": 2
+	},
+	"items": [
+		{
+			"wpId": 101,
+			"id": "01HXKAMZ00BZQB1C6QBG3PGQDP",
+			"entry": "post:10",
+			"collection": "posts",
+			"parentId": null,
+			"parentWpId": null,
+			"authorName": "Ana Reader",
+			"authorEmail": "ana@example.test",
+			"body": "Great post! I tried the routine this morning.",
+			"createdAt": "2024-05-11T08:00:00.000Z",
+			"status": "approved"
+		},
+		{
+			"wpId": 102,
+			"id": "01HXKFSRE084HCXE16YGXMESRS",
+			"entry": "post:10",
+			"collection": "posts",
+			"parentId": "01HXKAMZ00BZQB1C6QBG3PGQDP",
+			"parentWpId": 101,
+			"authorName": "Jane Writer",
+			"authorEmail": "jane@example.test",
+			"body": "Thanks & welcome!\n\nMore in the notes (https://blog.example.test/classic-notes/).",
+			"createdAt": "2024-05-11T09:30:00.000Z",
+			"status": "approved"
+		},
+		{
+			"wpId": 103,
+			"id": "01HXNTF990N9YJKS1C0VVJMVKA",
+			"entry": "post:10",
+			"collection": "posts",
+			"parentId": "01HXKAMZ00BZQB1C6QBG3PGQDP",
+			"parentWpId": 101,
+			"authorName": "Ana Reader",
+			"authorEmail": "ana@example.test",
+			"body": "Will read it, thanks.\nSee https://example.test/a.",
+			"createdAt": "2024-05-12T07:15:00.000Z",
+			"status": "approved"
+		},
+		{
+			"wpId": 107,
+			"id": "01HZC2TMM07VH9JD8ZMRC8GA2H",
+			"entry": "post:11",
+			"collection": "posts",
+			"parentId": null,
+			"parentWpId": null,
+			"authorName": "Sam & Co",
+			"authorEmail": "sam@example.test",
+			"body": "Lovely notes.",
+			"createdAt": "2024-06-02T09:00:00.000Z",
+			"status": "approved"
+		},
+		{
+			"wpId": 108,
+			"id": "01HZEN7BM0EGJ7MN2XSPAW7ZB9",
+			"entry": "post:11",
+			"collection": "posts",
+			"parentId": null,
+			"parentWpId": null,
+			"authorName": "Lee",
+			"authorEmail": "lee@example.test",
+			"body": "Agreed.",
+			"createdAt": "2024-06-03T09:00:00.000Z",
+			"status": "approved"
+		},
+		{
+			"wpId": 110,
+			"id": "01HNJ8MHG0AK202QXJEATYWWN9",
+			"entry": "page:2",
+			"collection": "pages",
+			"parentId": null,
+			"parentWpId": null,
+			"authorName": "Visitor",
+			"authorEmail": "visitor@example.test",
+			"body": "Nice studio!",
+			"createdAt": "2024-02-01T12:00:00.000Z",
+			"status": "approved"
+		}
+	]
+}

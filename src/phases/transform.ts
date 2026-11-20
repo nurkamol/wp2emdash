@@ -28,6 +28,7 @@ import { fieldGroups } from "../transform/cpt-sources.js";
 import { fieldsForType } from "../transform/cpt-fields.js";
 import { type CustomCss, customCssFromHtml, customCssReport, describeCss } from "../transform/custom-css.js";
 import { baseOf, buildWpUrlPlan, type WpUrlInput, wpUrlsReport } from "../transform/wp-urls.js";
+import { type CommentsPlan, type CommentTarget, commentsGate, commentsReport, discussionSettings, planComments, type WpComment } from "../transform/comments.js";
 import { type BlogByline, blogIndexPath, type BlogPlan, blogReport, blogTaxonomies, bylineSlug, convertPostBody, feedSettings, permalinkPath, type WpTaxonomy, wpGmtToIso } from "../transform/blog.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
@@ -831,8 +832,32 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		check("custom-css", "Customizer Additional CSS carried or dropped by decision", !!overrides.customCss, overrides.customCss ? `${overrides.customCss}: ${(d.bytes / 1024).toFixed(1)} KB, ${d.selectors.length} selectors` : `${(d.bytes / 1024).toFixed(1)} KB, ${d.selectors.length} selectors (e.g. ${d.selectors.slice(0, 4).join(", ")}): decide in overrides.ts customCss "carry" | "drop" (coverage report → Additional CSS)`);
 	}
 
+	// ── Comments: approved WordPress comments → EmDash's comments table (src/transform/comments.ts) ──────────
+	// Only when WordPress has comments: a site without any gets no ir/comments.json, report section or gate.
+	const rawComments = readJson<WpComment[]>(join(exp, "comments.json")) ?? [];
+	let commentsPlan: CommentsPlan | undefined;
+	rmSync(join(paths.ir, "comments.json"), { force: true });
+	if (rawComments.length) {
+		const contentDir = join(exp, "content");
+		const commentStatus = new Map<number, string>();
+		for (const f of existsSync(contentDir) ? readdirSync(contentDir).filter((x) => x.endsWith(".json")) : []) for (const p of readJson<ExporterPost[]>(join(contentDir, f)) ?? []) if (typeof p.comment_status === "string") commentStatus.set(p.id, p.comment_status);
+		const targets: CommentTarget[] = results.flatMap((r) => {
+			const d = r.doc;
+			const collection = d.kind === "entry" && d.entry ? d.entry.collection : d.kind === "post" && blogPlan && d.post ? "posts" : d.kind === "page" || d.kind === "post" ? "pages" : undefined;
+			if (!collection) return [];
+			const status = commentStatus.get(d.source.wpId);
+			return [{ key: `${d.source.type}:${d.source.wpId}`, wpId: d.source.wpId, collection, slug: d.source.slug, ...(d.route?.path ? { path: d.route.path } : {}), published: r.published, ...(status ? { commentStatus: status } : {}) }];
+		});
+		const discussion = discussionSettings(readJson<Record<string, unknown>>(join(exp, "discussion.json")), readJson<Record<string, unknown>>(join(paths.raw, "discussion.json")));
+		const planned = planComments({ comments: rawComments, targets, settings: discussion, ...(overrides.comments ? { decision: overrides.comments } : {}), sensitive: config.sensitiveData, site: new URL(config.source.url).host.replace(/^www\./, "") });
+		commentsPlan = planned.plan;
+		write(join(paths.ir, "comments.json"), { ...planned.plan, items: planned.items });
+		const g = commentsGate(planned.plan);
+		check("comments", "WordPress comments imported or decided; spam, pingbacks and pending ones accounted for", g.ok, g.detail);
+	}
+
 	// ── WordPress URLs with no page on the new site: one rule set for the middleware and verify ─────────────
-	const pubPages = results.filter((r) => r.doc.kind === "page" && r.published && r.doc.route);
+	const pubPages =results.filter((r) => r.doc.kind === "page" && r.published && r.doc.route);
 	// Published entries of routable collections are real addresses too (never matched by a rule, like pages).
 	const pubEntries = results.filter((r) => r.doc.kind === "entry" && r.published && r.doc.route);
 	const wpUrlPlan = buildWpUrlPlan({
@@ -842,6 +867,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		...(Number(options.page_for_posts) > 0 ? { blogPageId: Number(options.page_for_posts) } : {}),
 		...(discovery ? { discovery } : {}),
 		overrides,
+		...(commentsPlan?.migrate && commentsPlan.counts.imported ? { comments: true } : {}),
 		trailingSlash: config.target.trailingSlash === "preserve" ? (pubPages.every((r) => r.doc.route?.path === "/" || r.doc.route?.path.endsWith("/")) ? "always" : "never") : config.target.trailingSlash,
 		...(blogPlan
 			? {
@@ -876,12 +902,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		settings: { sources: settings.sources, notCarried: settings.notCarried },
 		contentTypes: inventory,
 		...(cpt.plan ? { collections: cpt.plan.collections.map((c) => ({ type: c.type, slug: c.slug, entries: c.entries, published: c.published, fields: c.fields.map((f) => ({ slug: f.slug, type: f.type, wp: `${f.wp.source}:${f.wp.type}`, ...(f.note ? { note: f.note } : {}) })), unknownMeta: c.unknownMeta, ...(c.archive ? { archive: c.archive } : {}) })) } : {}),
+		...(commentsPlan ? { comments: { migrate: commentsPlan.migrate, ...commentsPlan.counts, collections: commentsPlan.collections.map((c) => ({ slug: c.slug, form: c.form, approved: c.approved, pending: c.pending })) } } : {}),
 		...(blogPlan ? { blog: { index: blogPlan.index, posts: results.filter((r) => r.doc.kind === "post").length, published: results.filter((r) => r.doc.kind === "post" && r.published).length, taxonomies: blogPlan.taxonomies.map((t) => ({ name: t.name, terms: t.terms.length })), bylines: blogPlan.bylines.length, feed: blogPlan.feed, protectedPosts: protectedPosts.length } } : {}),
 		...(customCss?.css ? { customCss: { decision: overrides.customCss ?? null, source: customCss.source, ...describeCss(customCss.css), ...(customCss.inactive ? { inactive: customCss.inactive } : {}) } } : {}),
 		consent: { found: consentPlan.found, keptWidgets: consentPlan.keptWidgets, mode: config.consent === false ? "off" : (config.consent.mode ?? consentPlan.mode), reason: consentPlan.reason },
 		wpUrls: { rules: wpUrlPlan.explain, attachments: Object.keys(wpUrlPlan.rules.attachments ?? {}).length, feedPending: wpUrlPlan.feedPending },
 	});
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...wpUrlsReport(wpUrlPlan), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

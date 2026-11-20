@@ -16,6 +16,9 @@
       "emdash": [
         "./test/stubs/emdash.ts"
       ],
+      "emdash/runtime": [
+        "./test/stubs/emdash-runtime.ts"
+      ],
       "emdash/middleware": [
         "./test/stubs/emdash-middleware.ts"
       ],

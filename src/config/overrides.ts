@@ -91,6 +91,24 @@ export const overridesSchema = z.object({
 	 * loaded after the starter's CSS; drop = not carried. Selectors written for the WordPress theme rarely match.
 	 */
 	customCss: z.enum(["carry", "drop"]).optional(),
+	/**
+	 * WordPress comments (coverage report → Comments). migrate: import approved comments (default on, except on a site
+	 * with sensitiveData, which needs this decision); includePending: also import pending ones into the moderation
+	 * queue; form: the comment form for new comments (default: where WordPress took comments; off on sensitive sites);
+	 * moderation / closedAfterDays: EmDash's collection settings instead of WordPress's discussion settings. A reason is
+	 * required whenever migrate or form is set.
+	 */
+	comments: z
+		.object({
+			migrate: z.boolean().optional(),
+			includePending: z.boolean().optional(),
+			form: z.boolean().optional(),
+			moderation: z.enum(["all", "first_time", "none"]).optional(),
+			closedAfterDays: z.number().int().min(0).optional(),
+			reason: z.string().min(3, "give the owner's reason").optional(),
+		})
+		.refine((c) => (c.migrate === undefined && c.form === undefined) || !!c.reason, { message: "give the owner's reason (comments.reason) for comments.migrate / comments.form" })
+		.optional(),
 });
 
 function decision<T extends string>(values: [T, ...T[]]) {

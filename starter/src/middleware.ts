@@ -14,6 +14,8 @@ import { typesOf } from "@wp2emdash/seo/analytics/trackers";
 import { pageAnalytics } from "./utils/analytics";
 import { REGION_PATH, regionResponse } from "./utils/consent";
 import announcementScript from "./scripts/inline/announcement.js?raw";
+import { commentPostTarget } from "./utils/comments";
+import { commentsConfig } from "./utils/comments-data";
 
 /**
  * Content-Security-Policy. Scripts and frames: this site, Cloudflare Turnstile and the embed providers the
@@ -136,7 +138,26 @@ function imageOriginal(url: URL): string | undefined {
 	}
 }
 
+/**
+ * An entry closed to new comments ("Comments closed", from WordPress's comment status): EmDash only knows per-collection
+ * settings, so its public comments endpoint is refused here for that entry, with EmDash's own error shape.
+ */
+async function commentsClosed(collection: string, id: string): Promise<boolean> {
+	try {
+		const { getDb } = await import("emdash/runtime");
+		const db = (await getDb()) as unknown as { selectFrom(t: string): { select(c: string[]): { where(c: string, op: string, v: string): { executeTakeFirst(): Promise<{ comments_closed?: number | boolean | null } | undefined> } } } };
+		const row = await db.selectFrom(`ec_${collection}`).select(["comments_closed"]).where("id", "=", id).executeTakeFirst();
+		return row?.comments_closed === 1 || row?.comments_closed === true;
+	} catch {
+		return false; // no such field (form off for that collection): EmDash's own checks decide
+	}
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
+	if (commentsConfig && context.request.method === "POST") {
+		const target = commentPostTarget(context.url.pathname, commentsConfig);
+		if (target && (await commentsClosed(target.collection, target.id))) return Response.json({ error: { code: "COMMENTS_CLOSED", message: "Comments are closed for this content" } }, { status: 403, headers: { "Cache-Control": "private, no-store" } });
+	}
 	// Consent banner, mode "auto": the visitor's opt-in rule from Cloudflare's geolocation of this request. Answered
 	// here, never from the route cache and never stored by a browser or CDN (no-store), so pages stay one cached HTML
 	// for everyone (docs/spikes/consent-findings.md).

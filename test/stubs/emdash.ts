@@ -57,3 +57,8 @@ export interface PluginResponse {
 export function pluginResponse(init: { status?: number; headers?: Record<string, string>; body?: { kind: "text"; value: string } | { kind: "bytes"; value: Uint8Array } }): PluginResponse {
 	return { __emdashPluginResponse: true, status: init.status ?? 200, headers: Object.entries(init.headers ?? {}), body: init.body ?? null };
 }
+/** EmDash invalidates its comment object cache after writing comments; tests count the calls. */
+export const commentCacheInvalidations = { count: 0 };
+export function invalidateCommentObjectCache(): void {
+	commentCacheInvalidations.count++;
+}

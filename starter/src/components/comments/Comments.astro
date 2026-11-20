@@ -1,0 +1,145 @@
+---
+/**
+ * Comments under a post, page or entry (site.config.json `comments`; utils/comments.ts): the approved comments, threaded
+ * one level as EmDash stores them, and — where the collection takes new comments and the entry is not closed — the
+ * form. Server-rendered in the cached page (EmDash purges it when a comment is approved); the form posts to EmDash's
+ * uncached public endpoint with JavaScript (scripts/comments.ts), so without JavaScript it stays hidden and a note
+ * says why. No third-party scripts except Cloudflare Turnstile, when the site has a key.
+ */
+import { getComments } from "emdash";
+import { env } from "cloudflare:workers";
+import site from "../../site.config.json";
+import { bodyParts, commentsEndpoint, commentsHeading, formOpen, showsComments } from "../../utils/comments";
+import { commentsConfig } from "../../utils/comments-data";
+
+interface Props {
+	collection: string;
+	/** The entry's EmDash id (data.id). */
+	contentId: string;
+	/** The entry's "Comments closed" field. */
+	closed?: unknown;
+	/** The entry's publish date (comments close that many days after it, when the collection says so). */
+	publishedAt?: Date | string | null;
+}
+const { collection, contentId, closed, publishedAt } = Astro.props;
+const shown = showsComments(commentsConfig, collection) && !!contentId;
+const { items, total } = shown ? await getComments({ collection, contentId, threaded: true }).catch(() => ({ items: [], total: 0 })) : { items: [], total: 0 };
+const form = shown && formOpen(commentsConfig, collection, closed, publishedAt);
+const siteKey = form ? (env as { TURNSTILE_SITE_KEY?: string }).TURNSTILE_SITE_KEY : undefined;
+const policy = (site as { consent?: { defaults?: { policy?: string } } }).consent?.defaults?.policy;
+const lang = (site as { lang?: string }).lang ?? "en";
+const fmt = new Intl.DateTimeFormat(lang, { year: "numeric", month: "long", day: "numeric" });
+const date = (iso: string) => {
+	const d = new Date(iso);
+	return Number.isNaN(d.getTime()) ? iso : fmt.format(d);
+};
+type C = { id: string; authorName: string; body: string; createdAt: string; replies?: C[] };
+const list = items as C[];
+---
+
+{
+	shown && (total > 0 || form) && (
+		<section class="section space-normal comments" id="comments" aria-labelledby="comments-heading" data-comment-count={total}>
+			<div class="container container--narrow">
+				<h2 id="comments-heading" class="heading heading--h3">{commentsHeading(total)}</h2>
+				{list.length > 0 && (
+					<ol class="comments__list">
+						{list.map((c) => (
+							<li class="comments__item">
+								<article class="comment" id={`comment-${c.id}`} aria-label={`Comment by ${c.authorName}`}>
+									<header class="comment__meta">
+										<span class="comment__author">{c.authorName}</span>
+										<time class="comment__date" datetime={c.createdAt}>{date(c.createdAt)}</time>
+									</header>
+									<div class="comment__body">
+										{bodyParts(c.body).paragraphs.map((p) => (
+											<p>{p.map((x) => (x.br ? <br /> : x.href ? <a href={x.href} rel="nofollow ugc noopener">{x.text}</a> : x.text))}</p>
+										))}
+									</div>
+									{form && <button type="button" class="comment__reply" data-reply-to={c.id} data-reply-name={c.authorName} hidden>Reply<span class="visually-hidden"> to {c.authorName}</span></button>}
+								</article>
+								{(c.replies ?? []).length > 0 && (
+									<ol class="comments__replies">
+										{(c.replies ?? []).map((r) => (
+											<li class="comments__item">
+												<article class="comment comment--reply" id={`comment-${r.id}`} aria-label={`Reply by ${r.authorName}`}>
+													<header class="comment__meta">
+														<span class="comment__author">{r.authorName}</span>
+														<time class="comment__date" datetime={r.createdAt}>{date(r.createdAt)}</time>
+													</header>
+													<div class="comment__body">
+														{bodyParts(r.body).paragraphs.map((p) => (
+															<p>{p.map((x) => (x.br ? <br /> : x.href ? <a href={x.href} rel="nofollow ugc noopener">{x.text}</a> : x.text))}</p>
+														))}
+													</div>
+												</article>
+											</li>
+										))}
+									</ol>
+								)}
+							</li>
+						))}
+					</ol>
+				)}
+				{form ? (
+					<>
+						<form class="form comments__form" data-comments-form data-endpoint={commentsEndpoint(collection, contentId)} aria-labelledby="comment-form-heading" novalidate hidden>
+							<h3 id="comment-form-heading" class="heading heading--h4 comments__form-heading">Leave a comment</h3>
+							<p class="comments__replying" data-replying hidden>
+								<span data-replying-text />
+								<button type="button" class="comments__cancel" data-reply-cancel>Cancel reply</button>
+							</p>
+							<label class="field field--text field--half">
+								<span class="field__label">Name<span aria-hidden="true"> *</span></span>
+								<input type="text" name="authorName" required maxlength="100" autocomplete="name" />
+							</label>
+							<label class="field field--email field--half">
+								<span class="field__label">E-mail (not published)<span aria-hidden="true"> *</span></span>
+								<input type="email" name="authorEmail" required maxlength="254" autocomplete="email" />
+							</label>
+							<label class="field field--textarea">
+								<span class="field__label">Comment<span aria-hidden="true"> *</span></span>
+								<textarea name="body" required maxlength="5000" rows="5" />
+							</label>
+							<input type="hidden" name="parentId" value="" />
+							<input type="text" name="website_url" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true" />
+							<p class="form__notice">
+								Your name and comment are shown with the post; your e-mail address is not. Comments may be checked before they appear.
+								{policy && <> See the <a href={policy}>privacy policy</a>.</>}
+							</p>
+							{siteKey && <div class="cf-turnstile" data-sitekey={siteKey} data-theme="light" />}
+							<button type="submit" class="btn btn--primary">Post comment</button>
+							<p class="form__status" role="status" aria-live="polite" />
+						</form>
+						<noscript>
+							<p class="comments__noscript">Commenting needs JavaScript (it runs the spam check).</p>
+						</noscript>
+					</>
+				) : (
+					<p class="comments__closed">Comments are closed.</p>
+				)}
+			</div>
+		</section>
+	)
+}
+{form && siteKey && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>}
+<script>
+	import "../../scripts/comments";
+</script>
+
+<style>
+	.container--narrow { max-width: min(100% - 2 * var(--gutter), 46rem); }
+	.comments { border-top: 1px solid var(--color-line); }
+	.comments__list, .comments__replies { list-style: none; margin: 0; padding: 0; }
+	.comments__list { display: grid; gap: 1.5rem; margin-top: 1.5rem; }
+	.comments__replies { display: grid; gap: 1.25rem; margin-top: 1.25rem; padding-left: clamp(1rem, 4vw, 2.5rem); border-left: 2px solid var(--color-line); }
+	.comment__meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; }
+	.comment__author { font-weight: 600; }
+	.comment__date { font-size: var(--font-size-small); opacity: 0.75; }
+	.comment__body { overflow-wrap: anywhere; }
+	.comment__body p { margin: 0.5rem 0 0; }
+	.comment__reply, .comments__cancel { margin-top: 0.5rem; padding: 0.25rem 0; background: none; border: 0; color: var(--color-accent); font: inherit; font-size: var(--font-size-small); text-decoration: underline; cursor: pointer; }
+	.comments__form { margin-top: 2.5rem; }
+	.comments__form-heading, .comments__replying { grid-column: 1 / -1; margin: 0; }
+	.comments__closed, .comments__noscript { margin: 1.5rem 0 0; font-size: var(--font-size-small); opacity: 0.8; }
+</style>
