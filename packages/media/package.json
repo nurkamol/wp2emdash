@@ -1,0 +1,19 @@
+{
+  "name": "@wp2emdash/media",
+  "version": "0.1.0",
+  "description": "Media Assistant for EmDash on Cloudflare Workers: media health (sizes, alt text, unused files, duplicates, formats, broken references), optimize originals in place through the Images binding with a 30-day backup, reviewed alt text suggestions (Workers AI or file names), focal points and a 30-day media trash (editors and admins)",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./plugin": "./src/plugin/index.ts",
+    "./scan": "./src/scan.ts"
+  },
+  "files": ["src", "README.md"],
+  "peerDependencies": {
+    "emdash": ">=1.5 <2"
+  },
+  "engines": { "node": ">=24" }
+}

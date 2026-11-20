@@ -533,6 +533,28 @@ secrets `BACKUP_S3_ACCESS_KEY_ID` / `BACKUP_S3_SECRET_ACCESS_KEY` (write-only; l
 not EmDash's own Settings → Backups, and what was verified: [docs/spikes/backup-findings.md](docs/spikes/backup-findings.md);
 details: [packages/backups/README.md](packages/backups/README.md).
 
+## Media Assistant (on by default)
+
+Every site gets **Plugins → Media** (editors and admins; `@wp2emdash/media`, an in-house PixelKraft plugin): media
+health (size by type, oversized originals, images without alt text and where each is used, unused files, duplicates,
+formats, broken references — from a read-only scan of the database), **Optimize** (resize + re-encode in place with
+the Images binding through EmDash's own Replace, old file kept 30 days, undo), reviewed **alt text suggestions**
+(Workers AI, or file names and headings; nothing saved until a person marks it), a nine-position **focal point**, and a
+**trash** folder with a 30-day undo (brand files and recent uploads never offered; nothing deleted automatically).
+Every file change is preview → confirm. Site health gets a **Media** check.
+
+```ts
+// sites/<slug>/kit.config.ts
+media: false,
+// or
+media: { aiAlt: false, autoOptimize: true, maxDimension: 3000, protect: ["^partner-"] },
+```
+
+AI alt text is on by default except on `sensitiveData` sites; when on, the scaffold adds `"ai": { "binding": "AI" }`
+to wrangler.jsonc. Optional Worker secret `MEDIA_API_TOKEN` lets the hourly task optimize queued uploads. Client guide:
+`docs/media.md` in the site repo. Facts and limits: [docs/spikes/media-findings.md](docs/spikes/media-findings.md);
+details: [packages/media/README.md](packages/media/README.md).
+
 ## Performance (on by default)
 
 Every generated site ships a performance package (`src/scaffold/perf.ts`; facts and measurements in

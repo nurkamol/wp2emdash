@@ -10,6 +10,7 @@ import { alertEvents, alertMail, type AlertLog, pickAlerts } from "./alerts.js";
 import { analyticsCheck, expectedTrackers } from "./checks/analytics.js";
 import { backupsCheck, readBackupBeat } from "./checks/backups.js";
 import { compareMail, dnsCheck } from "./checks/dns.js";
+import { mediaCheck, readMediaSummary } from "./checks/media.js";
 import { formsCheck, readForms } from "./checks/forms.js";
 import { homeIndexing, indexabilityCheck, parseSiteFiles, sitemapLocs, sitemapPaths } from "./checks/indexability.js";
 import { linksCheck, type LinkJob, resultOf, startJob, stepJob, updateLedger } from "./checks/links.js";
@@ -162,6 +163,13 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 		checks.backups = backupsCheck(!!o.backups, o.backups ? await readBackupBeat(d.self, origin) : undefined, at, now);
 		jobs.backups = at;
 		ran.push("backups");
+	}
+
+	// ── Media (hourly): the Media Assistant's scan counts (one D1 read).
+	if (plan.light.includes("media")) {
+		checks.media = mediaCheck(!!o.media, o.media ? await readMediaSummary(env.DB) : undefined, at, now);
+		jobs.media = at;
+		ran.push("media");
 	}
 
 	// ── Form outbox (every 15 minutes): counts and email status only.

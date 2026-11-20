@@ -58,6 +58,8 @@ export interface HealthOptions {
 	seo?: { titleSeparator?: string; ogCards?: boolean };
 	/** The site runs @wp2emdash/backups: the Backups check reads its heartbeat (time of the last backup). */
 	backups?: boolean;
+	/** The site runs @wp2emdash/media: the Media check reads its scan counts (alt text, oversized, broken). */
+	media?: boolean;
 	/** Mail DNS records at go-live (cutover/dns-before.json), as hashes: never the record values. */
 	mail?: MailBaseline;
 }
