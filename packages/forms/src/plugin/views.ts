@@ -63,7 +63,7 @@ export interface Overview {
 	download?: { url: string; name: string };
 	importReport?: string[];
 	/** Who form messages go to, and whether that is the admin's setting or FORM_TO; `configTo` is FORM_TO itself. */
-	recipients?: { to: string[]; source: "admin" | "config" | "none"; configTo: string[] };
+	recipients?: { to: string[]; source: "admin" | "config" | "none"; configTo: string[]; test?: { host: string; to: string[] } };
 	/** EMAIL_PROVIDER. */
 	provider?: string;
 	recipientErrors?: string[];
@@ -305,6 +305,7 @@ function settings(o: Overview): Block[] {
 				{ label: "Email service", value: provider },
 			],
 		},
+		...(r.test ? [{ type: "context", text: `These recipients get messages sent from ${r.test.host}. Messages sent from any other address (the site's workers.dev address before launch, preview links) are tests: they go only to ${r.test.to.length ? r.test.to.join(", ") : "the test inbox (none set: they are kept here unsent)"}.` }] : []),
 		{ type: "context", text: o.provider === "emdash" ? "Email goes through EmDash's own email settings (Settings → Email), with the sender address set there." : "The email service, its key and the sender address are set in the site's configuration by your developer." },
 	];
 }
@@ -345,6 +346,7 @@ export function message(key: string, q: Queued, status: Status): Block[] {
 		{ type: "header", text: q.subject },
 		{ type: "context", text: `Received ${longDate(q.at)} · form ${q.form}${q.source === "import" ? " · imported" : ""}` },
 		...(q.noEmail ? [{ type: "banner", title: "Kept for reference", description: "Imported without email: this message is never emailed automatically.", variant: "default" }] : []),
+		...(q.test ? [{ type: "banner", title: "Test message", description: "Sent from the site's workers.dev address or a preview link, not from the live domain: it is only ever emailed to the test inbox, never to the site's recipients.", variant: "default" }] : []),
 		{
 			type: "fields",
 			fields: [

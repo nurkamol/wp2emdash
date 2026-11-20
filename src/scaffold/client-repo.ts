@@ -17,6 +17,17 @@ export interface ClientRepoInput {
 	sourceUrl: string;
 	productionUrl: string;
 	workerName: string;
+	/**
+	 * Opt-in staging environment (a second Worker with its own data). Default false: one environment, production, on
+	 * its workers.dev address until go-live (src/core/environments.ts).
+	 */
+	staging?: boolean;
+	/** Production's workers.dev address (cloudflare.json → production.worker.url). */
+	workersDevUrl?: string;
+	/** Single environment: when CI deploys production on a push to main ("prelaunch" = only until go-live). */
+	ciDeploy?: "prelaunch" | "always" | "manual";
+	/** Test inbox (email.stagingTo): staging's recipients, and the single environment's off-domain (test) messages. */
+	testTo?: string[];
 	stagingUrl?: string;
 	/** Fingerprint `emdash migrate --status` prints for the staging D1: lets CI apply migrations without a prompt. */
 	stagingFingerprint?: string;
@@ -42,17 +53,36 @@ export interface ClientRepoInput {
 const md = (body: string) => `<!-- ${MARKER}. Delete this line to take the file over: later scaffold runs then leave it alone. -->\n${body.trim()}\n`;
 const yml = (body: string) => `# ${MARKER}. Delete this line to take the file over: later scaffold runs then leave it alone.\n${body.trim()}\n`;
 
-/** Package scripts the docs and CI rely on (scaffold writes them into package.json). */
-export function deployScripts(fingerprint?: string, productionFingerprint?: string): Record<string, string> {
+/**
+ * Package scripts the docs and CI rely on (scaffold writes them into package.json). None is named "deploy": that is a
+ * pnpm built-in command. Single environment (default): production only, plus the Workers preview-URL review step
+ * (versions:upload → versions:deploy). Opt-in staging: the staging scripts as well (unchanged for existing sites).
+ */
+export function deployScripts(o: { staging: boolean; stagingFingerprint?: string | undefined; productionFingerprint?: string | undefined }): Record<string, string> {
 	const stg = "--wrangler-config wrangler.jsonc --wrangler-env staging";
+	const prod = "--wrangler-config wrangler.jsonc";
 	return {
-		"build:staging": "CLOUDFLARE_ENV=staging astro build",
-		"migrate:staging": `emdash migrate ${stg}`,
-		"deploy:staging": `CLOUDFLARE_ENV=staging astro build && emdash migrate ${stg} && wrangler deploy && emdash migrate --check ${stg}`,
-		// Same steps without the confirmation prompt: the expected target is pinned, so a wrong database fails instead of asking.
-		...(fingerprint ? { "ci:deploy:staging": `CLOUDFLARE_ENV=staging astro build && emdash migrate ${stg} --expected-target-fingerprint=${fingerprint} && wrangler deploy && emdash migrate --check ${stg}` } : {}),
-		"deploy:production": "astro build && emdash migrate --wrangler-config wrangler.jsonc && wrangler deploy && emdash migrate --check --wrangler-config wrangler.jsonc",
-		...(productionFingerprint ? { "ci:deploy:production": `astro build && emdash migrate --wrangler-config wrangler.jsonc --expected-target-fingerprint=${productionFingerprint} && wrangler deploy && emdash migrate --check --wrangler-config wrangler.jsonc` } : {}),
+		...(o.staging
+			? {
+					"build:staging": "CLOUDFLARE_ENV=staging astro build",
+					"migrate:staging": `emdash migrate ${stg}`,
+					"deploy:staging": `CLOUDFLARE_ENV=staging astro build && emdash migrate ${stg} && wrangler deploy && emdash migrate --check ${stg}`,
+					// Same steps without the confirmation prompt: the expected target is pinned, so a wrong database fails instead of asking.
+					...(o.stagingFingerprint ? { "ci:deploy:staging": `CLOUDFLARE_ENV=staging astro build && emdash migrate ${stg} --expected-target-fingerprint=${o.stagingFingerprint} && wrangler deploy && emdash migrate --check ${stg}` } : {}),
+				}
+			: {}),
+		"deploy:production": `astro build && emdash migrate ${prod} && wrangler deploy && emdash migrate --check ${prod}`,
+		...(o.productionFingerprint ? { "ci:deploy:production": `astro build && emdash migrate ${prod} --expected-target-fingerprint=${o.productionFingerprint} && wrangler deploy && emdash migrate --check ${prod}` } : {}),
+		...(o.staging
+			? {}
+			: {
+					// Review step for code changes once production is live: upload a version WITHOUT sending traffic to it; Wrangler
+					// prints its preview URL (<version>-<worker>.<subdomain>.workers.dev; preview_urls is on in wrangler.jsonc).
+					// No migration here: the preview shares production's D1, R2 and KV (data), so it is for code and layout review.
+					"versions:upload": "astro build && wrangler versions upload",
+					// Promote a reviewed version: migrations first (as deploy:production), then `pnpm versions:deploy <id>@100% --yes`.
+					"versions:deploy": `emdash migrate ${prod} && wrangler versions deploy`,
+				}),
 	};
 }
 
@@ -62,6 +92,11 @@ export function clientRepoFiles(input: ClientRepoInput): Record<string, string> 
 	const i = { ...input, email: { ...input.email, provider: PROVIDERS[input.email.provider] ?? input.email.provider } };
 	const files: Record<string, string> = {};
 	const admin = (base: string) => `${base.replace(/\/$/, "")}/_emdash/admin`;
+	// One environment unless the site opted into staging (an older input with only stagingUrl counts as staging).
+	const single = !(i.staging ?? !!i.stagingUrl);
+	/** Where production answers now: the real domain after the switch, else its workers.dev address (if known). */
+	const prodNow = i.productionReady ? i.productionUrl : i.workersDevUrl;
+	const testTo = i.testTo ?? [];
 
 	files["README.md"] = md(`
 # ${i.name}
@@ -173,7 +208,7 @@ malformed*): set it again from the generated value.
 	files["docs/editor-guide.md"] = md(`
 # Editing the site
 
-Sign in at **/_emdash/admin** on the site (staging: ${i.stagingUrl ? admin(i.stagingUrl) : "—"}). Changes are drafts
+Sign in at **/_emdash/admin** on the site (${single ? (prodNow ? admin(prodNow) : "the address in the README") : `staging: ${i.stagingUrl ? admin(i.stagingUrl) : "—"}`}). Changes are drafts
 until you publish them, and every page keeps its earlier versions.
 
 ## What you can edit
@@ -264,12 +299,17 @@ the dashboard). **Inbox:** search, filter, read/unread, open, email now (once em
 messages as CSV or JSON through a link that works once for two minutes (the file holds visitors' contact details: keep it
 private), or paste an exported file to bring messages back (duplicates are skipped). **Activity:** who did what, without
 message content. **Settings:** who form messages are emailed to (up to 10 addresses; empty uses \`FORM_TO\`). Editors and other roles cannot open it. With Cloudflare access to
-the account the queue is also in Workers KV: \`npx wrangler kv key list --binding FORM_OUTBOX --remote\` (add \`--env staging\`
-for staging), then \`npx wrangler kv key get <key> --binding FORM_OUTBOX --remote\`.
+the account the queue is also in Workers KV: \`npx wrangler kv key list --binding FORM_OUTBOX --remote\`${single ? "" : " (add `--env staging`\nfor staging)"}, then \`npx wrangler kv key get <key> --binding FORM_OUTBOX --remote\`.
+
+` : ""}${single ? `**Test messages never reach ${i.email.to.length ? i.email.to.join(", ") : "the site's recipients"}.** A message sent from any address other than
+${i.productionUrl} — the workers.dev address before go-live, a preview link after it — is a test: it is emailed only to
+${testTo.length ? testTo.join(", ") : "the test inbox (none set: it is kept in the outbox unsent, or refused without an outbox)"} (\`FORM_TEST_TO\`), with "[Test]" in the subject, and the outbox never
+sends it anywhere else, also after the switch. The Form messages recipients setting applies to real messages only.
+Messages from ${new URL(i.productionUrl).host} are real as soon as the domain points at this site; nothing has to be redeployed (\`FORM_LIVE_HOST\`).
 
 ` : ""}Recipients and sender are the \`FORM_TO\` / \`FORM_FROM\` settings in \`wrangler.jsonc\`; the ${i.email.provider} API key is the
 Worker secret \`EMAIL_API_KEY\`. The sender address must be verified in the ${i.email.provider} account.
-${i.turnstileProduction ? "" : "\n**Before going live:** create a Turnstile widget for the production domain in the Cloudflare dashboard, put its site key in the migration kit's config (`forms.turnstileSiteKey`) and set its secret: `npx wrangler secret put TURNSTILE_SECRET_KEY`."}
+${i.turnstileProduction ? "" : single ? `\n**Before testing forms:** create a Turnstile widget in the Cloudflare dashboard with two hostnames — ${new URL(i.productionUrl).host} and ${i.workersDevUrl ? new URL(i.workersDevUrl).host.split(".").slice(1).join(".") : "the account's workers.dev subdomain"} (the account's workers.dev subdomain: it covers the workers.dev address and the preview links) — put its site key in the migration kit's config (\`forms.turnstileSiteKey\`), rerun scaffold and deploy, and set its secret: \`npx wrangler secret put TURNSTILE_SECRET_KEY\`. Until then the forms refuse messages.` : "\n**Before going live:** create a Turnstile widget for the production domain in the Cloudflare dashboard, put its site key in the migration kit's config (`forms.turnstileSiteKey`) and set its secret: `npx wrangler secret put TURNSTILE_SECRET_KEY`."}
 
 ## Analytics
 
@@ -424,6 +464,249 @@ updates:
     directory: /
     schedule:
       interval: monthly
+`);
+	// One environment (default): README, deployment, go-live, CI and the PR checklist describe production only.
+	if (single) Object.assign(files, singleEnvFiles(i, { admin, prodNow, setup }));
+	return files;
+}
+
+/**
+ * The files that differ for a single-environment site (no staging): production on its workers.dev address until
+ * go-live; CI deploys it on push to main before go-live (workers.dev only, nothing public changes) and only by hand
+ * afterwards (ciDeploy, default "prelaunch"); after go-live, code changes are reviewed on Workers preview URLs.
+ */
+function singleEnvFiles(i: ClientRepoInput, o: { admin: (base: string) => string; prodNow: string | undefined; setup: string }): Record<string, string> {
+	const files: Record<string, string> = {};
+	const fp = !!i.productionFingerprint;
+	const mode = i.ciDeploy ?? "prelaunch";
+	const onPush = fp && (mode === "always" || (mode === "prelaunch" && !i.productionReady));
+	const wd = i.workersDevUrl ?? `https://${i.workerName}.<account>.workers.dev`;
+	files["README.md"] = md(`
+# ${i.name}
+
+The ${i.name} website (${i.productionUrl}), migrated from WordPress to [EmDash](https://docs.emdashcms.com): an
+Astro site on Cloudflare Workers, with content in Cloudflare D1 and images and files in Cloudflare R2.
+
+| | |
+|---|---|
+| Live site | ${i.productionReady ? i.productionUrl : `${i.productionUrl} (still served by WordPress until the switch-over)`} |
+| ${i.productionReady ? "workers.dev address" : "Before the switch-over"} | ${wd}${i.productionReady ? "" : " (the same site and data, not indexed by search engines)"} |
+| Edit content | ${o.prodNow ? o.admin(o.prodNow) : "/_emdash/admin on the site"} |
+| Stack | Astro ${i.stack.astro}, EmDash ${i.stack.emdash}, Wrangler ${i.stack.wrangler}, Node ${i.stack.node} |
+
+One Cloudflare environment: **production**. There is no separate staging copy; changes are tried locally
+(\`pnpm dev\`) and, after the switch-over, on a preview link before they reach visitors (docs/deployment.md).
+
+## Quick start
+
+\`\`\`bash
+pnpm install
+pnpm dev            # http://localhost:4321, admin at /_emdash/admin
+# first time only, in a second terminal: load the migrated content (seed/seed.json) and a local admin user
+curl -X POST -H "X-EmDash-Request: 1" http://localhost:4321/_emdash/api/setup/dev-bypass
+\`\`\`
+
+The local database and uploads stay on your machine (\`.wrangler/\`, gitignored).
+
+| Command | What it does |
+|---|---|
+| \`pnpm dev\` | Local site and admin |
+| \`pnpm check\` | Type-check the project |
+| \`pnpm build\` | Production build into \`dist/\` |
+| \`pnpm deploy:production\` | Build, apply database migrations, deploy, confirm nothing is pending |
+| \`pnpm versions:upload\` | Upload a new version without sending visitors to it; prints its preview link |
+| \`pnpm versions:deploy <id>@100% --yes\` | Apply migrations, then send all traffic to a reviewed version |
+
+## Where things are
+
+- **Content** (pages, header and footer, popups, menus, SEO fields) lives in the database and is edited in the admin, not in files. See [docs/editor-guide.md](docs/editor-guide.md).
+- **Design and behaviour** live in the code: \`src/components/\` (one component per section type), \`src/styles/\` (\`tokens.css\` holds colours, fonts and sizes), \`src/scripts/site.ts\`.
+- **Forms** are defined in \`src/forms/\` and sent by \`src/pages/api/forms/[id].ts\` through the \`@wp2emdash/forms\` package in \`packages/forms\` (endpoint, email, outbox, Form messages admin page; its README lists every setting). Updates come from the migration kit: do not edit it here. See [docs/forms-and-integrations.md](docs/forms-and-integrations.md).
+- **Deployment, preview links and secrets:** [docs/deployment.md](docs/deployment.md). Launch and rollback: [docs/go-live.md](docs/go-live.md).
+
+Generated with [wp2emdash](https://github.com/nurkamol/wp2emdash). Files marked "${MARKER}" are rewritten when the
+migration kit runs again; delete that first line to keep your own version.
+`);
+
+	files["docs/deployment.md"] = md(`
+# Deployment
+
+One Cloudflare Worker runs this site — **production** — with its database (D1), file bucket (R2) and KV:
+
+| Worker | Address | Deploys |
+|---|---|---|
+| \`${i.workerName}\` | ${i.productionReady ? `${i.productionUrl} (and ${wd})` : `${wd} until the switch-over, then ${i.productionUrl}`} | ${onPush ? "Every push to `main` (GitHub Actions), or" : "Manually: Actions → CI → Run workflow, or"} \`pnpm deploy:production\` |
+
+Before the switch-over the Worker only answers on its workers.dev address: nothing public changes when it is
+deployed, the address is marked \`noindex\`, and form messages sent there are tests (emailed only to the test inbox,
+docs/forms-and-integrations.md). After the switch-over every deploy reaches visitors at once, so code changes are
+reviewed on a preview link first (below).
+
+## The deploy steps
+
+\`pnpm deploy:production\` runs, in order:
+
+1. **Build** — \`astro build\`.
+2. **Migrate** — \`emdash migrate\` applies EmDash's database changes before the new code serves visitors. Run by hand it asks you to confirm the target database; check the name it shows.
+3. **Deploy** — \`wrangler deploy\`.
+4. **Check** — \`emdash migrate --check\` must report nothing pending.
+
+Run them with the Cloudflare token in the environment (\`emdash migrate\` does not read \`.env\` files):
+
+\`\`\`bash
+( set -a && . ./.env && set +a && pnpm deploy:production )
+\`\`\`
+
+## Reviewing a code change on a preview link (after the switch-over)
+
+\`\`\`bash
+( set -a && . ./.env && set +a && pnpm versions:upload )     # prints "Worker Version ID" and "Version Preview URL"
+# open the preview URL (<version>-${i.workerName}.<subdomain>.workers.dev), check desktop and phone, then:
+( set -a && . ./.env && set +a && pnpm versions:deploy <version-id>@100% --yes )
+\`\`\`
+
+\`versions:upload\` builds and uploads a new version **without** sending visitors to it (preview links are on in
+\`wrangler.jsonc\`: \`preview_urls\`). \`pnpm versions:upload --preview-alias my-change\` also gives it a stable name.
+The preview runs the new code against **the live database, files and settings**: it is for reviewing code and layout,
+not a place to try content or settings changes (edits made there are real), and form messages sent from it are tests.
+A change that needs a database migration (an EmDash upgrade) is deployed with \`pnpm deploy:production\` after a local
+check, since migrations change the live database for every version. \`versions:deploy\` applies pending migrations, then
+switches traffic; \`npx wrangler rollback\` returns to the previous version.
+
+## GitHub Actions
+
+\`.github/workflows/ci.yml\`:
+
+- **Every pull request and push:** install, \`pnpm check\`, \`pnpm build\`.
+- **Push to \`main\`:** ${!fp ? "no deploy until the production database fingerprint is recorded (rerun the migration kit's scaffold after the first deploy)." : onPush ? (mode === "always" ? "deploys production with `pnpm ci:deploy:production` (the expected database is pinned, so the migration step runs without a prompt and fails on any other database)." : "deploys production with `pnpm ci:deploy:production` **until the switch-over** — it only updates the workers.dev address then. The expected database is pinned, so migrations run without a prompt and fail on any other database. After the switch-over (rerun the migration kit's scaffold) pushes no longer deploy.") : "no deploy: production changes are deployed by hand (the site is live)."}
+- **Production by hand:** Actions → CI → *Run workflow*, in the \`production\` GitHub environment.
+
+One-time setup in the GitHub repository (Settings):
+
+| Where | Name | Value |
+|---|---|---|
+| Secrets → Actions | \`CLOUDFLARE_API_TOKEN\` | A token with Workers Scripts, D1 and R2 edit rights on this account (not the DNS token used at switch-over) |
+| Variables → Actions | \`CLOUDFLARE_ACCOUNT_ID\` | The Cloudflare account id (not secret). Deploy jobs are skipped until it is set. |
+| Environments | \`production\` | Deployment branches: \`main\` only. After the switch-over: required reviewers (the owner) if the plan allows it — private repos need GitHub Pro/Team. |
+
+## Secrets
+
+Secrets are never committed. Locally they go in \`.env\` (Cloudflare token) and \`.dev.vars\` (Worker secrets for
+\`pnpm dev\`); see \`.env.example\`. On Cloudflare they are Worker secrets, set once:
+
+\`\`\`bash
+npx wrangler secret put EMAIL_API_KEY                      # ${i.email.provider} API key for form emails
+npx emdash secrets generate                                # prints a key: emdash_enc_v1_ + 43 characters (keep a copy)
+printf %s "$KEY" | npx wrangler secret put EMDASH_ENCRYPTION_KEY   # the key alone: no quotes, no newline
+npx wrangler secret put TURNSTILE_SECRET_KEY
+\`\`\`
+
+Losing \`EMDASH_ENCRYPTION_KEY\` makes settings stored in the admin (such as email credentials) unreadable, so keep the
+key somewhere safe. A key in any other format makes Settings → Email fail with "Failed to save email settings"
+(\`wrangler tail\` shows *EMDASH_ENCRYPTION_KEY entry is malformed*): set it again from the generated value.
+
+## Backups
+
+D1 Time Travel keeps the database restorable to any minute of the last 30 days, with no setup:
+\`npx wrangler d1 time-travel info <database>\` prints the current bookmark, and
+\`npx wrangler d1 time-travel restore <database> --bookmark=<bookmark>\` (or \`--timestamp=<RFC3339>\`) restores it. The
+migration kit records a bookmark before it ever reloads content into the live site. Files in R2 are not versioned.
+`);
+
+	const host = new URL(i.productionUrl).host;
+	files["docs/go-live.md"] = md(`
+# Go-live and rollback
+
+${i.productionReady ? "" : `Not live yet: WordPress still serves ${i.productionUrl}; this site runs on ${wd}.\n\n`}The switch puts this site's Worker in front of the existing WordPress records with Cloudflare **Worker routes**
+(\`${host}/*\` and \`www.${host}/*\`). Nothing in DNS changes, so the switch takes seconds and so does the way back.
+
+## Before
+
+- [ ] The site on ${wd} approved by the owner (content, forms, booking, look on phone and desktop)
+- [ ] Production secrets set; final content loaded and checked on the workers.dev address
+- [ ] Production Turnstile widget (domain and workers.dev) and form email sender verified; a test message received in the test inbox
+- [ ] Content frozen on WordPress, last changes copied over, final check run
+- [ ] DNS records written down (mail, SPF, DKIM, DMARC, verification) — they must not change
+- [ ] Owner's go-ahead for the switch, and who decides on a rollback
+
+## Switch
+
+Add the two Worker routes (zone \`${host}\` → Worker \`${i.workerName}\`) — from the migration kit,
+\`wp2emdash golive <slug>\` shows the plan and, rerun with \`--yes\` after the owner's go-ahead, creates them and
+smoke-tests the domain. Then: open the site logged out on a phone and a computer, send a test form **from
+${i.productionUrl}** (it now goes to the real recipients: messages from the domain are real as soon as it points here),
+check \`/sitemap.xml\`, and submit it in Google Search Console.
+
+The site itself sends \`www.${host}\` (or the bare domain, whichever is not canonical) and plain \`http://\` to
+${i.productionUrl} with one permanent redirect, as WordPress did.
+
+## Rollback
+
+Delete the two Worker routes (\`wp2emdash golive <slug> --rollback --yes\` in the migration kit deletes exactly the
+ones it created). WordPress answers again immediately (it keeps running, unreachable, during the
+monitoring period). Content edited here after the switch has to be copied back by hand, so note any edits.
+
+## After
+
+- In the migration kit: rerun scaffold and \`pnpm deploy:production\` — the client docs, IndexNow and CI pick up
+  "live" (pushes to \`main\` stop deploying; code changes go through a preview link, docs/deployment.md).
+- Content is edited in the admin from now on. The migration kit refuses to reload content into the live site without
+  \`--force\`, and records a D1 Time Travel bookmark first.
+- Watch the 404 log (admin → Redirects) and add redirects for old addresses people still use.${i.seoPanel ? `
+- SEO: in the admin, **Plugins → SEO → Google**: **Submit sitemap**, and **IndexNow → Notify search engines about
+  every page** once (after the rescaffold and deploy above).` : ""}
+- Check form deliveries and Worker errors for the first two weeks.
+- Later, with the owner's approval: replace the routes with a Worker Custom Domain and retire WordPress hosting
+  (keep the final backup).
+`);
+
+	files[".github/workflows/ci.yml"] = yml(`
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+${o.setup}
+      - run: pnpm check
+      - run: pnpm build
+
+  deploy-production:
+    needs: check
+    # One environment: production (workers.dev until the switch-over). ${onPush ? (mode === "always" ? "Deploys on every push to main and on Run workflow." : "Before the switch-over every push to main deploys (only the workers.dev address changes); the migration kit's scaffold turns this off once the site is live.") : "Deploys only from Run workflow."}
+    # Runs once the repository has its Cloudflare settings (variable CLOUDFLARE_ACCOUNT_ID, secret CLOUDFLARE_API_TOKEN).
+    if: ${onPush ? "vars.CLOUDFLARE_ACCOUNT_ID != '' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')" : "vars.CLOUDFLARE_ACCOUNT_ID != '' && github.event_name == 'workflow_dispatch'"}
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: deploy-production
+    env:
+      CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: \${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+${o.setup}
+      - name: Production resources exist
+        run: |
+          node -e 'const s=require("fs").readFileSync("wrangler.jsonc","utf8"); if(!/"database_id"/.test(s)){console.error("No production database in wrangler.jsonc yet: run the migration kit (provision, scaffold) first."); process.exit(1)}'
+      - run: pnpm ${fp ? "ci:deploy:production" : "deploy:production"}
+`);
+
+	files[".github/pull_request_template.md"] = md(`
+## What changes
+
+## Checked
+
+- [ ] \`pnpm check\` and \`pnpm build\` pass
+- [ ] ${i.productionReady ? "Looked at the change on its preview link (`pnpm versions:upload`), desktop and phone" : `Looked at the change locally or on ${wd} (desktop and phone)`}
+- [ ] No secrets, form submissions or personal data in the change
 `);
 	return files;
 }

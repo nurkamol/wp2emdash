@@ -13,6 +13,8 @@ export interface RunOptions {
 	preview?: boolean;
 	/** Progress goes to the run log only, nothing to stdout (the MCP server). */
 	quiet?: boolean;
+	/** load: allow writing to a live production (a D1 Time Travel bookmark is recorded first). */
+	force?: boolean;
 }
 
 /** Phases that only read from WordPress (GET) or local files, write only inside the site workspace, and never touch Cloudflare. */
@@ -49,7 +51,7 @@ export async function runPhase(slug: string, phase: PhaseId, opts: RunOptions = 
 	let checks: GateCheck[];
 	let notImplemented = false;
 	try {
-		checks = await RUNNERS[phase]({ config, paths, reporter });
+		checks = await RUNNERS[phase]({ config, paths, reporter, ...(opts.force ? { force: true } : {}) });
 	} catch (err) {
 		notImplemented = err instanceof NotImplementedError;
 		const message = err instanceof Error ? err.message : String(err);

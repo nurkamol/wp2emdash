@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type GateCheck, phaseState, readState } from "../core/state.js";
 import { credentialsFor } from "../commands/provision.js";
+import { siteEnvironments } from "../core/environments.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import { remoteTarget } from "../targets/remote.js";
 import { type AliasPlan, aliasPreflight, aliasRunbook, primaryHost } from "../cutover/aliases.js";
@@ -52,6 +53,8 @@ export async function runCutover({ config, paths, reporter }: PhaseContext): Pro
 	const domain = new URL(config.target.productionUrl).host.replace(/^www\./, "");
 	const apexFirst = config.target.canonicalHost === "apex";
 	const cfRes = readJson<CfResources>(join(paths.root, "cloudflare.json")) ?? {};
+	// One environment (production on workers.dev) unless the site opted into staging.
+	const single = !siteEnvironments(config, cfRes as never).staging;
 	// Production may run in another account than staging (e.g. the client's own): its own token and account first.
 	const prodCreds = credentialsFor("production", env, cfRes as Parameters<typeof credentialsFor>[2]);
 	const accountId = prodCreds.accountId;
@@ -66,11 +69,11 @@ export async function runCutover({ config, paths, reporter }: PhaseContext): Pro
 	// The owner accepts with `wp2emdash accept <slug> verify --reason … --by …` (recorded in state.json, never by the kit).
 	const verifyAccepted = existsSync(paths.state) && phaseState(readState(paths.state), "verify").status === "accepted";
 	const open = verifyAccepted ? [] : failed;
-	check("verify", "Last verify run passed (failures only if the owner accepted them)", !!verify?.checks && open.length === 0, !verify?.checks ? "Run verify against staging first" : open.length ? `${open.map((c) => c.id).join(", ")} failed on ${verify.target} (${verify.ranAt.slice(0, 10)})` : `${verify.checks.length} checks on ${verify.target}, ${verify.ranAt.slice(0, 10)}${failed.length ? `; failures accepted by the owner: ${failed.map((c) => c.id).join(", ")}` : ""}`);
+	check("verify", "Last verify run passed (failures only if the owner accepted them)", !!verify?.checks && open.length === 0, !verify?.checks ? (single ? "Run verify against production (its workers.dev address) first" : "Run verify against staging first") : open.length ? `${open.map((c) => c.id).join(", ")} failed on ${verify.target} (${verify.ranAt.slice(0, 10)})` : `${verify.checks.length} checks on ${verify.target}, ${verify.ranAt.slice(0, 10)}${failed.length ? `; failures accepted by the owner: ${failed.map((c) => c.id).join(", ")}` : ""}`);
 
 	// 2. Production resources, separate from staging.
 	const prod = cfRes.production;
-	check("production-resources", "Production D1 and R2 created (separate from staging)", !!prod?.d1?.id && !!prod?.r2?.bucket, prod?.d1?.id ? `${prod.d1.name}, ${prod.r2?.bucket ?? "no bucket"}` : `Create with the build token: npx wrangler d1 create ${worker}-db --location <loc>; npx wrangler r2 bucket create ${worker}-media --location <loc>; record them in cloudflare.json → production`);
+	check("production-resources", single ? "Production D1 and R2 created" : "Production D1 and R2 created (separate from staging)", !!prod?.d1?.id && !!prod?.r2?.bucket, prod?.d1?.id ? `${prod.d1.name}, ${prod.r2?.bucket ?? "no bucket"}` : single ? `pnpm wp2emdash provision ${config.slug}` : `Create with the build token: npx wrangler d1 create ${worker}-db --location <loc>; npx wrangler r2 bucket create ${worker}-media --location <loc>; record them in cloudflare.json → production`);
 
 	// 3. Production Worker and its secrets (names only — values are never read).
 	const token = prodCreds.token;

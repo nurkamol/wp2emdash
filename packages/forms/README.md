@@ -29,7 +29,7 @@ The package is not on npm. Copy `packages/forms` into the project (for example t
 "dependencies": { "@wp2emdash/forms": "link:./packages/forms" }
 ```
 
-Or build a tarball from the kit (`pnpm --dir packages/forms pack`) and `pnpm add ./wp2emdash-forms-1.5.0.tgz`.
+Or build a tarball from the kit (`pnpm --dir packages/forms pack`) and `pnpm add ./wp2emdash-forms-1.6.0.tgz`.
 The package ships TypeScript source; the site's Astro/Vite build compiles it.
 
 ## Wire it up
@@ -103,6 +103,8 @@ with `"triggers": { "crons": ["*/5 * * * *"] }`.
 | `EMAIL_API_KEY` | secret | The provider's API key (`wrangler secret put EMAIL_API_KEY`); not used with `emdash` |
 | `FORM_FROM` | var | Sender, e.g. `Site <noreply@example.com>` — verified in the provider account; not used with `emdash` (the sender is set in Settings → Email) |
 | `FORM_TO` | var | Default recipients, comma-separated. An admin can replace them on the Form messages page (Settings tab); that setting wins |
+| `FORM_LIVE_HOST` | var | Single-environment sites: the production host (`example.com`, `www.` ignored). A message sent from any other host — the workers.dev address before go-live, a Workers preview URL after it — is a **test**: subject prefixed `[Test]`, stored with `test: true`, emailed only to `FORM_TEST_TO`, never to `FORM_TO` or the admin's recipients (also when the outbox cron or "Email it now" sends it later, i.e. after go-live). Unset: every message is real (sites with a staging environment) |
+| `FORM_TEST_TO` | var | Test inbox for test messages, comma-separated (kit.config `email.stagingTo`). Unset: test messages are kept in the outbox unsent, or refused (503) without one |
 | `MAILGUN_REGION` | var | `eu` for EU Mailgun accounts |
 | `TURNSTILE_SITE_KEY` | var | Turnstile widget site key (for the page) |
 | `TURNSTILE_SECRET_KEY` | secret | Turnstile secret |

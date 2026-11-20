@@ -16,7 +16,7 @@
  * `formsPlugin()` from `@wp2emdash/forms` in astro.config.
  */
 import { definePlugin, pluginResponse } from "emdash";
-import { deleteQueued, deliveryOf, importQueued, isOutboxKey, keepsSent, listSummaries, type OutboxEnv, outboxStatus, parseRecipients, type Queued, readCounts, readQueued, resolveRecipients, retentionDays, sendQueued, updateQueued, writeRecipientSetting } from "../outbox.js";
+import { deleteQueued, deliveryOf, importQueued, isOutboxKey, keepsSent, listSummaries, type OutboxEnv, outboxStatus, parseRecipients, type Queued, readCounts, readQueued, resolveRecipients, retentionDays, sendQueued, testRecipients, updateQueued, writeRecipientSetting } from "../outbox.js";
 import { FORMS_PLUGIN } from "../meta.js";
 import { exportFileName, grantDownload, logActivity, parseImport, readActivity, redeemDownload, toCsv, toJson, toQueued } from "./data.js";
 import { adminsOnly, type Filter, filtered, message, overview, type Overview, PAGE, parseDelivery, TABS, toSend, WIDGET, widget } from "./views.js";
@@ -51,7 +51,8 @@ async function build(env: OutboxEnv, filter: Filter = {}, extra: Partial<Overvie
 	}
 	const forms = [...new Set([...items.map((i) => i.s.form), ...counts.map((c) => c.form)])].sort();
 	const configTo = (env.FORM_TO ?? "").split(",").map((x) => x.trim()).filter(Boolean);
-	return { status, items, more, counts, activity, days: retentionDays(env), forms, filter, recipients: { ...recipients, configTo }, provider: env.EMAIL_PROVIDER ?? "brevo", keepSent, ...(matches ? { matches } : {}), ...extra };
+	const test = env.FORM_LIVE_HOST ? { test: { host: env.FORM_LIVE_HOST, to: testRecipients(env) } } : {};
+	return { status, items, more, counts, activity, days: retentionDays(env), forms, filter, recipients: { ...recipients, configTo, ...test }, provider: env.EMAIL_PROVIDER ?? "brevo", keepSent, ...(matches ? { matches } : {}), ...extra };
 }
 
 const str = (v: unknown, max = 200) => (typeof v === "string" ? v.slice(0, max) : undefined);

@@ -12,6 +12,8 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statS
 import { dirname, join } from "node:path";
 import type { MenuCapture } from "../audit/interactions.js";
 import type { BricksHeaderLook, BricksLayout } from "../adapters/bricks/layout.js";
+import type { KitConfig } from "../config/schema.js";
+import { siteEnvironments } from "../core/environments.js";
 import { KIT_ROOT } from "../core/paths.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
@@ -54,7 +56,7 @@ export const STACK = {
 
 export interface CloudflareResources {
 	staging?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; outbox?: { id: string }; session?: { id: string } };
-	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; live?: boolean; outbox?: { id: string }; session?: { id: string } };
+	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; live?: boolean; outbox?: { id: string }; session?: { id: string } };
 }
 
 /**
@@ -67,6 +69,88 @@ export function kvBindings(cf: CloudflareResources, e: "staging" | "production",
 }
 
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
+
+const TURNSTILE_TEST = { TURNSTILE_SITE_KEY: "1x00000000000000000000AA", TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA" };
+
+/**
+ * Worker vars per environment. Forms: provider and addresses are config (not secrets); the API key and Turnstile
+ * secret are Wrangler secrets.
+ * - production: FORM_TO = email.to. Single environment (no staging): also FORM_LIVE_HOST (the production host) and
+ *   FORM_TEST_TO (email.stagingTo): a message sent from any other host — workers.dev before go-live, Workers preview
+ *   URLs after it — is a test, emailed only to FORM_TEST_TO and never to FORM_TO (@wp2emdash/forms, outbox.ts →
+ *   isTestRequest). Host-based, so nothing has to be flipped or redeployed at go-live.
+ * - staging (opt-in): never emails the client — only email.stagingTo, else every message stays held in the outbox;
+ *   Cloudflare's always-pass Turnstile test keys (developers.cloudflare.com/turnstile/troubleshooting/testing).
+ */
+export function workerVars(config: Pick<KitConfig, "email" | "forms">, o: { staging: boolean; productionHost: string }): { production: Record<string, string>; staging: Record<string, string> } {
+	const formVars: Record<string, string> = { ...outboxVars(config.forms.outbox), EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
+	const single = o.staging ? {} : { FORM_LIVE_HOST: o.productionHost.replace(/^www\./, ""), ...(config.email.stagingTo.length ? { FORM_TEST_TO: config.email.stagingTo.join(",") } : {}) };
+	const production = { ...formVars, ...single, ...(config.forms.turnstileSiteKey ? { TURNSTILE_SITE_KEY: config.forms.turnstileSiteKey } : {}) };
+	const stagingMail = config.email.stagingTo.length ? { FORM_TO: config.email.stagingTo.join(",") } : { FORM_TO: "", ...(config.forms.outbox ? { FORM_OUTBOX_HOLD: "1" } : {}) };
+	const { FORM_OUTBOX_HOLD: _prodHold, ...formVarsNoHold } = formVars;
+	return { production, staging: { STAGING: "1", ...formVarsNoHold, ...stagingMail, ...TURNSTILE_TEST } };
+}
+
+/**
+ * wrangler.jsonc. Top level = production. Single environment (default): no `env` block; `workers_dev` and
+ * `preview_urls` on, so the Worker answers on workers.dev until go-live and every `wrangler versions upload` gets a
+ * preview URL (docs/spikes/single-env-findings.md). Opt-in staging: `env.staging` with its own Worker, data and vars
+ * (unchanged from before 2026-11-20).
+ */
+export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms">; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; productionHost: string }): string {
+	const { config, workerName, cf } = o;
+	const loader = (e: "staging" | "production") => o.sandboxedEnvs.some((envs) => envs.includes(e));
+	const d1 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "DB", database_name: cf[env]?.d1?.name ?? fallback, ...(cf[env]?.d1?.id ? { database_id: cf[env]?.d1?.id } : {}) });
+	const r2 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "MEDIA", bucket_name: cf[env]?.r2?.bucket ?? fallback });
+	// KV: the form outbox, and SESSION (Astro sessions) bound explicitly once provision recorded it. Without an id the
+	// Cloudflare adapter adds a bare SESSION binding and Wrangler auto-provisions it on the first deploy, which leaves an
+	// orphan "<worker>-session" namespace when that deploy fails (docs/spikes/M8-findings.md).
+	const kvJson = (e: "staging" | "production") => {
+		const kv = kvBindings(cf, e, !!config.forms.outbox);
+		return kv.length ? `,\n\t"kv_namespaces": [${kv.map((x) => JSON.stringify(x)).join(", ")}]` : "";
+	};
+	const vars = workerVars(config, { staging: o.staging, productionHost: o.productionHost });
+	// Rate-limit namespaces are account-wide integers: derived from the Worker name so sites don't share one.
+	const ns = 1000 + ([...workerName].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 8000) * 2;
+	const limiter = (id: number) => JSON.stringify([{ name: "FORM_LIMITER", namespace_id: String(id), simple: { limit: config.forms.rateLimit.limit, period: config.forms.rateLimit.period } }]);
+	const stagingEnv = `
+	"env": {
+		"staging": {
+			"name": ${JSON.stringify(`${workerName}-staging`)},
+			"vars": ${JSON.stringify(vars.staging)},
+			"ratelimits": ${limiter(ns + 1)}${kvJson("staging").replace(/\n\t/g, "\n\t\t\t")},
+			"d1_databases": [${d1("staging", `${workerName}-staging-db`)}],
+			"r2_buckets": [${r2("staging", `${workerName}-staging-media`)}]${loader("staging") ? `,
+			"worker_loaders": [{ "binding": "LOADER" }]` : ""}${o.seoPanel ? `,
+			"services": [${JSON.stringify({ binding: "SELF", service: `${workerName}-staging` })}]` : ""}
+		}
+	}`;
+	const singleEnv = `
+	// One environment: production. workers.dev serves it until go-live (Worker routes are added by wp2emdash golive, not
+	// here, so workers.dev stays on); preview_urls gives every \`wrangler versions upload\` a review link.
+	"workers_dev": true,
+	"preview_urls": true`;
+	return `// Generated by wp2emdash scaffold. Workers Paid plan required (EmDash Worker > 3 MB).
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": ${JSON.stringify(workerName)},
+	"main": "./src/worker.ts",
+	"compatibility_date": ${JSON.stringify(o.compatibilityDate)},
+	"compatibility_flags": ["nodejs_compat"],
+	"d1_databases": [${d1("production", `${workerName}-db`)}],
+	"r2_buckets": [${r2("production", `${workerName}-media`)}],
+	"vars": ${JSON.stringify(vars.production)},
+	"ratelimits": ${limiter(ns)}${kvJson("production")},
+	"triggers": { "crons": ["*/5 * * * *"] },${loader("production") ? `
+	// Runs the sandboxed plugins (Cloudflare Worker Loader, Workers Paid).
+	"worker_loaders": [{ "binding": "LOADER" }],` : ""}${o.seoPanel ? `
+	// The SEO dashboard reads this site's robots.txt, sitemap and home page through itself (a fetch to its own
+	// address would skip the Worker: on workers.dev nothing answers, on the domain the old origin would).
+	"services": [${JSON.stringify({ binding: "SELF", service: workerName })}],` : ""}
+	"observability": { "enabled": true },${o.staging ? stagingEnv : singleEnv}
+}
+`;
+}
 
 /**
  * Bricks sites: the theme style's body font weight (typographyBody, e.g. 300 for a light body font). Other builders do
@@ -401,6 +485,9 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const workerName = `${config.slug}`.replace(/[^a-z0-9-]/g, "-");
 	// Cloudflare resource ids (created once, owner-approved) live in sites/<slug>/cloudflare.json.
 	const cf = readJson<CloudflareResources>(join(paths.root, "cloudflare.json")) ?? {};
+	// One environment (production) unless the site opted into staging (src/core/environments.ts).
+	const envs = siteEnvironments(config, cf as never);
+	reporter.emit({ type: "log", level: "info", message: envs.staging ? `environments: staging + production (staging: ${envs.why})` : "environments: production only (single environment; staging is opt-in: target.staging)" });
 	write(join(project, "package.json"), {
 		name: `${config.slug}-site`,
 		version: "0.1.0",
@@ -412,7 +499,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		// The Cloudflare adapter flattens wrangler.jsonc at BUILD time: the environment is chosen with CLOUDFLARE_ENV during
 		// the build. EmDash core migrations run BEFORE the new build serves traffic; emdash migrate reads
 		// CLOUDFLARE_API_TOKEN/ACCOUNT_ID from the shell. Not named "deploy": that is a pnpm built-in command.
-		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...deployScripts(cf.staging?.d1?.fingerprint, cf.production?.d1?.fingerprint) },
+		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }) },
 		dependencies: {
 			"@astrojs/cloudflare": STACK["@astrojs/cloudflare"],
 			"@astrojs/react": STACK["@astrojs/react"],
@@ -462,63 +549,9 @@ export default defineConfig({
 });
 `,
 	);
-	const loader = (e: "staging" | "production") => sandboxed.some((sp) => sp.environments.includes(e));
-	const d1 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "DB", database_name: cf[env]?.d1?.name ?? fallback, ...(cf[env]?.d1?.id ? { database_id: cf[env]?.d1?.id } : {}) });
-	const r2 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "MEDIA", bucket_name: cf[env]?.r2?.bucket ?? fallback });
-	// Forms: provider and addresses are config (not secrets); the API key and Turnstile secret are Wrangler secrets.
-	// Staging uses Cloudflare's always-pass Turnstile test keys (public test values, developers.cloudflare.com/turnstile/troubleshooting/testing).
-	const outboxDays = outboxVars(config.forms.outbox);
-	// KV: the form outbox, and SESSION (Astro sessions) bound explicitly once provision recorded it. Without an id the
-	// Cloudflare adapter adds a bare SESSION binding and Wrangler auto-provisions it on the first deploy, which leaves an
-	// orphan "<worker>-session" namespace when that deploy fails (docs/spikes/M8-findings.md).
-	const kvJson = (e: "staging" | "production") => {
-		const kv = kvBindings(cf, e, !!config.forms.outbox);
-		return kv.length ? `,\n\t"kv_namespaces": [${kv.map((x) => JSON.stringify(x)).join(", ")}]` : "";
-	};
-	for (const e of ["staging", "production"] as const) if (cf[e]?.d1?.id && !cf[e]?.session?.id) reporter.emit({ type: "log", level: "warn", message: `${e}: no SESSION namespace recorded in cloudflare.json; run \`wp2emdash provision ${config.slug} ${e}\` so the first deploy does not auto-provision it` });
-	const formVars = { ...outboxDays, EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
-	const prodVars = { ...formVars, ...(config.forms.turnstileSiteKey ? { TURNSTILE_SITE_KEY: config.forms.turnstileSiteKey } : {}) };
-	// Staging never emails the client: only email.stagingTo, else everything stays held in the outbox.
-	const stagingMail = config.email.stagingTo.length ? { FORM_TO: config.email.stagingTo.join(",") } : { FORM_TO: "", ...(config.forms.outbox ? { FORM_OUTBOX_HOLD: "1" } : {}) };
-	const { FORM_OUTBOX_HOLD: _prodHold, ...formVarsNoHold } = formVars as Record<string, string>;
-	const stagingVars = { STAGING: "1", ...formVarsNoHold, ...stagingMail, TURNSTILE_SITE_KEY: "1x00000000000000000000AA", TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA" };
-	// Rate-limit namespaces are account-wide integers: derived from the Worker name so sites don't share one.
-	const ns = 1000 + ([...workerName].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 8000) * 2;
-	const limiter = (id: number) => JSON.stringify([{ name: "FORM_LIMITER", namespace_id: String(id), simple: { limit: config.forms.rateLimit.limit, period: config.forms.rateLimit.period } }]);
-	write(
-		join(project, "wrangler.jsonc"),
-		`// Generated by wp2emdash scaffold. Workers Paid plan required (EmDash Worker > 3 MB).
-{
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": ${JSON.stringify(workerName)},
-	"main": "./src/worker.ts",
-	"compatibility_date": ${JSON.stringify(today)},
-	"compatibility_flags": ["nodejs_compat"],
-	"d1_databases": [${d1("production", `${workerName}-db`)}],
-	"r2_buckets": [${r2("production", `${workerName}-media`)}],
-	"vars": ${JSON.stringify(prodVars)},
-	"ratelimits": ${limiter(ns)}${kvJson("production")},
-	"triggers": { "crons": ["*/5 * * * *"] },${loader("production") ? `
-	// Runs the sandboxed plugins (Cloudflare Worker Loader, Workers Paid).
-	"worker_loaders": [{ "binding": "LOADER" }],` : ""}${seoPanel ? `
-	// The SEO dashboard reads this site's robots.txt, sitemap and home page through itself (a fetch to its own
-	// address would skip the Worker: on workers.dev nothing answers, on the domain the old origin would).
-	"services": [${JSON.stringify({ binding: "SELF", service: workerName })}],` : ""}
-	"observability": { "enabled": true },
-	"env": {
-		"staging": {
-			"name": ${JSON.stringify(`${workerName}-staging`)},
-			"vars": ${JSON.stringify(stagingVars)},
-			"ratelimits": ${limiter(ns + 1)}${kvJson("staging").replace(/\n\t/g, "\n\t\t\t")},
-			"d1_databases": [${d1("staging", `${workerName}-staging-db`)}],
-			"r2_buckets": [${r2("staging", `${workerName}-staging-media`)}]${loader("staging") ? `,
-			"worker_loaders": [{ "binding": "LOADER" }]` : ""}${seoPanel ? `,
-			"services": [${JSON.stringify({ binding: "SELF", service: `${workerName}-staging` })}]` : ""}
-		}
-	}
-}
-`,
-	);
+	for (const e of envs.staging ? (["staging", "production"] as const) : (["production"] as const)) if (cf[e]?.d1?.id && !cf[e]?.session?.id) reporter.emit({ type: "log", level: "warn", message: `${e}: no SESSION namespace recorded in cloudflare.json; run \`wp2emdash provision ${config.slug} ${e}\` so the first deploy does not auto-provision it` });
+	if (!envs.staging && !config.forms.turnstileSiteKey && forms.length) reporter.emit({ type: "log", level: "warn", message: `single environment: production forms refuse messages until forms.turnstileSiteKey is set (one Turnstile widget for ${new URL(siteConfig.productionUrl).host} and the account's workers.dev subdomain) and its secret is put (wrangler secret put TURNSTILE_SECRET_KEY)` });
+	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, productionHost: new URL(siteConfig.productionUrl).host }));
 	// Local dev: Turnstile's always-pass test keys so forms work under `astro dev` (kept if the developer edited the file).
 	const devVars = join(project, ".dev.vars");
 	if (!existsSync(devVars)) write(devVars, "# Local only (gitignored). Turnstile always-pass test keys; add EMAIL_API_KEY and FORM_FROM to test real delivery.\nTURNSTILE_SITE_KEY=1x00000000000000000000AA\nTURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA\n");
@@ -532,7 +565,11 @@ export default defineConfig({
 			sourceUrl: config.source.url,
 			productionUrl: siteConfig.productionUrl,
 			workerName,
-			...(cf.staging?.worker?.url ? { stagingUrl: cf.staging.worker.url } : {}),
+			staging: envs.staging,
+			...(cf.production?.worker?.url ? { workersDevUrl: cf.production.worker.url } : {}),
+			ciDeploy: config.target.ciDeploy,
+			testTo: config.email.stagingTo,
+			...(envs.staging && cf.staging?.worker?.url ? { stagingUrl: cf.staging.worker.url } : {}),
 			...(cf.staging?.d1?.fingerprint ? { stagingFingerprint: cf.staging.d1.fingerprint } : {}),
 			...(cf.production?.d1?.fingerprint ? { productionFingerprint: cf.production.d1.fingerprint } : {}),
 			// Live = traffic switched (cutover records production.live); resources alone do not make the site live.

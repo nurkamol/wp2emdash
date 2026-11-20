@@ -35,8 +35,10 @@ const emailConfig = z.object({
 	/** Default notification recipients; individual forms can override. */
 	to: z.array(z.string()).default([]),
 	/**
-	 * Staging sends form email only to these addresses (the team's test inbox). Unset → staging holds every message in
-	 * the outbox and sends nothing, so a test submission can never reach the client.
+	 * Test recipients (the team's test inbox). Opt-in staging sends form email only here (unset → staging holds every
+	 * message in the outbox and sends nothing). Single-environment sites: a message sent from any address other than the
+	 * production domain — the workers.dev address before go-live, Workers preview URLs after it — goes only here, never
+	 * to `to` (unset → kept in the outbox unsent, or refused without one), so a test submission never reaches the client.
 	 */
 	stagingTo: z.array(z.string().email()).default([]),
 	/** Name of the Wrangler secret holding the API key / service-account JSON. Never the value itself. */
@@ -67,17 +69,32 @@ export const kitConfigSchema = z.object({
 		kind: z.enum(TARGETS).default("emdash"),
 		/** Production URL after cutover. */
 		productionUrl: z.url(),
-		/** Staging URL once deployed; filled in by scaffold. */
+		/** Staging URL once deployed (opt-in staging only). Setting it also counts as opting in. */
 		stagingUrl: z.url().optional(),
-		/** Where staging lives before launch. See docs/PLAN.md Phase 4 and §7a. */
+		/**
+		 * A second environment is OPT-IN (owner decision 2026-11-20). Default: one environment — production, on its
+		 * workers.dev address until go-live. `staging: true` (or `{ enabled: true, … }`) adds a staging Worker with its own
+		 * D1/R2/KV. A site that already has staging (target.stagingUrl, or staging resources recorded in cloudflare.json)
+		 * keeps it unless this says `false`. See src/core/environments.ts, docs/staging-setup.md and docs/PLAN.md §7a.
+		 */
 		staging: z
-			.object({
-				/** e.g. "staging.example.com" on the client's zone. Empty = the free *.workers.dev address. */
-				host: z.string().optional(),
-				/** access = Cloudflare Access login wall + noindex; noindex = robots + X-Robots-Tag only. */
-				protection: z.enum(["access", "noindex"]).default("access"),
-			})
+			.union([
+				z.boolean().transform((enabled) => ({ enabled, host: undefined as string | undefined, protection: "access" as "access" | "noindex" })),
+				z.object({
+					/** true = opt in; false = never (overrides the legacy signals); unset = only when staging already exists. */
+					enabled: z.boolean().optional(),
+					/** e.g. "staging.example.com" on the client's zone. Empty = the free *.workers.dev address. */
+					host: z.string().optional(),
+					/** access = Cloudflare Access login wall + noindex; noindex = robots + X-Robots-Tag only. */
+					protection: z.enum(["access", "noindex"]).default("access"),
+				}),
+			])
 			.prefault({}),
+		/**
+		 * Single environment: when the client repo's CI deploys production on a push to main. "prelaunch" (default) = only
+		 * until go-live (workers.dev only, nothing public changes), then by hand (Run workflow); "always"; "manual" = never on push.
+		 */
+		ciDeploy: z.enum(["prelaunch", "always", "manual"]).default("prelaunch"),
 		/** How production traffic moves to the Worker. See docs/PLAN.md §7a. */
 		cutover: z
 			.object({

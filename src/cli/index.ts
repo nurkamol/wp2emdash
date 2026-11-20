@@ -54,9 +54,11 @@ program
 	.argument("<phase>")
 	.option("--json", "stream progress events as JSON lines")
 	.option("--preview", "read-only phases: run out of order, don't record the gate")
+	.option("--force", "load: write to a live production (after go-live); a D1 Time Travel bookmark is recorded first and the restore command printed")
 	.action(async (slug: string, phase: string, o) => {
 		if (!isPhaseId(phase)) fail(`Unknown phase "${phase}". Phases: ${PHASE_IDS.join(", ")}`);
-		const result = await runPhase(slug, phase as never, { json: o.json, preview: o.preview }).catch((e: Error) => fail(e.message));
+		if (o.force && phase !== "load") fail("--force only applies to load");
+		const result = await runPhase(slug, phase as never, { json: o.json, preview: o.preview, ...(o.force ? { force: true } : {}) }).catch((e: Error) => fail(e.message));
 		if (o.json) console.log(JSON.stringify({ type: "result", ...result }));
 		process.exit(result.ok ? 0 : result.notImplemented ? 3 : 2);
 	});
@@ -184,11 +186,11 @@ program
 	});
 
 program
-	.command("provision <slug> <env>")
-	.description("Create an environment's Cloudflare resources (D1, R2, KV outbox) in its account and record them in cloudflare.json")
+	.command("provision <slug> [env]")
+	.description("Create an environment's Cloudflare resources (D1, R2, KV outbox, KV session) in its account and record them in cloudflare.json. env: production (default; a single-environment site has only this) or staging (opt-in: target.staging: true)")
 	.option("--location <hint>", "D1/R2 location: enam, wnam, weur, eeur, apac, oc (default: the environment's current one, else enam)")
 	.option("--json")
-	.action(async (slug: string, env: string, o: { location?: string; json?: boolean }) => {
+	.action(async (slug: string, env: string = "production", o: { location?: string; json?: boolean }) => {
 		if (env !== "staging" && env !== "production") throw new Error("env must be staging or production");
 		const r = await provision(slug, env, o.location ? { location: o.location } : {});
 		if (o.json) return console.log(JSON.stringify(r, null, 2));

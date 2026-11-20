@@ -100,13 +100,15 @@ const TARGET_VARS = ["WP2EMDASH_LOAD_TARGET", "WP2EMDASH_TARGET"] as const;
 
 async function withTarget<T>(target: RunTarget | undefined, fn: () => Promise<T>): Promise<T> {
 	const run = queue.then(async () => {
-		const saved = TARGET_VARS.map((k) => [k, process.env[k]] as const);
+		const saved = [...TARGET_VARS, "WP2EMDASH_NO_PRODUCTION"].map((k) => [k, process.env[k]] as const);
 		// Never inherit a production target from the server's environment: set the chosen one, or clear to the
-		// runners' own defaults (load: local dev server; verify: staging if configured, else local).
+		// runners' own defaults (opt-in staging: load local, verify staging if known; single environment: local here,
+		// because WP2EMDASH_NO_PRODUCTION keeps any default — and any explicit target — off production).
 		for (const k of TARGET_VARS) {
 			if (target) process.env[k] = target;
 			else delete process.env[k];
 		}
+		process.env.WP2EMDASH_NO_PRODUCTION = "1";
 		try {
 			return await fn();
 		} finally {
@@ -269,9 +271,9 @@ export const FIX_HINTS: Record<string, string> = {
 	"transform:text-conservation": "Live page text missing from the IR: see the page's missing words in reports/transform/coverage.md and map the element that carries them.",
 	"transform:*": "Read reports/transform/coverage.md; fix via adapter handlers (with fixture + golden test) or overrides.ts, then rerun transform.",
 	"scaffold:*": "Read the scaffold run log (install/build/typecheck output). Fix the starter or generator in the kit, not the generated project, then rerun scaffold.",
-	"load:*": "Read reports/load/. Check the target is up (local dev server or staging + EMDASH_TOKEN) and rerun load against local or staging.",
+	"load:*": "Read reports/load/. Check the target is up (local dev server, or opt-in staging + EMDASH_TOKEN) and rerun load against local or staging. Production (the default for a single-environment site on the command line) is the operator's step.",
 	"verify:visual": "A section differs visually beyond the limit: wp2emdash-visual-fix skill (measure source vs target, fix adapter/starter CSS with a fixture, or propose an override); the owner can approve a difference in the dashboard.",
-	"verify:target": "No verify target: set target.stagingUrl in kit.config.ts or run against the local dev server.",
+	"verify:target": "No verify target: run against the local dev server (target local). Single-environment sites verify production on its workers.dev address from the command line (operator); opt-in staging sites need target.stagingUrl.",
 	"verify:*": "Read reports/verify/verify.json and index.html; fix the cause upstream (transform/scaffold/load) and rerun verify.",
 	"cutover:*": "Preflight only reports. Production resources, secrets, Turnstile and DNS are owner steps (cutover/runbook.md); never change DNS or routes without the owner's explicit approval.",
 };
