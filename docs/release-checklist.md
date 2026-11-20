@@ -55,6 +55,9 @@ No secrets were ever committed (checked: API keys, tokens, private keys — the 
 ## 5. GitHub settings
 
 - [ ] Visibility: public.
+- [ ] Private vulnerability reporting: Settings → Advanced Security (or "Code security") → Private vulnerability
+      reporting → Enable, or `gh api -X PUT repos/nurkamol/wp2emdash/private-vulnerability-reporting`. Only possible
+      once the repository is public; `SECURITY.md` links to it.
 - [ ] Pages: Settings → Pages → Source "GitHub Actions"; the `Pages` workflow publishes `site/`.
 - [ ] Description, website (Pages URL), topics: `wordpress`, `migration`, `emdash`, `cloudflare-workers`, `astro`,
       `cms`.
