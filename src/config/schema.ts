@@ -160,8 +160,8 @@ export const kitConfigSchema = z.object({
 		])
 		.optional(),
 
-	/** Experimental: branded sharing cards (og:image) rendered in the Worker (@wp2emdash/og). Off unless set. */
-	og: z.object({ cards: z.boolean().default(false) }).default({ cards: false }),
+	/** Branded sharing cards (og:image) rendered in the Worker (@wp2emdash/og). On by default; { cards: false } turns them off. */
+	og: z.object({ cards: z.boolean().default(true) }).default({ cards: true }),
 	/**
 	 * Entrance motion. "calm" (owner opt-in): sections fade in and rise 14px over 600ms, cards / columns / FAQ items
 	 * follow with a short stagger, pictures fade and settle from a 3% zoom, buttons and links ease their colours. The
@@ -170,8 +170,8 @@ export const kitConfigSchema = z.object({
 	 * default reveal; "none" keeps the default.
 	 */
 	motion: z.enum(["calm", "none"]).optional(),
-	/** Experimental: SEO panel in the page editor (@wp2emdash/seo). Off unless set. */
-	seo: z.object({ panel: z.boolean().default(false) }).default({ panel: false }),
+	/** SEO panel, dashboard, Search Console and IndexNow (@wp2emdash/seo). On by default; { panel: false } turns it off. */
+	seo: z.object({ panel: z.boolean().default(true) }).default({ panel: true }),
 	/**
 	 * Third-party EmDash plugins that run in EmDash's sandbox (Cloudflare Worker Loader, Workers Paid). Each is pinned
 	 * to a reviewed version and enabled per environment; admin installs from the public registry stay off.

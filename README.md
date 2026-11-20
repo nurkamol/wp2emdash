@@ -252,14 +252,15 @@ wrote stays in the site for the retention period even after it was emailed. Reco
 on sites with `sensitiveData: true` leave it off unless the owner explicitly asks for an inbox. Details:
 [`packages/forms/README.md`](packages/forms/README.md#configuration-wranglerjsonc-per-environment--environments-do-not-inherit).
 
-## Sharing cards (opt-in)
+## Sharing cards (on by default)
 
 Every page can get its own branded sharing image (og:image): the site's logo, the page title and the site's colours
-and fonts on a 1200×630 card, drawn in the Worker the first time it is asked for and stored in R2. Turn it on per site:
+and fonts on a 1200×630 card, drawn in the Worker the first time it is asked for and stored in R2. It is on for every
+site; to leave it out:
 
 ```ts
 // sites/<slug>/kit.config.ts
-og: { cards: true },
+og: { cards: false },
 ```
 
 The next `scaffold` downloads TrueType copies of the site's fonts, takes the colours from the generated design tokens
@@ -269,15 +270,15 @@ cards replace every page's image or only fill in where a page has none (the defa
 them. Verify downloads every og:image and fails on any that does not load. Details:
 [packages/og/README.md](packages/og/README.md).
 
-## SEO suite (opt-in)
+## SEO suite (on by default)
 
 Technical SEO is part of every migration (titles, descriptions, canonicals, robots, sitemap, structured data, old
 URLs redirected, analytics, verification tags — and verify checks all of it). On top of that, a site can get an SEO
-toolkit for its editors, as the EmDash plugin `@wp2emdash/seo`:
+toolkit for its editors, as the EmDash plugin `@wp2emdash/seo`, on for every site; to leave it out:
 
 ```ts
 // sites/<slug>/kit.config.ts
-seo: { panel: true },
+seo: { panel: false },
 ```
 
 | Part | Where | What it does |
@@ -298,8 +299,8 @@ scaffold adds (a Worker fetching its own address would skip itself). Details: [p
 - [Staging and production setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, production on `workers.dev`, troubleshooting
 - [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token
 - [`@wp2emdash/forms`](packages/forms/README.md) — the forms package every migrated site uses (endpoint, email, KV outbox, Form messages admin page); usable in any EmDash project
-- [`@wp2emdash/seo`](packages/seo/README.md) — SEO suite: editor panel, SEO dashboard, Google Search Console, IndexNow; opt in with `seo: { panel: true }` (above)
-- [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; opt in with `og: { cards: true }` in a site's `kit.config.ts` (below)
+- [`@wp2emdash/seo`](packages/seo/README.md) — SEO suite: editor panel, SEO dashboard, Google Search Console, IndexNow; on by default (`seo: { panel: false }` turns it off)
+- [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; on by default (`og: { cards: false }` in a site's `kit.config.ts` turns them off)
 - [Agent rules](CLAUDE.md)
 
 Full GitHub docs (configuration reference, adapters, troubleshooting, …) are produced in milestone M8a.

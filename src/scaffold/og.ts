@@ -28,9 +28,19 @@ export async function ogFonts(publicDir: string, fonts: { display: string; body:
 	const out: Record<"display" | "body", string> = { display: "", body: "" };
 	mkdirSync(join(publicDir, "fonts"), { recursive: true });
 	for (const [slot, name, weight] of [["display", fonts.display, fonts.displayWeight ?? 500], ["body", fonts.body, 500]] as const) {
-		const css = await (await fetcher(`https://fonts.googleapis.com/css2?${family(name, weight)}`)).text();
-		const url = /url\((https:[^)]+\.ttf)\)/.exec(css)?.[1];
-		if (!url) throw new Error(`no TrueType file for ${name} ${weight} on Google Fonts`);
+		// A family may not have the asked weight (single-weight script fonts have only 400): fall back to 400, 700, then
+		// the family's default, so a missing weight never turns the cards off.
+		let url: string | undefined;
+		for (const w of [...new Set([weight, 400, 700])]) {
+			const res = await fetcher(`https://fonts.googleapis.com/css2?${family(name, w)}`);
+			url = res.ok ? /url\((https:[^)]+\.ttf)\)/.exec(await res.text())?.[1] : undefined;
+			if (url) break;
+		}
+		if (!url) {
+			const res = await fetcher(`https://fonts.googleapis.com/css2?family=${encodeURIComponent(name).replace(/%20/g, "+")}`);
+			url = res.ok ? /url\((https:[^)]+\.ttf)\)/.exec(await res.text())?.[1] : undefined;
+		}
+		if (!url) throw new Error(`no TrueType file for ${name} on Google Fonts`);
 		const res = await fetcher(url);
 		if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
 		writeFileSync(join(publicDir, "fonts", `og-${slot}.ttf`), Buffer.from(await res.arrayBuffer()));

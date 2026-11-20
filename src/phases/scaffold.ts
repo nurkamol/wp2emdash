@@ -306,7 +306,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Calm entrance motion: the owner's setting, else on for a Bricks site whose live pages animate content on entry.
 	const entranceMotion = config.motion ?? ((bricksDesignOut?.entranceAnimations ?? 0) >= 3 ? "calm" : undefined);
 	if (entranceMotion === "calm") (siteConfig as { motion?: string }).motion = "calm";
-	// Experimental sharing cards (@wp2emdash/og): fonts as TTF, colours from the tokens, the logo; off unless og.cards.
+	// Sharing cards (@wp2emdash/og, on by default): fonts as TTF, colours from the tokens, the logo; og: { cards: false } turns them off.
 	rmSync(join(project, "packages", "og"), { recursive: true, force: true });
 	let og: OgCardOptions | undefined;
 	if (config.og.cards) {
@@ -320,7 +320,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			reporter.emit({ type: "log", level: "warn", message: `sharing cards off: ${(e as Error).message}` });
 		}
 	}
-	// Experimental SEO panel in the page editor (@wp2emdash/seo); off unless seo.panel.
+	// SEO panel in the page editor (@wp2emdash/seo, on by default); seo: { panel: false } turns it off.
 	rmSync(join(project, "packages", "seo"), { recursive: true, force: true });
 	// IndexNow key: derived from the production host (stable across reruns, nothing to store); its file sits at the
 	// domain root so it covers every URL. Submissions start once production.live is set (after the switch).
