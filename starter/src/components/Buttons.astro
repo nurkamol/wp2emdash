@@ -3,13 +3,14 @@
 import { isExternal, safeHref } from "../utils/links";
 
 interface Props {
-	items?: Array<{ label?: string; url?: string; style?: string; size?: string; text_size?: string; space_above?: string; side_space?: string; hover_label?: string; light?: boolean; plain?: boolean; min_width?: string; new_tab?: boolean; popup?: string }> | null;
+	items?: Array<{ label?: string; url?: string; style?: string; size?: string; text_size?: string; space_above?: string; side_space?: string; hover_label?: string; light?: boolean; plain?: boolean; fill?: string; text_color?: string; radius?: number; padding?: string; min_width?: string; new_tab?: boolean; popup?: string }> | null;
 	class?: string;
 	/** The section's button-group settings (buttons_direction, _align, _width, _stack_phone, _gap); empty = as before. */
 	layout?: Record<string, unknown>;
 }
 const { items, class: extra, layout: l = {} } = Astro.props;
 const list = (items ?? []).filter((b) => b?.label);
+const COLOR = /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
 // Space above the group: the first button that sets its own (px).
 const above = list.map((b) => b.space_above).find((x) => /^\d{1,3}px$/.test(x ?? ""));
 const pick = <T extends string>(v: unknown, options: readonly T[]) => (options.includes(v as T) ? (v as T) : undefined);
@@ -28,8 +29,8 @@ const style = [above && `--actions-above:${above}`, gap && `--actions-gap:${gap}
 				return (
 					<a
 						href={href}
-						class:list={["btn", `btn--${b.style ?? "primary"}`, b.size === "large" && "btn--lg", b.hover_label && "has-hover-label", b.light === true && "btn--light", b.plain === true && "btn--plain"]}
-						style={[/^\d{2}px$/.test(b.text_size ?? "") && `--btn-text:${b.text_size}`, /^\d{1,2}px$/.test(b.side_space ?? "") && `--btn-inset:${b.side_space}`, /^\d{2,3}px$/.test(b.min_width ?? "") && `min-width:${b.min_width}`].filter(Boolean).join(";") || undefined}
+						class:list={["btn", `btn--${b.style ?? "primary"}`, b.size === "large" && "btn--lg", b.hover_label && "has-hover-label", b.light === true && "btn--light", b.plain === true && "btn--plain", (COLOR.test(b.fill ?? "") || COLOR.test(b.text_color ?? "")) && "btn--own"]}
+						style={[/^\d{2}px$/.test(b.text_size ?? "") && `--btn-text:${b.text_size}`, /^\d{1,2}px$/.test(b.side_space ?? "") && `--btn-inset:${b.side_space}`, /^\d{2,3}px$/.test(b.min_width ?? "") && `min-width:${b.min_width}`, COLOR.test(b.fill ?? "") && `--b-bg:${b.fill}`, COLOR.test(b.text_color ?? "") && `--b-color:${b.text_color}`, typeof b.radius === "number" && b.radius >= 0 && b.radius <= 200 && `--b-radius:${b.radius}px`, /^\d{1,2}px \d{1,2}px$/.test(b.padding ?? "") && `--b-pad:${b.padding}`].filter(Boolean).join(";") || undefined}
 						data-popup={b.popup || undefined}
 						target={b.new_tab ? "_blank" : undefined}
 						rel={b.new_tab || isExternal(href) ? "noopener" : undefined}

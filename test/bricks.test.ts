@@ -138,6 +138,14 @@ describe("Bricks layout tokens", () => {
 	});
 });
 
+describe("Bricks entrance animations", () => {
+	it("counts elements whose interactions start an animation on entry (the site then gets calm motion)", async () => {
+		const { bricksEntranceAnimations } = await import("../src/adapters/bricks/layout.js");
+		const anim = (trigger: string, action = "startAnimation") => ({ settings: { _interactions: [{ id: "x", trigger, action, animationType: "fadeInUp" }] } });
+		expect(bricksEntranceAnimations([[anim("enterView"), anim("contentLoaded"), { settings: {} }], undefined, [anim("click"), anim("enterView", "show")]])).toBe(2);
+	});
+});
+
 describe("Announcement bars in the text comparison", () => {
 	it("leaves the Announcer plugin's bar and the starter's bar out of the page text (their schedules decide)", async () => {
 		const { sourceText } = await import("../src/transform/coverage.js");

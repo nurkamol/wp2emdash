@@ -98,7 +98,7 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 ---
 
 <!doctype html>
-<html lang={site.lang} class:list={{ "has-announcement": !!announcement }}>
+<html lang={site.lang} class:list={{ "has-announcement": !!announcement, "motion-calm": (site as { motion?: string }).motion === "calm" }}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />

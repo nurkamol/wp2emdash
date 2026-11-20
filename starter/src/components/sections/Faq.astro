@@ -8,17 +8,23 @@ import { mdPlain } from "../../utils/md";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const items = (v.items ?? []) as Array<{ question: string; answer: string }>;
 const LENGTH = /^\d+(?:\.\d+)?(?:px|rem|em|%|vw)$/;
-const look = [LENGTH.test(v.card_radius ?? "") && `--faq-radius:${v.card_radius}`, LENGTH.test(v.list_inset ?? "") && `--faq-inset:${v.list_inset}`].filter(Boolean).join(";") || undefined;
+const COLOR = /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
+const px = (x: unknown) => (typeof x === "number" && x >= 0 && x <= 120 ? `${x}px` : undefined);
+const panel = v.faq_style === "panel";
+const look = [LENGTH.test(v.card_radius ?? "") && `--faq-radius:${v.card_radius}`, LENGTH.test(v.list_inset ?? "") && `--faq-inset:${v.list_inset}`, panel && COLOR.test(v.faq_bg ?? "") && `--faq-bg:${v.faq_bg}`, panel && px(v.faq_pad) && `--faq-pad:${px(v.faq_pad)}`, panel && px(v.faq_pad_phone) && `--faq-pad-p:${px(v.faq_pad_phone)}`, panel && COLOR.test(v.faq_line ?? "") && `--faq-line:${v.faq_line}`].filter(Boolean).join(";") || undefined;
+// One answer open at a time ("panel" look with faq_exclusive): the details share a name (native exclusive accordion);
+// site.ts animates the height and keeps it exclusive where `name` is not supported.
+const group = panel && v.faq_exclusive === true ? `faq-${[...(items[0]?.question ?? "faq")].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(36)}` : undefined;
 const schema = v.schema !== false && items.length ? JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: items.map((i) => ({ "@type": "Question", name: i.question, acceptedAnswer: { "@type": "Answer", text: mdPlain(i.answer) } })) }) : "";
 ---
 
 <Section value={v} type="faq">
 	<Heading value={v} />
 	<Rich value={v.intro} />
-	<div class:list={["faq", v.faq_style === "card" && "faq--card"]} style={look}>
+	<div class:list={["faq", v.faq_style === "card" && "faq--card", panel && "faq--panel"]} style={look} data-faq-group={group}>
 		{
 			items.map((i, n) => (
-				<details class="faq__item" open={v.open_first && n === 0}>
+				<details class="faq__item" open={v.open_first && n === 0} name={group}>
 					<summary class="faq__q"><h3 class="faq__q-text">{i.question}</h3></summary>
 					<Md text={i.answer} class="faq__a" />
 				</details>

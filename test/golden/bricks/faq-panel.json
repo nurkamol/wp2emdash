@@ -1,0 +1,164 @@
+{
+  "sections": [
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#fp10#0",
+        "rawHash": "9cc62c3914",
+        "row": 0
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "question": "Can I bring a friend?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Yes, book a second spot under your account.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Is there parking?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Free parking behind the studio.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true,
+        "look": {
+          "style": "panel",
+          "bg": "#eeeeee",
+          "radius": "20px",
+          "pad": 36,
+          "padPhone": 18,
+          "line": "rgba(0, 0, 0, 0.12)",
+          "exclusive": true
+        }
+      }
+    },
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "bricks",
+        "path": "section#fp10#1",
+        "rawHash": "9cc62c3914",
+        "row": 0
+      },
+      "fields": {
+        "columns": [
+          {
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "h3",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "More questions?",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Write to us and we will answer within a day.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": []
+          },
+          {
+            "body": [],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Write to us",
+                "href": "/contact/",
+                "style": "primary",
+                "hoverLabel": "Ask away",
+                "look": {
+                  "bg": "#111111",
+                  "color": "#ffffff",
+                  "radius": 22,
+                  "padY": 9,
+                  "padX": 28
+                }
+              }
+            ]
+          }
+        ],
+        "card": {
+          "bg": "#eeeeee",
+          "radius": 20,
+          "pad": 36,
+          "textWidth": 480
+        }
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[ripple_button_v2] ripple animation replaced by the kit's label swap (\"Write to us\" → \"Ask away\")",
+      "path": "section#fp10/container#fp20/block#fp40/block#fp44/ripple_button_v2#fp45",
+      "tag": "ripple_button_v2"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[block] rounded call-to-action panel kept as a card around the columns",
+      "path": "block#fp40",
+      "tag": "block"
+    }
+  ],
+  "forms": []
+}

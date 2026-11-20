@@ -443,10 +443,16 @@ function dynamicListing(n: ShortcodeNode, ctx: HandlerCtx): Fragment[] {
 }
 
 export interface FaqLook {
-	style?: "card";
+	style?: "card" | "panel";
 	radius?: string;
 	openFirst?: boolean;
 	inset?: string;
+	/** panel (Bricks only): background, item side padding desktop/phones, divider colour, one open at a time. */
+	bg?: string;
+	pad?: number;
+	padPhone?: number;
+	line?: string;
+	exclusive?: boolean;
 }
 
 /** Salient toggles: minimal_shadow = padded items, circled +/− icons, the open one a raised card; an accordion opens its first item. */

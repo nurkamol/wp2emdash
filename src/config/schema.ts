@@ -162,6 +162,14 @@ export const kitConfigSchema = z.object({
 
 	/** Experimental: branded sharing cards (og:image) rendered in the Worker (@wp2emdash/og). Off unless set. */
 	og: z.object({ cards: z.boolean().default(false) }).default({ cards: false }),
+	/**
+	 * Entrance motion. "calm" (owner opt-in): sections fade in and rise 14px over 600ms, cards / columns / FAQ items
+	 * follow with a short stagger, pictures fade and settle from a 3% zoom, buttons and links ease their colours. The
+	 * page's first section is never held back (LCP), nothing moves under prefers-reduced-motion, all is visible without JS.
+	 * Unset: calm on Bricks sites whose live pages animate their content (entrance interactions), else the starter's
+	 * default reveal; "none" keeps the default.
+	 */
+	motion: z.enum(["calm", "none"]).optional(),
 	/** Experimental: SEO panel in the page editor (@wp2emdash/seo). Off unless set. */
 	seo: z.object({ panel: z.boolean().default(false) }).default({ panel: false }),
 	/**

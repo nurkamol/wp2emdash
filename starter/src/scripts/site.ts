@@ -262,6 +262,73 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")
 	});
 }
 
+// FAQ panel (faq--panel): answers open and close with a short height animation (none under prefers-reduced-motion),
+// and in a group (data-faq-group) opening one closes the others — also where <details name> is not supported. Without
+// JS the details still work natively.
+for (const faq of document.querySelectorAll<HTMLElement>(".faq--panel")) {
+	const grouped = !!faq.dataset.faqGroup;
+	const items = [...faq.querySelectorAll<HTMLDetailsElement>(":scope > details.faq__item")];
+	// The script keeps the group itself: native exclusivity would close the others without the animation.
+	for (const d of items) d.removeAttribute("name");
+	const answer = (d: HTMLDetailsElement) => d.querySelector<HTMLElement>(".faq__a");
+	const animate = (d: HTMLDetailsElement, open: boolean) => {
+		const a = answer(d);
+		if (!a || reduce) {
+			d.open = open;
+			return;
+		}
+		if (open) d.open = true;
+		const cs = getComputedStyle(a);
+		const shown = { height: `${a.offsetHeight}px`, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, opacity: 1 };
+		const hidden = { height: "0px", paddingTop: "0px", paddingBottom: "0px", opacity: 0 };
+		const anim = a.animate(open ? [hidden, shown] : [shown, hidden], { duration: 260, easing: "cubic-bezier(0.25, 0.8, 0.25, 1)" });
+		if (!open) anim.onfinish = () => (d.open = false);
+	};
+	for (const d of items) {
+		d.querySelector("summary")?.addEventListener("click", (e) => {
+			e.preventDefault();
+			const opening = !d.open;
+			if (opening && grouped) for (const o of items) if (o !== d && o.open) animate(o, false);
+			animate(d, opening);
+		});
+	}
+}
+
+// Turnstile, rendered explicitly: the normal 300×65 widget, or the compact one where the form is narrower than 300px
+// (320px phones). Not full width (data-size="flexible" stretched it across the form).
+{
+	type TS = { render(el: Element, o: Record<string, unknown>): unknown };
+	const boxes = [...document.querySelectorAll<HTMLElement>(".cf-turnstile[data-sitekey]")];
+	const renderAll = () => {
+		const ts = (window as { turnstile?: TS }).turnstile;
+		if (!ts) return;
+		const draw = (el: HTMLElement, room: number) => {
+			if (el.dataset.rendered) return;
+			el.dataset.rendered = "1";
+			ts.render(el, { sitekey: el.dataset.sitekey, theme: el.dataset.theme ?? "light", size: room >= 300 ? "normal" : "compact" });
+		};
+		for (const el of boxes) {
+			const parent = el.parentElement;
+			if (!parent) continue;
+			if (parent.clientWidth > 0) draw(el, parent.clientWidth);
+			else {
+				// A form in a closed popup has no width yet: draw it once it is shown.
+				const ro = new ResizeObserver(() => {
+					if (parent.clientWidth > 0) {
+						ro.disconnect();
+						draw(el, parent.clientWidth);
+					}
+				});
+				ro.observe(parent);
+			}
+		}
+	};
+	if (boxes.length) {
+		if ((window as { turnstile?: TS }).turnstile) renderAll();
+		else document.querySelector('script[src*="challenges.cloudflare.com/turnstile"]')?.addEventListener("load", renderAll);
+	}
+}
+
 // Background videos: start them even where autoplay was deferred (iOS Low Power Mode, data saver
 // or a tab opened in the background); retry on the first touch, scroll or return to the tab.
 const bgVideos = [...document.querySelectorAll<HTMLVideoElement>("video[data-bg-video]")];

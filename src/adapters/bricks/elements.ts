@@ -14,7 +14,7 @@ import { type Col, embedOrLegacy, embedProvider, type Fragment, type HandlerCtx,
 import { mergeRich } from "../wpbakery/index.js";
 import { bricksFormToDefinition } from "./forms.js";
 import type { BricksElement, BricksOptions } from "./index.js";
-import { type BricksSite, classNames, obj, str } from "./site.js";
+import { type BricksSite, classNames, cssPx, effectiveSettings, obj, resolveColour, str } from "./site.js";
 
 type Obj = Record<string, unknown>;
 
@@ -239,7 +239,18 @@ const rippleButton: Handler = (e, s, path, env) => {
 	const top = dynamicText(str(s.topRippleInnerTitle) ?? "", path, e, env);
 	const bottom = stripTags(str(s.bottomRippleInnerTitle) ?? "");
 	const hover = bottom && bottom !== stripTags(top) ? bottom.slice(0, 80) : undefined;
-	const out = buttonOf(top, linkOf(s.link, env), e, path, env, "primary").map((f) => (hover && f.kind === "button" ? { ...f, button: { ...f.button, hoverLabel: hover } } : f));
+	// The button's own colours, corners and padding (element + global class settings; NextBricks CSS defaults: v3 100px
+	// corners and 15px 30px padding).
+	const es = effectiveSettings(e, env.site);
+	const bg = resolveColour(obj(es.topRippleBackground)?.color, env.site);
+	const color = resolveColour(es.topRippleColor, env.site);
+	const radius = cssPx(obj(obj(es.border)?.radius)?.top, env.site) ?? (e.name === "ripple_button_v3" ? 100 : undefined);
+	const pad = obj(es.padding);
+	const padY = cssPx(pad?.top, env.site) ?? (e.name === "ripple_button_v3" ? 15 : undefined);
+	const padX = cssPx(pad?.left, env.site) ?? (e.name === "ripple_button_v3" ? 30 : undefined);
+	const COLOR = /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i;
+	const look = { ...(bg && COLOR.test(bg) ? { bg } : {}), ...(color && COLOR.test(color) ? { color } : {}), ...(radius !== undefined && radius >= 0 && radius <= 200 ? { radius } : {}), ...(padY !== undefined && padX !== undefined && padY <= 60 && padX <= 80 ? { padY, padX } : {}) };
+	const out = buttonOf(top, linkOf(s.link, env), e, path, env, "primary").map((f) => (f.kind === "button" && (hover || Object.keys(look).length) ? { ...f, button: { ...f.button, ...(hover ? { hoverLabel: hover } : {}), ...(Object.keys(look).length ? { look } : {}) } } : f));
 	if (!out.length) env.diag({ level: "warn", code: "unmapped", message: `[${e.name}] without a label`, path, tag: e.name });
 	else env.diag({ level: "info", code: "lossy", message: `[${e.name}] ripple animation replaced by the kit's label swap${hover ? ` ("${stripTags(top)}" → "${hover}")` : ""}`, path, tag: e.name });
 	return out;

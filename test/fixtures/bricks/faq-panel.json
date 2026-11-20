@@ -1,0 +1,23 @@
+{
+  "options": {
+    "bricks_global_classes": [
+      { "id": "fp01", "name": "faq-box", "settings": { "_background": { "color": { "hex": "#eeeeee" } }, "_border": { "radius": { "top": "20", "right": "20", "bottom": "20", "left": "20" } }, "_padding": { "top": "8", "bottom": "8" } } },
+      { "id": "fp02", "name": "faq-list", "settings": { "_padding": { "top": "4", "left": "36", "right": "36", "bottom": "4" }, "_padding:mobile_landscape": { "left": "18", "right": "18" }, "titleBorder": { "color": { "raw": "rgba(0, 0, 0, 0.12)" }, "style": "solid", "width": { "bottom": "1" } } } },
+      { "id": "fp03", "name": "cta-card", "settings": { "_direction": "row", "_alignItems": "center", "_justifyContent": "space-between", "_background": { "color": { "hex": "#eeeeee" } }, "_padding": { "top": "36", "right": "36", "bottom": "36", "left": "36" }, "_border": { "radius": { "top": "20", "right": "20", "bottom": "20", "left": "20" } } } },
+      { "id": "fp04", "name": "cta-button", "settings": { "topRippleBackground": { "color": { "hex": "#111111" } }, "topRippleColor": { "hex": "#ffffff" }, "border": { "radius": { "top": "22", "right": "22", "bottom": "22", "left": "22" } }, "padding": { "top": "9", "right": "28", "bottom": "9", "left": "28" } } }
+    ]
+  },
+  "live": [{ "width": 1440, "rootFontSize": 16, "variables": { "--width-m": "30rem" } }],
+  "elements": [
+    { "id": "fp10", "name": "section", "parent": 0, "children": ["fp20"], "settings": {} },
+    { "id": "fp20", "name": "container", "parent": "fp10", "children": ["fp30", "fp40"], "settings": {} },
+    { "id": "fp30", "name": "container", "parent": "fp20", "children": ["fp31"], "settings": { "_cssGlobalClasses": ["fp01"] } },
+    { "id": "fp31", "name": "accordion", "parent": "fp30", "children": [], "settings": { "_cssGlobalClasses": ["fp02"], "titleTag": "h4", "accordions": [{ "title": "Can I bring a friend?", "content": "<p>Yes, book a second spot under your account.</p>" }, { "title": "Is there parking?", "content": "<p>Free parking behind the studio.</p>" }] } },
+    { "id": "fp40", "name": "block", "parent": "fp20", "children": ["fp41", "fp44"], "settings": { "_cssGlobalClasses": ["fp03"] } },
+    { "id": "fp41", "name": "container", "parent": "fp40", "children": ["fp42", "fp43"], "settings": {} },
+    { "id": "fp42", "name": "heading", "parent": "fp41", "children": [], "settings": { "tag": "h3", "text": "More questions?" } },
+    { "id": "fp43", "name": "text", "parent": "fp41", "children": [], "settings": { "text": "<p>Write to us and we will answer within a day.</p>", "_width": "var(--width-m)" } },
+    { "id": "fp44", "name": "block", "parent": "fp40", "children": ["fp45"], "settings": { "_width": "fit-content" } },
+    { "id": "fp45", "name": "ripple_button_v2", "parent": "fp44", "children": [], "settings": { "_cssGlobalClasses": ["fp04"], "topRippleInnerTitle": "Write to us", "bottomRippleInnerTitle": "Ask away", "link": { "type": "external", "url": "/contact/" } } }
+  ]
+}
