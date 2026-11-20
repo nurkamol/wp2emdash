@@ -136,6 +136,47 @@ program
 	});
 
 program
+	.command("golive")
+	.description("Owner-approved traffic switch: Worker routes for the domain, smoke test, production.live (prints the plan and changes nothing without --yes)")
+	.argument("<slug>")
+	.option("--aliases", "the separate alias step: one Single Redirect rule per target.aliasDomains entry, then check-aliases and a DNS comparison")
+	.option("--rollback", "delete exactly the routes / alias rules recorded in cutover/golive.json and set production.live = false (with --aliases: only the alias rules)")
+	.option("--yes", "apply — only after the owner's explicit go-ahead in the current conversation")
+	.option("--limit <n>", "smoke-test only the first n audited paths")
+	.option("--json")
+	.action(async (slug: string, o: { aliases?: boolean; rollback?: boolean; yes?: boolean; limit?: string; json?: boolean }) => {
+		const { golive } = await import("../commands/golive.js");
+		try {
+			const r = await golive(slug, { aliases: !!o.aliases, rollback: !!o.rollback, yes: !!o.yes, ...(o.limit ? { limit: Number(o.limit) } : {}), ...(o.json ? {} : { log: (l: string) => console.log(l) }) });
+			if (o.json) console.log(JSON.stringify(r, null, 2));
+			else {
+				for (const c of r.checks) console.log(`${c.ok ? pc.green("✔") : pc.red("✖")} ${c.label}${c.detail ? pc.dim(` — ${c.detail}`) : ""}`);
+				if (r.next.length) console.log(`\nNext:\n${r.next.map((n) => `  - ${n}`).join("\n")}`);
+			}
+			// 0 applied and green · 2 applied, a check failed · 1 refused / plan only / error
+			process.exit(r.applied ? (r.ok ? 0 : 2) : 1);
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
+	.command("publish")
+	.description("Put the site's project in a private GitHub repository: secret scan, commit, gh repo create --private, push, CLOUDFLARE_ACCOUNT_ID variable (prints the plan without --yes)")
+	.argument("<slug>")
+	.option("--repo <owner/name>", "repository (default: the production domain, under your GitHub account)")
+	.option("--yes", "apply")
+	.action(async (slug: string, o: { repo?: string; yes?: boolean }) => {
+		const { publish } = await import("../commands/publish.js");
+		try {
+			const r = await publish(slug, { ...(o.repo ? { repo: o.repo } : {}), yes: !!o.yes, log: (l: string) => console.log(l) });
+			process.exit(r.applied ? 0 : 1);
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
 	.command("phases")
 	.description("List pipeline phases")
 	.action(() => {

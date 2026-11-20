@@ -41,6 +41,12 @@ Record the ids in `sites/<slug>/cloudflare.json` (the scaffold writes them into 
 
 Then rerun `pnpm wp2emdash run <slug> scaffold` so `wrangler.jsonc` picks them up.
 
+Shorter: `pnpm wp2emdash provision <slug> staging [--location enam]` creates (or reuses) the database, the bucket, the
+form outbox and the `SESSION` namespace for Astro sessions (`<slug>-staging-session`) and records them all in
+`cloudflare.json`. Scaffold then binds `SESSION` explicitly, so the first `wrangler deploy` provisions nothing on its
+own (docs/spikes/M8-findings.md). For a site deployed before this, provision finds the namespace Wrangler already
+created by its title and records it: nothing changes for that Worker.
+
 ## 2. Build, migrate, deploy
 
 ```bash
@@ -163,6 +169,13 @@ database) and turns the staging job on. Until then the job is skipped.
 
 In the GitHub repository: secret `CLOUDFLARE_API_TOKEN` (the build & staging token, never the go-live DNS
 token), variable `CLOUDFLARE_ACCOUNT_ID` (deploy jobs are skipped until it is set); environments `staging` and `production` (required reviewer: the owner).
+
+`pnpm wp2emdash publish <slug>` does the repository part: it refuses while a local secret file (`.env`, `.dev.vars`,
+`*.db`) or a credential-like value would be committed (file names only), then `git init`, commit,
+`gh repo create --private` (default name: the production domain; `--repo owner/name` to choose), push, and the
+`CLOUDFLARE_ACCOUNT_ID` variable. It prints the plan and changes nothing without `--yes`, and it never sets the token
+secret: run the printed `gh secret set CLOUDFLARE_API_TOKEN` yourself with a build-only token (no zone permissions).
+On an existing repository it only commits and pushes.
 The client project's `docs/deployment.md` repeats this for whoever maintains the site.
 
 ## Troubleshooting
@@ -177,6 +190,7 @@ The client project's `docs/deployment.md` repeats this for whoever maintains the
 | verify: `page.goto: net::ERR_TUNNEL_CONNECTION_FAILED` while `curl --resolve` to the pinned address works | The machine routes the browser through a proxy auto-config (VPN or a tailnet DNS such as `100.100.100.100`) that cannot resolve the new host; the pinned addresses do not reach Chromium behind that proxy | Flush the DNS cache (above) and retry once `curl https://<host>/` answers 200, or switch the VPN off for the run. Meanwhile, verify against a local load (`WP2EMDASH_LOAD_TARGET=local` load, then `WP2EMDASH_TARGET=local` verify) to check layout changes. |
 | `/_emdash/setup` returns 404 | Wrong path | The setup is at `/_emdash/admin/setup` |
 | Load fails with `INSUFFICIENT_SCOPE` | The API token lacks a scope | Create a token with the scopes in step 4 |
+| First deploy fails (10001), then every retry fails with `10014` "namespace already exists" | Wrangler auto-provisioned the `SESSION` KV namespace before the deploy failed, leaving `<worker>-session` behind | `pnpm wp2emdash provision <slug> <env>` (reuses that namespace by title and records it), rerun scaffold so `wrangler.jsonc` binds it, deploy again |
 
 ## 7. Production before the switch
 
@@ -194,5 +208,7 @@ WP2EMDASH_LOAD_TARGET=production pnpm wp2emdash run <slug> load --preview
 WP2EMDASH_TARGET=production pnpm wp2emdash run <slug> verify --preview
 ```
 
-After the traffic switch, set `production.live: true` in `cloudflare.json`: load and verify then use the real domain
-and expect it indexable with analytics loading.
+The traffic switch itself is `pnpm wp2emdash golive <slug>` (plan only; `--yes` after the owner's go-ahead): it creates
+the routes, smoke-tests the domain and sets `production.live: true` in `cloudflare.json` — load and verify then use the
+real domain and expect it indexable with analytics loading. Rerun scaffold and deploy production afterwards so IndexNow
+turns live.
