@@ -1,0 +1,576 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#f6f1e9"
+        }
+      },
+      "spacing": "normal",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0]",
+        "rawHash": "99c227d5ec"
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "60/100",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "h1",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Meadow Lane Bakery",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              },
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Sourdough baked before sunrise.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Order bread",
+                "href": "/order/",
+                "style": "primary"
+              },
+              {
+                "label": "Visit us",
+                "href": "/visit/",
+                "style": "primary",
+                "newTab": true
+              }
+            ]
+          },
+          {
+            "width": "40/100",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Open from 7am",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [],
+                "listItem": "bullet",
+                "level": 1
+              },
+              {
+                "_type": "block",
+                "_key": "t6",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t7",
+                    "text": "Organic flour only",
+                    "marks": []
+                  }
+                ],
+                "markDefs": [],
+                "listItem": "bullet",
+                "level": 1
+              }
+            ],
+            "media": [],
+            "buttons": []
+          }
+        ]
+      }
+    },
+    {
+      "type": "feature_grid",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[1]",
+        "rawHash": "cebcddc5db"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Sourdough",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Forty-eight hour ferment.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "wpId": 610,
+              "kind": "image",
+              "url": "https://meadow.example/wp-content/uploads/2026/03/loaf.jpg"
+            },
+            "link": {
+              "label": "Read more",
+              "href": "/sourdough/",
+              "style": "link"
+            }
+          },
+          {
+            "title": "Pastries",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Laminated by hand every morning.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "title": "Cakes to order",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tc",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "td",
+                    "text": "Two days' notice, please.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "columns": 3
+      }
+    },
+    {
+      "type": "faq",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[2-2]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "question": "Do you bake gluten-free bread?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "te",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tf",
+                    "text": "Yes, on Fridays.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "question": "Can I reserve a loaf?",
+            "answer": [
+              {
+                "_type": "block",
+                "_key": "tg",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "th",
+                    "text": "Order online by 8pm the day before.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ],
+        "schema": true
+      }
+    },
+    {
+      "type": "tabs",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[3-3]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "tabs": [
+          {
+            "label": "Weekdays",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "ti",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tj",
+                    "text": "7am to 4pm.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          },
+          {
+            "label": "Weekends",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "tk",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tl",
+                    "text": "8am until sold out.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "testimonials",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[4-4]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "items": [
+          {
+            "quote": "The best croissant in town.",
+            "name": "Jordan Example",
+            "role": "Neighbour",
+            "photo": {
+              "wpId": 620,
+              "kind": "image",
+              "url": "https://meadow.example/wp-content/uploads/2026/03/jordan.jpg"
+            }
+          },
+          {
+            "quote": "Our Saturday ritual.",
+            "name": "Riley Sample"
+          }
+        ]
+      }
+    },
+    {
+      "type": "team",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[5-5]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "intro": [],
+        "members": [
+          {
+            "name": "Ana Placeholder",
+            "role": "Head baker",
+            "photo": {
+              "wpId": 630,
+              "kind": "image",
+              "url": "https://meadow.example/wp-content/uploads/2026/03/ana.jpg"
+            },
+            "bio": [
+              {
+                "_type": "block",
+                "_key": "tm",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tn",
+                    "text": "Ana trained in Lyon.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "links": [
+              {
+                "label": "Facebook",
+                "href": "https://facebook.example/meadowlane",
+                "style": "link",
+                "newTab": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[6-6]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "to",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tp",
+                "text": "Wholesale enquiries",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tq",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tr",
+                "text": "We supply cafés across the valley.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Get in touch",
+            "href": "/wholesale/",
+            "style": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[7-7]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "intro": [],
+        "formRef": {
+          "provider": "spectra",
+          "id": "10-1"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "map",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[8-8]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "address": "12 Meadow Lane, Valleyton"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[9-9]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "ts",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tt",
+                "text": "How to feed a starter",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tu",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tv",
+                "text": "Discard half, then add flour and water.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "uagb/forms: hidden field \"Source\" not rebuilt (its value is set by the page); add it by hand if the receiver needs it; recipient set in the spectra form: set it in the admin (Forms → recipients), it is not copied",
+      "path": "blocks[7]",
+      "tag": "uagb/forms"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "uagb/how-to: no handler; Spectra block without a handler, its text kept",
+      "path": "blocks[9]",
+      "carriesContent": true,
+      "tag": "uagb/how-to"
+    }
+  ],
+  "forms": [
+    {
+      "id": "spectra-10-1",
+      "title": "Wholesale form",
+      "submitLabel": "Send",
+      "successMessage": "Thank you, we will call you back.",
+      "fields": [
+        {
+          "name": "your_name",
+          "label": "Your name",
+          "type": "text",
+          "required": true,
+          "placeholder": "Jane",
+          "autocomplete": "name"
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "autocomplete": "email"
+        },
+        {
+          "name": "business_type",
+          "label": "Business type",
+          "type": "select",
+          "options": [
+            "Café",
+            "Restaurant"
+          ]
+        }
+      ],
+      "warnings": [
+        "hidden field \"Source\" not rebuilt (its value is set by the page); add it by hand if the receiver needs it",
+        "recipient set in the spectra form: set it in the admin (Forms → recipients), it is not copied"
+      ]
+    }
+  ]
+}

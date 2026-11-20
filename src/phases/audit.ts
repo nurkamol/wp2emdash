@@ -263,7 +263,9 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	// 7. Gate
 	const home = records.get(normalizeUrl(`${site.origin}/`, site));
 	const failedScreens = screens.filter((s) => s.error);
-	const unsupportedBuilders = Object.keys(fp.builders).filter((b) => ["divi"].includes(b));
+	// Every builder the audit can recognise has an adapter now (Divi since 2026-11-21); keep the list for future ones.
+	const UNSUPPORTED_BUILDERS: string[] = [];
+	const unsupportedBuilders = Object.keys(fp.builders).filter((b) => UNSUPPORTED_BUILDERS.includes(b));
 	const outOfScope = fp.plugins.filter((p) => p.action === "out-of-scope");
 	// A form the owner decided to handle elsewhere (overrides.ts → integrations: "replace" | "drop", e.g. a waiver signed
 	// in the booking system) is not rebuilt on the site, so it does not make the site sensitive.

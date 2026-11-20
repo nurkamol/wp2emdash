@@ -1,0 +1,311 @@
+{
+  "sections": [
+    {
+      "type": "gallery",
+      "variant": "grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[0]/et_pb_row[0]",
+        "rawHash": "0bdb6f0d8b",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Gallery",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "images": [
+          {
+            "wpId": 101,
+            "kind": "image"
+          },
+          {
+            "wpId": 102,
+            "kind": "image"
+          },
+          {
+            "wpId": 103,
+            "kind": "image"
+          }
+        ],
+        "layout": "grid",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "carousel",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[0]/et_pb_row[1]",
+        "rawHash": "0bed9dde48",
+        "row": 0
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 104,
+            "kind": "image"
+          },
+          {
+            "wpId": 105,
+            "kind": "image"
+          }
+        ],
+        "layout": "carousel",
+        "lightbox": true
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_row[0]",
+        "rawHash": "9f7d166fb2",
+        "row": 1
+      },
+      "fields": {
+        "embedUrl": "https://www.youtube.com/watch?v=abc123XYZ00"
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_row[0]",
+        "rawHash": "9f7d166fb2",
+        "row": 1
+      },
+      "fields": {
+        "video": {
+          "url": "https://fernhill.example/wp-content/uploads/2026/01/firing.mp4",
+          "kind": "video"
+        },
+        "poster": {
+          "url": "https://fernhill.example/wp-content/uploads/2026/01/firing-poster.jpg",
+          "kind": "image"
+        }
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_row[1]",
+        "rawHash": "ab870f0b57",
+        "row": 1
+      },
+      "fields": {
+        "embedUrl": "https://vimeo.com/123456789"
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_row[1]",
+        "rawHash": "ab870f0b57",
+        "row": 1
+      },
+      "fields": {
+        "embedUrl": "https://www.youtube.com/watch?v=def456UVW11"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[2]/et_pb_row[0]",
+        "rawHash": "3de625d74c",
+        "row": 2
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Find us",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Down the lane past the orchard.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "tb",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Instagram",
+                "marks": [
+                  "t6"
+                ]
+              },
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": " ",
+                "marks": []
+              },
+              {
+                "_type": "span",
+                "_key": "ta",
+                "text": "Facebook",
+                "marks": [
+                  "t8"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t6",
+                "href": "https://instagram.com/fernhill.example",
+                "blank": true
+              },
+              {
+                "_type": "link",
+                "_key": "t8",
+                "href": "https://facebook.example/fernhill",
+                "blank": true
+              }
+            ]
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "map",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[2]/et_pb_row[0]",
+        "rawHash": "3de625d74c",
+        "row": 2
+      },
+      "fields": {
+        "address": "1 Orchard Lane, Fernhill"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[2]/et_pb_row[0]",
+        "rawHash": "3de625d74c",
+        "row": 2
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tc",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "td",
+                "text": "Car park: Village Hall, Fernhill",
+                "marks": []
+              }
+            ],
+            "markDefs": [],
+            "listItem": "bullet",
+            "level": 1
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[et_pb_video_slider] 2 videos shown one after another (no video slider)",
+      "path": "et_pb_section[1]/et_pb_row[1]/et_pb_column[0]/et_pb_video_slider[0]",
+      "tag": "et_pb_video_slider"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[et_pb_map] 2 pins: the map shows the first (1 Orchard Lane, Fernhill); the others are listed below it",
+      "path": "et_pb_section[2]/et_pb_row[0]/et_pb_column[1]/et_pb_map[0]",
+      "tag": "et_pb_map"
+    }
+  ],
+  "forms": []
+}

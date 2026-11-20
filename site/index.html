@@ -439,8 +439,8 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 			<dl class="stats" aria-label="The kit in numbers">
 				<div class="stat"><dt>unmapped content nodes on the real WPBakery/Salient site</dt><dd>0</dd></div>
 				<div class="stat"><dt>of the live site’s page text carried over</dt><dd>100<small>%</small></dd></div>
-				<div class="stat"><dt>in-scope WordPress features done in the parity audit</dt><dd>60<small> / 103</small></dd></div>
-				<div class="stat"><dt>automated tests, golden fixtures per element</dt><dd>982</dd></div>
+				<div class="stat"><dt>in-scope WordPress features done in the parity audit</dt><dd>74<small> / 103</small></dd></div>
+				<div class="stat"><dt>automated tests, golden fixtures per element</dt><dd>1093</dd></div>
 			</dl>
 		</div>
 	</div>
@@ -514,14 +514,14 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 			<div class="parity">
 				<div>
 					<p class="parity-title"><strong>103</strong> in-scope WordPress features tracked against EmDash 1.5 <span aria-hidden="true">·</span> 110 in total, 7 out of scope</p>
-					<div class="bar" role="img" aria-label="60 done, 6 superseded, 26 partial, 11 missing">
-						<span class="b-done" style="flex:60"></span><span class="b-sup" style="flex:6"></span><span class="b-part" style="flex:26"></span><span class="b-miss" style="flex:11"></span>
+					<div class="bar" role="img" aria-label="74 done, 6 superseded, 18 partial, 5 missing">
+						<span class="b-done" style="flex:74"></span><span class="b-sup" style="flex:6"></span><span class="b-part" style="flex:18"></span><span class="b-miss" style="flex:5"></span>
 					</div>
 					<ul class="legend">
-						<li><i class="b-done" style="background:var(--brand)"></i><b>60</b> done</li>
+						<li><i class="b-done" style="background:var(--brand)"></i><b>74</b> done</li>
 						<li><i style="background:color-mix(in srgb, var(--brand) 50%, transparent)"></i><b>6</b> superseded by EmDash</li>
-						<li><i style="background:var(--line-strong)"></i><b>26</b> partial</li>
-						<li><i style="background:var(--tint);box-shadow:inset 0 0 0 1px var(--line-strong)"></i><b>11</b> missing</li>
+						<li><i style="background:var(--line-strong)"></i><b>18</b> partial</li>
+						<li><i style="background:var(--tint);box-shadow:inset 0 0 0 1px var(--line-strong)"></i><b>5</b> missing</li>
 					</ul>
 				</div>
 				<p class="big">62%<small>carried or superseded</small></p>
@@ -534,17 +534,19 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 					<tbody>
 						<tr><td>WPBakery + Salient</td><td><span class="status s-ok">Supported</span></td><td>~70 element handlers and row recognisers: rows, columns, CTAs, team, testimonials, pricing, marquees, global sections. Spacing and type measured on the live theme.</td></tr>
 						<tr><td>Gutenberg, classic</td><td><span class="status s-ok">Supported</span></td><td>30 core blocks and reusable blocks; classic content paragraph-faithful, its shortcodes through the shortcode parser.</td></tr>
+						<tr><td>Gutenberg block libraries</td><td><span class="status s-built">Built</span></td><td>Kadence, Spectra, GenerateBlocks, Stackable and CoBlocks layouts, headings, buttons, icon lists, info boxes, tabs, accordions, testimonials and form blocks. Not yet run on a real site.</td></tr>
 						<tr><td>Bricks 2.4.6 / 2.5</td><td><span class="status s-ok">Supported</span></td><td>Elements, header/footer/popup templates, global classes, palette, components and forms. Measured against a real Bricks site.</td></tr>
 						<tr><td>Elementor</td><td><span class="status s-built">Built</span></td><td>Containers and legacy sections, Kit globals, Theme Builder header/footer, Pro forms and popups. Not yet run on a real Elementor site.</td></tr>
+						<tr><td>Divi</td><td><span class="status s-built">Built</span></td><td>Divi 4 sections and ~30 modules, global colours, contact forms, Theme Builder header/footer; Divi 5 read best effort. Not yet run on a real Divi site.</td></tr>
 						<tr><td>Blog</td><td><span class="status s-ok">Supported</span></td><td>Posts as Portable Text, categories, tags and custom taxonomies, guest bylines, paginated archives and RSS, all at their WordPress addresses.</td></tr>
 						<tr><td>Custom post types</td><td><span class="status s-ok">Supported</span></td><td>Each public type becomes its own collection with archives; ACF, Meta Box and Pods fields mapped to EmDash fields.</td></tr>
 						<tr><td>Comments</td><td><span class="status s-built">Built</span></td><td>Approved comments with their date, author and thread, moderated comment form with Turnstile. Not yet run on a real site with comments.</td></tr>
 						<tr><td>SEO</td><td><span class="status s-ok">Supported</span></td><td>Titles, descriptions, canonicals, robots, JSON-LD, sharing images, verification tags, robots.txt and sitemap; Rank Math and Yoast data carried.</td></tr>
-						<tr><td>Forms</td><td><span class="status s-ok">Supported</span></td><td>Fluent Forms, Gravity Forms, WPForms and Contact Form 7 rebuilt on a native endpoint, waivers with signatures included.</td></tr>
+						<tr><td>Forms</td><td><span class="status s-ok">Supported</span></td><td>Contact Form 7, Gravity Forms, WPForms, Fluent, Ninja, Formidable, WS Form, Forminator, Elementor Pro, Bricks and Divi forms rebuilt on a native endpoint: file uploads, conditional fields, multi-step, waivers with signatures.</td></tr>
 						<tr><td>Redirects, old URLs</td><td><span class="status s-ok">Supported</span></td><td>Redirection, Rank Math and Yoast redirects imported; <code>?p=</code>, <code>?page_id=</code>, upload, feed, search and archive URLs answered by a per-site rule set.</td></tr>
 						<tr><td>Settings, site code</td><td><span class="status s-ok">Supported</span></td><td>EmDash settings prefilled from WordPress; tracking, chat and review widgets recognised from 46 known providers. Unknown code is never carried automatically.</td></tr>
-						<tr><td>Header, menus, popups</td><td><span class="status s-ok">Supported</span></td><td>Header layout and burger-menu motion measured from the live site; popups with their triggers; announcement bars as an editable site part.</td></tr>
-						<tr><td>Divi, shops, memberships</td><td><span class="status s-no">Not yet</span></td><td>Detected by the audit, which stops for a decision.</td></tr>
+						<tr><td>Header, menus, popups</td><td><span class="status s-ok">Supported</span></td><td>Header layout and burger-menu motion measured from the live site; popups with their triggers; announcement bars as an editable site part; every menu, classic widget areas, a search page, breadcrumbs and the old 404 page.</td></tr>
+						<tr><td>Shops, memberships, other builders</td><td><span class="status s-no">Not yet</span></td><td>Shops and memberships are detected by the audit, which stops for a decision; Beaver Builder, Oxygen and similar have no adapter yet.</td></tr>
 					</tbody>
 				</table>
 			</div>

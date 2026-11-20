@@ -13,7 +13,7 @@ export interface MediaRef {
 }
 
 /** Shortcode attributes that hold attachment IDs (single or comma list). */
-const ID_ATTR = /^(image|images|img|img_id|image_id|bg_image|background_image|image_url|ids|include|poster|logo|icon_image|attachment|media|photo|gallery|slide_image|image_with_animation|custom_icon|video_image|mobile_bg_image|bg_image_tablet|bg_image_phone|.*_image(_id)?|.*_img)$/i;
+const ID_ATTR = /^(image|images|img|img_id|image_id|bg_image|background_image|image_url|ids|include|poster|logo|icon_image|attachment|media|photo|gallery|gallery_ids|slide_image|image_with_animation|custom_icon|video_image|mobile_bg_image|bg_image_tablet|bg_image_phone|.*_image(_id)?|.*_img)$/i;
 
 /** Meta keys that hold attachment IDs. */
 const ID_META = /^(_thumbnail_id|.*_image_id|.*_attachment_id|site_icon|site_logo|custom_logo)$/i;

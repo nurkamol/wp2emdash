@@ -1,0 +1,67 @@
+{
+  "sections": [
+    {
+      "type": "columns",
+      "theme": {
+        "tone": "light",
+        "background": {
+          "color": "#ffffff"
+        }
+      },
+      "spacing": "compact",
+      "width": "full",
+      "stackGap": 0,
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[0]/et_pb_row[0]",
+        "rawHash": "b35488aaaf",
+        "row": 0
+      },
+      "fields": {
+        "columns": [
+          {
+            "width": "1/4",
+            "body": [],
+            "media": [
+              {
+                "url": "https://fernhill.example/wp-content/uploads/2026/01/logo.png",
+                "kind": "image",
+                "alt": "Fernhill Pottery Studio"
+              }
+            ],
+            "buttons": []
+          },
+          {
+            "width": "3/4",
+            "body": [],
+            "media": [],
+            "buttons": [
+              {
+                "label": "Book a class",
+                "href": "/book/",
+                "style": "primary"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[et_pb_image] links to /; pictures in the section library carry no link, add it on the page if it matters",
+      "path": "et_pb_section[0]/et_pb_row[0]/et_pb_column[0]/et_pb_image[0]",
+      "tag": "et_pb_image"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[et_pb_menu] menu \"7\" becomes the site's primary menu",
+      "path": "et_pb_section[0]/et_pb_row[0]/et_pb_column[1]/et_pb_menu[0]",
+      "tag": "et_pb_menu"
+    }
+  ],
+  "forms": []
+}

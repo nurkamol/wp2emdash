@@ -1,0 +1,184 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "loose[0]",
+        "rawHash": "bbbc2de3d9",
+        "row": 0
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Intro text written before the builder was switched on.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_row[0]",
+        "rawHash": "5fbb0acce5",
+        "row": 1
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "From the journal",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_row[1]",
+        "rawHash": "10da40b000",
+        "row": 1
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Monthly news from the studio.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Shared opening hours: Tuesday to Sunday.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "[et_pb_blog] dynamic listing needs a posts-listing section (not in the v1 library)",
+      "path": "et_pb_section[1]/et_pb_row[0]/et_pb_column[0]/et_pb_blog[1]",
+      "carriesContent": true,
+      "tag": "et_pb_blog"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[et_pb_search] is rendered by the site (search, post data, comments, shop), not migrated as content",
+      "path": "et_pb_section[1]/et_pb_row[0]/et_pb_column[0]/et_pb_search[2]",
+      "tag": "et_pb_search"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[et_pb_countdown_timer] is rendered by the site (search, post data, comments, shop), not migrated as content",
+      "path": "et_pb_section[1]/et_pb_row[0]/et_pb_column[0]/et_pb_countdown_timer[3]",
+      "tag": "et_pb_countdown_timer"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "No handler for Divi module [et_pb_signup] (carries content)",
+      "path": "et_pb_section[1]/et_pb_row[1]/et_pb_column[0]/et_pb_signup[0]",
+      "carriesContent": true,
+      "tag": "et_pb_signup"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "No handler for Divi module [et_pb_audio] (carries content)",
+      "path": "et_pb_section[1]/et_pb_row[1]/et_pb_column[0]/et_pb_audio[1]",
+      "carriesContent": true,
+      "tag": "et_pb_audio"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "No handler for Divi module [dsm_flipbox] (carries content)",
+      "path": "et_pb_section[1]/et_pb_row[1]/et_pb_column[0]/dsm_flipbox[2]",
+      "carriesContent": true,
+      "tag": "dsm_flipbox"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[et_pb_text] global module #812: the copy saved in this page is used",
+      "path": "et_pb_section[1]/et_pb_row[1]/et_pb_column[0]/et_pb_text[3]",
+      "tag": "et_pb_text"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "No handler for Divi module [et_pb_slide] outside its parent module (carries content)",
+      "path": "et_pb_section[1]/et_pb_row[1]/et_pb_column[0]/et_pb_slide[4]",
+      "carriesContent": true,
+      "tag": "et_pb_slide"
+    }
+  ],
+  "forms": []
+}

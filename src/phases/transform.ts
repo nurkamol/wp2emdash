@@ -10,6 +10,8 @@ import { headerButtons, headerMenu, nestedNavItems } from "../adapters/bricks/me
 import { readBricksOptions } from "../extract/bricks.js";
 import { activeKit, adaptElementor, elementorDesign, elementorElements, elementorEntranceAnimations, elementorKit, isElementor, popupAutoOpen, siteTemplates as elementorSiteTemplates, templateType as elementorTemplateType } from "../adapters/elementor/index.js";
 import { readElementorOptions } from "../extract/elementor.js";
+import { adaptDivi, diviDesign, diviSite, isDivi, themeBuilderParts } from "../adapters/divi/index.js";
+import { readDiviOptions } from "../extract/divi.js";
 import type { FormDefinitionOut } from "../scaffold/forms.js";
 import { adaptGutenberg } from "../adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../adapters/wpbakery/index.js";
@@ -59,6 +61,8 @@ export function detectBuilder(content: string, meta?: Record<string, unknown>): 
 	// Elementor keeps the page as a JSON tree in post meta; post_content is a plain fallback copy.
 	if (isElementor(meta)) return "elementor";
 	if (!content.trim()) return "empty";
+	// Divi 4 shortcodes (`[et_pb_section]`) or Divi 5 blocks (`<!-- wp:divi/… -->`) in post_content.
+	if (isDivi(content, meta)) return "divi";
 	if (/\[vc_(row|column|section)\b/.test(content)) return "wpbakery";
 	if (/<!--\s+wp:/.test(content)) return "gutenberg";
 	return "classic";
@@ -138,6 +142,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const elementor = elementorKit(elementorKitPost?.meta?._elementor_page_settings);
 	const elementorForms = new Map<string, FormDefinitionOut>();
 	const elementorPopups = new Map(elementorLibrary.filter((t) => t.status === "publish" && elementorTemplateType(t.meta) === "popup").map((t) => [t.id, `elementor-${t.slug}`]));
+	// Divi: theme options and global colours, Theme Builder templates and the header/body/footer layouts they point at.
+	const divi = diviSite(readDiviOptions(paths.raw, options));
+	const diviTemplates = content("et_template");
+	const diviLayouts = new Map([...content("et_header_layout"), ...content("et_body_layout"), ...content("et_footer_layout")].map((l) => [l.id, l]));
+	const diviForms = new Map<string, FormDefinitionOut>();
+	// Block-library form blocks (Kadence, Spectra, CoBlocks) on Gutenberg pages.
+	const blockForms = new Map<string, FormDefinitionOut>();
 	const siteUrl = config.source.url.replace(/\/$/, "");
 	const siteHosts = new Set([new URL(siteUrl).host, ...config.source.alternateHosts].map((h) => h.replace(/^www\./, "")));
 	// Media library id of an upload URL (WordPress size variants and -scaled copies point at the original).
@@ -280,7 +291,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		let sections: Section[] = [];
 		let diagnostics: Diagnostic[] = [];
 		try {
-			const r = builder === "bricks" ? adaptBricksPost(p, common, elements) : builder === "elementor" ? adaptElementorPost(p, common, role) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id) });
+			const r = builder === "bricks" ? adaptBricksPost(p, common, elements) : builder === "elementor" ? adaptElementorPost(p, common, role) : builder === "divi" ? adaptDiviPost(p, common, role) : builder === "wpbakery" ? adaptWpbakery(p.content, common) : builder === "empty" ? { sections: [], diagnostics: [] } : adaptGutenbergPost(p, common);
 			sections = r.sections;
 			diagnostics = r.diagnostics;
 		} catch (e) {
@@ -306,6 +317,19 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const menuBy = (key: string) => menusRaw.find((m) => String(m.id) === key || m.name === key || slugify(m.name) === key);
 		const r = adaptElementor(elementorElements(p.meta?._elementor_data) ?? [], { ...common, ...(role ? { role } : {}), template: (id) => elementorTrees.get(id), kit: elementor, postId: p.id, title: p.title, siteTitle, permalink, popupSlug: (id) => elementorPopups.get(id), menuItems: (key) => { const m = menuBy(key); return m ? menuTree(m) : undefined; } });
 		for (const f of r.forms) elementorForms.set(f.id, f);
+		return r;
+	}
+
+	function adaptDiviPost(p: ExporterPost, common: { kind: Exclude<IrPage["kind"], "entry">; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }, role?: "header" | "footer") {
+		const r = adaptDivi(p.content ?? "", { ...common, ...(role ? { role } : {}), site: divi, postId: p.id, title: p.title, siteTitle, menuItems: (id) => { const m = menusRaw.find((x) => String(x.id) === id); return m ? menuTree(m) : undefined; } });
+		for (const f of r.forms) diviForms.set(f.id, f);
+		return r;
+	}
+
+	/** Gutenberg / classic content; block-library form blocks (Kadence, Spectra, CoBlocks) bring their definitions. */
+	function adaptGutenbergPost(p: ExporterPost, common: { kind: Exclude<IrPage["kind"], "entry">; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }) {
+		const r = adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id), postId: p.id });
+		for (const f of r.forms ?? []) blockForms.set(f.id, f);
 		return r;
 	}
 
@@ -419,7 +443,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	};
 	for (const p of blogOn ? blogPosts : postsDecided ? [] : posts) {
 		const builder = detectBuilder(p.content ?? "", p.meta);
-		const isBuilder = builder === "wpbakery" || builder === "bricks" || builder === "elementor";
+		const isBuilder = builder === "wpbakery" || builder === "bricks" || builder === "elementor" || builder === "divi";
 		if (!blogOn && !isBuilder) {
 			notTransformed.push(`post ${p.slug}: ${builder} content: no posts collection (kit.config blog: false)`);
 			continue;
@@ -530,7 +554,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			const built: { p: ExporterPost; doc: IrPage }[] = [];
 			for (const p of (entriesOf.get(col.type) ?? []).filter((e) => POST_STATUSES.has(e.status)) as unknown as ExporterPost[]) {
 				const builder = detectBuilder(p.content ?? "", p.meta);
-				const isBuilder = builder === "wpbakery" || builder === "bricks" || builder === "gutenberg";
+				const isBuilder = builder === "wpbakery" || builder === "bricks" || builder === "gutenberg" || builder === "divi";
 				const adapted = isBuilder ? adapt(p, "page") : undefined;
 				const converted = !isBuilder && builder !== "empty" ? convertPostBody(p.content ?? "", "classic", { keyPrefix: `${p.id.toString(36)}_b`, mediaIdForUrl, reusable: (id) => reusable.get(id) }) : undefined;
 				const { entry, diagnostics } = entryData(p as unknown as CptEntrySource, col, {
@@ -621,6 +645,24 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		emit({ version: IR_VERSION, kind: "partial", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder: "elementor", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics }, `partials/${p.slug}.json`, true);
 		partials.push({ role, file: `partials/${p.slug}.json` });
 	}
+	// Divi Theme Builder: the default website template's header and footer layouts become the site parts.
+	const diviParts = themeBuilderParts(diviTemplates.map((t) => ({ id: t.id, slug: t.slug, title: t.title, status: t.status, meta: t.meta })));
+	let diviHeaderSections: Section[] | undefined;
+	for (const role of ["header", "footer"] as const) {
+		const p = diviParts[role] ? diviLayouts.get(diviParts[role] as number) : undefined;
+		if (diviParts[role] && !p) notTransformed.push(`Divi Theme Builder ${role} layout #${diviParts[role]} is not in the extract (et_${role}_layout posts missing?)`);
+		if (!p) continue;
+		const { sections, diagnostics } = adapt(p, "partial", undefined, role);
+		if (role === "header") diviHeaderSections = sections;
+		if (role === "footer") paddedEdges += applyMeasuredPadding(sections, boxesFor("/"), true);
+		if (role === "footer" && overrides.copyrightYear === "current") currentYear(sections);
+		emit({ version: IR_VERSION, kind: "partial", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder: "divi", modifiedGmt: p.modified_gmt }, title: p.title, seo: { jsonLdTypes: [] }, sections, diagnostics }, `partials/${p.slug}.json`, true);
+		partials.push({ role, file: `partials/${p.slug}.json` });
+	}
+	if (diviParts.body) notTransformed.push(`Divi Theme Builder body layout #${diviParts.body} (${diviLayouts.get(diviParts.body)?.slug ?? "not in the extract"}) wraps every page of the default template; pages keep their own content, the wrapper is not migrated`);
+	for (const o of diviParts.others) notTransformed.push(`et_template ${o.post.slug || o.post.id} (${o.post.status}): applies to ${o.conditions}; only the default template's header and footer are migrated`);
+	const diviLibrary = content("et_pb_layout").length;
+	if (diviLibrary) notTransformed.push(`et_pb_layout (${diviLibrary}): Divi Library items; global modules are migrated from the copy saved in each page`);
 	for (const o of elementorParts.others) notTransformed.push(`elementor_library ${o.post.slug} (${o.type}, ${o.post.status}): applies to ${o.conditions}; only the site-wide header and footer are migrated`);
 	const canvas = pages.filter((p) => isElementor(p.meta) && /^elementor_(canvas|header_footer)$/.test(String(p.meta._wp_page_template ?? "")));
 	if (canvas.length) notTransformed.push(`Elementor page templates without the theme header/footer (Canvas / Full Width) on: ${canvas.map((p) => `${p.slug} (${p.meta._wp_page_template})`).join(", ")} (the starter shows them; decide per page)`);
@@ -745,6 +787,18 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const buttons = headerButtons(elementorHeaderSections ?? []);
 		if (buttons.length && !menus.some((m) => m.role === "secondary")) menus.push({ name: "header-buttons", role: "secondary", wpLocations: [], items: buttons });
 	}
+	// Divi: the header layout's menu module names the main menu (by id); its buttons are the header's calls to action.
+	const diviHeader = diviParts.header ? diviLayouts.get(diviParts.header) : undefined;
+	if (diviHeader) {
+		if (!menus.some((m) => m.role === "primary")) {
+			const ids = [...(diviHeader.content ?? "").matchAll(/\[et_pb_(?:fullwidth_)?menu\b[^\]]*\bmenu_id="(\d+)"/g)].map((m) => m[1] as string);
+			const chosen = ids.map((id) => menus.find((_, i) => String(menusRaw[i]?.id) === id)).find(Boolean);
+			if (chosen) chosen.role = "primary";
+			reporter.emit({ type: "log", level: chosen ? "info" : "warn", message: `Divi header menu: ${chosen ? `"${chosen.name}" from the header layout's menu module` : `none found (${ids.length ? `menu ${ids.join(", ")} not in the extract` : "no menu module in the header layout"})`}` });
+		}
+		const buttons = headerButtons(diviHeaderSections ?? []);
+		if (buttons.length && !menus.some((m) => m.role === "secondary")) menus.push({ name: "header-buttons", role: "secondary", wpLocations: [], items: buttons });
+	}
 	const siteIconId = typeof options.site_icon === "number" && options.site_icon > 0 ? options.site_icon : undefined;
 	// The business from the live home page's structured data (Rank Math/Yoast LocalBusiness/Organization).
 	const homeSnap = existsSync(pagesDir) ? readdirSync(pagesDir).map((f) => readJson<{ url?: string; seo?: { jsonLd?: unknown[] } }>(join(pagesDir, f))).find((x) => { try { return !!x?.url && new URL(x.url).pathname === "/"; } catch { return false; } }) : undefined;
@@ -776,6 +830,10 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	// Bricks form definitions (recipients never copied), read by scaffold next to the Fluent Forms exports.
 	for (const f of bricksForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
 	for (const f of elementorForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
+	for (const f of diviForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
+	for (const f of blockForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
+	// Divi theme options and global colours (for comparison with the design capture).
+	if (results.some((r) => r.doc.source.builder === "divi")) write(join(paths.reports, "transform", "divi-design.json"), { optionsPresent: divi.present, ...diviDesign(divi), themeBuilder: { ...(diviParts.template ? { template: diviParts.template.id } : {}), ...(diviParts.header ? { header: diviParts.header } : {}), ...(diviParts.footer ? { footer: diviParts.footer } : {}), ...(diviParts.body ? { body: diviParts.body } : {}) } });
 	// Elementor Kit design values (for comparison with the design capture) and the entrance animations count (motion).
 	if (results.some((r) => r.doc.source.builder === "elementor")) write(join(paths.reports, "transform", "elementor-design.json"), { kitPresent: elementor.present, ...(elementorKitPost ? { kitPost: elementorKitPost.id } : {}), ...elementorDesign(elementor), entranceAnimations: elementorEntranceAnimations([...pages, ...elementorLibrary].map((p) => (isElementor(p.meta) ? elementorElements(p.meta?._elementor_data) : undefined))) });
 	if (results.some((r) => r.doc.source.builder === "bricks")) write(join(paths.reports, "transform", "bricks-design.json"), { optionsPresent: bricks.present, ...bricksDesign(bricks), layout: bricksLayout(bricks, shots, readJson<Record<string, unknown>>(join(paths.raw, "acss-settings.json"))), header: bricksHeaderLook(bricksParts.header ? (bricksTemplates.get(bricksParts.header.id) ?? []) : [], bricks), entranceAnimations: bricksEntranceAnimations(pages.map((p) => bricksElements(p.meta?._bricks_page_content_2))) });
@@ -867,7 +925,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	check("links", "Internal links point at migrated pages, anchors, popups or files", brokenLinks.length === 0, brokenLinks.slice(0, 8).join("; ") || undefined);
 
 	// ── Text conservation vs the live page HTML ─────────────────────────────────
-	const formText = [...readFormText(join(paths.raw, "forms")), ...[...bricksForms.values()].flatMap((f) => [f.submitLabel, ...f.fields.flatMap((x) => [x.label, ...(x.placeholder ? [x.placeholder] : []), ...(x.options ?? [])])])];
+	const formText = [...readFormText(join(paths.raw, "forms")), ...[...bricksForms.values(), ...diviForms.values(), ...blockForms.values()].flatMap((f) => [f.submitLabel, ...f.fields.flatMap((x) => [x.label, ...(x.placeholder ? [x.placeholder] : []), ...(x.options ?? [])])])];
 	const footerDocs = results.filter((r) => r.doc.kind === "partial" && r.published).map((r) => r.doc);
 	const lowPages: string[] = [];
 	for (const r of results.filter((x) => (x.doc.kind === "page" || x.doc.kind === "entry") && x.published && !x.doc.access)) {
@@ -898,7 +956,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 
 	// ── Content types, taxonomies, authors: everything the extract found is migrated or decided ──────────────
 	const analyze = readJson<{ authors?: { display_name: string; post_count: number | string }[]; attachments?: { count: number } }>(join(exp, "analyze.json"));
-	const builderPost = (p: ExporterPost) => ["wpbakery", "bricks", "elementor"].includes(detectBuilder(p.content ?? "", p.meta));
+	const builderPost = (p: ExporterPost) => ["wpbakery", "bricks", "elementor", "divi"].includes(detectBuilder(p.content ?? "", p.meta));
 	const pathsOf = (links: string[]) => [...new Set(links.map((l) => { try { return new URL(l).pathname; } catch { return l; } }))];
 	const inventory = contentInventory({
 		types: contentTypesOnDisk.map((t) => ({ name: t, entries: content(t).map((p) => ({ status: p.status, handled: t === "post" ? builderPost(p) : false })) })),

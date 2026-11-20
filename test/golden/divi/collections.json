@@ -1,0 +1,370 @@
+{
+  "sections": [
+    {
+      "type": "feature_grid",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[0]/et_pb_row[0]",
+        "rawHash": "b843fb1404",
+        "row": 0
+      },
+      "fields": {
+        "intro": [],
+        "items": [
+          {
+            "title": "Small groups",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t0",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t1",
+                    "text": "Never more than six students per tutor.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "divi",
+              "name": "e08a"
+            }
+          },
+          {
+            "title": "All materials included",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t2",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t3",
+                    "text": "Clay, glazes and two firings.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "image": {
+              "url": "https://fernhill.example/wp-content/uploads/2026/01/clay.jpg",
+              "kind": "image",
+              "alt": "Bags of clay"
+            }
+          },
+          {
+            "title": "Flexible dates",
+            "body": [
+              {
+                "_type": "block",
+                "_key": "t4",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t5",
+                    "text": "Swap a session up to 48 hours ahead.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "icon": {
+              "library": "fontawesome",
+              "name": "f073"
+            },
+            "link": {
+              "label": "Flexible dates",
+              "href": "/calendar/",
+              "style": "link"
+            }
+          }
+        ],
+        "columns": 3
+      }
+    },
+    {
+      "type": "testimonials",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[0]/et_pb_row[1]",
+        "rawHash": "d43a794137",
+        "row": 0
+      },
+      "fields": {
+        "items": [
+          {
+            "quote": "I made my first mug on day one and have not stopped since.",
+            "name": "Robin Example",
+            "role": "Weekend student, Lakeside",
+            "photo": {
+              "url": "https://fernhill.example/wp-content/uploads/2026/01/robin.jpg",
+              "kind": "image"
+            }
+          },
+          {
+            "quote": "Patient tutors and a lovely space.",
+            "name": "Sam Placeholder"
+          }
+        ]
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_row[0]",
+        "rawHash": "07f7f82ec4",
+        "row": 1
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Meet the tutors",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "team",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[1]/et_pb_row[1]",
+        "rawHash": "b6dda2e061",
+        "row": 1
+      },
+      "fields": {
+        "intro": [],
+        "columns": 2,
+        "members": [
+          {
+            "name": "Ada Sample",
+            "role": "Head tutor",
+            "photo": {
+              "url": "https://fernhill.example/wp-content/uploads/2026/01/ada.jpg",
+              "kind": "image"
+            },
+            "bio": [
+              {
+                "_type": "block",
+                "_key": "t8",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "t9",
+                    "text": "Ada has thrown pots for twenty years.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "links": [
+              {
+                "label": "LinkedIn",
+                "href": "https://linkedin.example/ada",
+                "style": "link",
+                "newTab": true
+              },
+              {
+                "label": "Instagram",
+                "href": "https://instagram.com/fernhill.example",
+                "style": "link",
+                "newTab": true
+              }
+            ]
+          },
+          {
+            "name": "Leo Demo",
+            "role": "Kiln technician",
+            "bio": [
+              {
+                "_type": "block",
+                "_key": "ta",
+                "style": "normal",
+                "children": [
+                  {
+                    "_type": "span",
+                    "_key": "tb",
+                    "text": "Leo looks after every firing.",
+                    "marks": []
+                  }
+                ],
+                "markDefs": []
+              }
+            ],
+            "links": []
+          }
+        ]
+      }
+    },
+    {
+      "type": "pricing",
+      "variant": "list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[2]/et_pb_row[0]",
+        "rawHash": "617d1be93b",
+        "row": 2
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "tc",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "td",
+                "text": "Memberships",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "plans": [
+          {
+            "name": "Open studio",
+            "price": "$45",
+            "period": "month",
+            "description": "Drop in",
+            "features": [
+              "Saturday open studio",
+              "Shelf space",
+              "Kiln firings (not included)"
+            ],
+            "button": {
+              "label": "Join",
+              "href": "/join/open/",
+              "style": "primary"
+            },
+            "highlight": false
+          },
+          {
+            "name": "Full member",
+            "price": "$95",
+            "period": "month",
+            "features": [
+              "Studio access every day",
+              "Ten firings a month",
+              "Members' glazes"
+            ],
+            "button": {
+              "label": "Join",
+              "href": "/join/full/",
+              "style": "primary"
+            },
+            "highlight": true
+          }
+        ],
+        "buttons": []
+      }
+    },
+    {
+      "type": "stats",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "divi",
+        "path": "et_pb_section[3]/et_pb_row[0]",
+        "rawHash": "ceaed7e3dc",
+        "row": 3
+      },
+      "fields": {
+        "items": [
+          {
+            "value": "40000",
+            "label": "Pieces fired"
+          },
+          {
+            "value": "87",
+            "label": "Students who return",
+            "suffix": "%"
+          },
+          {
+            "value": "90",
+            "label": "Wheel classes full",
+            "suffix": "%"
+          },
+          {
+            "value": "60",
+            "label": "Hand building full",
+            "suffix": "%"
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[et_pb_pricing_table] 1 excluded feature(s) (struck through in Divi) kept with \"(not included)\"",
+      "path": "et_pb_section[2]/et_pb_row[0]/et_pb_column[0]/et_pb_pricing_tables[1]/et_pb_pricing_table[0]",
+      "tag": "et_pb_pricing_table"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[et_pb_circle_counter] circle shown as a figure",
+      "path": "et_pb_section[3]/et_pb_row[0]/et_pb_column[1]/et_pb_circle_counter[0]",
+      "tag": "et_pb_circle_counter"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[et_pb_counters] 2 bar counter(s) shown as figures",
+      "path": "et_pb_section[3]/et_pb_row[0]/et_pb_column[2]/et_pb_counters[0]",
+      "tag": "et_pb_counters"
+    }
+  ],
+  "forms": []
+}

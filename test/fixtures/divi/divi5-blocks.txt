@@ -1,0 +1,21 @@
+<!-- wp:divi/placeholder -->
+<!-- wp:divi/section {"module":{"decoration":{"background":{"desktop":{"value":{"color":"#f4efe8"}}}},"advanced":{"htmlAttributes":{"desktop":{"value":{"id":"visit"}}}}},"builderVersion":"5.0.0"} -->
+<!-- wp:divi/row {"builderVersion":"5.0.0"} -->
+<!-- wp:divi/column {"module":{"advanced":{"type":{"desktop":{"value":"1_2"}}}},"builderVersion":"5.0.0"} -->
+<!-- wp:divi/heading {"title":{"innerContent":{"desktop":{"value":"Visit the studio"}},"decoration":{"font":{"font":{"desktop":{"value":{"headingLevel":"h2"}}}}}},"builderVersion":"5.0.0"} /-->
+<!-- wp:divi/text {"content":{"innerContent":{"desktop":{"value":"<p>Open Tuesday to Sunday, 10 until 6.</p>"}}},"builderVersion":"5.0.0"} /-->
+<!-- wp:divi/button {"button":{"innerContent":{"desktop":{"value":{"text":"Plan your visit","linkUrl":"/visit/","linkTarget":"off"}}}},"builderVersion":"5.0.0"} /-->
+<!-- /wp:divi/column -->
+<!-- wp:divi/column {"module":{"advanced":{"type":{"desktop":{"value":"1_2"}}}},"builderVersion":"5.0.0"} -->
+<!-- wp:divi/image {"image":{"innerContent":{"desktop":{"value":{"src":"https://fernhill.example/wp-content/uploads/2026/01/door.jpg","alt":"The studio door"}}}},"builderVersion":"5.0.0"} /-->
+<!-- /wp:divi/column -->
+<!-- /wp:divi/row -->
+<!-- /wp:divi/section -->
+<!-- wp:divi/section {"builderVersion":"5.0.0"} -->
+<!-- wp:divi/row {"builderVersion":"5.0.0"} -->
+<!-- wp:divi/column {"builderVersion":"5.0.0"} -->
+<!-- wp:divi/lottie {"title":{"innerContent":{"desktop":{"value":"Spinning wheel animation"}}},"builderVersion":"5.0.0"} /-->
+<!-- /wp:divi/column -->
+<!-- /wp:divi/row -->
+<!-- /wp:divi/section -->
+<!-- /wp:divi/placeholder -->

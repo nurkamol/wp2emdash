@@ -36,6 +36,10 @@ const CHROME = [
 	// Bricks: the header template (menus are compared by the menu check) and popup templates
 	"#brx-header",
 	".brx-popup",
+	// Divi: the theme's own header (#main-header, #top-header) and a Theme Builder header layout (.et-l--header)
+	"#main-header",
+	"#top-header",
+	".et-l--header",
 	// Announcement bars (Announcer plugin; the starter's bar): rebuilt as the "announcement" site part with its
 	// schedule, which may hide it on one side only (an ended bar stays in the plugin's HTML but is not shown).
 	".ancr-group",

@@ -12,7 +12,7 @@
   <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/nurkamol/wp2emdash?color=F6821F"></a>
   <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
-  <img alt="Tests: 982 passing" src="https://img.shields.io/badge/tests-982%20passing-1F9D6B">
+  <img alt="Tests: 1093 passing" src="https://img.shields.io/badge/tests-1093%20passing-1F9D6B">
 </p>
 
 wp2emdash is an open-source kit, built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net), that migrates WordPress sites to
@@ -94,7 +94,7 @@ Nothing the old site had is dropped silently: whatever the kit does not carry is
 
 | WordPress | On the new site |
 |---|---|
-| Pages (WPBakery/Salient, Gutenberg, classic, Bricks, Elementor), header/footer, menus, popups, announcement bar, forms, media in use, SEO meta, JSON-LD, analytics, plugin redirects | Migrated |
+| Pages (WPBakery/Salient, Gutenberg incl. Kadence/Spectra/GenerateBlocks/Stackable/CoBlocks blocks, classic, Bricks, Elementor, Divi), header/footer, menus, popups, announcement bar, forms, media in use, SEO meta, JSON-LD, analytics, plugin redirects | Migrated |
 | Comments (approved, threaded) | EmDash comments with their WordPress date, author name and thread (one level), shown under posts and entries with a moderated comment form (Turnstile, honeypot); pending only with `comments.includePending`; spam, trash and pingbacks counted, not imported; off on `sensitiveData` sites until decided |
 | Password-protected pages and posts | Published behind the starter's password page with the WordPress password (read by extract as an editor and kept as a salted hash only; the owner can change it in the admin's *Access password* field): an accessible form, a signed cookie per page for 10 days, rate limited; never cached (`Cache-Control: private, no-store`), noindex, not in the sitemap, posts' text out of the search index. A page whose password cannot be read takes `WP2EMDASH_PROTECTED_PASSWORD` from the site's `.env`. Other choices: `protectedContent: { password: { as: "draft" \| "skip" \| "publish", reason } }` |
 | Private pages and posts | Drafts (editors see them, visitors get a 404, as on WordPress); `protectedContent: { private: { as: "skip" \| "publish", reason } }` |
@@ -124,10 +124,13 @@ Nothing the old site had is dropped silently: whatever the kit does not carry is
 | Source | Status |
 |---|---|
 | WPBakery + Salient (`vc_*`, `nectar_*`) | Supported: ~70 element handlers and row recognisers, measured against a real site |
-| Gutenberg (30 core blocks, reusable blocks) and the classic editor | Supported; third-party block libraries (Kadence, Spectra, GenerateBlocks…) are reported for mapping |
+| Gutenberg (30 core blocks, reusable blocks) and the classic editor | Supported |
+| Gutenberg block libraries: Kadence Blocks, Spectra, GenerateBlocks, Stackable, CoBlocks | Built (row/column/container layouts, advanced heading, buttons, icon list, info box, tabs, accordion, testimonials, team, counters, pricing, maps, galleries, form blocks); not yet run on a real site. Other library blocks keep their text and are reported; Otter and Stackable v2 are not mapped |
 | Bricks 2.4.6 / 2.5 | Supported: elements, templates, global classes, palette, components, forms; measured against a real site |
 | Elementor | Built (containers and legacy sections, Kit globals, Theme Builder, Pro forms and popups); not yet run on a real Elementor site |
-| Divi, Beaver Builder, Oxygen and other builders | Not yet: detected by the audit, which stops for a decision |
+| Divi 4 (`et_pb_*` shortcodes) | Built, not yet run on a real Divi site: regular/specialty/fullwidth sections, ~30 modules (text, image, button, blurb, CTA, slider/fullwidth header, gallery, video, testimonial, team, pricing, accordion/toggle/tabs, contact form, code, social follow, map, counters, menu), global colours, Theme Builder header/footer |
+| Divi 5 (`divi/` blocks) | Best effort: converted to the Divi 4 reader and flagged in the coverage report; unverified on a real Divi 5 site |
+| Beaver Builder, Oxygen and other builders | Not yet: no adapter (their pages take the classic/shortcode path; check the coverage report) |
 
 Comments: in progress (extracted today, not yet loaded).
 
