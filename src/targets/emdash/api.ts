@@ -212,6 +212,9 @@ export class EmDashApi {
 	async terms(taxonomy: string): Promise<EmDashTerm[]> {
 		return flattenTerms((await this.request<{ terms: EmDashTerm[] }>("GET", `/taxonomies/${encodeURIComponent(taxonomy)}/terms?includeCounts=false`)).terms);
 	}
+	async updateTerm(taxonomy: string, slug: string, input: { label?: string; description?: string }): Promise<void> {
+		await this.request("PUT", `/taxonomies/${encodeURIComponent(taxonomy)}/terms/${encodeURIComponent(slug)}`, input);
+	}
 	async createTerm(taxonomy: string, input: { slug: string; label: string; parentId?: string | null; description?: string }): Promise<EmDashTerm> {
 		return (await this.request<{ term: EmDashTerm }>("POST", `/taxonomies/${encodeURIComponent(taxonomy)}/terms`, input)).term;
 	}

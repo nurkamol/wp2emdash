@@ -21,6 +21,7 @@ import { COMMENTS_CLOSED_FIELD, menuItemExtras, PAGES_SEARCHABLE, POSTS_COLLECTI
 import { emdashMenuLabel, emdashMenuNames } from "../transform/menus.js";
 import type { WidgetPlan } from "../transform/widgets.js";
 import { pageData, pageFields } from "../transform/pages.js";
+import { termDescriptionUpdate } from "../transform/term-meta.js";
 import type { SectionsPlan } from "../transform/sections.js";
 import { writeSections } from "../targets/emdash/sections.js";
 import type { BlogPlan } from "../transform/blog.js";
@@ -609,6 +610,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		if (blogPlan) {
 			const taxErrors: string[] = [];
 			let termsCreated = 0;
+			let termsDescribed = 0;
 			try {
 				const defs = await api.taxonomies();
 				for (const t of blogPlan.taxonomies) {
@@ -618,7 +620,15 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 						else if (!def.collections.includes("posts")) taxErrors.push(`${t.name}: exists on the target without the posts collection (add it in the admin: Taxonomies → ${t.label})`);
 						const have = new Map((await api.terms(t.name)).map((x) => [x.slug, x]));
 						for (const term of t.terms) {
-							if (have.has(term.slug)) continue;
+							if (have.has(term.slug)) {
+								// A term made before descriptions were carried (or by hand without one): fill it, never replace an editor's.
+								const description = termDescriptionUpdate(have.get(term.slug), term.description);
+								if (description) {
+									await api.updateTerm(t.name, term.slug, { description });
+									termsDescribed++;
+								}
+								continue;
+							}
 							const parentId = term.parent ? have.get(term.parent)?.id : undefined;
 							const made = await api.createTerm(t.name, { slug: term.slug, label: term.label, ...(parentId ? { parentId } : {}), ...(term.description ? { description: term.description } : {}) });
 							have.set(term.slug, made);
@@ -631,7 +641,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			} catch (e) {
 				taxErrors.push((e as Error).message);
 			}
-			check("taxonomies", "Blog taxonomies and terms on the target", taxErrors.length === 0, taxErrors.slice(0, 4).join("; ") || `${blogPlan.taxonomies.map((t) => `${t.name} ${t.terms.length}`).join(", ")} terms (${termsCreated} created)`);
+			check("taxonomies", "Blog taxonomies and terms on the target", taxErrors.length === 0, taxErrors.slice(0, 4).join("; ") || `${blogPlan.taxonomies.map((t) => `${t.name} ${t.terms.length}`).join(", ")} terms (${termsCreated} created${termsDescribed ? `, ${termsDescribed} descriptions filled in` : ""})`);
 			if (blogPlan.bylines.length) {
 				const bylineErrors: string[] = [];
 				let bylinesCreated = 0;
@@ -659,6 +669,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		if (cptPlan && (cptPlan.taxonomies.length || cptCols.some((c) => c.taxonomies.some((t) => t.shared)))) {
 			const taxErrors: string[] = [];
 			let termsCreated = 0;
+			let termsDescribed = 0;
 			try {
 				const defs = await api.taxonomies();
 				for (const t of cptPlan.taxonomies) {
@@ -668,7 +679,14 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 						else if (t.collections.some((c) => !def.collections.includes(c))) await api.updateTaxonomy(t.name, { collections: [...new Set([...def.collections, ...t.collections])] });
 						const have = new Map((await api.terms(t.name)).map((x) => [x.slug, x]));
 						for (const term of t.terms) {
-							if (have.has(term.slug)) continue;
+							if (have.has(term.slug)) {
+								const description = termDescriptionUpdate(have.get(term.slug), term.description);
+								if (description) {
+									await api.updateTerm(t.name, term.slug, { description });
+									termsDescribed++;
+								}
+								continue;
+							}
 							const parentId = term.parent ? have.get(term.parent)?.id : undefined;
 							have.set(term.slug, await api.createTerm(t.name, { slug: term.slug, label: term.label, ...(parentId ? { parentId } : {}), ...(term.description ? { description: term.description } : {}) }));
 							termsCreated++;
@@ -687,7 +705,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			} catch (e) {
 				taxErrors.push((e as Error).message);
 			}
-			check("cpt-taxonomies", "Taxonomies of the custom post types and their terms on the target", taxErrors.length === 0, taxErrors.slice(0, 4).join("; ") || `${cptPlan.taxonomies.map((t) => `${t.name} ${t.terms.length}`).join(", ") || "shared with the blog"} (${termsCreated} terms created)`);
+			check("cpt-taxonomies", "Taxonomies of the custom post types and their terms on the target", taxErrors.length === 0, taxErrors.slice(0, 4).join("; ") || `${cptPlan.taxonomies.map((t) => `${t.name} ${t.terms.length}`).join(", ") || "shared with the blog"} (${termsCreated} terms created${termsDescribed ? `, ${termsDescribed} descriptions filled in` : ""})`);
 		}
 		if (cptPlan?.bylines.length) {
 			const bylineErrors: string[] = [];
