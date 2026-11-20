@@ -1,0 +1,1 @@
+[vc_row][vc_column width="1/1"][vc_column_text]<h2>See the studio</h2><p>A short tour of the reformer room.</p>[/vc_column_text][nectar_btn size="large" text="Book a visit" url="/book/"][vc_single_image image="501" img_size="full"][vc_video link="https://www.youtube.com/watch?v=aqz-KE-bpKQ"][/vc_column][/vc_row]

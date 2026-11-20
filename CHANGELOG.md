@@ -24,6 +24,7 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - **Shortcode registry** (`src/adapters/shortcodes.ts`): forms, breadcrumbs, layout wrappers, widgets and core media shortcodes; unknown plugin shortcodes block; coverage report "Shortcodes".
 
 ### Fixed
+- WPBakery/Bricks rows that hold a collection (video, form, gallery…) plus loose images or buttons dropped them without a word: they are now carried as sections after the collection, and icons that have no place are reported in the coverage report.
 - Coming-soon mode now purges cached pages when it is saved (a cached page never reaches the middleware), and the middleware reads the switch on every render so a stale isolate cannot re-cache the public page.
 - Blog load reruns: child categories were created again ("term already exists") because EmDash returns a hierarchical taxonomy as a tree; the term list is now flattened.
 

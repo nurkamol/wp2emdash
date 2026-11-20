@@ -1,0 +1,123 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "8a8c105720"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "See the studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "A short tour of the reformer room.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "8a8c105720"
+      },
+      "fields": {
+        "embedUrl": "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "stack",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "8a8c105720"
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 501,
+            "kind": "image"
+          }
+        ],
+        "layout": "stack",
+        "lightbox": false
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "8a8c105720"
+      },
+      "fields": {
+        "body": [],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Book a visit",
+            "href": "/book/",
+            "style": "primary",
+            "size": "large",
+            "textSize": 14
+          }
+        ]
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Row with a video collection: 1 image(s) and 1 button(s) carried as separate sections after it",
+      "path": "vc_row[0]"
+    }
+  ]
+}

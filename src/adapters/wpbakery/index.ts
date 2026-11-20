@@ -632,6 +632,14 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 		} else build(mainCollection, heading, intro, true);
 		if (after.length && mainCollection !== "marquee" && mainCollection !== "form") push({ ...base("rich_text"), fields: { body: after, width: "normal", align: "left", buttons: mainCollection === "price" ? [] : buttons } });
 		for (const k of extraCollections) build(k, undefined, [], false);
+		// Buttons, images and icons the collection sections have no place for are carried as their own sections, never dropped.
+		const buttonsPlaced = mainCollection === "price" || mainCollection === "form" || (mainCollection === "marquee" && all.some((f) => f.kind === "marquee" && !f.link)) || (after.length > 0 && mainCollection !== "marquee");
+		const looseMedia = media.filter((m) => m.role === "content").map((m) => m.media);
+		if (looseMedia.length) push({ ...base("gallery", "stack"), fields: { images: looseMedia, layout: "stack", lightbox: false } });
+		if (buttons.length && !buttonsPlaced) push({ ...base("rich_text"), fields: { body: [], width: "normal", align: "left", buttons } });
+		const carried = [looseMedia.length ? `${looseMedia.length} image(s)` : "", buttons.length && !buttonsPlaced ? `${buttons.length} button(s)` : ""].filter(Boolean);
+		if (carried.length) ctx.diag({ level: "info", code: "lossy", message: `Row with a ${mainCollection} collection: ${carried.join(" and ")} carried as separate sections after it`, path: row.path });
+		if (icons.length) ctx.diag({ level: "warn", code: "lossy", message: `Row with a ${mainCollection} collection: ${icons.length} icon(s) have no place in it and are not carried`, path: row.path });
 		return sections;
 	}
 

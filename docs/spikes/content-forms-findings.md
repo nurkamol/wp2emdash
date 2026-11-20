@@ -75,6 +75,6 @@ under the uploads folder. **Not exercised against a live EmDash yet.**
 `[embed]`, `[video]`, `[audio]` → link). Unknown non-builder shortcodes now block even without attributes. Coverage
 report "Shortcodes": name, action, count, sample page, blocking.
 
-**Pre-existing, not changed here:** a WPBakery row that holds a video or another collection element together with a
+**Fixed 2026-11-21 (fixture `wpbakery/video-with-button-image`):** a WPBakery row that holds a video or another collection element together with a
 button and an image drops the button and the image without a diagnostic (row recogniser in
 `src/adapters/wpbakery/index.ts`). Reproduce: `[vc_column_text]Text[/vc_column_text][nectar_btn …][vc_single_image …][vc_video …]` in one column.
