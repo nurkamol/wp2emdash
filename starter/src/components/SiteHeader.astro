@@ -26,7 +26,11 @@ interface Props {
 	siteTitle: string;
 }
 const { primary, secondary, siteTitle } = Astro.props;
-const h = site.header as typeof site.header & { layout?: string; inlineNav?: boolean; togglePosition?: string; toggleLabel?: string; logo?: string; logoOnTop?: string };
+const h = site.header as typeof site.header & { layout?: string; inlineNav?: boolean; togglePosition?: string; toggleLabel?: string; logo?: string; logoOnTop?: string; logoImg?: LogoImg; logoOnTopImg?: LogoImg };
+/** The logo files as the performance package made them (content-hashed, WebP when smaller, intrinsic size). */
+type LogoImg = { src: string; width: number; height: number };
+const logo = h.logoImg ?? (h.logo ? { src: h.logo } : undefined);
+const logoOnTop = h.logoOnTopImg ?? (h.logoOnTop ? { src: h.logoOnTop } : undefined);
 const layout = h.layout ?? "logo-left";
 const inlineNav = h.inlineNav ?? true;
 const toggleLeft = h.togglePosition === "left";
@@ -113,8 +117,8 @@ const ICONS: Record<string, string> = {
 			)
 		}
 		<a href="/" class="site-header__logo" aria-label={`${siteTitle} — home`}>
-			{h.logo ? <img src={h.logo} alt="" class="logo logo--default" /> : <span class="wordmark">{siteTitle}</span>}
-			{h.logoOnTop && <img src={h.logoOnTop} alt="" class="logo logo--top" />}
+			{logo ? <img {...logo} alt="" class="logo logo--default" decoding="async" /> : <span class="wordmark">{siteTitle}</span>}
+			{logoOnTop && <img {...logoOnTop} alt="" class="logo logo--top" decoding="async" />}
 		</a>
 		{
 			inlineNav && (
@@ -181,7 +185,7 @@ const ICONS: Record<string, string> = {
 		bxPanel && (
 			<div class="menu-panel__top">
 				<a href="/" class="menu-panel__logo" aria-label={`${siteTitle} — home`}>
-					{h.logo ? <img src={h.logo} alt="" /> : <span class="wordmark">{siteTitle}</span>}
+					{logo ? <img {...logo} alt="" loading="lazy" decoding="async" /> : <span class="wordmark">{siteTitle}</span>}
 				</a>
 				<button type="button" class="menu-panel__close" data-menu-close>
 					<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><path d="M5.5 5.5l13 13M18.5 5.5l-13 13" /></svg>

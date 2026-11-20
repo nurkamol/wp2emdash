@@ -210,6 +210,7 @@ Implemented in M4 (`src/phases/transform.ts`, `src/adapters/`, `src/ir/`). Pure 
 Implemented in M5 (`src/phases/scaffold.ts`, `src/scaffold/`, `src/starter/library.ts`, `starter/`). Facts it relies on: `docs/spikes/M5-findings.md`.
 - **Section library = one TypeScript definition** (`src/starter/library.ts`) → seed `blockTypes`, the starter's components and the IR → block mapping (`src/targets/emdash/blocks.ts`, which conforms every value to its block type).
 - **Generated per site:** `tokens.css` (design capture: colours, fluid type scale between the mobile and desktop captures, container, radii), `motion.css` (menu motion recipe), `site.config.json` (header panel variant, breakpoint, transparent/hide-on-scroll, logos, fonts, URL style), forms (`src/forms/*.json` from the form plugin, published forms only), `seed/seed.json` (block types, `pages` / `site_parts` / `popups` collections, menus, settings with `staging: true`, and the migrated content for local preview), `package.json` with exact verified versions, `astro.config.mjs`, `wrangler.jsonc` (production; plus a `staging` env with separate D1/R2 only when the site opted into staging, §7a).
+- **Performance package (default, `src/scaffold/perf.ts`, opt-outs under `performance` in kit.config):** route caching (`cacheCloudflare()`, one route rule per public page + sitemaps + `/_image`, EmDash collection tags; chrome cache hints set in the page frontmatter), `"cache": { "enabled": true, "cross_version_cache": false }` in `wrangler.jsonc`, `scripts/warm.mjs` appended to every deploy script, `image.domains` for responsive EmDash images (Images binding), hashed brand files with sizes and `public/_headers` (immutable fonts/brand), deferred background video, announcement schedule in the browser with a CSP hash. Smart Placement off. Facts and measurements: `docs/spikes/performance-findings.md`.
 - **Local preview:** `pnpm dev` in `sites/<slug>/project`, then `/_emdash/api/setup/dev-bypass?redirect=/` — the migrated site with live WordPress media.
 - **Runtime pins (every generated project):** Node 24+ for install/build/CI (`engines`, `.nvmrc`, CI image); the Worker itself runs on workerd (V8), not Node — Node APIs come from the `nodejs_compat` flag, and `compatibility_date` is set to the scaffold date so the newest runtime behaviour is used. Astro = latest stable that EmDash's peer range allows (checked by `doctor`: EmDash 1.5 needs `astro >=6`; latest is 7.4.12 on 2026-11-17, used by the M0 spike). Exact versions in the lockfile; upgrades are a deliberate step with a rerun of verify.
 - Copy `starter/` into `sites/<slug>/project/` (or create with `npm create emdash@latest` and apply the starter as an overlay — decided in M0).
@@ -240,7 +241,7 @@ Implemented in M7 (`src/phases/verify.ts`, `src/verify/`): HTTP checks per page 
 | Forms | each form submits on staging to the test destination; Turnstile active; validation errors accessible |
 | Integrations | analytics/tag manager loads once, consent respected, booking/embeds/maps work |
 | Accessibility | axe: 0 serious/critical; keyboard nav of menu/accordions/forms; reduced-motion respected |
-| Performance | Lighthouse mobile ≥ 90 perf, LCP ≤ 2.5s, CLS ≤ 0.1 on representative pages |
+| Performance | Lighthouse mobile ≥ 90 perf, LCP ≤ 2.5s, CLS ≤ 0.1 on representative pages; on deployed targets every page `cf-cache-status: HIT` on its second request, cached home-page TTFB ≤ 600 ms (from the runner), home page ≤ 1500 KB until load with no video fetched (performance package, `docs/spikes/performance-findings.md`) |
 | Security | headers (CSP, HSTS, X-Content-Type-Options, Referrer-Policy, Permissions-Policy), no secrets in bundle, admin passkey/MFA, `/wp-admin`, `/wp-login.php`, `/xmlrpc.php` → 404/410 |
 | Editing | scripted: create/edit/publish/unpublish a page with each section type, preview works, edit shows on frontend (cache invalidation) |
 
@@ -566,7 +567,7 @@ Built in the order above; 1–3 with M7, 4 with M8, 5–10 after the pilot launc
 | A5 | Running official import + overlay together leaves no duplicates and is safely re-runnable. | Delta at cutover. |
 | A6 | Best redirect mechanism on Workers for this stack (middleware vs Workers redirect rules vs Bulk Redirects), incl. performance. | SEO parity. |
 | A7 | Exporter 1.2.0+ delivers menus, Yoast/Rank Math, site identity for a Salient site; Bot Fight Mode workaround works. | Importer coverage. |
-| A8 | Route caching / cache invalidation on publish works as expected on Workers. | Editing check. |
+| A8 | Route caching / cache invalidation on publish works as expected on Workers. | Editing check. Confirmed on staging 2026-11-20 (page 0.5 s, menu 0.5 s, settings 3.2 s) once the chrome cache hints moved into the page frontmatter: `docs/spikes/performance-findings.md`. |
 | A9 | `emdash site export` / D1 backups give a restorable staging snapshot. | Safe reruns. |
 
 Any failed assumption changes the plan before code depends on it.

@@ -24,6 +24,7 @@ import { accessibility, type A11yResult, launchFor, measurePerformance, type Per
 import { compareHeadings, compareMotion, compareSeo, compareText, type HeadingResult, missingExternalLinks, missingMenuItems, type SeoResult, type TextResult } from "../verify/compare.js";
 import { verifyReport } from "../verify/report.js";
 import { diffSections, groupSections, type SectionDiff } from "../verify/sections.js";
+import { type CacheProbe, cacheMisses, measurePayload, median, type PayloadResult, probeCache } from "../verify/perf.js";
 import type { PhaseContext } from "./index.js";
 import { ensureDevServer } from "./load.js";
 
@@ -62,6 +63,8 @@ export interface VerifyResult {
 	security: { headers: Record<string, string | undefined>; missing: string[]; wpPaths: { path: string; status: number }[] };
 	menu?: { itemsMissing: string[]; motion: { ok: boolean; diffs: string[] }; behaviour: Record<string, boolean | string | undefined> };
 	forms: { endpoint: string; status: number }[];
+	/** Performance package: route-cache probes (remote targets), cached home-page TTFB, home-page payload until load. */
+	performance?: { probes: CacheProbe[]; cachedTtfbMs?: number; payload?: PayloadResult };
 }
 
 export async function runVerify({ config, paths, reporter }: PhaseContext): Promise<GateCheck[]> {
@@ -234,6 +237,17 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const headers = Object.fromEntries(want3.map((h) => [h, home.headers.get(h) ?? undefined]));
 		const frameOk = !!home.headers.get("x-frame-options") || /frame-ancestors/.test(home.headers.get("content-security-policy") ?? "");
 		const missingHeaders = [...want3.filter((h) => !headers[h] && !(want === "local" && (h === "strict-transport-security" || h === "content-security-policy"))), ...(frameOk ? [] : ["x-frame-options / frame-ancestors"])];
+		// Route cache (remote targets: astro dev has no Workers cache): each page twice, the second must be a HIT; then the
+		// home page's cached time to first byte, median of 3, from this machine.
+		const remote = want !== "local";
+		const probes: CacheProbe[] = [];
+		let cachedTtfbMs: number | undefined;
+		if (remote && config.performance.routeCache) {
+			for (const r of results.filter((x) => x.status === 200)) probes.push(await probeCache(kitFetch, base, r.path, 2));
+			const home2 = await probeCache(kitFetch, base, "/", 4);
+			cachedTtfbMs = median(home2.ttfbMs.slice(1));
+		}
+		let payload: PayloadResult | undefined;
 		const wpPaths: VerifyResult["security"]["wpPaths"] = [];
 		for (const p of ["/wp-admin/", "/wp-login.php", "/xmlrpc.php", "/wp-json/"]) {
 			const res = await kitFetch(`${base}${p}`, { redirect: "manual" });
@@ -365,6 +379,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 				r.a11y = await accessibility(browser, r.targetUrl);
 				r.perf = await measurePerformance(browser, r.targetUrl);
 			}
+			payload = await measurePayload(browser, `${base}/`);
 			reporter.emit({ type: "step:end", step: "Accessibility & performance", ok: true });
 
 			// Burger menu: same capture as the audit, compared with the source recipe.
@@ -428,12 +443,18 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		check("a11y", "Accessibility: no serious or critical axe violations (third-party embeds reported, not gated)", a11y.length === 0, [a11y.map((r) => `${r.path}: ${r.a11y?.error ?? r.a11y?.serious.map((v) => v.id).join(", ")}`).slice(0, 6).join("; "), thirdParty.length ? `third-party embeds: ${thirdParty.slice(0, 4).join(", ")}` : ""].filter(Boolean).join(" · ") || undefined);
 		const perfFail = results.filter((r) => r.perf && ((r.perf.lcpMs ?? 0) > g.maxLcpMs || (r.perf.cls ?? 0) > g.maxCls || r.perf.error));
 		check("performance", `Lab LCP ≤ ${g.maxLcpMs} ms and CLS ≤ ${g.maxCls} (mobile)`, perfFail.length === 0, perfFail.map((r) => `${r.path}: ${r.perf?.error ?? `LCP ${r.perf?.lcpMs} ms, CLS ${r.perf?.cls}`}`).join("; ") || `worst LCP ${Math.max(...results.map((r) => r.perf?.lcpMs ?? 0))} ms`);
+		if (remote && config.performance.routeCache) {
+			const misses = cacheMisses(probes);
+			check("route-cache", "Pages served from the route cache on a second request (cf-cache-status: HIT)", misses.length === 0 && probes.length > 0, misses.slice(0, 6).join("; ") || `${probes.length} pages`);
+			check("cached-ttfb", `Cached home page answers within ${g.maxCachedTtfbMs} ms (median of 3, measured from this machine)`, Number.isFinite(cachedTtfbMs) && (cachedTtfbMs as number) <= g.maxCachedTtfbMs, `${cachedTtfbMs} ms`);
+		} else if (!config.performance.routeCache) check("route-cache", "Route cache", true, "off (kit.config performance.routeCache: false)");
+		if (payload) check("payload", `Home page transfers ≤ ${g.maxPayloadKb} KB until load, no video before load (desktop)`, !payload.error && payload.kb <= g.maxPayloadKb && payload.videoBeforeLoad.length === 0, payload.error ?? [`${payload.kb} KB in ${payload.requests} requests`, ...(payload.videoBeforeLoad.length ? [`video before load: ${payload.videoBeforeLoad.map((u) => u.split("/").pop()).join(", ")}`] : [])].join("; "));
 		if (menu) {
 			const behaviourBad = Object.entries(menu.behaviour).filter(([k, v]) => k !== "closeButton" && v === false).map(([k]) => k);
 			check("menu", "Burger menu: same items, timings within ±15%, accessible behaviour", menu.itemsMissing.length === 0 && menu.motion.ok && behaviourBad.length === 0, [menu.itemsMissing.length ? `missing items: ${menu.itemsMissing.join(", ")}` : "", ...menu.motion.diffs, behaviourBad.length ? `behaviour: ${behaviourBad.join(", ")}` : ""].filter(Boolean).join("; ") || undefined);
 		}
 
-		const out: VerifyResult = { target: want, targetUrl: base, ranAt: new Date().toISOString(), pages: results, brokenLinks, security: { headers, missing: missingHeaders, wpPaths }, ...(menu ? { menu } : {}), forms: formEndpoints };
+		const out: VerifyResult = { target: want, targetUrl: base, ranAt: new Date().toISOString(), pages: results, brokenLinks, security: { headers, missing: missingHeaders, wpPaths }, ...(menu ? { menu } : {}), forms: formEndpoints, performance: { probes, ...(cachedTtfbMs !== undefined ? { cachedTtfbMs } : {}), ...(payload ? { payload } : {}) } };
 		// The gate checks go with the report so cutover preflight can read the last result (preview runs are not recorded in state).
 		write(join(outDir, "verify.json"), { ...out, checks });
 		write(join(outDir, "index.html"), verifyReport(config.name, out, checks, g.visualDiff));

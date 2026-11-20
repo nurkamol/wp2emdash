@@ -331,19 +331,41 @@ for (const faq of document.querySelectorAll<HTMLElement>(".faq--panel")) {
 	}
 }
 
-// Background videos: start them even where autoplay was deferred (iOS Low Power Mode, data saver
-// or a tab opened in the background); retry on the first touch, scroll or return to the tab.
+// Background videos: never part of the first load. The section's picture paints first (LCP); the file is attached
+// after the load event, when the browser is idle — and not at all on small screens (< 768px), with data saver
+// (Save-Data) or reduced motion, where the picture stays. A video without a picture (data-always) is attached
+// everywhere, showing its first frame instead of playing under reduced motion. Started even where autoplay was
+// deferred (iOS Low Power Mode, a tab opened in the background): retried on the first touch, scroll or return.
 const bgVideos = [...document.querySelectorAll<HTMLVideoElement>("video[data-bg-video]")];
 if (bgVideos.length) {
+	const saveData = (navigator as { connection?: { saveData?: boolean } }).connection?.saveData === true;
+	const small = window.matchMedia("(max-width: 767.98px)").matches;
+	const playing: HTMLVideoElement[] = [];
 	const start = () => {
-		for (const v of bgVideos) {
+		for (const v of playing) {
 			v.muted = true;
 			if (v.paused) v.play().catch(() => {});
 		}
 	};
-	start();
-	for (const ev of ["pointerdown", "touchstart", "scroll", "keydown"]) window.addEventListener(ev, start, { once: true, passive: true });
-	document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && start());
+	const attach = () => {
+		for (const v of bgVideos) {
+			const src = v.dataset.src;
+			const always = v.hasAttribute("data-always");
+			if (!src || (!always && (reduce || saveData || small))) continue;
+			v.addEventListener(reduce ? "loadeddata" : "playing", () => v.classList.add("is-playing"), { once: true });
+			if (reduce) v.preload = "metadata";
+			v.src = src;
+			v.removeAttribute("data-src");
+			if (!reduce) playing.push(v);
+		}
+		if (!playing.length) return;
+		start();
+		for (const ev of ["pointerdown", "touchstart", "scroll", "keydown"]) window.addEventListener(ev, start, { once: true, passive: true });
+		document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && start());
+	};
+	const idle = () => (typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(attach, { timeout: 3000 }) : setTimeout(attach, 300));
+	if (document.readyState === "complete") idle();
+	else window.addEventListener("load", idle, { once: true });
 }
 
 // Drifting text columns (Salient column parallax): offset = k × (column centre − viewport centre),

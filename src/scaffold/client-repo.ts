@@ -46,6 +46,8 @@ export interface ClientRepoInput {
 	ogCards?: boolean;
 	/** SEO panel in the page editor (@wp2emdash/seo) is on. */
 	seoPanel?: boolean;
+	/** Performance package (kit.config performance): route cache + warm-up after deploy (src/scaffold/perf.ts). */
+	routeCache?: boolean;
 	sensitiveData: boolean;
 	stack: Record<string, string>;
 }
@@ -161,7 +163,8 @@ Staging is marked \`noindex\` and uses Cloudflare's test bot-check keys, so form
 1. **Build** — \`CLOUDFLARE_ENV=staging astro build\`. The environment is chosen at build time: running \`wrangler deploy --env staging\` after a plain build would deploy the production settings.
 2. **Migrate** — \`emdash migrate\` applies EmDash's database changes before the new code serves visitors. Run by hand it asks you to confirm the target database; check the name it shows.
 3. **Deploy** — \`wrangler deploy\`.
-4. **Check** — \`emdash migrate --check\` must report nothing pending.
+4. **Check** — \`emdash migrate --check\` must report nothing pending.${i.routeCache ? `
+5. **Warm-up** — \`node scripts/warm.mjs <address>\` requests every page in the sitemap once (and the image sizes they use), so the first visitors after a deploy get cached pages. It never fails the deploy.` : ""}
 
 Run them with the Cloudflare token in the environment (\`emdash migrate\` does not read \`.env\` files):
 
@@ -186,7 +189,21 @@ One-time setup in the GitHub repository (Settings):
 | Environments | \`staging\` | No protection needed |
 | Environments | \`production\` | Deployment branches: \`main\` only. Required reviewers (the owner) if the plan allows it — private repos need GitHub Pro/Team; otherwise only collaborators can start a production run. |
 
-## Secrets
+${i.routeCache ? `## Speed: the page cache
+
+Pages are kept in Cloudflare's cache next to visitors (route caching): a cached page answers like a static file instead
+of being built from the database on every visit. Publishing a page, changing a menu, the site settings, the header &
+footer, a popup or the announcement bar empties the cache for the pages that show it, so changes appear within
+seconds. Each deploy starts with an empty cache (new code, new templates), filled again by the warm-up step.
+
+If a page ever looks out of date: publish it again (or save the menu/setting you changed), wait a few seconds and
+reload; if it still does not change, redeploy (Actions → CI → Run workflow), which clears the whole cache. Signed-in
+editors see the same cached pages as visitors; the editor's preview shows unpublished changes. Replacing an image
+file in place (same media item) can take up to a day to show in the resized copies: upload it as a new image, or
+redeploy. Fonts, the logo and the favicon are cached by browsers for a year under names that change with their
+content (\`public/_headers\`).
+
+` : ""}## Secrets
 
 Secrets are never committed. Locally they go in \`.env\` (Cloudflare token) and \`.dev.vars\` (Worker secrets for
 \`pnpm dev\`); see \`.env.example\`. On Cloudflare they are Worker secrets, set once per environment:
@@ -240,7 +257,9 @@ site defaults. Buttons can link to a page, an outside address, or open a popup (
 - **Links** inside text open in the same tab; buttons have an "Open in new tab" switch.
 - **Preview** a draft before publishing with the preview button in the editor.
 - **Page titles** in search results: a page shows "Page title – Site name" unless its SEO title says something else; an SEO title different from the page title is shown exactly as written (add the site name yourself if you want it).
-- **Addresses** of pages are kept from the old site. Changing a page's slug creates a redirect from the old address.
+- **Addresses** of pages are kept from the old site. Changing a page's slug creates a redirect from the old address.${i.routeCache ? `
+- **Changes appear within seconds** after you publish — pages, menus, settings, header & footer, popups and the announcement bar alike: the site keeps a cached copy of each page and empties it when you save. If a page still looks old after a minute, publish it again; see docs/deployment.md (Speed).
+- **Announcement bar schedules** (start/end) are checked in the visitor's browser, so a bar appears and disappears on time even on a cached page.` : ""}
 ${i.ogCards ? `
 ## Sharing images
 
@@ -549,7 +568,8 @@ reviewed on a preview link first (below).
 1. **Build** — \`astro build\`.
 2. **Migrate** — \`emdash migrate\` applies EmDash's database changes before the new code serves visitors. Run by hand it asks you to confirm the target database; check the name it shows.
 3. **Deploy** — \`wrangler deploy\`.
-4. **Check** — \`emdash migrate --check\` must report nothing pending.
+4. **Check** — \`emdash migrate --check\` must report nothing pending.${i.routeCache ? `
+5. **Warm-up** — \`node scripts/warm.mjs <address>\` requests every page in the sitemap once (and the image sizes they use), so the first visitors after a deploy get cached pages. It never fails the deploy.` : ""}
 
 Run them with the Cloudflare token in the environment (\`emdash migrate\` does not read \`.env\` files):
 
@@ -589,7 +609,21 @@ One-time setup in the GitHub repository (Settings):
 | Variables → Actions | \`CLOUDFLARE_ACCOUNT_ID\` | The Cloudflare account id (not secret). Deploy jobs are skipped until it is set. |
 | Environments | \`production\` | Deployment branches: \`main\` only. After the switch-over: required reviewers (the owner) if the plan allows it — private repos need GitHub Pro/Team. |
 
-## Secrets
+${i.routeCache ? `## Speed: the page cache
+
+Pages are kept in Cloudflare's cache next to visitors (route caching): a cached page answers like a static file instead
+of being built from the database on every visit. Publishing a page, changing a menu, the site settings, the header &
+footer, a popup or the announcement bar empties the cache for the pages that show it, so changes appear within
+seconds. Each deploy starts with an empty cache (new code, new templates), filled again by the warm-up step.
+
+If a page ever looks out of date: publish it again (or save the menu/setting you changed), wait a few seconds and
+reload; if it still does not change, redeploy (Actions → CI → Run workflow), which clears the whole cache. Signed-in
+editors see the same cached pages as visitors; the editor's preview shows unpublished changes. Replacing an image
+file in place (same media item) can take up to a day to show in the resized copies: upload it as a new image, or
+redeploy. Fonts, the logo and the favicon are cached by browsers for a year under names that change with their
+content (\`public/_headers\`).
+
+` : ""}## Secrets
 
 Secrets are never committed. Locally they go in \`.env\` (Cloudflare token) and \`.dev.vars\` (Worker secrets for
 \`pnpm dev\`); see \`.env.example\`. On Cloudflare they are Worker secrets, set once:
