@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { showIfFrom, withSteps } from "../src/extract/form-logic.js";
 import { formFromSnapshot, recognise } from "../src/extract/plugin-exports.js";
+import { elementorFormToDefinition } from "../src/adapters/elementor/forms.js";
 import { applySensitivePolicy, applyUploadPolicy, type FormDefinitionOut, fluentFormToDefinition } from "../src/scaffold/forms.js";
 
 const hosts = ["studio.example"];
@@ -149,6 +150,15 @@ describe("Gravity Forms, WPForms, CF7: uploads, logic, steps, payments", () => {
 		expect(d.fields[2]).toMatchObject({ required: true, maxMb: 2, accept: ["pdf", "jpg"] });
 		expect(d.steps).toEqual([{ title: "Who" }, { title: "Docs" }]);
 		expect(d.warnings.join()).toMatch(/payment_method/);
+	});
+});
+
+describe("Elementor Pro forms (parity)", () => {
+	it("upload fields with their limits and step fields as steps", () => {
+		const d = elementorFormToDefinition("f1", { form_fields: [{ field_type: "step", field_label: "You" }, { custom_id: "email", field_type: "email", field_label: "Email", required: "true" }, { field_type: "step", field_label: "Files" }, { custom_id: "plans", field_type: "upload", field_label: "Plans", file_sizes: "3", file_types: "pdf,dwg", allow_multiple_upload: "yes", max_files: "2" }], submit_actions: ["email"] }, "Join");
+		expect(d.fields.map((f) => `${f.name}:${f.type}@${f.step ?? 0}`)).toEqual(["email:email@0", "plans:file@1"]);
+		expect(d.fields[1]).toMatchObject({ accept: ["pdf", "dwg"], maxMb: 3, maxFiles: 2 });
+		expect(d.steps).toEqual([{ title: "You" }, { title: "Files" }]);
 	});
 });
 
