@@ -25,7 +25,7 @@ import { compareHeadings, compareMotion, compareSeo, compareText, type HeadingRe
 import { verifyReport } from "../verify/report.js";
 import { diffSections, groupSections, type SectionDiff } from "../verify/sections.js";
 import { type CacheProbe, cacheMisses, measurePayload, median, type PayloadResult, probeCache } from "../verify/perf.js";
-import { pageRuntime, type PageRuntime, runtimeAnalyticsProblem } from "../verify/runtime.js";
+import { liveTrackers, pageRuntime, type PageRuntime, runtimeAnalyticsProblem } from "../verify/runtime.js";
 import type { PhaseContext } from "./index.js";
 import { ensureDevServer } from "./load.js";
 
@@ -259,13 +259,17 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const snaps = existsSync(join(paths.snapshot, "pages")) ? readdirSync(join(paths.snapshot, "pages")).map((f) => readJson<PageSnapshot>(join(paths.snapshot, "pages", f))).filter((x): x is PageSnapshot => !!x) : [];
 		// Analytics: every tracking id the old site loaded is carried over (unless the owner set analytics: false);
 		// staging and local load none (no test traffic in the client's reports), production loads them.
-		const siteCfg = readJson<{ analytics?: { google?: string[]; gtm?: string } }>(join(paths.project, "src", "site.config.json")) ?? {};
+		const siteCfg = readJson<{ analytics?: { google?: string[]; gtm?: string }; analyticsAdmin?: boolean }>(join(paths.project, "src", "site.config.json")) ?? {};
 		const carried = new Set([...(siteCfg.analytics?.google ?? []), ...(siteCfg.analytics?.gtm ? [siteCfg.analytics.gtm] : [])]);
 		const sourceIds = [...new Set(snaps.flatMap((x) => x.trackingIds ?? []))].filter((id) => !id.startsWith("UA-"));
 		const notCarried = config.analytics === false ? [] : sourceIds.filter((id) => !carried.has(id));
 		const homeHtml = await (await kitFetch(`${base}/`)).text();
 		const loads = /name="site-analytics"/.test(homeHtml);
-		const analyticsProblem = [notCarried.length ? `not carried over: ${notCarried.join(", ")}` : "", live ? (carried.size && !loads ? "production does not load analytics" : "") : loads ? `${want} loads analytics (must not)` : ""].filter(Boolean).join("; ");
+		// With the Analytics admin page (SEO & Analytics, @wp2emdash/seo) the owner decides what loads: the live page's own list is
+		// what the browser check expects, and an empty list is the owner's choice, not a failure.
+		const adminManaged = !!siteCfg.analyticsAdmin;
+		const liveIds = liveTrackers(homeHtml);
+		const analyticsProblem = [notCarried.length ? `not carried over: ${notCarried.join(", ")}` : "", live ? (carried.size && !loads && !adminManaged ? "production does not load analytics" : "") : loads ? `${want} loads analytics (must not)` : ""].filter(Boolean).join("; ");
 
 		// Legacy addresses search engines and other sites keep: the WordPress sitemap index and upload URLs
 		// (sharing images first, then a few content images) must redirect to something that answers 200.
@@ -337,7 +341,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		let runtime: PageRuntime | undefined;
 		try {
 			// Live: what the home page really loads in a browser (tracker requests, CSP-blocked scripts).
-			if (live && carried.size) runtime = await pageRuntime(browser, `${base}/`).catch(() => undefined);
+			if (live && (carried.size || liveIds)) runtime = await pageRuntime(browser, `${base}/`).catch(() => undefined);
 			const shots = await captureScreenshots(browser, results.filter((r) => r.status === 200).map((r) => r.targetUrl), config, join(outDir, "screens"), reporter, "no-preference");
 			// WP2EMDASH_RECAPTURE_SOURCE=1: photograph the live WordPress pages again (read-only) with the current capture
 			// code, replacing the audit's screenshots — without rerunning the audit's design capture.
@@ -427,11 +431,12 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		check("security-headers", "Security headers set", missingHeaders.length === 0, missingHeaders.length ? `missing: ${missingHeaders.join(", ")}` : undefined);
 		check("sitemap", "Sitemap lists every published page at its own address (200, no redirects)", sitemapErrors.length === 0 && unlisted.length === 0 && sitemapLocs.length > 0, [...sitemapErrors.slice(0, 6), ...(unlisted.length ? [`not listed: ${unlisted.slice(0, 6).join(", ")}`] : [])].join("; ") || `${sitemapLocs.length} URLs`);
 		const wpOpen = wpPaths.filter((w) => w.status !== 404 && w.status !== 410);
-		if (live && carried.size) {
-			const rtProblem = runtime ? runtimeAnalyticsProblem(runtime, { google: siteCfg.analytics?.google ?? [], ...(siteCfg.analytics?.gtm ? { gtm: siteCfg.analytics.gtm } : {}) }) : "home page could not be loaded in the browser";
+		const expected = liveIds ?? (adminManaged ? undefined : { google: siteCfg.analytics?.google ?? [], ...(siteCfg.analytics?.gtm ? { gtm: siteCfg.analytics.gtm } : {}) });
+		if (live && expected && (carried.size || liveIds)) {
+			const rtProblem = runtime ? runtimeAnalyticsProblem(runtime, expected) : "home page could not be loaded in the browser";
 			check("analytics-runtime", "Analytics scripts load in a browser, nothing blocked by the CSP", !rtProblem, rtProblem || runtime?.trackers.map((u) => new URL(u).pathname).join(", "));
 		}
-		check("analytics", live ? "Analytics carried over and loading" : "Analytics carried over, not loaded before go-live", !analyticsProblem, analyticsProblem || (carried.size ? `${[...carried].join(", ")}${(want as string) === "production" ? "" : " (production only)"}` : "none on the old site"));
+		check("analytics", live ? "Analytics carried over and loading" : "Analytics carried over, not loaded before go-live", !analyticsProblem, analyticsProblem || (live && adminManaged && !loads ? "no tracker switched on in SEO & Analytics → Analytics (owner's choice)" : carried.size ? `${[...carried].join(", ")}${(want as string) === "production" ? "" : " (production only)"}${adminManaged ? "; managed in SEO & Analytics" : ""}` : "none on the old site"));
 		check("legacy-urls", "Old sitemap and upload addresses redirect to working files", legacyBad.length === 0, legacyBad.slice(0, 6).join("; ") || `${legacy.length} checked`);
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);
 		// Gate on sections where we can pair them; whole-page difference where we cannot (e.g. Gutenberg pages).

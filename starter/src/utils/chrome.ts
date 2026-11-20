@@ -6,6 +6,7 @@
  * chrome edits would not purge the cached pages (measured on staging, docs/spikes/performance-findings.md).
  */
 import type { AstroGlobal } from "astro";
+import { CACHE_TAG as ANALYTICS_TAG } from "@wp2emdash/seo/analytics/store";
 import { getEmDashCollection, getEmDashEntry, getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
 
 export async function loadChrome() {
@@ -38,12 +39,13 @@ export function announcementState(chrome: Chrome, now = Date.now()) {
 
 /**
  * Route cache: the chrome's tags (emdash:settings, emdash:menu:<name>, site_parts, popups) on this page, so EmDash's
- * purge on save reaches it; and a lifetime no longer than the announcement's next start or end, so visitors without
+ * purge on save reaches it; the analytics tag, purged when the Analytics admin page saves (SEO & Analytics, @wp2emdash/seo); and a lifetime no longer than the announcement's next start or end, so visitors without
  * JavaScript see a scheduled bar change too (the browser check covers everyone else).
  */
 export function cacheChrome(cache: AstroGlobal["cache"] | undefined, chrome: Chrome, now = Date.now()): void {
 	if (!cache?.enabled) return;
 	for (const r of Object.values(chrome)) cache.set(r.cacheHint);
+	cache.set({ tags: [ANALYTICS_TAG] });
 	const next = announcementState(chrome, now).nextChange;
 	const maxAge = cache.options.maxAge;
 	if (next !== undefined && maxAge !== undefined) {

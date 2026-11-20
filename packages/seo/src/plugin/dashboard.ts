@@ -4,6 +4,7 @@ import type { PageReport } from "./collect.js";
 
 type Block = Record<string, unknown>;
 export const DASHBOARD_PAGE = "/seo";
+export type TabKey = "overview" | "visits" | "analytics" | "pages" | "images" | "site" | "google" | "indexnow";
 export const WIDGET = "seo-overview";
 const ICON: Record<Check["status"], string> = { good: "✓", warn: "!", bad: "✗", info: "i" };
 const avg = (pages: PageReport[]) => (pages.length ? Math.round(pages.reduce((s, p) => s + p.analysis.score, 0) / pages.length) : 0);
@@ -17,6 +18,8 @@ export interface DashboardData {
 	google: GoogleState;
 	indexNow?: IndexNowState;
 	productionUrl: string;
+	/** Analytics in the suite (absent when the site carries no analytics): blocks for the tabs and the overview line. */
+	analytics?: { overview: Block[]; visits: Block[]; tab: Block[] };
 }
 
 function overview(d: DashboardData): Block[] {
@@ -127,28 +130,34 @@ function siteTab(d: DashboardData): Block[] {
 	];
 }
 
-export function dashboard(d: DashboardData, tab = 0): Block[] {
+export function dashboard(d: DashboardData, tab: TabKey = "overview"): Block[] {
+	const a = d.analytics;
+	const g = d.google.data;
+	const panels: { key: TabKey; label: string; blocks: Block[] }[] = [
+		{ key: "overview", label: "Overview", blocks: [...(a ? [...a.overview, ...(g ? [{ type: "stats", items: [{ label: "Google clicks, 28 days", value: g.totals.clicks }, { label: "Impressions", value: g.totals.impressions }, { label: "Average position", value: g.totals.position.toFixed(1) }] }] : [])] : []), ...overview(d)] },
+		...(a ? [{ key: "visits" as const, label: "Visits", blocks: a.visits }, { key: "analytics" as const, label: "Analytics", blocks: a.tab }] : []),
+		{ key: "pages", label: `Pages (${d.pages.length})`, blocks: pagesTab(d) },
+		{ key: "images", label: `Images${d.missingAlt.length ? ` (${d.missingAlt.length})` : ""}`, blocks: imagesTab(d) },
+		{ key: "site", label: "Site checks", blocks: siteTab(d) },
+		{ key: "google", label: d.google.connected ? "Google" : "Google (connect)", blocks: googleTab(d.google, d.productionUrl) },
+		...(d.indexNow ? [{ key: "indexnow" as const, label: "IndexNow", blocks: indexNowTab(d.indexNow) }] : []),
+	];
+	// The SEO stats lead the overview; with analytics they follow the visits line.
+	if (a) {
+		const first = panels[0] as { blocks: Block[] };
+		const seoStats = first.blocks.findIndex((b) => b.type === "stats" && Array.isArray(b.items) && (b.items as { label: string }[])[0]?.label === "Average SEO score");
+		if (seoStats > 0) first.blocks.unshift(...first.blocks.splice(seoStats, 1));
+	}
 	return [
-		{ type: "header", text: "SEO" },
-		{
-			type: "tab",
-			default_tab: tab,
-			panels: [
-				{ label: "Overview", blocks: overview(d) },
-				{ label: `Pages (${d.pages.length})`, blocks: pagesTab(d) },
-				{ label: `Images${d.missingAlt.length ? ` (${d.missingAlt.length})` : ""}`, blocks: imagesTab(d) },
-				{ label: "Site checks", blocks: siteTab(d) },
-				{ label: d.google.connected ? "Google" : "Google (connect)", blocks: googleTab(d.google, d.productionUrl) },
-				...(d.indexNow ? [{ label: "IndexNow", blocks: indexNowTab(d.indexNow) }] : []),
-			],
-		},
+		{ type: "header", text: a ? "SEO & Analytics" : "SEO" },
+		{ type: "tab", default_tab: Math.max(0, panels.findIndex((p) => p.key === tab)), panels: panels.map(({ label, blocks }) => ({ label, blocks })) },
 	];
 }
 
 export function widget(pages: PageReport[], missingAlt: number): Block[] {
 	return [
 		{ type: "stats", items: [{ label: "Average score", value: `${avg(pages)}/100` }, { label: "Pages under 80", value: pages.filter((p) => p.analysis.score < 80).length }, { label: "Images to describe", value: missingAlt }] },
-		{ type: "actions", elements: [{ type: "link", label: "Open SEO", target: { kind: "plugin-page", path: DASHBOARD_PAGE }, appearance: "secondary" }] },
+		{ type: "actions", elements: [{ type: "link", label: "Open SEO & Analytics", target: { kind: "plugin-page", path: DASHBOARD_PAGE }, appearance: "secondary" }] },
 	];
 }
 

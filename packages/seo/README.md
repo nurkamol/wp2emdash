@@ -1,4 +1,48 @@
-# @wp2emdash/seo (experimental)
+# @wp2emdash/seo (experimental) — SEO & Analytics
+
+Version 0.2.0 adds Analytics to the suite: the admin page is **SEO & Analytics** (tabs Overview, Visits, Analytics,
+Pages, Images, Site checks, Google, IndexNow) when the site carries analytics; without the `analytics` option it stays
+the SEO dashboard of 0.1.
+
+## Analytics (tab "Analytics"; changes by admins only)
+
+- **Tracking codes by ID, never code:** Google Analytics 4 (`G-`), Google tag (`GT-`), Google Ads (`AW-`), Tag Manager
+  (`GTM-`), Meta Pixel (digits), Microsoft Clarity (project ID), Hotjar (site ID), Cloudflare Web Analytics (beacon
+  token). Strict per-service formats (`analytics/trackers.ts`); one Clarity / Hotjar / Cloudflare beacon on at a time;
+  Universal Analytics (`UA-`) is listed when the old site had it, marked retired, never loaded.
+- **Prefill:** the first load stores what scaffold carried over (`analytics.seed`): everything the audit found in the old
+  pages' HTML (`analytics/detect.ts`), rows marked "from the old site". A Cloudflare beacon the old site's zone injected
+  is not carried (Cloudflare keeps injecting it); scaffold asks Cloudflare (read-only) which it was.
+- **Conversion events** (switches): form sent, phone/email links, booking links, outbound links (off by default). The
+  starter's `scripts/site.ts` classifies clicks (`analytics/events.ts`) and reports successful form sends; the loader
+  sends each switched-on kind to every tracker that understands it. Kind and a non-personal label only.
+- **Consent mode** (off by default): Google starts with consent denied; Meta, Clarity and Hotjar wait for
+  `window.siteAnalytics.grantConsent()` — the hook for a future cookie banner (none ships).
+- **Status:** honest — "On" means the site asks browsers to load it; the tab explains how to check in each service and
+  shows the kit's last `verify` browser check (dated) when one was recorded at scaffold time.
+- **Ownership verification:** the carried-over verification meta tags, read-only.
+- **Storage and freshness:** plugin KV key `analytics` = D1 `options` row `plugin:site-seo:analytics`, read by the
+  starter (`analytics/store.ts`) once per uncached render; each save purges tags `wp2emdash:analytics` and
+  `emdash:settings` through `cache.purge` from `cloudflare:workers`, so changes are live within seconds.
+- **Security policy:** the starter's middleware allows exactly the switched-on services' hosts (`analytics/csp.ts`, one
+  table shared with the tests). Trackers load on the production domain only and never for signed-in editors.
+
+## Visits (tab "Visits", dashboard widget for admins, page editor)
+
+Cloudflare Web Analytics for the last 7 days via the GraphQL API (`rumPageloadEventsAdaptiveGroups`): visits, page
+views, daily chart, top pages, referrers; each page's own views at the top of its SEO panel. One query, cached 15
+minutes. Needs the Worker secret `CF_ANALYTICS_TOKEN` (custom token: Account → Account Analytics → Read) and the account
+id (scaffold passes it; `CF_ANALYTICS_ACCOUNT_ID` overrides); `CF_ANALYTICS_SITE_TAG` overrides the site tag scaffold
+found. The token never appears in a view, a log or KV.
+
+## Opt-out (kit.config)
+
+- `seo: { panel: false }` — no plugin at all; the site loads exactly `analytics` from site.config.json (the package is
+  still copied: the starter uses its tracker, CSP and event modules).
+- `analytics: false` — no trackers carried or loaded; the suite has no Analytics or Visits tab.
+- `analytics: { google: [...], gtm, meta: [...], clarity, hotjar, cloudflareToken }` — exactly these as the starting list.
+
+Facts and sources: [docs/spikes/analytics-findings.md](../../docs/spikes/analytics-findings.md).
 
 ## SEO dashboard (Plugins → SEO, editors and admins)
 

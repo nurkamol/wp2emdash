@@ -1,8 +1,31 @@
 /**
- * @wp2emdash/seo — an SEO panel in the EmDash page editor (experimental, 0.x): Google result and social previews, an
- * on-page checklist with a score (title and description length, duplicates, one H1, heading order, length, alt text,
- * links, address, indexing, sharing image) and an optional focus keyword per page. Safe to import from astro.config.
+ * @wp2emdash/seo — the SEO & Analytics suite for EmDash (experimental, 0.x): an SEO panel in the page editor (Google
+ * result and social previews, an on-page checklist with a score, focus keyword, the page's visits), the SEO & Analytics
+ * dashboard (scores, images, site checks, Search Console, IndexNow), and Analytics: tracking codes managed by ID
+ * (Google, Meta, Clarity, Hotjar, Cloudflare), conversion events and consent mode as switches, and Cloudflare Web
+ * Analytics visits. Safe to import from astro.config: it only builds the plugin descriptor. Worker-side modules:
+ * `/plugin` (EmDash loads it) and `/analytics/*` (the starter reads trackers, CSP hosts and events from them).
  */
+import type { LegacyAnalytics } from "./analytics/trackers.js";
+import { SEO_PLUGIN } from "./meta.js";
+
+export { SEO_PLUGIN };
+
+export interface AnalyticsOptions {
+	/** What was carried over from WordPress (site.config.json `analytics`): the list the admin page starts from. */
+	seed?: LegacyAnalytics;
+	/** Cloudflare account that holds the site's Web Analytics (Visits). CF_ANALYTICS_ACCOUNT_ID overrides it. */
+	accountId?: string;
+	/** Web Analytics site tag (found by scaffold with the build token); CF_ANALYTICS_SITE_TAG overrides it. */
+	siteTag?: string;
+	/** Cloudflare adds the beacon to the domain by itself (Web Analytics "automatic setup"). */
+	zoneBeacon?: boolean;
+	/** The kit's last browser check of the live site (verify `analytics-runtime`), dated. */
+	lastCheck?: { at: string; ok: boolean; detail?: string };
+	/** Ownership verification tags carried over (site.config.json `verification`): shown read-only. */
+	verification?: Record<string, string>;
+}
+
 export interface SeoPanelOptions {
 	/** The production address, e.g. "https://example.com" (the Google preview shows it, not staging). */
 	productionUrl: string;
@@ -14,10 +37,10 @@ export interface SeoPanelOptions {
 	ogCards?: boolean;
 	/** IndexNow: the key whose file is at the domain root; `live` once the domain serves this site (after cutover). */
 	indexNow?: { key: string; live: boolean };
+	/** Analytics in the suite; absent when the site carries no analytics at all (kit.config `analytics: false`). */
+	analytics?: AnalyticsOptions;
 }
 
-export const SEO_PLUGIN = { id: "site-seo", version: "0.1.0" } as const;
-
 export function seoPlugin(options: SeoPanelOptions) {
-	return { ...SEO_PLUGIN, format: "native" as const, displayName: "SEO", description: "SEO panel in the page editor", entrypoint: "@wp2emdash/seo/plugin", options };
+	return { ...SEO_PLUGIN, format: "native" as const, displayName: "SEO & Analytics", description: "SEO panel, SEO & Analytics dashboard, tracking codes and visits", entrypoint: "@wp2emdash/seo/plugin", options };
 }

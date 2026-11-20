@@ -8,6 +8,9 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
+import { analyticsOptions, carriedAnalytics, describeCarried, detectFromSnapshot, hasCarried, lookupRumSite } from "../scaffold/analytics.js";
+import { credentialsFor } from "../commands/provision.js";
+import { loadSiteEnv } from "../extract/credentials.js";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { MenuCapture } from "../audit/interactions.js";
@@ -325,6 +328,10 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	rmSync(join(project, "packages", "forms"), { recursive: true, force: true });
 	cpSync(join(KIT_ROOT, "packages", "forms"), join(project, "packages", "forms"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
 	for (const old of ["src/forms/deliver.ts", "src/forms/outbox.ts", "src/plugins"]) rmSync(join(project, old), { recursive: true, force: true });
+	// SEO & Analytics (@wp2emdash/seo): always copied — the starter reads its tracker list, CSP host table and events
+	// (packages/seo/src/analytics); the plugin itself is registered only with seo.panel (below).
+	rmSync(join(project, "packages", "seo"), { recursive: true, force: true });
+	cpSync(join(KIT_ROOT, "packages", "seo"), join(project, "packages", "seo"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
 	const brand = {
 		logo: brandFile(header?.scrolled.logoSrc ?? desktopDesign?.logo?.src, "logo"),
 		logoOnTop: header?.top.logoSrc && header.top.logoSrc !== header.scrolled.logoSrc ? brandFile(header.top.logoSrc, "logo-on-dark") : undefined,
@@ -337,16 +344,21 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const mobileMenu = interactions.menus.find((mm) => mm.found && mm.viewport === "mobile");
 	const desktopMenu = interactions.menus.find((mm) => mm.found && mm.viewport === "desktop");
 	const itemPx = (mm?: MenuCapture) => Number.parseFloat((mm as unknown as { itemStyle?: { fontSize?: string } } | undefined)?.itemStyle?.fontSize ?? "");
-	// Analytics: the config's choice, else the ids the audit saw on the live pages (UA- is retired and dropped).
+	// Analytics: the config's choice, else every tracker the audit saw in the old pages' HTML (UA- listed as retired).
 	const snapPages = readdirSync(join(paths.snapshot, "pages")).map((f) => readJson<{ trackingIds?: string[]; seo?: { og?: Record<string, string>; verification?: Record<string, string> } }>(join(paths.snapshot, "pages", f)) ?? {});
 	// Ownership meta tags (Search Console etc.) from any captured page.
 	const verification = Object.assign({}, ...snapPages.map((p) => p.seo?.verification ?? {})) as Record<string, string>;
 	const audited = [...new Set(snapPages.flatMap((p) => p.trackingIds ?? []))];
 	// og:locale as the SEO plugin published it (en_US); EmDash's head does not emit one.
 	const ogLocale = snapPages.map((p) => p.seo?.og?.["og:locale"]).find((l) => l && /^[a-z]{2}(?:_[A-Z]{2})?$/.test(l));
-	const analytics = config.analytics === false ? undefined : (config.analytics ?? { google: audited.filter((id) => /^(?:GT|G|AW)-/.test(id)).sort(), ...(audited.find((id) => id.startsWith("GTM-")) ? { gtm: audited.find((id) => id.startsWith("GTM-")) } : {}) });
-	const hasAnalytics = !!analytics && (analytics.google.length > 0 || !!analytics.gtm || !!analytics.cloudflareToken);
-	if (hasAnalytics) reporter.emit({ type: "log", level: "info", message: `analytics on the production domain: ${[...(analytics?.google ?? []), analytics?.gtm, analytics?.cloudflareToken ? "Cloudflare beacon" : ""].filter(Boolean).join(", ")}` });
+	// Cloudflare Web Analytics site of the domain (read-only, build token): its site tag for Visits, and whether
+	// Cloudflare injects the beacon itself (then a beacon found in the old HTML is not loaded a second time).
+	const cfRecord = readJson<{ accountId?: string; production?: { accountId?: string } }>(join(paths.root, "cloudflare.json")) ?? {};
+	const cfCreds: { token?: string; accountId?: string } = config.analytics === false ? {} : credentialsFor("production", loadSiteEnv(paths.root), cfRecord as never);
+	const rum = await lookupRumSite({ ...(cfCreds.token ? { token: cfCreds.token } : {}), ...(cfCreds.accountId ? { accountId: cfCreds.accountId } : {}), host: new URL(config.target.productionUrl).host });
+	const analytics = carriedAnalytics(config.analytics, detectFromSnapshot(paths.snapshot, audited), rum);
+	const hasAnalytics = hasCarried(analytics);
+	if (analytics && hasAnalytics) reporter.emit({ type: "log", level: "info", message: `analytics carried over (production domain only): ${describeCarried(analytics)}${rum ? `; Cloudflare Web Analytics site found${rum.autoInstall ? " (beacon added by Cloudflare)" : ""}` : ""}` });
 	// Bricks: the header template's own look (container, toggle, buttons, offcanvas panel) with the captured panel style.
 	const bricksDesignOut = readJson<{ typography?: Record<string, Record<string, unknown>>; layout?: BricksLayout; header?: BricksHeaderLook; entranceAnimations?: number }>(join(paths.reports, "transform", "bricks-design.json"));
 	const bricksHeader = bricksHeaderConfig(bricksDesignOut?.header, mobileMenu, tokens.fonts.body);
@@ -355,6 +367,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		header: { ...baseConfig.header, ...(bricksHeader ? { bricks: bricksHeader } : {}), panelExtras: panelExtras(interactions.menus, primaryLabels, (site.menus.find((mm) => mm.role === "secondary")?.items ?? []).filter((i) => i.button).map((i) => i.label)), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
 		trailingSlash: trailing,
 		...(hasAnalytics ? { analytics } : {}),
+		// Trackers managed in SEO & Analytics, starting from `analytics`; seo.panel false or analytics: false turn it off.
+		...(config.seo.panel && config.analytics !== false ? { analyticsAdmin: true } : {}),
 		...(ogLocale ? { ogLocale } : {}),
 		...(Object.keys(legacyFiles).length ? { legacyFiles } : {}),
 		// WordPress numeric links (/?p=40, /?page_id=40) keep resolving: post id → path of each published page/post.
@@ -416,16 +430,14 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			reporter.emit({ type: "log", level: "warn", message: `sharing cards off: ${(e as Error).message}` });
 		}
 	}
-	// SEO panel in the page editor (@wp2emdash/seo, on by default); seo: { panel: false } turns it off.
-	rmSync(join(project, "packages", "seo"), { recursive: true, force: true });
+	// SEO & Analytics plugin (@wp2emdash/seo, on by default); seo: { panel: false } turns the whole suite off.
 	// IndexNow key: derived from the production host (stable across reruns, nothing to store); its file sits at the
 	// domain root so it covers every URL. Submissions start once production.live is set (after the switch).
 	const indexNowKey = createHash("sha256").update(`indexnow:${new URL(siteConfig.productionUrl).host}`).digest("hex").slice(0, 32);
 	for (const f of existsSync(join(project, "public")) ? readdirSync(join(project, "public")) : []) if (/^[0-9a-f]{32}\.txt$/.test(f) && f !== `${indexNowKey}.txt`) rmSync(join(project, "public", f));
 	if (config.seo.panel) writeFileSync(join(project, "public", `${indexNowKey}.txt`), indexNowKey);
 	else rmSync(join(project, "public", `${indexNowKey}.txt`), { force: true });
-	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: ["pages"], ...(og ? { ogCards: true } : {}), indexNow: { key: indexNowKey, live: !!readJson<CloudflareResources>(join(paths.root, "cloudflare.json"))?.production?.live } } : undefined;
-	if (seoPanel) cpSync(join(KIT_ROOT, "packages", "seo"), join(project, "packages", "seo"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
+	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: ["pages"], ...(og ? { ogCards: true } : {}), indexNow: { key: indexNowKey, live: !!readJson<CloudflareResources>(join(paths.root, "cloudflare.json"))?.production?.live }, ...(config.analytics !== false ? { analytics: analyticsOptions({ seed: analytics, ...(cfCreds.accountId ? { accountId: cfCreds.accountId } : {}), ...(rum ? { rum } : {}), stateFile: paths.state, ...(Object.keys(verification).length ? { verification } : {}) }) } : {}) } : undefined;
 	// Performance package (src/scaffold/perf.ts): route-cache defaults, hashed brand files with sizes, favicons.
 	const perf = await perfSite(join(project, "public"), config.performance, brand, siteConfig.header.logoHeight);
 	Object.assign(siteConfig, perf.site, { header: { ...siteConfig.header, ...perf.header } });
@@ -512,7 +524,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			"@emdash-cms/cloudflare": STACK["@emdash-cms/cloudflare"],
 			"@wp2emdash/forms": "link:./packages/forms",
 			...(og ? { "@wp2emdash/og": "link:./packages/og", ...OG_DEPENDENCIES } : {}),
-			...(seoPanel ? { "@wp2emdash/seo": "link:./packages/seo" } : {}),
+			"@wp2emdash/seo": "link:./packages/seo",
 			...Object.fromEntries(config.sandboxedPlugins.map((sp) => [sp.package, sp.version])),
 			astro: STACK.astro,
 			emdash: STACK.emdash,
@@ -547,7 +559,7 @@ ${ap.options}	integrations: [
 			storage: r2({ binding: "MEDIA" }),
 			mcp: false,${config.forms.outbox || og || seoPanel ? `
 			// Admin plugins: Form messages (form outbox, admins only — @wp2emdash/forms), Sharing images (@wp2emdash/og),
-			// SEO panel in the page editor (@wp2emdash/seo).
+			// SEO & Analytics (@wp2emdash/seo): editor panel, dashboard, tracking codes, conversion events, Visits.
 			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
 			// Only the reviewed plugins above: no installs from the public registry through the admin.
 			...(sandboxedHere.length ? { sandboxed: sandboxedHere, sandboxRunner: sandbox(), registry: false } : {}),` : ""}
@@ -588,6 +600,7 @@ ${ap.options}	integrations: [
 			turnstileProduction: !!config.forms.turnstileSiteKey,
 			...(config.forms.outbox ? { outbox: { days: config.forms.outbox.days, hold: config.forms.outbox.hold, keepSent: config.forms.outbox.keepSent } } : {}),
 			...(hasAnalytics && analytics ? { analytics } : {}),
+			...(seoPanel?.analytics ? { analyticsAdmin: true } : {}),
 			...(og ? { ogCards: true } : {}),
 			...(seoPanel ? { seoPanel: true } : {}),
 			...(config.performance.routeCache ? { routeCache: true } : {}),

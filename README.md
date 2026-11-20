@@ -363,6 +363,8 @@ seo: { panel: false },
 | **SEO dashboard** | Plugins → SEO, dashboard widget (editors and admins) | Average score and a score per page, the most common issues and where they are, every page with a link to fix it, every image without a description with a form that writes alt text to the media library, robots.txt / sitemap / indexability checks (environment-aware). |
 | **Google Search Console** | SEO dashboard → Google | Connected once with a service account (key stored encrypted): clicks, impressions, click rate, position, daily chart, top searches and pages, sitemaps (submit), index status per page. Works before go-live. |
 | **IndexNow** | SEO dashboard → IndexNow | After go-live, publishing a page notifies Bing, Yandex and the other IndexNow engines; key file at the domain root; notification log; notify-all button. |
+| **Analytics** | SEO & Analytics → Analytics (changes: admins) | Tracking codes by ID only — GA4, Google tag, Google Ads, Tag Manager, Meta Pixel, Microsoft Clarity, Hotjar, Cloudflare Web Analytics — prefilled with everything the audit found on the old site (retired `UA-` listed, never loaded); on/off, edit, remove; conversion events as switches (form sent, phone/email, booking links, outbound) with no visitor data; consent mode (off; hook for a future banner); carried-over verification tags read-only. Saving purges cached pages: live within seconds. The site loads trackers on the production domain only, never for signed-in editors, and its CSP allows exactly the switched-on services (one host table, `packages/seo/src/analytics/csp.ts`). |
+| **Visits** | SEO & Analytics → Visits, dashboard widget (admins), page editor | Cloudflare Web Analytics, last 7 days: visits, page views, daily chart, top pages, referrers; each page's views in its SEO box. Needs the Worker secret `CF_ANALYTICS_TOKEN` (Account Analytics: Read); the site tag is looked up at scaffold. |
 
 No effect on visitors and negligible Worker size. The site checks call the Worker through a `SELF` service binding the
 scaffold adds (a Worker fetching its own address would skip itself). Details: [packages/seo/README.md](packages/seo/README.md).
@@ -408,13 +410,13 @@ Smart Placement stays off (`performance: { smartPlacement: true }` to try it): s
 ## Docs
 
 - [Plan](docs/PLAN.md)
-- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md)
+- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md) · [Analytics in the SEO suite (storage, purge, CSP hosts, GraphQL)](docs/spikes/analytics-findings.md)
 - [Site workspaces](sites/README.md)
 - [Environment setup](docs/staging-setup.md) — production on `workers.dev` (default) and opt-in staging: resources, build → migrate → deploy, first admin sign-in (passkeys), API token, CI, after go-live (`load --force`, preview URLs), troubleshooting
 - [Single-environment findings](docs/spikes/single-env-findings.md) — D1 Time Travel and Workers preview URLs checked against Wrangler 4.163.0
 - [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build token and the per-launch go-live token
 - [`@wp2emdash/forms`](packages/forms/README.md) — the forms package every migrated site uses (endpoint, email, KV outbox, Form messages admin page); usable in any EmDash project
-- [`@wp2emdash/seo`](packages/seo/README.md) — SEO suite: editor panel, SEO dashboard, Google Search Console, IndexNow; on by default (`seo: { panel: false }` turns it off)
+- [`@wp2emdash/seo`](packages/seo/README.md) — SEO & Analytics suite: editor panel, dashboard, Google Search Console, IndexNow, tracking codes, conversion events, consent mode, Visits; on by default (`seo: { panel: false }` turns it off; `analytics: false` carries and loads no trackers)
 - [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; on by default (`og: { cards: false }` in a site's `kit.config.ts` turns them off)
 - [Agent rules](CLAUDE.md)
 
