@@ -170,6 +170,13 @@ for (const loc of locs(index.body).map(local).filter(Boolean)) {
 const all = async (list) => {
 	const out = [];
 	for (let i = 0; i < list.length; i += 4) out.push(...(await Promise.all(list.slice(i, i + 4).map(get))));
+	// A request that failed right after a deploy (new version still spreading, a DNS hiccup) is retried twice.
+	for (let round = 1; round <= 2; round++) {
+		const failed = out.map((r, i) => [r, i]).filter(([r]) => r.status !== 200 && !(r.status >= 300 && r.status < 400));
+		if (!failed.length) break;
+		await sleep(2000 * round);
+		for (const [r, i] of failed) out[i] = await get(r.url);
+	}
 	return out;
 };
 const pages = await all([...urls]);
