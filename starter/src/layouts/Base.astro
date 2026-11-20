@@ -10,6 +10,7 @@ import StructuredData from "../components/StructuredData.astro";
 import Analytics from "../components/Analytics.astro";
 import site from "../site.config.json";
 import { announcementState, type Chrome, loadChrome } from "../utils/chrome";
+import { brandMediaIds, brandMediaRows, sameAsWithSocial, type SettingsData, siteBrand, socialHrefFor, verificationTags, withSocial } from "../utils/settings";
 import "../styles/fonts.css";
 import "../styles/tokens.css";
 import "../styles/motion.css";
@@ -54,13 +55,33 @@ const ogImage = image ? (() => {
 // Its size and type from EmDash's media library (link previews use them to lay out the card before fetching).
 let ogImageMeta: { width?: number; height?: number; type?: string } = {};
 const ogKey = image ? /\/_emdash\/api\/media\/file\/([^/?#]+)$/.exec(image)?.[1] : undefined;
-const db = (env as { DB?: { prepare(q: string): { bind(...v: unknown[]): { first<T>(): Promise<T | null> } } } }).DB;
+const db = (env as { DB?: { prepare(q: string): { bind(...v: unknown[]): { first<T>(): Promise<T | null>; all<T>(): Promise<{ results?: T[] }> } } } }).DB;
 if (ogKey && db && !ogCards) {
 	try {
 		const row = await db.prepare("SELECT width, height, mime_type FROM media WHERE storage_key = ? LIMIT 1").bind(decodeURIComponent(ogKey)).first<{ width: number | null; height: number | null; mime_type: string | null }>();
 		if (row) ogImageMeta = { ...(row.width ? { width: row.width } : {}), ...(row.height ? { height: row.height } : {}), ...(row.mime_type?.startsWith("image/") ? { type: row.mime_type } : {}) };
 	} catch {}
 }
+// Settings → General / Social Links / SEO (utils/settings.ts), site.config as the fallback for an empty setting.
+const s = settings.data as SettingsData | undefined;
+// A page without its own sharing image gets Settings → SEO → Default social image from EmDash's head; its size here.
+const defaultOg = !image && !ogCards ? s?.seo?.defaultOgImage : undefined;
+if (defaultOg?.url) ogImageMeta = { ...(defaultOg.width ? { width: defaultOg.width } : {}), ...(defaultOg.height ? { height: defaultOg.height } : {}), ...(defaultOg.contentType?.startsWith("image/") ? { type: defaultOg.contentType } : {}) };
+type LogoFile = { src: string; width: number; height: number };
+const sc = site as unknown as { header: { logoImg?: LogoFile; logo?: string; logoOnTopImg?: LogoFile; logoOnTop?: string; logoHeight?: number }; icons?: { rel: string; href: string; type: string; sizes?: string }[]; favicon?: string; brandSha1?: { logo?: string; favicon?: string }; verification?: Record<string, string>; structuredData?: { business?: { sameAs?: string[] } } };
+const header = sc.header;
+const brand = siteBrand(s, {
+	...(header.logoImg ?? header.logo ? { logo: header.logoImg ?? { src: header.logo as string } } : {}),
+	...(header.logoOnTopImg ?? header.logoOnTop ? { logoOnTop: header.logoOnTopImg ?? { src: header.logoOnTop as string } } : {}),
+	...(sc.icons ? { icons: sc.icons } : {}),
+	...(sc.favicon ? { favicon: sc.favicon } : {}),
+	...(header.logoHeight ? { logoHeight: header.logoHeight } : {}),
+	...(sc.brandSha1 ? { brandSha1: sc.brandSha1 } : {}),
+}, await brandMediaRows(db, brandMediaIds(s)));
+const verification = verificationTags(s, sc.verification);
+const footerContent = footer.entry ? withSocial((footer.entry.data as any).content, s) : undefined;
+const business = sc.structuredData?.business;
+const sameAs = business ? sameAsWithSocial(business.sameAs, s) : undefined;
 const sep = settings.data?.seo?.titleSeparator?.trim() || "-";
 // The page's own title gets " – Site"; an SEO title of its own (different from the page title) is used as written,
 // as WordPress SEO plugins print a custom title ("Member Login" on the Account page).
@@ -99,29 +120,31 @@ const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 		{/* EmDash's head has no og:locale; SEO plugins publish it (en-US → en_US). */}
 		<meta property="og:locale" content={(site as { ogLocale?: string }).ogLocale ?? (site.lang ?? "en").replace("-", "_")} />
 		{/* With sharing cards (@wp2emdash/og) the plugin sets every og:image tag; otherwise these describe the page's image. */}
-		{!ogCards && ogImage && <meta property="og:image:alt" content={pageTitle ?? title ?? siteTitle} />}
+		{!ogCards && (ogImage || defaultOg?.url) && <meta property="og:image:alt" content={ogImage ? (pageTitle ?? title ?? siteTitle) : defaultOg?.alt || siteTitle} />}
 		{!ogCards && ogImageMeta.width && <meta property="og:image:width" content={String(ogImageMeta.width)} />}
 		{!ogCards && ogImageMeta.height && <meta property="og:image:height" content={String(ogImageMeta.height)} />}
 		{!ogCards && ogImageMeta.type && <meta property="og:image:type" content={ogImageMeta.type} />}
-		<StructuredData canonical={canonicalUrl} pageTitle={pageTitle ?? title ?? siteTitle} description={description || settings.data?.tagline} />
+		<StructuredData canonical={canonicalUrl} pageTitle={pageTitle ?? title ?? siteTitle} description={description || settings.data?.tagline} sameAs={sameAs} logo={brand.logoReplaced ? brand.logo?.src : undefined} />
 		{((site.fonts as { preload?: string[] }).preload ?? []).map((href) => <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />)}
 		{googleHref && <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />}
 		{googleHref && <link rel="stylesheet" href={googleHref} />}
-		{/* Favicons sized for their use (performance package); the captured file when there are none. */}
-		{(site as { icons?: { rel: string; href: string; type: string; sizes?: string }[] }).icons?.map((i) => <link rel={i.rel} href={i.href} type={i.type} sizes={i.sizes} />) ?? (site.favicon && <link rel="icon" href={site.favicon} />)}
-		{Object.entries((site as { verification?: Record<string, string> }).verification ?? {}).map(([name, content]) => <meta name={name} content={content} />)}
+		{/* Favicons sized for their use (performance package), the captured file when there are none; once an editor picks
+		    another favicon in Settings, EmDash's head links it and only its home-screen icon is added here. */}
+		{brand.icons.map((i) => <link rel={i.rel} href={i.href} type={i.type || undefined} sizes={i.sizes} />)}
+		{/* Verification tags EmDash's head does not print (Settings → SEO prints Google and Bing). */}
+		{verification.map(([name, content]) => <meta name={name} content={content} />)}
 		<Analytics />
 	</head>
 	<body class:list={{ "over-hero": overHero }}>
 		<EmDashBodyStart page={pageCtx} />
 		<a href="#main" class="skip-link">Skip to content</a>
 		{announcement && <Announcement block={announcement} hidden={announcementLater} />}
-		<SiteHeader primary={primary.data?.items ?? []} secondary={secondary.data?.items ?? []} siteTitle={siteTitle} />
+		<SiteHeader primary={primary.data?.items ?? []} secondary={secondary.data?.items ?? []} siteTitle={siteTitle} brand={{ ...(brand.logo ? { logo: brand.logo } : {}), ...(brand.logoOnTop ? { logoOnTop: brand.logoOnTop } : {}) }} socialHref={(href: string) => socialHrefFor(href, s)} />
 		<main id="main" tabindex="-1">
 			<slot />
 		</main>
 		<footer class="site-footer">
-			{footer.entry ? <Sections value={(footer.entry.data as any).content} /> : <p class="container">© {new Date().getFullYear()} {siteTitle}</p>}
+			{footer.entry ? <Sections value={footerContent} /> : <p class="container">© {new Date().getFullYear()} {siteTitle}</p>}
 		</footer>
 		<Popups popups={popups.entries as any} />
 		<EmDashBodyEnd page={pageCtx} />

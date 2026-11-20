@@ -240,7 +240,30 @@ until you publish them, and every page keeps its earlier versions.
 | **Popups** | Popups such as the booking window, and the buttons or links that open them. |
 | **Menus** | \`primary\` (main menu), \`secondary\` and \`footer\` links. A \`secondary\` item with the CSS class \`button\` is a header button; its title attribute is the label it swaps to on hover. |
 | **Media** | Images and videos. Upload in the library or straight from an image field. |
-| **Settings** | Site title, tagline and the SEO defaults. |
+| **Settings** | Site title, tagline, logo and favicon (**General**), social profiles (**Social Links**), title separator, default social image, Google/Bing verification and robots.txt (**SEO**). Filled in from the old site. |
+
+## Site settings
+
+Settings → **General**, **Social Links** and **SEO** came prefilled from the WordPress site, and the site reads them on
+every page, so saving one changes the live site:
+
+- **Logo** (General): the header, the menu and the logo in the structured data. While it is the logo carried over,
+  the site keeps serving its optimized copies (sized WebP, and the light version over the hero image); pick another
+  image and that image is shown everywhere, the light version included. Upload a PNG, JPEG or WebP (no SVG).
+- **Favicon** (General): the browser tab icon and the phone home-screen icon (use a square image of at least
+  180 × 180 px).
+- **Social Links**: the footer's social icons and links point at these profiles; a network filled in here that the
+  footer does not show yet is added to its row of icons. A full profile address or a handle (\`@studio\`) both work.
+  To remove an icon, remove it from the footer (Header & footer); an empty field keeps the footer's own link.
+- **SEO → Default social image**: shown when a page without its own social image is shared${i.ogCards ? " (the automatic sharing cards take precedence while they are on: Plugins → Sharing images)" : ""}.
+- **SEO → Google / Bing verification**: keeps Search Console and Bing Webmaster Tools verified. An empty field falls
+  back to the tag carried over from the old site.
+- **SEO → robots.txt**: the old site's own rules, with the sitemap at the new address. Leave it empty for the
+  standard file.
+
+For developers: \`src/utils/settings.ts\` (read through the page's chrome loader, so a save purges cached pages);
+\`src/site.config.json\` is the fallback for every empty setting. The kit's \`load\` fills these in and never overwrites
+a value changed in the admin since (\`--overwrite-settings\` does).
 
 ## Sections
 
@@ -353,7 +376,8 @@ ${i.analyticsAdmin ? `Everything about how people find and use the site is in on
   of action happened (and the form's name or the booking service).
 - **Consent mode** (off by default): for sites that add a cookie banner later. On, Google tags start with consent
   denied and Meta, Clarity and Hotjar wait until the banner calls \`siteAnalytics.grantConsent()\` in the browser.
-- **Ownership verification**: the Search Console / Bing verification tags carried over from the old site, read-only.
+- **Ownership verification**: Google Search Console and Bing tags are edited in Settings → SEO; tags of other
+  services carried over from the old site are listed here, read-only.
 
 There is no place to paste code: only these services can run, which keeps the site safe and fast. Changes reach the
 live site within a few seconds. Tracking codes load only on ${i.productionUrl} (never on staging, previews or your
@@ -369,8 +393,8 @@ For developers: the settings are stored in the site's database (the SEO plugin's
 read per page render by \`src/utils/analytics.ts\`; \`public/scripts/site-analytics.js\` starts each service from its
 ID; the security policy in \`src/middleware.ts\` allows exactly the switched-on services' addresses
 (\`packages/seo/src/analytics/csp.ts\`); saving purges the cached pages. Search Console stays verified after the move if
-it uses a DNS record (keep the record at switch-over) or a verification meta tag (carried over into
-\`site.config.json\` → \`verification\`). Re-submit \`/sitemap.xml\` there after the switch-over (the old
+it uses a DNS record (keep the record at switch-over) or a verification meta tag (Settings → SEO, prefilled from the
+old site; \`site.config.json\` → \`verification\` is the fallback). Re-submit \`/sitemap.xml\` there after the switch-over (the old
 \`sitemap_index.xml\` redirects to it).` : i.analytics ? `Carried over from the WordPress site, loaded only on ${i.productionUrl} (never on staging, previews or your computer) and never for signed-in editors:
 
 ${[...(i.analytics.google ?? []).map((id) => `- Google tag \`${id}\``), ...(i.analytics.gtm ? [`- Google Tag Manager container \`${i.analytics.gtm}\``] : []), ...(i.analytics.meta ?? []).map((id) => `- Meta Pixel \`${id}\``), ...(i.analytics.clarity ? [`- Microsoft Clarity \`${i.analytics.clarity}\``] : []), ...(i.analytics.hotjar ? [`- Hotjar \`${i.analytics.hotjar}\``] : []), ...(i.analytics.cloudflareToken ? ["- Cloudflare Web Analytics"] : [])].join("\n")}
@@ -378,7 +402,8 @@ ${[...(i.analytics.google ?? []).map((id) => `- Google tag \`${id}\``), ...(i.an
 The ids are in \`src/site.config.json\` (\`analytics\`) and loaded by \`src/components/Analytics.astro\`; the security
 policy in \`src/middleware.ts\` allows each service's addresses only when it is configured
 (\`packages/seo/src/analytics/csp.ts\`). Search Console stays verified after the move if it uses a DNS record (keep the
-record at switch-over) or a verification meta tag (carried over into \`site.config.json\` → \`verification\`).
+record at switch-over) or a verification meta tag (Settings → SEO, prefilled from the old site; \`site.config.json\` →
+\`verification\` is the fallback).
 Re-submit \`/sitemap.xml\` there after the switch-over (the old \`sitemap_index.xml\` redirects to it).` : "No analytics."}
 
 ## Embedded services

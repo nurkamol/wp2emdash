@@ -26,7 +26,7 @@ import { loadOverrides } from "../config/overrides.js";
 import { applySensitivePolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
 import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras, stackBreakpoint } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
-import { astroPerf, imageHosts, type PerfConfig, perfSite, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
+import { astroPerf, brandHashes, imageHosts, type PerfConfig, perfSite, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
@@ -440,7 +440,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: ["pages"], ...(og ? { ogCards: true } : {}), indexNow: { key: indexNowKey, live: !!readJson<CloudflareResources>(join(paths.root, "cloudflare.json"))?.production?.live }, ...(config.analytics !== false ? { analytics: analyticsOptions({ seed: analytics, ...(cfCreds.accountId ? { accountId: cfCreds.accountId } : {}), ...(rum ? { rum } : {}), stateFile: paths.state, ...(Object.keys(verification).length ? { verification } : {}) }) } : {}) } : undefined;
 	// Performance package (src/scaffold/perf.ts): route-cache defaults, hashed brand files with sizes, favicons.
 	const perf = await perfSite(join(project, "public"), config.performance, brand, siteConfig.header.logoHeight);
-	Object.assign(siteConfig, perf.site, { header: { ...siteConfig.header, ...perf.header } });
+	Object.assign(siteConfig, perf.site, { header: { ...siteConfig.header, ...perf.header } }, brandHashes(join(project, "public"), brand));
 	write(join(project, "src", "site.config.json"), siteConfig);
 	write(join(project, "src", "styles", "tokens.css"), tokens.css + bricksBodyWeight(bricksDesignOut) + bricksLayoutTokens(bricksDesignOut?.layout) + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);

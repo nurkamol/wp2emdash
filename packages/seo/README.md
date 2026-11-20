@@ -2,7 +2,8 @@
 
 Version 0.2.0 adds Analytics to the suite: the admin page is **SEO & Analytics** (tabs Overview, Visits, Analytics,
 Pages, Images, Site checks, Google, IndexNow) when the site carries analytics; without the `analytics` option it stays
-the SEO dashboard of 0.1.
+the SEO dashboard of 0.1. Version 0.2.1: the ownership verification section points to EmDash's Settings → SEO, where
+the Google and Bing tags now live (prefilled from the old site by the kit's load).
 
 ## Analytics (tab "Analytics"; changes by admins only)
 
@@ -20,7 +21,8 @@ the SEO dashboard of 0.1.
   `window.siteAnalytics.grantConsent()` — the hook for a future cookie banner (none ships).
 - **Status:** honest — "On" means the site asks browsers to load it; the tab explains how to check in each service and
   shows the kit's last `verify` browser check (dated) when one was recorded at scaffold time.
-- **Ownership verification:** the carried-over verification meta tags, read-only.
+- **Ownership verification:** points to EmDash's Settings → SEO, where the Google and Bing tags are edited (prefilled by load);
+  other carried-over tags (Pinterest, Meta, Yandex) are listed read-only.
 - **Storage and freshness:** plugin KV key `analytics` = D1 `options` row `plugin:site-seo:analytics`, read by the
   starter (`analytics/store.ts`) once per uncached render; each save purges tags `wp2emdash:analytics` and
   `emdash:settings` through `cache.purge` from `cloudflare:workers`, so changes are live within seconds.

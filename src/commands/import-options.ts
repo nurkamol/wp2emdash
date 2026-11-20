@@ -9,19 +9,24 @@ import { BRICKS_OPTIONS } from "../adapters/bricks/site.js";
 import { sitePaths } from "../core/paths.js";
 import { readOptionsFromDump } from "../extract/sql-options.js";
 
+/** Rank Math and Yoast options the site settings read (social profiles, default sharing image, verification). */
+export const SEO_OPTIONS = ["rank-math-options-titles", "rank-math-options-general", "wpseo_social", "wpseo"];
+
+/** SEO options keep `twitter_author_names` (the general filter's "auth" would drop it); credentials still go. */
+const SEO_SECRETISH = /(key|secret|token|password|passwd|api_|license|licence|salt|captcha)/i;
 const SECRETISH = /(key|secret|token|password|passwd|api|license|licence|salt|auth|captcha)/i;
 
 /** Drop credential-looking fields at any depth (Bricks global settings keep API keys for maps, captcha, mail). */
-export function withoutSecrets(v: unknown, dropped: string[] = [], path = ""): unknown {
-	if (Array.isArray(v)) return v.map((x, i) => withoutSecrets(x, dropped, `${path}[${i}]`));
+export function withoutSecrets(v: unknown, dropped: string[] = [], path = "", secretish: RegExp = SECRETISH): unknown {
+	if (Array.isArray(v)) return v.map((x, i) => withoutSecrets(x, dropped, `${path}[${i}]`, secretish));
 	if (v && typeof v === "object") {
 		const out: Record<string, unknown> = {};
 		for (const [k, x] of Object.entries(v)) {
-			if (SECRETISH.test(k) && (typeof x === "string" || typeof x === "number") && String(x).length > 0) {
+			if (secretish.test(k) && (typeof x === "string" || typeof x === "number") && String(x).length > 0) {
 				dropped.push(`${path}${path ? "." : ""}${k}`);
 				continue;
 			}
-			out[k] = withoutSecrets(x, dropped, `${path}${path ? "." : ""}${k}`);
+			out[k] = withoutSecrets(x, dropped, `${path}${path ? "." : ""}${k}`, secretish);
 		}
 		return out;
 	}
@@ -31,10 +36,14 @@ export function withoutSecrets(v: unknown, dropped: string[] = [], path = ""): u
 export async function importOptions(slug: string, dump: string, sitesDir?: string): Promise<{ file: string; found: string[]; missing: string[]; dropped: string[] }> {
 	if (!existsSync(dump)) throw new Error(`No such file: ${dump}`);
 	const paths = sitesDir ? sitePaths(slug, sitesDir) : sitePaths(slug);
-	const raw = await readOptionsFromDump(dump, BRICKS_OPTIONS);
+	const all = await readOptionsFromDump(dump, [...BRICKS_OPTIONS, ...SEO_OPTIONS]);
+	const raw = Object.fromEntries(Object.entries(all).filter(([k]) => (BRICKS_OPTIONS as readonly string[]).includes(k)));
 	const dropped: string[] = [];
 	const clean = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, withoutSecrets(v, dropped, k)]));
 	const file = join(paths.raw, "bricks-options.json");
 	writeFileSync(file, `${JSON.stringify(clean, null, 2)}\n`);
+	// SEO plugin options for EmDash's Settings (social profiles, default sharing image, verification): src/transform/settings.ts.
+	const seo = Object.fromEntries(Object.entries(all).filter(([k]) => SEO_OPTIONS.includes(k)).map(([k, v]) => [k, withoutSecrets(v, dropped, k, SEO_SECRETISH)]));
+	if (Object.keys(seo).length) writeFileSync(join(paths.raw, "seo-options.json"), `${JSON.stringify(seo, null, 2)}\n`);
 	return { file, found: Object.keys(clean), missing: BRICKS_OPTIONS.filter((k) => !(k in clean)), dropped };
 }

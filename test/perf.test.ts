@@ -192,10 +192,13 @@ describe("brand files", () => {
 
 	it("the header renders the logo with its width and height; the layout links the sized favicons", () => {
 		const h = starter("components/SiteHeader.astro");
-		expect(h).toContain("const logo = h.logoImg ?? (h.logo ? { src: h.logo } : undefined);");
+		// The layout's brand (Settings → General, site.config as fallback: utils/settings.ts) wins; site.config otherwise.
+		expect(h).toContain("const logo = brand ? brand.logo : (h.logoImg ?? (h.logo ? { src: h.logo } : undefined));");
 		expect(h).toContain('<img {...logo} alt="" class="logo logo--default" decoding="async" />');
 		expect(h).toContain('<img {...logo} alt="" loading="lazy" decoding="async" />');
-		expect(starter("layouts/Base.astro")).toContain("<link rel={i.rel} href={i.href} type={i.type} sizes={i.sizes} />");
+		const base = starter("layouts/Base.astro");
+		expect(base).toContain("{brand.icons.map((i) => <link rel={i.rel} href={i.href} type={i.type || undefined} sizes={i.sizes} />)}");
+		expect(base).toContain("logo: header.logoImg ?? { src: header.logo as string }");
 	});
 });
 

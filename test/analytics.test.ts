@@ -381,7 +381,7 @@ describe("SEO & Analytics plugin", () => {
 		const plain = createPlugin({ productionUrl: "https://acme.example" }) as unknown as typeof plugin;
 		expect(plain.admin.pages[0]?.label).toBe("SEO");
 		expect(plain.admin.widgets.map((w) => w.id)).toEqual(["seo-overview"]);
-		expect(seoPlugin(opts)).toMatchObject({ id: "site-seo", version: "0.2.0", displayName: "SEO & Analytics" });
+		expect(seoPlugin(opts)).toMatchObject({ id: "site-seo", version: "0.2.1", displayName: "SEO & Analytics" });
 	});
 	it("first load stores what was carried over (UA retired, verification shown read-only); no purge", async () => {
 		const r = await call({ type: "page_load" });
@@ -391,7 +391,9 @@ describe("SEO & Analytics plugin", () => {
 			["Google Tag Manager · from the old site", "GTM-ABC1234", "On"],
 			["Universal Analytics · from the old site", "UA-12345678-1", "Retired"],
 		]);
-		expect(t.find((b) => b.block_id === "verification")?.rows).toEqual([{ service: "Google Search Console", tag: "google-site-verification: abc" }]);
+		// Google and Bing are edited in EmDash's Settings → SEO (load prefills them); the carried tag is the fallback.
+		expect(t.find((b) => b.block_id === "verification")?.rows).toEqual([{ service: "Google Search Console", tag: "google-site-verification: abc", where: "Settings → SEO (this value is the fallback when that field is empty)" }]);
+		expect(t.some((b) => b.type === "context" && String(b.text).includes("Settings → SEO (/_emdash/admin/settings/seo)"))).toBe(true);
 		expect(stored().events).toEqual(DEFAULT_EVENTS);
 		expect(purges).toEqual([]);
 		await kv.set(KV_KEY, { ...stored(), trackers: [] });

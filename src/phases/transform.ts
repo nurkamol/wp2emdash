@@ -19,6 +19,7 @@ import { businessFromJsonLd } from "../transform/business.js";
 import { completeMarianaEmbeds, marianaTenant } from "../transform/embeds.js";
 import { type Diagnostic, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
 import { conservation, irText, missingContext, sourceText } from "../transform/coverage.js";
+import { buildSettings, irSettings, settingsReport } from "../transform/settings.js";
 import { applyMeasuredPadding } from "../transform/measured.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
 import { announcementDoc, describeBar, detectAnnouncement } from "../transform/announcement.js";
@@ -392,10 +393,30 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const siteValid = irSite.safeParse(site);
 	if (!siteValid.success) invalid.push(`site.json: ${siteValid.error.issues[0]?.message}`);
 	write(join(paths.ir, "site.json"), site);
+	// EmDash's built-in Settings (General, Social Links, SEO), prefilled by load (src/transform/settings.ts).
+	const snapAll = existsSync(pagesDir) ? readdirSync(pagesDir).filter((f) => f.endsWith(".json")).map((f) => readJson<{ url?: string; links?: { href: string }[]; seo?: { og?: Record<string, string>; verification?: Record<string, string> } }>(join(pagesDir, f))) : [];
+	const homeLinks = (snapAll.find((x) => { try { return !!x?.url && new URL(x.url).pathname === "/"; } catch { return false; } })?.links ?? []).map((l) => l.href);
+	const settings = buildSettings({
+		options,
+		// Option rows from other raw files: a database dump (bricks-options.json, seo-options.json) may hold Rank Math / Yoast options.
+		wpOptions: { ...options, ...readJson<Record<string, unknown>>(join(paths.raw, "bricks-options.json")), ...readJson<Record<string, unknown>>(join(paths.raw, "seo-options.json")) },
+		rankMathExport: readJson<Record<string, unknown>>(join(paths.raw, "rankmath-settings.json")),
+		homeJsonLd: homeSnap?.seo?.jsonLd ?? [],
+		homeLinks,
+		pageOgImages: snapAll.map((x) => x?.seo?.og?.["og:image"] ?? x?.seo?.og?.image),
+		verification: Object.assign({}, ...snapAll.map((x) => x?.seo?.verification ?? {})),
+		robotsTxt: readJson<{ robotsTxt?: string }>(join(paths.snapshot, "discovery.json"))?.robotsTxt,
+		productionUrl: config.target.productionUrl,
+		titleSeparator: /\s([-–—|·•])\s/.exec(results.find((r) => r.doc.route?.isFrontPage)?.doc.seo.title ?? "")?.[1] ?? "-",
+		manifest,
+	});
+	const settingsValid = irSettings.safeParse(settings);
+	if (!settingsValid.success) invalid.push(`settings.json: ${settingsValid.error.issues[0]?.path.join(".")} ${settingsValid.error.issues[0]?.message}`);
+	write(join(paths.ir, "settings.json"), settings);
 	// Bricks form definitions (recipients never copied), read by scaffold next to the Fluent Forms exports.
 	for (const f of bricksForms.values()) write(join(paths.ir, "forms", `${f.id}.json`), f);
 	if (results.some((r) => r.doc.source.builder === "bricks")) write(join(paths.reports, "transform", "bricks-design.json"), { optionsPresent: bricks.present, ...bricksDesign(bricks), layout: bricksLayout(bricks, shots, readJson<Record<string, unknown>>(join(paths.raw, "acss-settings.json"))), header: bricksHeaderLook(bricksParts.header ? (bricksTemplates.get(bricksParts.header.id) ?? []) : [], bricks), entranceAnimations: bricksEntranceAnimations(pages.map((p) => bricksElements(p.meta?._bricks_page_content_2))) });
-	check("ir-valid", "IR validates against the schema", invalid.length === 0, invalid.join("; ") || `${results.length} documents + site.json`);
+	check("ir-valid", "IR validates against the schema", invalid.length === 0, invalid.join("; ") || `${results.length} documents + site.json + settings.json`);
 
 	// ── Unmapped content ───────────────────────────────────────────────────────
 	const inScope = results.filter((r) => r.published);
@@ -502,8 +523,9 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		documents: results.map((r) => ({ file: r.file, published: r.published, builder: r.doc.source.builder, sections: r.doc.sections.map((s) => `${s.type}${s.variant ? `:${s.variant}` : ""}`), diagnostics: r.doc.diagnostics, conservation: r.conservation && { ratio: r.conservation.ratio, missing: r.conservation.missing } })),
 		notTransformed,
 		announcement: announcementReport,
+		settings: { sources: settings.sources, notCarried: settings.notCarried },
 	});
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, settingsReport(settings)));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }
