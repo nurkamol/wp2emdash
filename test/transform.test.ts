@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseBlocks } from "../src/adapters/gutenberg/index.js";
-import { colourValue, columnFraction, decodeRawHtml, decodeVcLink, isDarkColour, spacingFromPadding } from "../src/adapters/wpbakery/decode.js";
+import { colourValue, columnFraction, decodeRawHtml, decodeVcLink, isDarkColour, spacingFromPadding, texturize } from "../src/adapters/wpbakery/decode.js";
 import { carriesContent } from "../src/adapters/wpbakery/index.js";
 import { parseAttrs, parseShortcodes, type ShortcodeNode } from "../src/adapters/wpbakery/parser.js";
 import { autop, htmlToPortableText, Keys } from "../src/ir/portable-text.js";
@@ -56,6 +56,13 @@ describe("decoders", () => {
 		expect(isDarkColour("rgba(0,0,0,0.5)")).toBe(true);
 		expect(colourValue("Accent-Color")).toBe("var(--color-accent-color)");
 		expect(colourValue("nonsense")).toBeUndefined();
+	});
+
+	it("texturizes prose like WordPress's wptexturize, never tags or code", () => {
+		expect(texturize("<p>- <strong>Class:</strong> you're in the '90s</p>")).toBe("<p>\u2013 <strong>Class:</strong> you\u2019re in the \u201990s</p>");
+		expect(texturize('<p>She said "hi" and \'bye\' -- then... 3x4</p>')).toBe("<p>She said \u201chi\u201d and \u2018bye\u2019 \u2014 then\u2026 3\u00d74</p>");
+		expect(texturize('<a href="/a-b\'c" title="x">ok</a><code>don\'t "touch"</code>')).toBe('<a href="/a-b\'c" title="x">ok</a><code>don\'t "touch"</code>');
+		expect(texturize("well-known 10-20 xn--abc")).toBe("well-known 10-20 xn--abc");
 	});
 });
 

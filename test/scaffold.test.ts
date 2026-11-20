@@ -147,6 +147,18 @@ describe("form field tokens", () => {
 	});
 });
 
+describe("gutter tokens", () => {
+	const designs = (g: Record<string, number>) => Object.entries(g).map(([viewport, gutter]) => ({ url: "https://x.test/", viewport, fonts: [], colors: [{ value: "rgb(244, 236, 226)", count: 9, usage: "background" }], typography: {}, buttons: [], containerWidths: [], breakpoints: [], header: null, footer: null, cssVariables: {}, gutter })) as never;
+
+	it("uses the tablet's share of the width on phones when the phone gutter is that share (whole-pixel capture)", async () => {
+		const { buildTokens } = await import("../src/scaffold/generate.js");
+		// 46px at 768 = 5.99vw; 23px at 390 is 5.99vw within rounding (23.4px): phones get the share too.
+		expect(buildTokens(designs({ desktop: 100, mobile: 23, tablet: 46 })).css).toContain("@media (min-width: 0px) and (max-width: 999.98px) { :root { --gutter: 5.99vw; } }");
+		// 21px on phones vs 76px at 768 (9.9vw): phones keep their own gutter.
+		expect(buildTokens(designs({ desktop: 100, mobile: 21, tablet: 76 })).css).toContain("@media (min-width: 691px) and (max-width: 999.98px) { :root { --gutter: 9.896vw; } }");
+	});
+});
+
 describe("section library", () => {
 	it("has unique field slugs in every block type (EmDash refuses duplicates)", async () => {
 		const { BLOCK_TYPES } = await import("../src/starter/library.js");

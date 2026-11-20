@@ -5,7 +5,7 @@
  */
 import type { Button, Diagnostic, MediaRef, PtBlock, RichText } from "../../ir/schema.js";
 import { htmlToPortableText, type Keys, textBlock } from "../../ir/portable-text.js";
-import { colourValue, decodeRawHtml, decodeVcLink } from "./decode.js";
+import { colourValue, decodeRawHtml, decodeVcLink, texturize } from "./decode.js";
 import { innerSource, type ShortcodeNode } from "./parser.js";
 
 /** A box height per screen: desktop, and below the stacking breakpoint. */
@@ -35,7 +35,7 @@ export type Fragment =
 	| { kind: "map"; embedUrl?: string; address?: string }
 	| { kind: "marquee"; blocks: RichText; media?: MediaRef; link?: Button }
 	| { kind: "legacy"; html: string; reason: string }
-	| { kind: "subrow"; columns: Col[]; defaultMargin?: boolean };
+	| { kind: "subrow"; columns: Col[]; defaultMargin?: boolean; /** The inner row's content placement (vertical alignment of its columns). */ placement?: "top" | "middle" | "bottom" };
 
 /** Card look of a team style (theme CSS defaults, not shortcode attributes). */
 export interface TeamLook {
@@ -64,7 +64,7 @@ export interface Col {
 	/** Content right-aligned (every inner row text_align="right"). */
 	right?: boolean;
 	/** Spacer (divider / empty space) before and after the column's content, if both ends have one. */
-	spacer?: { desktop: string; phone?: string; inset?: number };
+	spacer?: { desktop: string; phone?: string; inset?: number; gap?: number };
 	/** Tint over the column background (Salient column overlay). */
 	overlay?: string;
 	/** Column background image moves with scroll (Salient parallax_bg). */
@@ -83,6 +83,8 @@ export interface Col {
 	insetStart?: string;
 	/** Right-side column padding, % of the row (Salient padding-N-percent with position right). */
 	insetEndPct?: number;
+	/** Desktop padding on the column's trailing edge in vw (Salient advanced column padding, right_padding_desktop). */
+	endPad?: string;
 	/** Salient column box: shadow depth and corner radius (a white "card" column). */
 	boxShadow?: "small" | "medium" | "large";
 	boxRadius?: string;
@@ -249,7 +251,7 @@ export const HANDLERS: Record<string, Handler> = {
 			return [{ kind: "rich", blocks: [block], ...(style === "normal" && fs !== "i" ? { line: true } : {}) }];
 		}
 		// Enclosed form: inner HTML is the heading.
-		return richFromHtml(innerSource(n), ctx, /^h[1-6]$/.test(fs) ? (fs as PtBlock["style"]) : undefined);
+		return richFromHtml(texturize(innerSource(n)), ctx, /^h[1-6]$/.test(fs) ? (fs as PtBlock["style"]) : undefined);
 	},
 	vc_custom_heading: (n, ctx) => {
 		const tag = /tag:(h[1-6]|p|div)/.exec(n.attrs.font_container ?? "")?.[1] ?? "h2";
@@ -258,7 +260,7 @@ export const HANDLERS: Record<string, Handler> = {
 		if (link.url) out.push(...buttonFrom(link.title || n.attrs.text, link.url, ctx, { style: "link", newTab: link.target === "_blank" }));
 		return out;
 	},
-	heading: (n, ctx) => richFromHtml(innerSource(n), ctx, "h2"),
+	heading: (n, ctx) => richFromHtml(texturize(innerSource(n)), ctx, "h2"),
 
 	// Buttons & links
 	nectar_btn: (n, ctx) => inlineButtons(buttonFrom(n.attrs.text, n.attrs.url, ctx, { ...(n.attrs.size === "large" ? { size: "large" as const, textSize: 14 } : {}), style: /see-through|transparent|underline/i.test(n.attrs.button_style ?? "") ? "secondary" : "primary", newTab: n.attrs.open_new_tab === "true", ...(n.attrs.margin_top ? { spaceAbove: n.attrs.margin_top } : {}), ...(n.attrs.class || n.attrs.el_class ? { classes: `${n.attrs.class ?? ""} ${n.attrs.el_class ?? ""}` } : {}) })),

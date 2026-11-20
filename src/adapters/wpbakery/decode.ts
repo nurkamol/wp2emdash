@@ -31,6 +31,42 @@ export function decodeRawHtml(body: string): string {
 	}
 }
 
+/**
+ * WordPress shows post text through wptexturize (the_content): straight quotes become curly, a lone hyphen between
+ * spaces an en dash, `...` an ellipsis. The exported content is the raw text, so the migrated page showed `-` and `'`
+ * where the live page had `–` and `’` (different glyph widths, different line breaks). This is the subset of
+ * wptexturize's default rules that changes ordinary prose; tags and their attributes, and the text of
+ * <code>/<pre>/<kbd>/<script>/<style>/<textarea>, are left alone (as WordPress does).
+ */
+export function texturize(html: string): string {
+	const parts = html.split(/(<[^>]*>)/);
+	let skip = 0;
+	return parts
+		.map((p) => {
+			if (p.startsWith("<")) {
+				const m = /^<(\/?)(code|pre|kbd|script|style|textarea)\b/i.exec(p);
+				if (m) skip = Math.max(0, skip + (m[1] ? -1 : 1));
+				return p;
+			}
+			if (skip || !p) return p;
+			const S = "(?<=^|[\\s\\u00a0(\\[{\"-])";
+			return p
+				.replace(/---/g, "—")
+				.replace(/(?<=^|[\s ])--(?=$|[\s ])/g, "—")
+				.replace(/(?<!xn)--/g, "–")
+				.replace(/(?<=^|[\s ])-(?=$|[\s ])/g, "–")
+				.replace(/\.\.\./g, "…")
+				.replace(/(?<=^|[\s ])'(?=\d\ds)/g, "’")
+				.replace(new RegExp(`${S}'`, "g"), "‘")
+				.replace(new RegExp(`${S}"`, "g"), "“")
+				.replace(/(?<=[\p{L}\p{N}])'(?=[\p{L}\p{N}])/gu, "’")
+				.replace(/'/g, "’")
+				.replace(/"/g, "”")
+				.replace(/(?<=\b\d+)x(?=\d+\b)/g, "×");
+		})
+		.join("");
+}
+
 /** `.vc_custom_123{padding-top: 50px !important;…}` → declarations. */
 export function parseVcCss(css: string | undefined): Record<string, string> {
 	const out: Record<string, string> = {};

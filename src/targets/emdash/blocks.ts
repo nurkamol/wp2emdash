@@ -212,7 +212,7 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 		case "rich_text": {
 			const { head: h, rest } = headingFromBody(s.fields.body);
 			const l = s.fields.look ?? {};
-			const look = Object.fromEntries(Object.entries({ text_heading_size: l.headingSize, text_heading_size_tablet: l.headingSizeTablet, text_heading_size_phone: l.headingSizePhone, text_heading_leading: l.headingLeading, body_size: l.bodySize, body_size_small: l.bodySizeSmall, body_leading: l.bodyLeading, body_width: l.bodyWidth, text_block_gap: l.blockGap, text_head_gap: l.headGap, head_center: l.headCenter || undefined }).filter(([, v]) => v !== undefined));
+			const look = Object.fromEntries(Object.entries({ text_heading_size: l.headingSize, text_heading_size_tablet: l.headingSizeTablet, text_heading_size_phone: l.headingSizePhone, text_heading_leading: l.headingLeading, body_size: l.bodySize, body_size_small: l.bodySizeSmall, body_leading: l.bodyLeading, body_width: l.bodyWidth, text_head_row_gap: l.headRowGap, text_scribble: l.scribble || undefined, text_block_gap: l.blockGap, text_head_gap: l.headGap, head_center: l.headCenter || undefined }).filter(([, v]) => v !== undefined));
 			const rtMore = overflowLinks(rest, s.fields.buttons, key);
 			return base("rich_text", { ...h, body: pt(rtMore.body), width: s.fields.width, align: s.fields.align, buttons: buttons(rtMore.buttons), variant: s.variant === "buttons" ? "buttons" : "default", ...look });
 		}
@@ -275,8 +275,8 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 				...head,
 				intro: pt(s.fields.intro),
 				columns: s.fields.columns,
-				...(s.fields.look ? stripUndefined({ card_bg: s.fields.look.cardBackground, card_radius: s.fields.look.cardRadius, card_shadow: s.fields.look.cardShadow, card_padding: s.fields.look.cardPadding, card_align: s.fields.look.align, title_level: s.fields.look.titleLevel }) : {}),
-				...(s.fields.cardSpace ? { card_space: s.fields.cardSpace.desktop, ...(s.fields.cardSpace.phone ? { card_space_phone: s.fields.cardSpace.phone } : {}), ...(s.fields.cardSpace.inset !== undefined ? { card_inset: s.fields.cardSpace.inset } : {}) } : {}),
+				...(s.fields.look ? stripUndefined({ card_bg: s.fields.look.cardBackground, card_radius: s.fields.look.cardRadius, card_shadow: s.fields.look.cardShadow, card_padding: s.fields.look.cardPadding, card_padding_phone: s.fields.look.cardPaddingSmall?.phone, card_padding_tablet: s.fields.look.cardPaddingSmall?.tablet, card_align: s.fields.look.align, title_level: s.fields.look.titleLevel }) : {}),
+				...(s.fields.cardSpace ? { card_space: s.fields.cardSpace.desktop, ...(s.fields.cardSpace.phone ? { card_space_phone: s.fields.cardSpace.phone } : {}), ...(s.fields.cardSpace.inset !== undefined ? { card_inset: s.fields.cardSpace.inset } : {}), ...(s.fields.cardSpace.insetSmall !== undefined ? { card_inset_small: s.fields.cardSpace.insetSmall } : {}), ...(s.fields.cardSpace.gap ? { card_gap: s.fields.cardSpace.gap } : {}) } : {}),
 				items: s.fields.items.map((it) => stripUndefined({ title: it.title, overlay: it.overlay, image_motion: it.imageMotion, body: ptToMd(it.body) || undefined, image: it.image ? media(it.image) : undefined, icon: it.icon ? `${it.icon.library}:${it.icon.name}` : undefined, link_label: it.link?.label, link_url: it.link?.href, link_new_tab: it.link?.newTab || undefined })),
 			});
 		case "cta_banner":
@@ -364,7 +364,7 @@ function heightFields(h: ({ desktop: string; small?: string; phone?: string } | 
 }
 
 /** IR media-text spacing and type → block fields (lengths kept as given). */
-function mediaTextLookFields(f: { stackSpace?: string; quoteGap?: string; media2Gap?: string; bodySize?: string; bodySizeSmall?: string; bodyLeading?: number; quoteSize?: string; quoteSizeSmall?: string; quoteWidth?: string }): Record<string, unknown> {
-	const map = { stack_space: f.stackSpace, quote_gap: f.quoteGap, media_2_gap: f.media2Gap, body_size: f.bodySize, body_size_small: f.bodySizeSmall, body_leading: f.bodyLeading, quote_size: f.quoteSize, quote_size_small: f.quoteSizeSmall, quote_width: f.quoteWidth };
+function mediaTextLookFields(f: { stackSpace?: string; quoteGap?: string; media2Gap?: string; bodySize?: string; bodySizeSmall?: string; bodyLeading?: number; quoteSize?: string; quoteSizeSmall?: string; quoteWidth?: string; bodyEnd?: string; headingPad?: string }): Record<string, unknown> {
+	const map = { stack_space: f.stackSpace, quote_gap: f.quoteGap, media_2_gap: f.media2Gap, body_size: f.bodySize, body_size_small: f.bodySizeSmall, body_leading: f.bodyLeading, quote_size: f.quoteSize, quote_size_small: f.quoteSizeSmall, quote_width: f.quoteWidth, body_end: f.bodyEnd, heading_pad: f.headingPad };
 	return Object.fromEntries(Object.entries(map).filter(([, v]) => v !== undefined));
 }

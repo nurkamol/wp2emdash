@@ -301,6 +301,10 @@ export const section = z.discriminatedUnion("type", [
 					bodySizeSmall: cssLength.optional(),
 					bodyLeading: z.number().min(1).max(3).optional(),
 					bodyWidth: z.string().regex(/^\d{2,3}%$/).optional(),
+					/** Salient: the inner row holding the highlighted headings, its bottom padding (% of the content width) above the text. */
+					headRowGap: z.string().regex(/^\d+(?:\.\d+)?%$/).optional(),
+					/** Salient highlighted text with the scribble style: emphasised words upright, the scribble under them. */
+					scribble: z.boolean().optional(),
 					/** Bricks: every block of the text is an item of the builder box, this far apart (its row gap); the heading on its own above, centred and this far from the text. */
 					blockGap: fluidLength.optional(),
 					headGap: fluidLength.optional(),
@@ -326,7 +330,7 @@ export const section = z.discriminatedUnion("type", [
 			/** Space before the text column on desktop (Salient column padding). */
 			textInset: cssLength.optional(),
 			/** Space after the text column on desktop, % of the row (Salient right column padding, e.g. 4%). */
-			textEnd: z.string().regex(/^\d+(?:\.\d+)?%$/).optional(),
+			textEnd: z.string().regex(/^\d+(?:\.\d+)?(?:%|vw)$/).optional(),
 			/** Columns of a default-margin Salient inner row: 30px gutters, widths from the row widened by 60px. */
 			innerGutters: z.boolean().optional(),
 			/** Space between the image and the text on desktop (the builder row's column margin, px). */
@@ -348,6 +352,10 @@ export const section = z.discriminatedUnion("type", [
 			quoteSize: cssLength.optional(),
 			quoteSizeSmall: cssLength.optional(),
 			quoteWidth: cssLength.optional(),
+			/** Space after the paragraphs (the builder text blocks' own right padding), % of the text column. */
+			bodyEnd: z.string().regex(/^\d+(?:\.\d+)?%$/).optional(),
+			/** Space inside the opening heading's text block under it (builder design options), % of the text column. */
+			headingPad: z.string().regex(/^\d+(?:\.\d+)?%$/).optional(),
 		}),
 	}),
 	z.object({ type: z.literal("columns"), ...base, fields: z.object({ heading, columns: z.array(column).min(1).max(6), /** The columns sit in a rounded card (a builder call-to-action panel): text left (at most textWidth px), buttons right, stacked on phones. */ card: z.object({ bg: z.string().regex(/^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i), radius: z.number().min(0).max(100).optional(), pad: z.number().min(0).max(120).optional(), padPhone: z.number().min(0).max(120).optional(), textWidth: z.number().int().min(120).max(2000).optional() }).optional() }) }),
@@ -360,7 +368,18 @@ export const section = z.discriminatedUnion("type", [
 			items: z.array(featureItem).min(1),
 			columns: z.number().int().min(1).max(6),
 			/** Space above and below each card's text (builder spacers around it), per screen. */
-			cardSpace: z.object({ desktop: cssLength, phone: cssLength.optional(), /** Card padding, % of the row width (Salient column_padding). */ inset: z.number().min(0).max(20).optional() }).optional(),
+			cardSpace: z
+				.object({
+					desktop: cssLength,
+					phone: cssLength.optional(),
+					/** Card padding, % of the row width (Salient column_padding). */
+					inset: z.number().min(0).max(20).optional(),
+					/** …below 1000px, % of the row width (the theme's own value there). */
+					insetSmall: z.number().min(0).max(20).optional(),
+					/** Builder element spacing under the top spacer and under the text, px. */
+					gap: z.number().min(0).max(100).optional(),
+				})
+				.optional(),
 			/** Boxed cards from the builder's column look (background, radius, shadow, padding % of the row), alignment, title level. */
 			look: z
 				.object({
@@ -368,6 +387,8 @@ export const section = z.discriminatedUnion("type", [
 					cardRadius: cssLength.optional(),
 					cardShadow: z.enum(["small", "medium", "large"]).optional(),
 					cardPadding: z.number().min(0).max(20).optional(),
+					/** Card padding on phones (≤690px) and tablets (691–999px), CSS lengths (the theme's own values there). */
+					cardPaddingSmall: z.object({ phone: cssLength, tablet: cssLength }).optional(),
 					align: z.enum(["center"]).optional(),
 					titleLevel: z.enum(["h4", "h5", "h6"]).optional(),
 				})

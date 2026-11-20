@@ -166,6 +166,9 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 	const gt = tabletDesign?.gutter;
 	const onLine = gd && gm ? gm + ((gd - gm) * (tabletWidth - 390)) / (1440 - 390) : undefined;
 	const gutterTablet = gt && onLine !== undefined && Math.abs(gt - onLine) > 2 ? `${round((gt / tabletWidth) * 100, 3)}vw` : undefined;
+	// A theme that keeps that share on phones too (Salient: 23px at 390 = 46px at 768 = 6%): the captured phone gutter is
+	// whole pixels, so the share is used there as well when it lands within the rounding (23.4px, not 23px).
+	const gutterPhone = gutterTablet && gt && gm && Math.abs(gm - (gt / tabletWidth) * 390) <= 0.5 ? gutterTablet : undefined;
 	// Photo corners measured on the source; 8px when not captured.
 	const radiusVotes = new Map<number, number>();
 	for (const d of designs) if (d.mediaRadius !== undefined) radiusVotes.set(d.mediaRadius, (radiusVotes.get(d.mediaRadius) ?? 0) + 1);
@@ -299,8 +302,8 @@ ${contentBtnVars}
 	--header-bg: ${toHex(desktop.header?.background) && !/rgba/.test(toHex(desktop.header?.background) ?? "") ? toHex(desktop.header?.background) : bg};
 	--footer-bg: ${toHex(desktop.footer?.background) ?? surface};
 }
-${gutterTablet ? `/* Tablet gutter measured on the source (a share of the width there, not on the phone→desktop line). */
-@media (min-width: 691px) and (max-width: 999.98px) { :root { --gutter: ${gutterTablet}; } }
+${gutterTablet ? `/* Tablet${gutterPhone ? " and phone" : ""} gutter measured on the source (a share of the width there, not on the phone→desktop line). */
+@media (min-width: ${gutterPhone ? 0 : 691}px) and (max-width: 999.98px) { :root { --gutter: ${gutterTablet}; } }
 ` : ""}${fieldRules}`;
 	return { css, fonts: { body: bodyFont, display: displayFont, displayWeight, ...(googleHref ? { googleHref } : {}) }, colors: { bg, text, accent, accentContrast, surface } };
 }

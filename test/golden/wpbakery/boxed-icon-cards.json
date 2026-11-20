@@ -118,6 +118,10 @@
           "cardRadius": "15px",
           "cardShadow": "small",
           "cardPadding": 3,
+          "cardPaddingSmall": {
+            "phone": "3vw",
+            "tablet": "18px"
+          },
           "align": "center",
           "titleLevel": "h5"
         }

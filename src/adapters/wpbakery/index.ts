@@ -7,7 +7,7 @@
 import { createHash } from "node:crypto";
 import type { Button, Diagnostic, MediaRef, PtBlock, RichText, Section, SectionType } from "../../ir/schema.js";
 import type { Keys } from "../../ir/portable-text.js";
-import { colourValue, columnFraction, isDarkColour, parseVcCss, spacingFromPadding } from "./decode.js";
+import { colourValue, columnFraction, isDarkColour, parseVcCss, spacingFromPadding, texturize } from "./decode.js";
 import { type BoxHeight, type Col, CONTAINERS, DECORATIVE, type Fragment, GROUPS, HANDLERS, type HandlerCtx, LINE_LEADING, linkBlock, mediaFrom, richFromHtml } from "./elements.js";
 import { type AstNode, parseShortcodes, serialise, type ShortcodeNode } from "./parser.js";
 
@@ -76,7 +76,7 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const out: Fragment[] = [];
 		let html = "";
 		const flush = () => {
-			if (html.replace(/<\/?p>|<br\s*\/?>|&nbsp;|\s/g, "")) out.push(...richFromHtml(html, makeCtx(path)));
+			if (html.replace(/<\/?p>|<br\s*\/?>|&nbsp;|\s/g, "")) out.push(...richFromHtml(texturize(html), makeCtx(path)));
 			html = "";
 		};
 		children.forEach((c, i) => {
@@ -108,12 +108,16 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		}
 		fragments.push(...processChildren(n.children, path));
 		// Salient column_element_spacing is a bottom margin on every element but the last. Block elements' top margins
-		// collapse into it; an inline-block button's (nectar_btn) adds to it.
-		const spacing = /^(\d+)px$/.exec(n.attrs.column_element_spacing ?? "")?.[1];
-		if (spacing && Number(spacing) > 0)
-			fragments.forEach((f, i) => {
-				if (i > 0 && f.kind === "button" && f.inline && f.button.spaceAbove) f.button = { ...f.button, spaceAbove: f.button.spaceAbove + Number(spacing) };
-			});
+		// collapse into it; an inline-block button's (nectar_btn) adds to it. "default" (or none) is the theme's
+		// `.wpb_wrapper > div { margin-bottom: 24px }` under a text block (measured). Only this column's own elements get
+		// its spacing: a button inside an inner row was spaced by the inner column (the outer spacing sits under the row).
+		const spacingAttr = n.attrs.column_element_spacing ?? "default";
+		const spacing = spacingAttr === "default" ? DEFAULT_ELEMENT_GAP : Number(/^(\d+)px$/.exec(spacingAttr)?.[1] ?? Number.NaN);
+		fragments.forEach((f, i) => {
+			if (f.kind !== "button" || !f.inline) return;
+			if (spacing > 0 && f.button.spaceAbove && fragments[i - 1]?.kind === "rich") f.button = { ...f.button, spaceAbove: f.button.spaceAbove + spacing };
+			delete f.inline;
+		});
 		// A button right under a dotted list (Salient fancy-ul): the list's 30px bottom margin is the space above it
 		// (it collapses with the element spacing).
 		fragments.forEach((f, i) => {
@@ -129,6 +133,8 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const pct = /^padding-(\d+)-percent$/.exec(n.attrs.column_padding ?? "")?.[1];
 		const inset = pct && ["left", "all"].includes(n.attrs.column_padding_position ?? "all") && Number(pct) > 0 ? `${pct}vw` : undefined;
 		const insetEndPct = pct && ["right", "all"].includes(n.attrs.column_padding_position ?? "all") && Number(pct) > 0 && Number(pct) <= 20 ? Number(pct) : undefined;
+		// Advanced column padding on the trailing edge only, in vw (measured: the text keeps the column minus that, at ≥1000px).
+		const endPad = n.attrs.column_padding_type === "advanced" && !Number.parseFloat(n.attrs.left_padding_desktop ?? "") && /^(?:[1-9]|1\d|20)(?:\.\d+)?vw$/.test(n.attrs.right_padding_desktop?.trim() ?? "") ? n.attrs.right_padding_desktop?.trim() : undefined;
 		const inner = n.children.flatMap((r) => (r.type === "shortcode" && r.tag === "vc_row_inner" ? r.children : [])).filter((c): c is ShortcodeNode => c.type === "shortcode" && c.tag === "vc_column_inner" && c.children.length > 0);
 		const centered = n.attrs.centered_text === "true" || (inner.length > 0 && inner.length === n.children.filter((c) => c.type === "shortcode").length && inner.every((c) => c.attrs.centered_text === "true"));
 		const rows = n.children.filter((c): c is ShortcodeNode => c.type === "shortcode");
@@ -140,7 +146,7 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		const gapPhone = Number.parseFloat(n.attrs.bottom_margin_phone ?? "");
 		const textInset = rows.length === 1 && rows[0]?.tag === "vc_row_inner" ? innerTextInset(rows[0].attrs) : undefined;
 		const headingGap = rows.length > 1 && rows[0]?.tag === "vc_row_inner" ? loneHeadingGap(rows[0], Number(/^(\d+)px$/.exec(n.attrs.column_element_spacing ?? "")?.[1] ?? Number.NaN)) : undefined;
-		return { ...(headingGap ? { headingGap } : {}), ...(gapPhone > 0 && gapPhone <= 400 ? { gapPhone } : {}), ...(textInset ? { textInset } : {}), ...(inset ? { insetStart: inset } : {}), ...(insetEndPct ? { insetEndPct } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), ...(boxShadow ? { boxShadow } : {}), ...(boxRadius ? { boxRadius } : {}), ...(padPctAll && (n.attrs.column_padding_position ?? "all") === "all" ? { padPct: Number(padPctAll) } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
+		return { ...(headingGap ? { headingGap } : {}), ...(gapPhone > 0 && gapPhone <= 400 ? { gapPhone } : {}), ...(textInset ? { textInset } : {}), ...(inset ? { insetStart: inset } : {}), ...(insetEndPct ? { insetEndPct } : endPad ? { endPad } : {}), ...(centered ? { centered: true } : {}), ...(right && !centered ? { right: true } : {}), ...(motion ? { motion } : {}), ...(leadTop ? { leadTop } : {}), ...(n.attrs.tablet_text_alignment === "center" ? { tabletCenter: true } : {}), ...(n.attrs.width ? { width: n.attrs.width } : {}), ...(boxShadow ? { boxShadow } : {}), ...(boxRadius ? { boxRadius } : {}), ...(padPctAll && (n.attrs.column_padding_position ?? "all") === "all" ? { padPct: Number(padPctAll) } : {}), fragments, ...(color ? { background: { color } } : {}), ...(n.attrs.phone_text_alignment === "center" ? { phoneCenter: true } : {}), ...(spacer ? { spacer } : {}), ...(overlay ? { overlay } : {}), ...(bgImage && n.attrs.parallax_bg === "true" ? { parallax: true } : {}) };
 	}
 
 	/** vc_row_inner: one column → its fragments inline; several → a subrow fragment. */
@@ -161,7 +167,8 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 			const frags = (nonEmpty[0]?.fragments ?? []).map((f) => (inset && f.kind === "faq" ? { ...f, look: { ...f.look, inset } } : f));
 			return [...frags, ...strayFrags];
 		}
-		return [{ kind: "subrow", columns: cols, ...(!n.attrs.column_margin || n.attrs.column_margin === "default" ? { defaultMargin: true } : {}) }, ...strayFrags];
+		const placement = ({ top: "top", middle: "middle", bottom: "bottom" } as const)[n.attrs.content_placement as "top"];
+		return [{ kind: "subrow", columns: cols, ...(!n.attrs.column_margin || n.attrs.column_margin === "default" ? { defaultMargin: true } : {}), ...(placement ? { placement } : {}) }, ...strayFrags];
 	}
 
 	// ── Rows ──────────────────────────────────────────────────────────────────
@@ -267,7 +274,9 @@ export function splitRow(row: Row): Row[] {
 	for (const f of col.fragments) {
 		if (f.kind === "subrow") {
 			flushRun();
-			out.push({ ...row, columns: f.columns.filter((c) => c.fragments.length).map((c) => ({ ...c, ...(f.defaultMargin ? { innerGutters: true } : {}), fragments: flattenSubrows(c.fragments) })), path: `${row.path}#${out.length}` });
+			// The inner row's own content placement (Salient content_placement on vc_row_inner) places its columns.
+			const attrs = f.placement && row.attrs.full_height !== "yes" ? { ...row.attrs, content_placement: f.placement, full_screen_row_position: f.placement } : row.attrs;
+			out.push({ ...row, attrs, columns: f.columns.filter((c) => c.fragments.length).map((c) => ({ ...c, ...(f.defaultMargin ? { innerGutters: true } : {}), fragments: flattenSubrows(c.fragments) })), path: `${row.path}#${out.length}` });
 		} else run.push(f);
 	}
 	flushRun();
@@ -570,7 +579,7 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 				...(heights.some(Boolean) ? { mediaHeight: heights.map((h) => h ?? null) } : {}),
 				...(textCol.insetStart ? { textInset: textCol.insetStart } : {}),
 				// Salient: padding-N-percent is N% of the row; the text keeps the rest of its column (no measure cap).
-				...(textCol.insetEndPct ? { textEnd: `${textCol.insetEndPct}%` } : {}),
+				...(textCol.insetEndPct ? { textEnd: `${textCol.insetEndPct}%` } : textCol.endPad ? { textEnd: textCol.endPad } : {}),
 				...(/^\d{1,3}px$/.test(row.attrs.column_margin ?? "") ? { columnGap: row.attrs.column_margin } : row.attrs.column_margin === "none" ? { columnGap: "0px" } : {}),
 				// Columns of a default-margin inner row: Salient's 30px gutters (60px gap, widths from the widened row).
 				...(mediaCol.innerGutters && textCol.innerGutters && !/^\d{1,3}px$|^none$/.test(row.attrs.column_margin ?? "") ? { innerGutters: true } : {}),
@@ -608,13 +617,15 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					...(cols[0]?.boxRadius ? { cardRadius: cols[0].boxRadius } : {}),
 					...(cols[0]?.boxShadow ? { cardShadow: cols[0].boxShadow } : {}),
 					...(cols[0]?.padPct ? { cardPadding: cols[0].padPct } : {}),
+					...(cols[0]?.padPct && row.attrs.type !== "full_width_content" && SALIENT_PAD_SMALL[cols[0].padPct] ? { cardPaddingSmall: SALIENT_PAD_SMALL[cols[0].padPct] } : {}),
 					...(cols.every((c) => c.centered) || row.attrs.text_align === "center" ? { align: "center" as const } : {}),
 					...(titleLevels[0] && /^h[4-6]$/.test(titleLevels[0]) && titleLevels.every((l) => l === titleLevels[0]) ? { titleLevel: titleLevels[0] } : {}),
 				}
 			: undefined;
 		const sp = cols[0]?.spacer;
 		const cardSpace = variant === "image-cards" && sp && cols.every((c) => c.spacer?.desktop === sp.desktop && c.spacer?.phone === sp.phone && c.spacer?.inset === sp.inset) ? sp : undefined;
-		push({ ...base("feature_grid", variant), fields: { intro: [], items, columns: Math.min(6, cols.length), ...(cardSpace ? { cardSpace } : {}), ...(look ? { look } : {}) } });
+		const insetSmall = cardSpace?.inset !== undefined && row.attrs.type === "full_width_content" ? SALIENT_PAD_SMALL_FULL[cardSpace.inset] : undefined;
+		push({ ...base("feature_grid", variant), fields: { intro: [], items, columns: Math.min(6, cols.length), ...(cardSpace ? { cardSpace: { ...cardSpace, ...(insetSmall ? { insetSmall } : {}) } } : {}), ...(look ? { look } : {}) } });
 		return sections;
 	}
 
@@ -805,12 +816,18 @@ function padLen(attrs: string, name: string, only?: "%" | "px"): string | undefi
  * centred quote and the second picture, and the size and leading of split-heading paragraphs and quotes.
  * Percentages are of the column's content width, which CSS margins reproduce.
  */
-export function mediaTextLook(raw: string, mediaCol: number): { stackSpace?: string; quoteGap?: string; media2Gap?: string; bodySize?: string; bodySizeSmall?: string; bodyLeading?: number; quoteSize?: string; quoteSizeSmall?: string; quoteWidth?: string } {
+export function mediaTextLook(raw: string, mediaCol: number): { stackSpace?: string; quoteGap?: string; media2Gap?: string; bodySize?: string; bodySizeSmall?: string; bodyLeading?: number; quoteSize?: string; quoteSizeSmall?: string; quoteWidth?: string; bodyEnd?: string; headingPad?: string } {
 	const rows = innerRows(raw);
 	const mine = rows.filter((r) => r.col === mediaCol + 1);
 	const text = rows.filter((r) => r.col !== mediaCol + 1);
 	const last = mine.at(-1);
-	const stackSpace = last ? (padLen(last.attrs, "bottom_padding_tablet") ?? padLen(last.attrs, "bottom_padding")) : undefined;
+	// Once stacked the starter puts the picture first; when the source does too (picture column first, or second with
+	// the row's column_reverse), the text column's first inner row's top padding on tablets is the space under it.
+	const rowTag = /^\s*\[vc_row\b[^\]]*\]/.exec(raw)?.[0] ?? "";
+	const reversed = /\bcolumn_direction_phone="column_reverse"/.test(rowTag);
+	const mediaFirst = mediaCol === 0 ? !reversed : mediaCol === 1 && reversed;
+	const textTop = mediaFirst && text[0] ? padLen(text[0].attrs, "top_padding_tablet") : undefined;
+	const stackSpace = (last ? (padLen(last.attrs, "bottom_padding_tablet") ?? padLen(last.attrs, "bottom_padding")) : undefined) ?? textTop;
 	const quoteRow = text.find((r) => CENTRED_QUOTE.test(r.body));
 	const quoteGap = quoteRow ? padLen(quoteRow.attrs, "top_padding") : undefined;
 	const media2Row = text.find((r) => /\[vc_column_inner\b[^\]]*\bbackground_image="\d+"/.test(r.body));
@@ -823,8 +840,21 @@ export function mediaTextLook(raw: string, mediaCol: number): { stackSpace?: str
 	const lh = Number(/\bfont_line_height="\s*([\d.]+)\s*"/.exec(para ?? "")?.[1]);
 	const quote = CENTRED_QUOTE.exec(raw)?.[0];
 	const qw = /\bmax_width="\s*(\d+(?:\.\d+)?)\s*%\s*"/.exec(quote ?? "")?.[1];
+	// Every paragraph text block of the row (the picture column has none) padded on the right by the same share
+	// (design options `padding-right: N%`, of the column like a CSS percentage): the paragraphs keep that measure.
+	const LONE_HEADING = /^(?:<\/?p>|\s)*<h[1-6][^>]*>[\s\S]*<\/h[1-6]>(?:<\/?p>|\s)*$/;
+	const textBlocks = [...raw.matchAll(/\[vc_column_text\b([^\]]*)\]([\s\S]*?)\[\/vc_column_text\]/g)];
+	const paras = textBlocks.filter((m) => !LONE_HEADING.test(m[2] ?? "") && (m[2] ?? "").replace(/<[^>]+>|\s/g, "") !== "");
+	// The opening heading's own text block padded underneath (`padding-bottom: 1.5%`): that space stays under it.
+	const headBlock = textBlocks[0] && LONE_HEADING.test(textBlocks[0][2] ?? "") ? textBlocks[0] : undefined;
+	const hp = /^(\d+(?:\.\d+)?)%$/.exec(parseVcCss(/\bcss="([^"]*)"/.exec(headBlock?.[1] ?? "")?.[1])["padding-bottom"] ?? "")?.[1];
+	const headingPad = hp && Number(hp) > 0 && Number(hp) <= 20 ? `${hp}%` : undefined;
+	const ends = paras.map((m) => /^(\d+(?:\.\d+)?)%$/.exec(parseVcCss(/\bcss="([^"]*)"/.exec(m[1] ?? "")?.[1])["padding-right"] ?? "")?.[1]);
+	const bodyEnd = ends.length > 0 && ends.every((e) => e !== undefined && e === ends[0]) && Number(ends[0]) > 0 && Number(ends[0]) <= 40 ? `${ends[0]}%` : undefined;
 	const look = {
 		stackSpace,
+		bodyEnd,
+		headingPad,
 		quoteGap,
 		media2Gap,
 		bodySize: size(para, "font_size"),
@@ -903,8 +933,19 @@ const cssLen = (v: string | undefined): string | undefined => {
 	return m && Number(m[1]) > 0 ? `${m[1]}${m[2] ?? "px"}` : undefined;
 };
 
+/**
+ * Salient column padding-N-percent below 1000px (measured on a live Salient site; the theme's own table, not N% of
+ * anything): phones (≤690px) and tablets. Only measured values are listed; others keep the desktop share.
+ */
+const SALIENT_PAD_SMALL: Record<number, { phone: string; tablet: string }> = { 3: { phone: "3vw", tablet: "18px" }, 5: { phone: "6vw", tablet: "36px" } };
+/** …in an edge-to-edge row (full_width_content), every width below 1000px, vw. */
+const SALIENT_PAD_SMALL_FULL: Record<number, number> = { 1: 1, 5: 6 };
+
 /** Space under a Salient fancy-ul list (measured: ul margin-bottom 30px at every width). */
 const FANCY_LIST_GAP = 30;
+
+/** Space under a block element (text block) in a column with the default element spacing (measured: `.wpb_wrapper > div { margin-bottom: 24px }`). */
+const DEFAULT_ELEMENT_GAP = 24;
 
 /** Gap between inner rows in a Salient column (measured: every inner row but the last has a 10px bottom margin). */
 const INNER_ROW_GAP = 10;
@@ -941,7 +982,7 @@ export function spacerHeight(col: ShortcodeNode): BoxHeight | undefined {
 }
 
 /** Spacers at both ends of a column (Salient image cards: divider 35vh · title · link · divider 35vh). */
-export function columnSpacer(col: ShortcodeNode): { desktop: string; phone?: string } | undefined {
+export function columnSpacer(col: ShortcodeNode): { desktop: string; phone?: string; inset?: number; gap?: number } | undefined {
 	const kids = col.children.filter((c): c is ShortcodeNode => c.type === "shortcode");
 	const first = kids[0];
 	const last = kids.at(-1);
@@ -950,7 +991,9 @@ export function columnSpacer(col: ShortcodeNode): { desktop: string; phone?: str
 	if (!desktop) return undefined;
 	const phone = cssLen(first.attrs.custom_height_phone);
 	const inset = /^padding-(\d+)-percent$/.exec(col.attrs.column_padding ?? "")?.[1];
-	return { desktop, ...(phone ? { phone } : {}), ...(inset ? { inset: Number(inset) } : {}) };
+	// The column's element spacing sits under the first spacer and under the text (measured: 5px → 150 + 5 + text + 5 + 150).
+	const gap = Number(/^(\d+)px$/.exec(col.attrs.column_element_spacing ?? "")?.[1] ?? 0);
+	return { desktop, ...(phone ? { phone } : {}), ...(inset ? { inset: Number(inset) } : {}), ...(gap > 0 && gap <= 100 ? { gap } : {}) };
 }
 
 /** Scale the alpha of every colour in a CSS value (Salient's overlay strength = layer opacity). */
@@ -992,6 +1035,10 @@ export function richTextLook(raw: string): NonNullable<Extract<Section, { type: 
 	const hi = /\[nectar_highlighted_text\b[^\]]*\]/.exec(raw)?.[0];
 	const para = /\[split_line_heading(?=[^\]]*\bfont_style="p")[^\]]*\]/.exec(raw)?.[0];
 	const width = /^(\d{2,3})%$/.exec(attr(para, "max_width") ?? "")?.[1];
+	const hiRow = innerRows(raw).find((r) => {
+		const tags = [...r.body.matchAll(/\[(\w+)/g)].map((x) => x[1] as string);
+		return tags.includes("nectar_highlighted_text") && tags.every((t) => ["vc_column_inner", "nectar_highlighted_text", "nectar_animated_shape"].includes(t));
+	});
 	const look = {
 		headingSize: len(attr(hi, "custom_font_size"), 14, 120),
 		headingSizeTablet: len(attr(hi, "font_size_tablet"), 14, 120),
@@ -1001,6 +1048,10 @@ export function richTextLook(raw: string): NonNullable<Extract<Section, { type: 
 		bodySizeSmall: len(attr(para, "font_size_tablet"), 10, 40),
 		bodyLeading: lh(attr(para, "font_line_height")),
 		bodyWidth: width && Number(width) >= 40 && Number(width) < 100 ? `${width}%` : undefined,
+		// Highlighted headings alone in their inner row: that row's bottom padding (% of the content width) is the
+		// space before the text under them; the scribble style sets the emphasised words upright (measured).
+		headRowGap: hiRow ? padLen(hiRow.attrs, "bottom_padding", "%") : undefined,
+		scribble: /\bstyle="scribble"/.test(hi ?? "") || undefined,
 	};
 	const out = Object.fromEntries(Object.entries(look).filter(([, v]) => v !== undefined));
 	return Object.keys(out).length ? out : undefined;

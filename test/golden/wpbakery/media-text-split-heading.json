@@ -22,6 +22,7 @@
             "desktop": "495px"
           }
         ],
+        "textEnd": "7vw",
         "columnGap": "0px",
         "headingGap": 37,
         "media": [
@@ -65,7 +66,7 @@
             "label": "Book Now",
             "href": "/book/",
             "style": "primary",
-            "spaceAbove": 70
+            "spaceAbove": 64
           }
         ],
         "mediaSide": "right",
