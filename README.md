@@ -367,6 +367,44 @@ seo: { panel: false },
 No effect on visitors and negligible Worker size. The site checks call the Worker through a `SELF` service binding the
 scaffold adds (a Worker fetching its own address would skip itself). Details: [packages/seo/README.md](packages/seo/README.md).
 
+## Performance (on by default)
+
+Every generated site ships a performance package (`src/scaffold/perf.ts`; facts and measurements in
+[docs/spikes/performance-findings.md](docs/spikes/performance-findings.md)):
+
+- **Route caching.** Rendered pages are kept in Cloudflare's Workers cache next to visitors (Astro route caching,
+  `cacheCloudflare()`); a cached page answers like a static file (staging: 80 ms on a warm connection instead of
+  0.8–1.8 s far from the database). One route rule per public page plus the sitemaps, tagged with EmDash collection
+  names; the page also sets the tags of the chrome it shows (settings, menus, footer and announcement site parts,
+  popups), so a publish or a menu/settings save purges the affected pages within seconds. 404s, redirects, signed-in
+  editors and previews are never cached; browsers always revalidate HTML (`no-cache`).
+- **Warm-up after deploy.** Each deploy starts with an empty cache (`cross_version_cache: false`: new templates at
+  once); the deploy scripts and CI then run `scripts/warm.mjs`, which requests every sitemap URL and the image sizes
+  those pages use.
+- **Images.** Responsive `srcset`/`sizes` through EmDash's `/_image` endpoint (Cloudflare Images binding, no zone
+  setting; a failed transform falls back to the original file), width/height on every image the starter renders,
+  the logo as WebP sized for the header and small favicons, fonts and brand files cached by browsers for a year
+  under content-hashed names.
+- **Background video.** The picture paints first (LCP); the video is attached after load when the browser is idle,
+  and not at all on phones (< 768 px), with Save-Data or reduced motion.
+- **Announcement schedules** are checked in the browser (the inline script is allowed by its hash in the CSP, never
+  `'unsafe-inline'`), and a cached page lives no longer than the bar's next start or end.
+- **Verify** gates it on the deployed target: every page `cf-cache-status: HIT` on its second request, cached home
+  page TTFB ≤ `gates.maxCachedTtfbMs` (600 ms, measured from the machine running verify — geography matters), home
+  page ≤ `gates.maxPayloadKb` (1500 KB) until load with no video fetched.
+
+Opt-outs, per site:
+
+```ts
+// sites/<slug>/kit.config.ts
+performance: { routeCache: false },        // render every page per request (also turns off the warm-up)
+performance: { responsiveImages: false },  // original image files only (no Images transformations)
+performance: { warmup: false },            // no warm-up after deploy
+performance: { maxAge: 600, swr: 3600 },   // shorter cache lifetime (seconds)
+```
+
+Smart Placement stays off (`performance: { smartPlacement: true }` to try it): see the findings for why.
+
 ## Docs
 
 - [Plan](docs/PLAN.md)
