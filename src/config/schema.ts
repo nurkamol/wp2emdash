@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { validWidget } from "../providers/registry.js";
 
 /** Builders the kit can detect. Adapters exist for the `supported` ones. */
 export const BUILDERS = ["gutenberg", "classic", "wpbakery", "elementor", "bricks", "divi"] as const;
@@ -279,6 +280,19 @@ export const kitConfigSchema = z.object({
 
 	/** Site handles sensitive data (health, legal, finance): forms never store or email field values that look sensitive. */
 	sensitiveData: z.boolean().default(false),
+
+	/**
+	 * Site widgets (chat, reviews badge, consent tool) loaded on every page by provider + ID — never free-form code.
+	 * Unset = what transform recognised in the live pages' site-wide code (ir/site-snippets.json); a list = exactly
+	 * these; false = none. Providers and ID formats: the provider registry (src/providers/registry.ts, `widget`).
+	 * Loaded on the production domain only, never for signed-in editors; the CSP allows exactly their hosts.
+	 */
+	siteWidgets: z
+		.union([
+			z.literal(false),
+			z.array(z.object({ provider: z.string(), id: z.string() }).refine((w) => validWidget(w), { message: "unknown widget provider, or an ID that does not match the provider's format (src/providers/registry.ts)" })),
+		])
+		.optional(),
 
 	/** Third-party widget settings the page markup does not carry (public values, no secrets). */
 	embeds: z

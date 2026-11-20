@@ -11,6 +11,8 @@
  *   [links](/x)), rendered by the starter's `md.ts`.
  */
 
+import { EMBED_PROVIDER_IDS } from "../providers/registry.js";
+
 export type FieldType = "string" | "text" | "url" | "number" | "integer" | "boolean" | "select" | "portableText" | "image" | "file" | "repeater";
 export interface SubField {
 	slug: string;
@@ -239,7 +241,7 @@ export const BLOCK_TYPES: BlockType[] = [
 	block("section_video", "Video", "Uploaded video or YouTube/Vimeo embed", [], [...heading(), { slug: "video", label: "Video file", type: "file", validation: { allowedMimeTypes: ["video/mp4", "video/webm"] } }, s("embed_url", "YouTube / Vimeo link", { validation: { pattern: "^(?:$|https://.+)$" } }), img("poster", "Poster image"), s("caption", "Caption")]),
 	block("section_form", "Form", "Contact form with optional text beside it", [], [...heading(), pt("intro", "Intro"), s("form_id", "Form", { required: true, description: "Form definition id (src/forms/<id>.json)" }), pt("aside", "Text beside the form"), bool("stacked", "Form under the heading (not beside it)"), { slug: "form_width", label: "Form width when stacked (px; empty = full width)", type: "integer", validation: { min: 200, max: 2000 } }, s("form_gap", "Space between heading and form when stacked (px or fluid clamp)", { validation: { pattern: FLUID } })]),
 	block("section_map", "Map", "Google Maps embed or address", [], [...heading(), s("embed_url", "Map embed link", { validation: { pattern: "^(?:$|https://.+)$" } }), s("address", "Address"), s("height", "Height", { defaultValue: "420px" })]),
-	block("section_embed", "Embed", "Booking or third-party widget from an approved provider", [], [...heading(), sel("provider", "Provider", ["marianatek", "momence", "janeapp", "calendly", "acuity", "simplepractice", "mindbody", "google-maps", "youtube", "vimeo", "instagram", "reviews-widget", "typeform", "jotform", "hubspot", "mailchimp", "spotify", "soundcloud"]), t("html", "Embed code", { required: true, description: "Only scripts/iframes from the selected provider are rendered" }), s("height", "Minimum height")]),
+	block("section_embed", "Embed", "Booking or third-party widget from an approved provider", [], [...heading(), sel("provider", "Provider", EMBED_PROVIDER_IDS), t("html", "Embed code", { required: true, description: "Only scripts/iframes from the selected provider are rendered" }), s("height", "Minimum height")]),
 	block("section_legacy_html", "Legacy HTML", "Raw HTML carried over from WordPress — replace with a proper section", [], [t("html", "HTML", { required: true }), s("reason", "Why it is here")]),
 	announcementBlock(),
 ];

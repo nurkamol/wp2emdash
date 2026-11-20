@@ -38,6 +38,11 @@ export const overridesSchema = z.object({
 	copyrightYear: z.enum(["keep", "current"]).default("keep"),
 	/** legacy_html sections approved to ship as-is: `<slug>:<row path>`. */
 	approvedLegacy: z.array(z.string()).default([]),
+	/**
+	 * Site-wide snippets that need a decision (coverage report → "Site-wide snippets", ids `sn-…`): drop = not needed on
+	 * the new site; rebuilt = carried by hand (an embed section, kit.config siteWidgets, analytics…). Reason in decisions.md.
+	 */
+	snippets: z.record(z.string().regex(/^sn-[0-9a-f]{8}$/), z.enum(["drop", "rebuilt"])).default({}),
 });
 export type Overrides = z.infer<typeof overridesSchema>;
 

@@ -105,7 +105,7 @@ export async function importDump(slug: string, dir?: string, sitesDir?: string):
 			const decode = (h: string) => h.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&amp;/g, "&");
 			const hostsOf = (code: string) => [...new Set([...code.matchAll(/https?:\/\/([a-z0-9.-]+)|'https:\/\/'\s*\+\s*[A-Za-z_]+\s*\+\s*'(\.[a-z0-9.-]+)/gi)].map((m) => m[1] ?? `*${m[2]}`))];
 			const list = snippets.map((x) => `${String(x.name)} (${String(x.location || "manual")}, ${String(x.display_on)}${hostsOf(decode(String(x.snippet ?? ""))).length ? `; loads ${hostsOf(decode(String(x.snippet ?? ""))).join(", ")}` : ""})`);
-			items.push({ file: rel, used: `Header Footer Code Manager → raw/code-snippets.json: ${snippets.length} active — ${list.join("; ") || "none"}. Decide per snippet: carry (site settings / embed) or drop.`, ok: true });
+			items.push({ file: rel, used: `Header Footer Code Manager → raw/code-snippets.json: ${snippets.length} active — ${list.join("; ") || "none"}. transform classifies each one (coverage report → Site-wide snippets): trackers, verification and known widgets are carried; anything else waits for a decision in overrides.ts snippets.`, ok: true });
 		} else if (c.kind === "rankmath-seo-csv") items.push({ file: rel, used: "Rank Math per-page SEO fields — the exporter already carries these; not needed", ok: true });
 		else {
 			const r = recognise(name, text, hosts);

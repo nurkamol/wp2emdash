@@ -1,0 +1,102 @@
+{
+  "sections": [
+    {
+      "type": "embed",
+      "variant": "google-calendar",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-4]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Class calendar",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "provider": "google-calendar",
+        "html": "<iframe src=\"https://calendar.google.com/calendar/embed?src=studio%40example.com&amp;ctz=America%2FChicago\" style=\"border: 0\" width=\"800\" height=\"600\" frameborder=\"0\" scrolling=\"no\"></iframe>"
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "wistia",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-4]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "provider": "wistia",
+        "html": "<script src=\"https://fast.wistia.com/assets/external/E-v1.js\" async></script><div class=\"wistia_embed wistia_async_abc123xyz\" style=\"height:360px;width:640px\">&nbsp;</div>"
+      }
+    },
+    {
+      "type": "embed",
+      "variant": "tock",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-4]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "provider": "tock",
+        "html": "<div id=\"Tock_widget_container\" data-tock-display-mode=\"Button\" data-tock-color-mode=\"Blue\"></div><script src=\"https://www.exploretock.com/tock.js\"></script>"
+      }
+    },
+    {
+      "type": "legacy_html",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-4]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "html": "<div class=\"unknown-vendor-widget\"><script src=\"https://cdn.unknown-vendor.test/w.js\"></script></div>",
+        "reason": "core/html"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "error",
+      "code": "flagged",
+      "message": "Raw HTML kept as legacy_html (core/html); replace with a section or approve in decisions.md",
+      "path": "blocks[4]",
+      "carriesContent": true
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "Row mixes embed + legacy; secondary items emitted as separate sections",
+      "path": "blocks[0-4]"
+    }
+  ]
+}

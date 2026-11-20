@@ -6,7 +6,8 @@ import { env } from "cloudflare:workers";
 import { defineMiddleware } from "astro:middleware";
 import site from "./site.config.json";
 import { isEditor } from "./utils/editor";
-import { PROVIDER_HOSTS } from "./utils/embed";
+import { embedCsp, providerCsp } from "./utils/providers";
+import { siteWidgets } from "./utils/widgets";
 import { type CspHosts, cspSources } from "@wp2emdash/seo/analytics/csp";
 import { typesOf } from "@wp2emdash/seo/analytics/trackers";
 import { pageAnalytics } from "./utils/analytics";
@@ -14,12 +15,16 @@ import announcementScript from "./scripts/inline/announcement.js?raw";
 
 /**
  * Content-Security-Policy. Scripts and frames: this site, Cloudflare Turnstile and the embed providers the
- * starter allows (utils/embed.ts — so an embed an editor adds later is not blocked). Styles allow inline: sections
+ * starter allows (the provider registry, utils/providers.ts — so an embed an editor adds later is not blocked), and the
+ * hosts of the site widgets switched on in site.config.json `siteWidgets` (chat, reviews badge, consent tool — the same
+ * registry; components/SiteWidgets.astro). Styles allow inline: sections
  * carry their spacing/colours in style attributes and EmDash's responsive images use them. Signed-in editors also
  * get inline scripts: EmDash's visual-editing toolbar is an inline script. Everyone else gets exactly the starter's own
  * inline scripts, allowed by their SHA-256 hash (scripts/inline/*: the announcement bar's pre-paint script).
  */
-const embedHosts = [...new Set(Object.values(PROVIDER_HOSTS).flat())].flatMap((h) => [`https://${h}`, `https://*.${h}`]);
+const embeds = embedCsp();
+const widgets = providerCsp(siteWidgets().map((w) => w.provider));
+const join = (...lists: string[][]) => [...new Set(lists.flat())].join(" ");
 /*
  * Analytics hosts: exactly the services this page loads (components/Analytics.astro, the same per-request list), from
  * the fixed host table in @wp2emdash/seo/analytics/csp. Cloudflare Web Analytics is always allowed: when it is switched on
@@ -40,13 +45,13 @@ function csp(editor: boolean, hashes: string, analytics: CspHosts): string {
 	const turnstile = "https://challenges.cloudflare.com";
 	return [
 		"default-src 'self'",
-		`script-src 'self' ${turnstile} ${embedHosts.join(" ")} ${analytics.script.join(" ")}${editor ? " 'unsafe-inline'" : ` ${hashes}`}`,
-		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${(analytics.style ?? []).join(" ")}`,
-		`font-src 'self' data: https://fonts.gstatic.com ${(analytics.font ?? []).join(" ")}`,
+		`script-src 'self' ${turnstile} ${join(embeds.script, widgets.script)} ${analytics.script.join(" ")}${editor ? " 'unsafe-inline'" : ` ${hashes}`}`,
+		`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com ${join(embeds.style, widgets.style)} ${(analytics.style ?? []).join(" ")}`,
+		`font-src 'self' data: https://fonts.gstatic.com ${join(embeds.font, widgets.font)} ${(analytics.font ?? []).join(" ")}`,
 		"img-src 'self' data: blob: https:",
-		"media-src 'self' blob:",
-		`connect-src 'self' ${turnstile} ${embedHosts.join(" ")} ${analytics.connect.join(" ")}`,
-		`frame-src 'self' ${turnstile} ${embedHosts.join(" ")} ${analytics.frame.join(" ")}`,
+		`media-src 'self' blob: ${join(embeds.media, widgets.media)}`,
+		`connect-src 'self' ${turnstile} ${join(embeds.connect, widgets.connect)} ${analytics.connect.join(" ")}`,
+		`frame-src 'self' ${turnstile} ${join(embeds.frame, widgets.frame)} ${analytics.frame.join(" ")}`,
 		"worker-src 'self' blob:",
 		"object-src 'none'",
 		"base-uri 'self'",

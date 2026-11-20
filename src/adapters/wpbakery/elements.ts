@@ -7,6 +7,7 @@ import type { Button, Diagnostic, MediaRef, PtBlock, RichText } from "../../ir/s
 import { htmlToPortableText, type Keys, textBlock } from "../../ir/portable-text.js";
 import { colourValue, decodeRawHtml, decodeVcLink, texturize } from "./decode.js";
 import { innerSource, type ShortcodeNode } from "./parser.js";
+import { embedProviderOf } from "../../providers/registry.js";
 
 /** A box height per screen: desktop, and below the stacking breakpoint. */
 export interface BoxHeight {
@@ -144,31 +145,11 @@ export function richFromHtml(html: string, ctx: HandlerCtx, style?: PtBlock["sty
 	return out;
 }
 
-/** Known widget providers kept as an `embed` section; anything else is legacy HTML (gate-blocking). */
-const EMBED_PROVIDERS: [RegExp, string][] = [
-	// Mariana Tek web integrations: `data-mariana-integrations="/path"` mount points, filled by <tenant>.marianaiframes.com scripts.
-	[/marianaiframes\.com|marianatek\.com|\sdata-mariana-[\w-]+/i, "marianatek"],
-	[/momence\.com/i, "momence"],
-	[/janeapp\.com/i, "janeapp"],
-	[/calendly\.com/i, "calendly"],
-	[/acuityscheduling\.com|as\.me\//i, "acuity"],
-	[/simplepractice\.com/i, "simplepractice"],
-	[/mindbodyonline\.com|healcode/i, "mindbody"],
-	[/google\.com\/maps|maps\.google\./i, "google-maps"],
-	[/youtube(-nocookie)?\.com|youtu\.be/i, "youtube"],
-	[/player\.vimeo\.com|vimeo\.com/i, "vimeo"],
-	[/instagram\.com/i, "instagram"],
-	[/elfsight|trustindex|widget\.trustpilot/i, "reviews-widget"],
-	[/typeform\.com/i, "typeform"],
-	[/jotform\.com/i, "jotform"],
-	[/hubspot|hsforms/i, "hubspot"],
-	[/mailchimp|list-manage\.com/i, "mailchimp"],
-	[/spotify\.com/i, "spotify"],
-	[/soundcloud\.com/i, "soundcloud"],
-];
-
-/** The known widget provider of a piece of HTML (kept as an embed section), if any. */
-export const embedProvider = (html: string) => EMBED_PROVIDERS.find(([re]) => re.test(html))?.[1];
+/**
+ * The known widget provider of a piece of HTML (kept as an `embed` section), if any; anything else is legacy HTML
+ * (gate-blocking). Detection comes from the provider registry (src/providers/registry.ts), first match wins.
+ */
+export const embedProvider = (html: string) => embedProviderOf(html);
 
 export function embedOrLegacy(html: string, ctx: HandlerCtx, reason: string): Fragment[] {
 	const trimmed = html.trim();

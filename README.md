@@ -310,6 +310,40 @@ admin). Rules EmDash cannot hold (conditional rules, complex regular expressions
 listed in `raw/redirects.json` → `unconverted` and fail the extract gate until handled or accepted: nothing is dropped
 silently. Ninja Forms and Formidable exports are flagged for a rebuild by hand.
 
+## Widgets and site-wide snippets
+
+One **provider registry** (`starter/src/utils/providers.ts`, imported by the kit as `src/providers/registry.ts`) lists
+every third-party widget the kit knows: how it is recognised, its category, and the hosts it may load from. The
+adapters use it to keep a widget in page content as an `embed` section; the starter uses the same table for the embed
+allowlist and the Content-Security-Policy, so nothing an embed needs is blocked and nothing else is allowed.
+
+| Category | Providers |
+|---|---|
+| Booking & calendars | Mariana Tek, Momence, Jane, Calendly, Acuity, SimplePractice, Mindbody, Google Calendar, Vagaro, Glofox, Zenoti, Square Appointments, Booksy, Fresha, OpenTable, Resy, Tock, Arketa, ClassPass |
+| Video, audio, social | YouTube, Vimeo, Wistia, Loom, Spotify, SoundCloud, Instagram, TikTok, Facebook page/video, X (Twitter) |
+| Forms, maps, newsletter | Typeform, Jotform, HubSpot forms, Google Forms, Google Maps, Mailchimp |
+| Reviews | Elfsight, Trustindex, Trustpilot (in content); Elfsight and Trustindex also as site widgets |
+| Site widgets (by ID) | Chat: Tawk.to, Crisp, Intercom, HubSpot (tracking code & chat). Consent: CookieYes, Cookiebot, Termly, iubenda |
+
+**Site-wide snippets.** Theme custom code, WPCode, Insert Headers and Footers, Header Footer Code Manager and plugin
+widgets put code in `<head>` and at the end of `<body>` on every page. `transform` reads it from the audit's saved
+pages (and from a Header Footer Code Manager export that `import-dump` put in `raw/code-snippets.json`), removes
+duplicates across pages, classifies every `<script>`, `<noscript>`, `<iframe>`, `<link>` and `<meta>`, and writes
+`ir/site-snippets.json` and a **Site-wide snippets** section in the coverage report:
+
+| Found | What happens |
+|---|---|
+| Trackers (Google tag, GTM, Meta Pixel, Clarity, Hotjar, Cloudflare beacon) | carried by SEO & Analytics (by ID) |
+| Verification meta (Google, Bing, Pinterest, Facebook…) | carried → Settings → SEO |
+| Canonical, description, Open Graph, icons, JSON-LD, Google Fonts | rebuilt by the starter and the SEO plugin |
+| A booking/video provider's loader (e.g. Mariana Tek) | carried with that provider's embed sections (a section without a loader gets the site-wide script) |
+| Chat, reviews badge, consent tool with a readable ID | carried as a **site widget**: `siteWidgets` in `site.config.json`, loaded by `components/SiteWidgets.astro` from provider + ID only — never free-form code; production domain only, never for signed-in editors; CSP from the registry. A consent tool is loaded before analytics, and CookieYes / Cookiebot acceptance of statistics cookies calls the analytics consent hook |
+| WordPress, theme, plugin, CDN-library and Cloudflare-edge internals (jQuery, emoji, wp-embed, builder runtimes, plugin CSS/JS, email obfuscation) | not needed — listed, collapsed |
+| Anything else (unknown inline or external code, child-theme scripts, legacy iubenda config, markup in a snippet, a provider loaded site-wide that no page embeds, a widget whose snippet carries no ID) | **never carried automatically**: the transform gate `site-snippets` fails until each is decided in `overrides.ts` → `snippets: { "sn-…": "drop" \| "rebuilt" }` (the report prints the block to paste; the reason goes in `decisions.md`) |
+
+`kit.config.ts` → `siteWidgets` overrides what was recognised: a list (`[{ provider: "crisp", id: "…" }]`) is exactly
+those, `false` is none. Host lists and their sources: [docs/spikes/providers-findings.md](docs/spikes/providers-findings.md).
+
 ## Form messages (outbox and inbox)
 
 With `forms.outbox` in a site's `kit.config.ts`, messages that cannot be emailed are kept in Workers KV, retried by the
@@ -410,7 +444,7 @@ Smart Placement stays off (`performance: { smartPlacement: true }` to try it): s
 ## Docs
 
 - [Plan](docs/PLAN.md)
-- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md) · [Analytics in the SEO suite (storage, purge, CSP hosts, GraphQL)](docs/spikes/analytics-findings.md)
+- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md) · [Analytics in the SEO suite (storage, purge, CSP hosts, GraphQL)](docs/spikes/analytics-findings.md) · [Provider registry hosts and site widgets](docs/spikes/providers-findings.md)
 - [Site workspaces](sites/README.md)
 - [Environment setup](docs/staging-setup.md) — production on `workers.dev` (default) and opt-in staging: resources, build → migrate → deploy, first admin sign-in (passkeys), API token, CI, after go-live (`load --force`, preview URLs), troubleshooting
 - [Single-environment findings](docs/spikes/single-env-findings.md) — D1 Time Travel and Workers preview URLs checked against Wrangler 4.163.0

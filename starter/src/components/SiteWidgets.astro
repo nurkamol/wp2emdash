@@ -1,0 +1,15 @@
+---
+/**
+ * Site widgets (chat, reviews badge, consent tool) carried over from WordPress by provider + ID (site.config.json
+ * `siteWidgets`, utils/widgets.ts). The loader is a real file (public/scripts/site-widgets.js) for the same reason as
+ * analytics: the public CSP allows no inline scripts. It starts each widget the way the provider's own snippet does,
+ * from its ID only.
+ */
+import { isEditor } from "../utils/editor";
+import { pageWidgets } from "../utils/widgets";
+
+const widgets = pageWidgets(Astro.url, isEditor(Astro.cookies, Astro.url));
+---
+
+{widgets.length > 0 && <meta name="site-widgets" content={JSON.stringify(widgets)} />}
+{widgets.length > 0 && <script is:inline src="/scripts/site-widgets.js" defer></script>}

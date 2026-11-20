@@ -10,6 +10,7 @@ import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
 import { analyticsOptions, carriedAnalytics, describeCarried, detectFromSnapshot, hasCarried, lookupRumSite } from "../scaffold/analytics.js";
 import { credentialsFor } from "../commands/provision.js";
+import { carriedWidgets } from "../scaffold/widgets.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -362,6 +363,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Bricks: the header template's own look (container, toggle, buttons, offcanvas panel) with the captured panel style.
 	const bricksDesignOut = readJson<{ typography?: Record<string, Record<string, unknown>>; layout?: BricksLayout; header?: BricksHeaderLook; entranceAnimations?: number }>(join(paths.reports, "transform", "bricks-design.json"));
 	const bricksHeader = bricksHeaderConfig(bricksDesignOut?.header, mobileMenu, tokens.fonts.body);
+	const siteWidgets = carriedWidgets(config.siteWidgets, paths.ir);
+	if (siteWidgets.length) reporter.emit({ type: "log", level: "info", message: `site widgets (production domain only): ${siteWidgets.map((w) => `${w.provider} ${w.id}`).join(", ")}` });
 	const siteConfig = {
 		...baseConfig,
 		header: { ...baseConfig.header, ...(bricksHeader ? { bricks: bricksHeader } : {}), panelExtras: panelExtras(interactions.menus, primaryLabels, (site.menus.find((mm) => mm.role === "secondary")?.items ?? []).filter((i) => i.button).map((i) => i.label)), ...(Number.isFinite(itemPx(mobileMenu)) ? { panelItemSize: Number.isFinite(itemPx(desktopMenu)) ? fluid(itemPx(mobileMenu), itemPx(desktopMenu)) : `${itemPx(mobileMenu)}px` } : {}) },
@@ -370,6 +373,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		// Trackers managed in SEO & Analytics, starting from `analytics`; seo.panel false or analytics: false turn it off.
 		...(config.seo.panel && config.analytics !== false ? { analyticsAdmin: true } : {}),
 		...(ogLocale ? { ogLocale } : {}),
+		// Chat / reviews badge / consent tool by provider + ID (src/scaffold/widgets.ts); the CSP allows their hosts only.
+		...(siteWidgets.length ? { siteWidgets } : {}),
 		...(Object.keys(legacyFiles).length ? { legacyFiles } : {}),
 		// WordPress numeric links (/?p=40, /?page_id=40) keep resolving: post id → path of each published page/post.
 		wpIds: Object.fromEntries(pages.flatMap((p) => (p.source.wpId && p.route?.path && p.source.status === "publish" ? [[String(p.source.wpId), p.route.path]] : []))),

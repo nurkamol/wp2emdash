@@ -1,0 +1,40 @@
+{
+  "title": "Header Footer Code Manager export (synthetic)",
+  "snippets": [
+    {
+      "name": "Crisp chat",
+      "snippet": "&lt;script type=&quot;text/javascript&quot;&gt;window.$crisp=[];window.CRISP_WEBSITE_ID=&quot;01234567-89ab-cdef-0123-456789abcdef&quot;;(function(){d=document;s=d.createElement(&quot;script&quot;);s.src=&quot;https://client.crisp.chat/l.js&quot;;s.async=1;d.getElementsByTagName(&quot;head&quot;)[0].appendChild(s);})();&lt;/script&gt;",
+      "location": "footer",
+      "display_on": "All",
+      "status": "active"
+    },
+    {
+      "name": "iubenda legacy",
+      "snippet": "&lt;script type=&quot;text/javascript&quot;&gt;var _iub = _iub || []; _iub.csConfiguration = {&quot;siteId&quot;:1234567,&quot;cookiePolicyId&quot;:7654321,&quot;lang&quot;:&quot;en&quot;};&lt;/script&gt;&lt;script type=&quot;text/javascript&quot; src=&quot;//cdn.iubenda.com/cs/iubenda_cs.js&quot; charset=&quot;UTF-8&quot; async&gt;&lt;/script&gt;",
+      "location": "header",
+      "display_on": "All",
+      "status": "active"
+    },
+    {
+      "name": "Bing verification",
+      "snippet": "&lt;meta name=&quot;msvalidate.01&quot; content=&quot;FIXTUREBINGTOKEN000&quot; /&gt;",
+      "location": "header",
+      "display_on": "All",
+      "status": "active"
+    },
+    {
+      "name": "Promo ribbon",
+      "snippet": "&lt;div class=&quot;promo-ribbon&quot;&gt;Spring offer: first class free&lt;/div&gt;",
+      "location": "footer",
+      "display_on": "All",
+      "status": "active"
+    },
+    {
+      "name": "Old pixel (switched off)",
+      "snippet": "&lt;script src=&quot;https://old-pixel.fixture-vendor.test/p.js&quot;&gt;&lt;/script&gt;",
+      "location": "header",
+      "display_on": "All",
+      "status": "inactive"
+    }
+  ]
+}
