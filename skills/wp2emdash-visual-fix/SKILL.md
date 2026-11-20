@@ -26,6 +26,6 @@ Typical causes and where they are fixed:
 
 ## 3. Rerun and report
 
-Rerun only what the fix affects: adapter change → `transform`, `scaffold`, `load`, `verify`; starter change → `scaffold`, `load`, `verify`; override → per the proposal's `rerun` after approval. Use `run_phase` (load/verify target local or staging, never production). Run `pnpm test && pnpm typecheck` for kit changes.
+Rerun only what the fix affects: adapter change → `transform`, `scaffold`, `load`, `verify`; starter change → `scaffold`, `load`, `verify`; override → per the proposal's `rerun` after approval. Use `run_phase` (load/verify target local, or staging on a site that opted into it; never production). Run `pnpm test && pnpm typecheck` for kit changes.
 
 Report the section's ratio before → after for every viewport, any other section that got worse, and the verify gate's real result. Never accept the gate.

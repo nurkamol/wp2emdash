@@ -8,7 +8,7 @@ Use **two tokens**, not one:
 
 | Token | Lifetime | Scope | Used for |
 |---|---|---|---|
-| **A — build & staging** | reusable across every project | your Cloudflare account, no zone access | create D1/R2/KV, migrate, deploy staging and production Workers, Worker secrets, Turnstile, staging login wall, logs |
+| **A — build & deploy** (was "build & staging") | reusable across every project | your Cloudflare account, no zone access | create D1/R2/KV, migrate, deploy production (and opt-in staging) Workers and preview versions, Worker secrets, D1 Time Travel bookmarks, Turnstile, staging login wall, logs |
 | **B — go-live** | one per launch, short expiry | only the client's zone | Worker route switch, rollback, DNS checks, optional Custom Domain |
 
 Splitting them keeps the reusable token away from DNS: a leaked token A can't touch any client's
@@ -17,23 +17,23 @@ domain, email records (MX, SPF, DKIM) or other zones.
 Permission names below are as shown in the dashboard's custom-token form (*Edit*; the API reference
 calls the same level *Write*), checked against Cloudflare's permission reference on 2026-11-17.
 
-## Token A — build & staging (reusable)
+## Token A — build & deploy (reusable)
 
 Dashboard → **My Profile → API Tokens → Create Token → Create Custom Token**. Name it e.g.
-`wp2emdash build & staging`.
+`wp2emdash build`. (Older setups call it "build & staging": same permissions.)
 
 ### Permissions
 
 | Group | Permission | Access | Why | Phase |
 |---|---|---|---|---|
 | Account | Account Settings | Read | Resolve the account for Wrangler and `emdash migrate` | scaffold, load |
-| Account | Workers Scripts | Edit | Deploy staging and production Workers; set Worker secrets (email provider key, encryption key) | load, cutover |
+| Account | Workers Scripts | Edit | Deploy production (and opt-in staging) Workers; `wrangler versions upload` / `versions deploy` (preview URLs); set Worker secrets (email provider key, encryption key) | load, cutover |
 | Account | Workers KV Storage | Edit | `wp2emdash provision` creates the form outbox and the `SESSION` namespace (Astro sessions, bound explicitly in `wrangler.jsonc`) | load |
 | Account | Workers R2 Storage | Edit | Create the media buckets (with the right location) | load |
-| Account | D1 | Edit | Create databases; `emdash migrate` (apply, check, release a stuck lock); backups before each load | load, cutover |
+| Account | D1 | Edit | Create databases; `emdash migrate` (apply, check, release a stuck lock); Time Travel bookmark before `load --force` into a live site, and `wrangler d1 time-travel restore` | load, cutover |
 | Account | Workers Tail | Read | Live logs while verifying (`wrangler tail`) | verify |
 | Account | Turnstile | Edit | Create the bot-protection widget for the site's forms | load |
-| Account | Access: Apps and Policies | Edit | Put staging behind a login wall (`target.staging.protection: "access"`) | load |
+| Account | Access: Apps and Policies | Edit | Opt-in staging only: put it behind a login wall (`target.staging.protection: "access"`); leave out for single-environment sites | load |
 | Account | Account Analytics | Read | Post-launch monitoring: requests, errors, cache | cutover (monitor) |
 | User | User Details | Read | `wrangler whoami` | all |
 | User | Memberships | Read | List the accounts the token can use | all |
@@ -173,7 +173,7 @@ redeploy the site but cannot touch any domain, DNS record or route.
 
 **Worker routes only reach a Worker in the domain's own account.** If the client's domain is in their
 Cloudflare account, production has to run there too (the cutover preflight checks this: `same-account`).
-Staging can stay in your account.
+Opt-in staging can stay in your account; a single-environment site runs entirely in the client's.
 
 1. The client's account needs **Workers Paid** (Workers & Pages → Plans). The zone itself can stay on Free.
 2. Create token A **in the client's account** (Account Resources: that account only) and token B
@@ -199,7 +199,7 @@ Staging can stay in your account.
    ```
 
    Set the Worker secrets again there (`wrangler secret put`, same pair), sign in once at the new
-   workers.dev `/_emdash/admin`, create `EMDASH_TOKEN_PRODUCTION`, then load and verify (staging-setup.md §7).
+   workers.dev `/_emdash/admin`, create `EMDASH_TOKEN_PRODUCTION`, then load and verify (staging-setup.md §4–5).
    For GitHub deploys, put token A and the account id on the repository's **production environment**
    (environment secrets/variables override repository ones), not the repository level.
 

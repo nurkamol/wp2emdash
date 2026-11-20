@@ -1,16 +1,32 @@
-# Staging setup: from scaffold to a loaded staging site
+# Environment setup: production on workers.dev, and opt-in staging
 
-The steps between `scaffold` (a project that builds locally) and `load` into staging. Most are run
-once per site. Facts behind each step are in `docs/spikes/M6-findings.md`.
+The steps between `scaffold` (a project that builds locally) and a loaded site on Cloudflare. Most are run once per
+site. Facts behind each step: `docs/spikes/M6-findings.md`, `docs/spikes/single-env-findings.md`.
 
-**Before you start:** Workers Paid plan on the Cloudflare account, the reusable build & staging token
-in the kit `.env` ([cloudflare-api-token.md](cloudflare-api-token.md)) and `pnpm wp2emdash doctor` showing it *active*.
+**One environment by default** (owner decision 2026-11-20, docs/PLAN.md §7a): each site gets **production** only. It
+answers on its `workers.dev` address until go-live (unlisted, `noindex`, analytics off, form messages are tests), so
+the client reviews the real thing, and the switch-over only adds Worker routes. **Staging is opt-in** (§8 below).
 
-## 1. Create the staging resources (once per site)
+**Before you start:** Workers Paid plan on the Cloudflare account, the reusable build token in the kit `.env`
+([cloudflare-api-token.md](cloudflare-api-token.md)) and `pnpm wp2emdash doctor` showing it *active*.
 
-Pick the location nearest the site's visitors **before** creating anything: Cloudflare fixes the
-location of a D1 database and an R2 bucket when they are created, defaults to *your* region, and an R2
-bucket name keeps its first location even after you delete and recreate it.
+| | Single environment (default) | Opt-in staging |
+|---|---|---|
+| Config | nothing (or `target.staging: false`) | `target.staging: true` (or `{ enabled: true, protection, host }`); existing sites with `target.stagingUrl` or staging in `cloudflare.json` keep it |
+| `provision` | `provision <slug>` → production | also `provision <slug> staging` |
+| `wrangler.jsonc` | production only, `workers_dev` + `preview_urls` on | production + `env.staging` |
+| Scripts | `deploy:production`, `ci:deploy:production`, `versions:upload`, `versions:deploy` | `deploy:staging`, `ci:deploy:staging`, `deploy:production`, `ci:deploy:production` |
+| Client CI on push to `main` | deploys production **before go-live only** (`target.ciDeploy`) | deploys staging |
+| Forms | messages from any host but the domain are tests → `email.stagingTo` only | staging → `email.stagingTo` only |
+| `load` / `verify` default | production once provisioned, else local | load: local; verify: staging |
+| EmDash token | `EMDASH_TOKEN_PRODUCTION` (or `EMDASH_TOKEN`) | staging `EMDASH_TOKEN`, production `EMDASH_TOKEN_PRODUCTION` |
+| Review of code changes after launch | Workers preview URLs (§7) | staging, or preview URLs |
+
+## 1. Create the production resources (once per site)
+
+Pick the location nearest the site's visitors **before** creating anything: Cloudflare fixes the location of a D1
+database and an R2 bucket when they are created, defaults to *your* region, and an R2 bucket name keeps its first
+location even after you delete and recreate it.
 
 | Visitors | `--location` |
 |---|---|
@@ -22,57 +38,50 @@ bucket name keeps its first location even after you delete and recreate it.
 | Oceania | `oc` |
 
 ```bash
-cd sites/<slug>/project
-npx wrangler d1 create <slug>-staging-db --location enam
-npx wrangler r2 bucket create <slug>-stg-media --location enam
+pnpm wp2emdash provision <slug> --location enam      # production (the default environment)
 ```
 
-Record the ids in `sites/<slug>/cloudflare.json` (the scaffold writes them into `wrangler.jsonc`):
+It creates (or reuses) the database `<slug>-db`, the bucket `<slug>-media`, the form outbox (sites that keep one) and
+the `SESSION` namespace for Astro sessions (`<slug>-session`), and records them, the account and the workers.dev
+address in `sites/<slug>/cloudflare.json`. Scaffold binds `SESSION` explicitly, so the first `wrangler deploy`
+provisions nothing on its own (docs/spikes/M8-findings.md). If the client's domain is in their own Cloudflare account,
+production must run there (Worker routes only reach a Worker in the zone's account): see *Client-owned Cloudflare
+accounts* in `cloudflare-api-token.md`.
 
-```json
-{
-  "accountId": "<account id>",
-  "staging": {
-    "d1": { "name": "<slug>-staging-db", "id": "<database_id from the create output>", "location": "enam" },
-    "r2": { "bucket": "<slug>-stg-media", "location": "enam" }
-  }
-}
-```
-
-Then rerun `pnpm wp2emdash run <slug> scaffold` so `wrangler.jsonc` picks them up.
-
-Shorter: `pnpm wp2emdash provision <slug> staging [--location enam]` creates (or reuses) the database, the bucket, the
-form outbox and the `SESSION` namespace for Astro sessions (`<slug>-staging-session`) and records them all in
-`cloudflare.json`. Scaffold then binds `SESSION` explicitly, so the first `wrangler deploy` provisions nothing on its
-own (docs/spikes/M8-findings.md). For a site deployed before this, provision finds the namespace Wrangler already
-created by its title and records it: nothing changes for that Worker.
+Then rerun `pnpm wp2emdash run <slug> scaffold` so `wrangler.jsonc` picks the ids up.
 
 ## 2. Build, migrate, deploy
 
 ```bash
-cd sites/<slug>/project
-( set -a && . ../../../.env && set +a && pnpm deploy:staging )
+cd sites/<slug>/project            # or the projectDir
+( set -a && . ../../../.env && set +a && pnpm deploy:production )
 ```
 
-`deploy:staging` runs, in this order:
+`deploy:production` runs, in this order:
 
-1. `CLOUDFLARE_ENV=staging astro build` — the environment is chosen **at build time**; `wrangler deploy --env staging` after a normal build would deploy the production bindings.
-2. `emdash migrate` — applies EmDash's database migrations to the staging D1 *before* the new code serves traffic. It asks you to confirm the target; check that it names `<slug>-staging-db`.
-3. `wrangler deploy` — on the first deploy Wrangler also creates the session store (`<worker>-session`).
+1. `astro build`.
+2. `emdash migrate` — applies EmDash's database migrations *before* the new code serves traffic. It asks you to confirm the target; check that it names `<slug>-db`.
+3. `wrangler deploy`.
 4. `emdash migrate --check` — must report nothing pending.
 
 With `projectDir` set (the project lives outside the kit), `cd` there and load the kit's file by its full path
-instead: `( set -a && . ~/path/to/wp-to-emdash-kit/.env && set +a && pnpm deploy:staging )`.
+instead: `( set -a && . ~/path/to/wp-to-emdash-kit/.env && set +a && pnpm deploy:production )`. The subshell hands the
+Cloudflare token to these commands only; `emdash migrate` does not read `.env` files itself.
 
-The subshell `( set -a && . ../../../.env … )` hands the Cloudflare token to these commands only;
-`emdash migrate` does not read `.env` files itself.
+The site is at `https://<slug>.<your-subdomain>.workers.dev`. A brand-new `workers.dev` address can take a minute or
+two to resolve. Before go-live it is production in every respect except that nothing public points at it: the
+middleware marks every host but the production domain `noindex`, analytics only load on the domain, and every form
+message sent there is a test (§5).
 
-The site is at `https://<worker>-staging.<your-subdomain>.workers.dev`. A brand-new `workers.dev`
-address can take a minute or two to resolve.
+Worker secrets, once: `npx wrangler secret put EMAIL_API_KEY`, `EMDASH_ENCRYPTION_KEY` (from
+`npx emdash secrets generate`, piped with `printf %s`), and `TURNSTILE_SECRET_KEY` for the production widget. Create
+**one** Turnstile widget with two hostnames — the production domain and the account's `<subdomain>.workers.dev` — so
+forms work before and after go-live; put its site key in `forms.turnstileSiteKey` and rerun scaffold. Until then the
+production forms refuse messages.
 
 ## 3. First sign-in to the admin
 
-Open `https://<staging-url>/_emdash/admin` — it redirects to `/_emdash/admin/setup`.
+Open `https://<site-url>/_emdash/admin` — it redirects to `/_emdash/admin/setup`.
 
 ### Step 1 — Site
 
@@ -116,7 +125,7 @@ password manager, so losing one device does not lock you out.
 | Method | How to enable |
 |---|---|
 | Magic link by email | Configure email in **Settings → Email** (the site's email provider, e.g. Brevo); users can then request a sign-in link by email |
-| Google / GitHub / Microsoft | Create an OAuth app with that provider and set the Worker secrets `EMDASH_OAUTH_GOOGLE_CLIENT_ID` / `…_CLIENT_SECRET` (or `GITHUB` / `MICROSOFT`) with `wrangler secret put … --env staging` |
+| Google / GitHub / Microsoft | Create an OAuth app with that provider and set the Worker secrets `EMDASH_OAUTH_GOOGLE_CLIENT_ID` / `…_CLIENT_SECRET` (or `GITHUB` / `MICROSOFT`) with `wrangler secret put …` (add `--env staging` for opt-in staging) |
 | Invites | From the admin's **Users** page, invite the client and their editors: each gets an invite link and creates their *own* passkey — never share the agency's |
 | Recovery | From the **Users** page an admin can send a user a recovery link; needs email configured |
 
@@ -131,44 +140,58 @@ password manager, so losing one device does not lock you out.
 | `media:read`, `media:write` | Find existing media by hash, upload the rest |
 | `schema:read`, `schema:write` | Check the section library and update it on the site when the kit's section types gain fields |
 | `menus:manage` | Write the navigation menus |
-| `settings:read`, `settings:manage` | Site title, tagline, title separator, staging flag |
+| `settings:read`, `settings:manage` | Site title, tagline, title separator, staging flag, Site URL |
 
-It does not need `admin` or the transfer scopes. Put it in the **site's** `.env`
-(each site has its own EmDash):
+It does not need `admin` or the transfer scopes. Put it in the **site's** `.env` (each site has its own EmDash):
 
 ```
 # sites/<slug>/.env
-EMDASH_TOKEN=<token>
+EMDASH_TOKEN_PRODUCTION=<token>     # single environment: EMDASH_TOKEN=<token> works too
 ```
 
-and set the staging URL in `sites/<slug>/kit.config.ts` → `target.stagingUrl`.
+With opt-in staging, `EMDASH_TOKEN` is the **staging** site's token and production needs `EMDASH_TOKEN_PRODUCTION`.
 
-## 5. Load into staging
+## 5. Load and verify
 
 ```bash
-WP2EMDASH_LOAD_TARGET=staging pnpm wp2emdash run <slug> load
+pnpm wp2emdash run <slug> load      # single environment: production on workers.dev (once provisioned)
+pnpm wp2emdash run <slug> verify
 ```
 
-The gate re-reads the staging site: counts, duplicates, WordPress leftovers, media integrity, and that
-every published page renders. Rerunning is safe — it updates in place.
+A single-environment site loads into and verifies production by default once `provision` recorded it (before that:
+the local dev server). `WP2EMDASH_LOAD_TARGET=local|staging|production` (load) and `WP2EMDASH_TARGET=…` (verify)
+choose explicitly. The gate re-reads the target: counts, duplicates, WordPress leftovers, media integrity, and that
+every published page renders. Rerunning is safe — it updates in place. Load sets EmDash's Site URL to the address the
+site answers on (workers.dev now, the domain after go-live) and clears the `staging` flag on production.
+
+**Form messages before go-live are tests.** Production carries `FORM_LIVE_HOST` (the domain) and `FORM_TEST_TO`
+(`email.stagingTo`). A message sent from any other host — the workers.dev address now, a preview URL later — is emailed
+only to the test inbox with `[Test]` in the subject, never to `email.to` or the recipients set in Form messages, and the
+outbox never sends it anywhere else, also after launch. Without `email.stagingTo`, test messages are kept in the outbox
+unsent (or refused without an outbox). Once the domain points at the Worker, its messages are real at once: nothing
+has to be redeployed.
 
 ## 6. Deploys from GitHub (client repository)
 
-The scaffold writes `.github/workflows/ci.yml` into the project: check and build on every push and pull
-request, staging deploy on every push to `main`, production only by hand in a protected `production`
-environment. In CI, `emdash migrate` cannot ask for confirmation, so the staging deploy pins the target:
+The scaffold writes `.github/workflows/ci.yml` into the project: check and build on every push and pull request; the
+production job runs from *Run workflow* and — **before go-live only** — on every push to `main` (only the workers.dev
+address changes then). After go-live (rerun scaffold after `golive`) production deploys are manual, because each one
+reaches visitors immediately; `target.ciDeploy: "always"` or `"manual"` overrides the default `"prelaunch"`.
+
+In CI, `emdash migrate` cannot ask for confirmation, so the deploy pins the target:
 
 ```bash
 cd sites/<slug>/project
-( set -a && . ../../../.env && set +a && npx emdash migrate --status --wrangler-config wrangler.jsonc --wrangler-env staging ) | grep "Target fingerprint"
+( set -a && . ../../../.env && set +a && npx emdash migrate --status --wrangler-config wrangler.jsonc ) | grep "Target fingerprint"
 ```
 
-Add it to `cloudflare.json` as `staging.d1.fingerprint` (not a secret: it identifies the database) and rerun
-scaffold. That adds `pnpm ci:deploy:staging` (`--expected-target-fingerprint=…`, which fails on any other
-database) and turns the staging job on. Until then the job is skipped.
+Add it to `cloudflare.json` as `production.d1.fingerprint` (not a secret: it identifies the database) and rerun
+scaffold. That adds `pnpm ci:deploy:production` (`--expected-target-fingerprint=…`, which fails on any other
+database) and turns the push deploy on. Until then a push does not deploy.
 
-In the GitHub repository: secret `CLOUDFLARE_API_TOKEN` (the build & staging token, never the go-live DNS
-token), variable `CLOUDFLARE_ACCOUNT_ID` (deploy jobs are skipped until it is set); environments `staging` and `production` (required reviewer: the owner).
+In the GitHub repository: secret `CLOUDFLARE_API_TOKEN` (the build token, never the go-live DNS token), variable
+`CLOUDFLARE_ACCOUNT_ID` (deploy jobs are skipped until it is set); environment `production` (deployment branch `main`;
+after go-live, required reviewer: the owner).
 
 `pnpm wp2emdash publish <slug>` does the repository part: it refuses while a local secret file (`.env`, `.dev.vars`,
 `*.db`) or a credential-like value would be committed (file names only), then `git init`, commit,
@@ -178,40 +201,90 @@ secret: run the printed `gh secret set CLOUDFLARE_API_TOKEN` yourself with a bui
 On an existing repository it only commits and pushes.
 The client project's `docs/deployment.md` repeats this for whoever maintains the site.
 
+## 7. Go-live, and after it
+
+The traffic switch is `pnpm wp2emdash golive <slug>` (plan only; `--yes` after the owner's go-ahead): it creates the
+routes, smoke-tests the domain and sets `production.live: true` in `cloudflare.json` — load and verify then use the real
+domain and expect it indexable with analytics loading. Rerun scaffold and deploy production afterwards: IndexNow turns
+live, the client docs say "live", and the client CI stops deploying on push.
+
+From then on **content lives in production** and is edited in the admin:
+
+- `load` into a live production refuses without `--force`. With it, the kit first records a D1 Time Travel bookmark
+  (`sites/<slug>/load/d1-bookmarks.jsonl`) and prints the restore command; it writes nothing if no bookmark can be
+  taken.
+
+  ```bash
+  pnpm wp2emdash run <slug> load --force
+  # to undo, in the project:  npx wrangler d1 time-travel restore <slug>-db --bookmark=<bookmark>
+  ```
+
+  Time Travel covers the database only (R2 files are not versioned; load only adds media).
+- **Code changes are reviewed on a preview URL** before they reach visitors:
+
+  ```bash
+  ( set -a && . ../../../.env && set +a && pnpm versions:upload )   # new version, no traffic; prints its preview URL
+  # review https://<8 chars of the version id>-<slug>.<subdomain>.workers.dev on desktop and phone, then
+  ( set -a && . ../../../.env && set +a && pnpm versions:deploy <version-id>@100% --yes )
+  ```
+
+  `versions:upload` accepts `--preview-alias <name>` for a stable link. A preview shares production's D1, R2, KV and
+  secrets: it is for code and layout review only — edits made through a preview's admin are real, form messages from
+  it are tests, and a change that needs a database migration (an EmDash upgrade) is not previewable this way: check it
+  locally, then `pnpm deploy:production` (or opt into staging). `npx wrangler rollback` returns to the previous version.
+
+## 8. Opt-in staging
+
+A second Worker (`<slug>-staging`) with its own D1, R2, KV and secrets. Opt in when:
+
+- **Client sign-off on big changes** after launch (redesigns, new sections, EmDash upgrades with migrations) on a copy
+  of the data, without touching what visitors see;
+- **Bookings, payments or sensitive data**, where a test must never create or change production records;
+- **Many editors**, where experiments in a shared admin would be seen (and published) by everyone.
+
+How:
+
+1. `target.staging: true` in `kit.config.ts` (or `{ enabled: true, protection: "access" | "noindex", host: "staging.example.com" }`).
+2. `pnpm wp2emdash provision <slug> staging --location <loc>` → `<slug>-staging-db`, `<slug>-stg-media`, outbox, `<slug>-staging-session`.
+3. Rerun scaffold: `wrangler.jsonc` gets `env.staging` (`STAGING=1`, form email only to `email.stagingTo` — or held in
+   the outbox without it — and Cloudflare's always-pass Turnstile test keys), package.json the `deploy:staging` scripts.
+4. `( set -a && . ../../../.env && set +a && pnpm deploy:staging )` — `CLOUDFLARE_ENV=staging astro build` (the
+   environment is chosen **at build time**: `wrangler deploy --env staging` after a normal build would deploy the
+   production bindings), `emdash migrate … --wrangler-env staging` (check it names `<slug>-staging-db`),
+   `wrangler deploy`, `emdash migrate --check`.
+5. First sign-in (§3) and an API token (§4) in the staging admin → `EMDASH_TOKEN` in the site's `.env`;
+   `target.stagingUrl` (or the address provision recorded).
+6. `WP2EMDASH_LOAD_TARGET=staging pnpm wp2emdash run <slug> load`; verify defaults to staging.
+7. CI: record `staging.d1.fingerprint` (`npx emdash migrate --status --wrangler-config wrangler.jsonc --wrangler-env staging`),
+   rerun scaffold; staging then deploys on every push to `main`, production only by hand. GitHub environments
+   `staging` and `production`.
+8. Protection (`target.staging.protection`, a record of the decision — the kit does not configure Access): `access` =
+   a Cloudflare Access login wall in front of the staging host, set up by hand in Zero Trust → Access → Applications
+   (load and verify do not send Access credentials yet: give the kit's runs a bypass policy or run them before the wall
+   goes up); `noindex` = the middleware's `X-Robots-Tag` only, which every non-production host gets anyway.
+
+Sites that already ran staging before 2026-11-20 (a `target.stagingUrl`, or staging resources in `cloudflare.json`)
+keep it with no config change; `target.staging: false` turns it off.
+
 ## Troubleshooting
+
+Commands below are for production; add `--wrangler-env staging` (emdash) or `--env staging` (wrangler) for opt-in staging.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Every request returns **503**; logs say *"database migrations are required … migration lock has been held since …"* | A migration run (often the first request in `auto` mode) stopped before releasing its lock | `pnpm emdash migrate --status --wrangler-config wrangler.jsonc --wrangler-env staging` → note the lock id and target fingerprint → `pnpm emdash migrate --take-over-lock=<id> --expected-target-fingerprint=<fp> --wrangler-config wrangler.jsonc --wrangler-env staging` → `--check` → redeploy the same build. Run inside the `( set -a && . ../../../.env … )` subshell. |
+| Every request returns **503**; logs say *"database migrations are required … migration lock has been held since …"* | A migration run (often the first request in `auto` mode) stopped before releasing its lock | `pnpm emdash migrate --status --wrangler-config wrangler.jsonc` → note the lock id and target fingerprint → `pnpm emdash migrate --take-over-lock=<id> --expected-target-fingerprint=<fp> --wrangler-config wrangler.jsonc` → `--check` → redeploy the same build. Run inside the `( set -a && . ../../../.env … )` subshell. |
 | `emdash migrate`: *CLOUDFLARE_API_TOKEN is required for D1 migrations* | The token is in a `.env` file but not in the shell | Use the subshell shown in step 2 |
-| Deploy shows `DB (<slug>-db)` instead of `<slug>-staging-db` | Built without `CLOUDFLARE_ENV=staging` | Use `pnpm deploy:staging`; always check the binding names Wrangler prints |
+| Staging deploy shows `DB (<slug>-db)` instead of `<slug>-staging-db` | Built without `CLOUDFLARE_ENV=staging` | Use `pnpm deploy:staging`; always check the binding names Wrangler prints |
+| `provision <slug> staging` says staging is opt-in | The site has one environment | Set `target.staging: true` first (§8) — or keep one environment |
+| `load` says *Production is live* | Reloading a launched site overwrites admin edits | Rerun with `--force` (a Time Travel bookmark is recorded first), or edit in the admin instead |
 | Bucket or database is in the wrong region | Created without `--location` | Empty resources: delete the database and recreate it with `--location`; for R2 use a **new** bucket name |
-| `curl: Could not resolve host` / load fails with `ENOTFOUND` after the first deploy | New `workers.dev` hostnames can stay unresolvable for a while in local, router or ISP DNS caches, and even public resolvers can flap (SERVFAIL *No Reachable Authority*) | The loader falls back to Cloudflare DNS over HTTPS automatically. If that also fails, pin the Worker's addresses: get them with `curl -H 'accept: application/dns-json' 'https://cloudflare-dns.com/dns-query?name=<host>&type=A'` and add `"worker": { "addresses": ["<ip>", "<ip>"] }` under `staging` in `sites/<slug>/cloudflare.json` (TLS still checks the real hostname). Flushing the Mac's DNS cache needs a real terminal: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`. |
+| `curl: Could not resolve host` / load fails with `ENOTFOUND` after the first deploy | New `workers.dev` hostnames can stay unresolvable for a while in local, router or ISP DNS caches, and even public resolvers can flap (SERVFAIL *No Reachable Authority*) | The loader falls back to Cloudflare DNS over HTTPS automatically. If that also fails, pin the Worker's addresses: get them with `curl -H 'accept: application/dns-json' 'https://cloudflare-dns.com/dns-query?name=<host>&type=A'` and add `"worker": { "addresses": ["<ip>", "<ip>"] }` under `production` (or `staging`) in `sites/<slug>/cloudflare.json` (TLS still checks the real hostname). Flushing the Mac's DNS cache needs a real terminal: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder`. |
 | verify: `page.goto: net::ERR_TUNNEL_CONNECTION_FAILED` while `curl --resolve` to the pinned address works | The machine routes the browser through a proxy auto-config (VPN or a tailnet DNS such as `100.100.100.100`) that cannot resolve the new host; the pinned addresses do not reach Chromium behind that proxy | Flush the DNS cache (above) and retry once `curl https://<host>/` answers 200, or switch the VPN off for the run. Meanwhile, verify against a local load (`WP2EMDASH_LOAD_TARGET=local` load, then `WP2EMDASH_TARGET=local` verify) to check layout changes. |
 | `/_emdash/setup` returns 404 | Wrong path | The setup is at `/_emdash/admin/setup` |
 | Load fails with `INSUFFICIENT_SCOPE` | The API token lacks a scope | Create a token with the scopes in step 4 |
-| First deploy fails (10001), then every retry fails with `10014` "namespace already exists" | Wrangler auto-provisioned the `SESSION` KV namespace before the deploy failed, leaving `<worker>-session` behind | `pnpm wp2emdash provision <slug> <env>` (reuses that namespace by title and records it), rerun scaffold so `wrangler.jsonc` binds it, deploy again |
+| First deploy fails (10001), then every retry fails with `10014` "namespace already exists" | Wrangler auto-provisioned the `SESSION` KV namespace before the deploy failed, leaving `<worker>-session` behind | `pnpm wp2emdash provision <slug> [staging]` (reuses that namespace by title and records it), rerun scaffold so `wrangler.jsonc` binds it, deploy again |
+| A form test on workers.dev did not reach the client | By design: messages from any host but the domain are tests | They go to `email.stagingTo` only; test the client's inbox from the domain after go-live |
+| `versions:upload` prints no *Version Preview URL* | Preview URLs off for the Worker | Check `"preview_urls": true` in `wrangler.jsonc` (scaffold writes it for single-environment sites) and deploy once with it |
 | A setting changed in the admin or through the API (Settings → Email, Site URL, the staging flag) still behaves as before on some requests, e.g. "Email is not configured" right after saving SMTP | Running Worker isolates cache site settings and the email provider choice | Redeploy (`pnpm deploy:<env>` in the project, or `wrangler deploy`): new isolates read the saved settings |
 | After a magic-link sign-in the browser lands on the workers.dev address | EmDash builds sign-in links from **Site URL**; without it, from the address recorded at first setup (workers.dev) | `load` sets Site URL to the address the site answers on, and `golive` sets the real domain after the switch; by hand: admin → Settings → Site URL, then redeploy |
 | "Email is not configured. Magic link authentication requires an email provider." | EmDash's own email (sign-in links, invites, password resets) has no provider; form email is separate | Admin → Settings → Email: SMTP with the site's provider (Brevo: `smtp-relay.brevo.com`, 587, STARTTLS, the Brevo SMTP login and SMTP key), sender on the authenticated domain; then redeploy |
-
-## 7. Production before the switch
-
-If the client's domain is in their own Cloudflare account, production must run in that account (Worker routes
-only reach a Worker in the zone's account): see *Client-owned Cloudflare accounts* in `cloudflare-api-token.md`
-(`pnpm wp2emdash provision <slug> production`).
-
-Production is deployed the same way (GitHub Actions → Run workflow → `production`, or `pnpm deploy:production`)
-and first serves only its workers.dev address — noindex there, analytics off (both key on the production domain).
-Record the address in `cloudflare.json` → `production.worker.url`, sign in once at its `/_emdash/admin` (step 3),
-create an API token (step 4) as `EMDASH_TOKEN_PRODUCTION`, then:
-
-```bash
-WP2EMDASH_LOAD_TARGET=production pnpm wp2emdash run <slug> load --preview
-WP2EMDASH_TARGET=production pnpm wp2emdash run <slug> verify --preview
-```
-
-The traffic switch itself is `pnpm wp2emdash golive <slug>` (plan only; `--yes` after the owner's go-ahead): it creates
-the routes, smoke-tests the domain and sets `production.live: true` in `cloudflare.json` — load and verify then use the
-real domain and expect it indexable with analytics loading. Rerun scaffold and deploy production afterwards so IndexNow
-turns live.

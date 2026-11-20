@@ -38,10 +38,11 @@ pnpm wp2emdash ui          # local dashboard in the browser (--no-open to only p
 | `wp2emdash` | Interactive wizard (terminal or web dashboard) |
 | `wp2emdash init --slug … --name … --source …` | Create `sites/<slug>/` (`--from <slug>` to start from another site's settings) |
 | `wp2emdash run <slug> <phase> [--json] [--preview]` | Run a phase; exit 0 pass · 2 gate failed · 3 not built yet · 1 error |
+| `wp2emdash run <slug> load --force` | Load into a **live** production (after go-live): records a D1 Time Travel bookmark first and prints the restore command; refused without `--force` |
 | `wp2emdash accept <slug> <phase> --reason "…" --by "…"` | Record the owner's acceptance of a failed gate |
 | `wp2emdash status [slug] [--json]` | Phase timeline |
 | `wp2emdash doctor` | Local prerequisites, verifies the Cloudflare token |
-| `wp2emdash provision <slug> <staging\|production>` | Create or reuse D1, R2, the form outbox and the `SESSION` KV namespace in the environment's account; record them in `cloudflare.json` |
+| `wp2emdash provision <slug> [production\|staging]` | Create or reuse D1, R2, the form outbox and the `SESSION` KV namespace in the environment's account; record them in `cloudflare.json`. Default `production`; `staging` only for sites that opted in (see Environments) |
 | `wp2emdash import-dump <slug> [dir]` · `import-options <slug> <dump>` | Sort exported files / read builder settings from a backup's `database.sql` |
 | `wp2emdash compare <a> <b>` | Content diff between two audited sites (read-only) |
 | `wp2emdash publish <slug> [--repo owner/name] [--yes]` | Project → private GitHub repository: secret scan (file names only), commit, `gh repo create --private`, push, `CLOUDFLARE_ACCOUNT_ID` variable. Never sets the token secret (prints the `gh secret set` command). Plan only without `--yes` |
@@ -103,7 +104,8 @@ decision.
 
 **MCP server** — `pnpm wp2emdash mcp`. Tools: `status`, `run_phase`, `read_report`, `list_diagnostics`, `explain_gate`,
 `propose_override`. `run_phase` runs init → verify and any preview run; `load`/`verify` only against `local` or
-`staging`; `cutover` only as its read-only preflight. Anything that would deploy to production or change DNS / Worker
+`staging` (a single-environment site's default target, production, falls back to `local` there); `cutover` only as its
+read-only preflight. Anything that would deploy to production or change DNS / Worker
 routes is refused. Results never include `.env` contents, and values from the kit and site `.env` are scrubbed out.
 
 Register it:
@@ -145,11 +147,32 @@ Claude never accepts a gate (only `wp2emdash accept` with the owner's reason) an
 | `extract` | EmDash Exporter API: raw content, meta, SEO, menus, forms, media download | ✅ |
 | `transform` | WPBakery/Salient, Gutenberg, classic, Bricks 2.4–2.5 (elements, global classes, palette, components, header/footer/popup templates, forms; not yet measured on a live Bricks site) → section IR, coverage & text-conservation gate; announcement/top bars (Announcer, WPFront Notification Bar, Salient secondary header, Astra above-header; other bar-like rows reported for a decision) rebuilt from the live HTML as an editable site part above the header | ✅ |
 | `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, analytics, seed; client README, docs and GitHub CI; builds + local preview | ✅ |
-| `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map | ✅ local, staging, production (`WP2EMDASH_LOAD_TARGET`) |
-| `verify` | Old site vs staging or production, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |
+| `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map. Default target: production (workers.dev) on a provisioned single-environment site, else local; after go-live only with `--force` + a D1 bookmark | ✅ local, staging, production (`WP2EMDASH_LOAD_TARGET`) |
+| `verify` | Old site vs production (default, single environment) or staging, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |
 | `cutover` | Preflight (read-only: resources, secrets, Turnstile, go-live token separate and zone-scoped, zone and DNS record, alias domains, runbook), then the owner-approved switch with `wp2emdash golive`: Worker routes, smoke, `production.live`, rollback; alias domains → one Single Redirect rule each, `check-aliases` (README "Two sites, one domain") | Preflight ✅ · `golive` built and unit-tested (mocked Cloudflare), not yet run on a launch |
 
 Each phase ends in a gate; the next phase won't run until it passes or is accepted with a recorded reason.
+
+## Environments
+
+**One Cloudflare environment per site by default: production**, deployed to its `workers.dev` address until go-live
+(owner decision 2026-11-20). The client reviews the real site there; nothing public changes until `golive` adds the
+Worker routes. Staging is opt-in. Details and commands: [docs/staging-setup.md](docs/staging-setup.md), docs/PLAN.md §7a.
+
+| | Single environment (default) | Opt-in staging (`target.staging: true`) |
+|---|---|---|
+| Cloudflare | `<slug>` Worker, `<slug>-db`, `<slug>-media`, outbox + session KV | the same, plus `<slug>-staging` with its own D1/R2/KV/secrets |
+| Before go-live | production on workers.dev: `noindex`, no analytics, form messages are tests | staging for review; production on workers.dev before the switch |
+| `load` / `verify` default | production once provisioned (else local) | load: local; verify: staging |
+| Form test messages | any host but the domain (workers.dev, preview URLs) → `email.stagingTo` only, `[Test]` subject, never the client, also from the outbox after launch | staging → `email.stagingTo` only |
+| Client CI on push to `main` | deploys production until go-live (`target.ciDeploy`), manual after | deploys staging; production manual |
+| After go-live | content edited in the admin; `load --force` takes a D1 Time Travel bookmark first; code changes via Workers preview URLs (`pnpm versions:upload` → `pnpm versions:deploy`) — previews share production's data, so code/layout review only | as before, plus staging |
+| EmDash token | `EMDASH_TOKEN_PRODUCTION` (`EMDASH_TOKEN` accepted as an alias) | `EMDASH_TOKEN` = staging, `EMDASH_TOKEN_PRODUCTION` = production |
+
+**Opt into staging** when the client signs off big changes on a copy of the data (redesigns, EmDash upgrades with
+migrations), when the site takes bookings, payments or sensitive data (tests must not touch production records), or
+when many editors share the admin. Sites that already had staging (a `target.stagingUrl`, or staging resources in
+`cloudflare.json`) keep it unchanged; `target.staging: false` turns it off.
 
 ## Two sites, one domain
 
@@ -325,8 +348,9 @@ scaffold adds (a Worker fetching its own address would skip itself). Details: [p
 - [Plan](docs/PLAN.md)
 - [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md)
 - [Site workspaces](sites/README.md)
-- [Staging and production setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, production on `workers.dev`, troubleshooting
-- [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token
+- [Environment setup](docs/staging-setup.md) — production on `workers.dev` (default) and opt-in staging: resources, build → migrate → deploy, first admin sign-in (passkeys), API token, CI, after go-live (`load --force`, preview URLs), troubleshooting
+- [Single-environment findings](docs/spikes/single-env-findings.md) — D1 Time Travel and Workers preview URLs checked against Wrangler 4.163.0
+- [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build token and the per-launch go-live token
 - [`@wp2emdash/forms`](packages/forms/README.md) — the forms package every migrated site uses (endpoint, email, KV outbox, Form messages admin page); usable in any EmDash project
 - [`@wp2emdash/seo`](packages/seo/README.md) — SEO suite: editor panel, SEO dashboard, Google Search Console, IndexNow; on by default (`seo: { panel: false }` turns it off)
 - [`@wp2emdash/og`](packages/og/README.md) — branded sharing cards (og:image) rendered in the Worker, per page; on by default (`og: { cards: false }` in a site's `kit.config.ts` turns them off)

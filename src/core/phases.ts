@@ -7,8 +7,8 @@ export const PHASES = [
 	{ id: "audit", title: "Audit live site", milestone: "M2", summary: "URL discovery, snapshots, screenshots, forms & integrations scan" },
 	{ id: "extract", title: "Extract raw content", milestone: "M3", summary: "WXR, REST, theme options, media manifest, redirects" },
 	{ id: "transform", title: "Transform to sections", milestone: "M4", summary: "Builder adapters → Section IR, coverage report" },
-	{ id: "scaffold", title: "Scaffold EmDash project", milestone: "M5", summary: "Starter, tokens, section library, staging resources" },
-	{ id: "load", title: "Load into staging", milestone: "M6", summary: "Official importer + overlay + fix-ups + id-map" },
+	{ id: "scaffold", title: "Scaffold EmDash project", milestone: "M5", summary: "Starter, tokens, section library, wrangler.jsonc (production; staging if opted in)" },
+	{ id: "load", title: "Load into EmDash", milestone: "M6", summary: "Official importer + overlay + fix-ups + id-map" },
 	{ id: "verify", title: "Verify against baseline", milestone: "M7", summary: "Content, URLs, SEO, visual, forms, a11y, perf, security" },
 	{ id: "cutover", title: "Cut over to production", milestone: "M8", summary: "Preflight, delta, deploy, smoke, monitor, rollback ready" },
 ] as const;
