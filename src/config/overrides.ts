@@ -10,6 +10,8 @@ import { SECTION_TYPES } from "../ir/schema.js";
 // The announcement bar is a site part rebuilt from the live HTML, not a row type an adapter can be forced into.
 const sectionOrDrop = z.union([z.enum(SECTION_TYPES.filter((t) => t !== "announcement") as [string, ...string[]]), z.literal("drop")]);
 
+const wpTarget = z.union([z.literal("home"), z.literal("gone"), z.string().regex(/^\//, "a path starting with /")]).optional();
+
 export const overridesSchema = z.object({
 	/** WordPress path → EmDash path, when the default mapping is wrong. */
 	routes: z.record(z.string(), z.string()).default({}),
@@ -43,7 +45,38 @@ export const overridesSchema = z.object({
 	 * the new site; rebuilt = carried by hand (an embed section, kit.config siteWidgets, analytics…). Reason in decisions.md.
 	 */
 	snippets: z.record(z.string().regex(/^sn-[0-9a-f]{8}$/), z.enum(["drop", "rebuilt"])).default({}),
+	/**
+	 * Post types the transform does not migrate on its own (CPTs, Gutenberg/classic posts, products…; coverage report →
+	 * "Content types"): skip = not carried (their URLs may answer 404/410 in verify), pages = migrated as pages at their
+	 * WordPress address. A reason is required.
+	 */
+	contentTypes: z.record(z.string(), decision(["skip", "pages"])).default({}),
+	/** Taxonomies with terms in use (no taxonomy is migrated yet): skip = archives not rebuilt (URLs follow `wpUrls`). */
+	taxonomies: z.record(z.string(), decision(["skip"])).default({}),
+	/** Authors with published content (no bylines are migrated yet): skip = no author pages or bylines. */
+	authors: decision(["skip"]).optional(),
+	/**
+	 * Old addresses the owner decided are gone: path patterns (`*` = any characters, query included when the pattern has
+	 * one) → reason. Verify accepts 404/410 for them (urls-accounted).
+	 */
+	gone: z.record(z.string().regex(/^\//, "a path starting with /"), z.string().min(3, "give the owner's reason")).default({}),
+	/**
+	 * WordPress addresses with no page on the new site (feeds, search, archives, attachment pages, query forms): a path
+	 * to 301 to, "home", or "gone" (410). Unset = the kit's default for this site (coverage report → "WordPress URLs").
+	 */
+	wpUrls: z
+		.object({ feed: wpTarget, commentsFeed: wpTarget, search: wpTarget, category: wpTarget, tag: wpTarget, author: wpTarget, date: wpTarget, attachment: wpTarget })
+		.prefault({}),
+	/**
+	 * Customizer "Additional CSS" (coverage report → "Additional CSS"): carry = scaffold writes it to its own stylesheet,
+	 * loaded after the starter's CSS; drop = not carried. Selectors written for the WordPress theme rarely match.
+	 */
+	customCss: z.enum(["carry", "drop"]).optional(),
 });
+
+function decision<T extends string>(values: [T, ...T[]]) {
+	return z.object({ as: z.enum(values), reason: z.string().min(3, "give the owner's reason") });
+}
 export type Overrides = z.infer<typeof overridesSchema>;
 
 export async function loadOverrides(file: string): Promise<Overrides> {

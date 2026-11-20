@@ -141,6 +141,7 @@ table.sec img { display:block; width:160px; max-height:220px; object-fit:cover; 
 		<thead><tr><th scope="col">Page</th><th scope="col">HTTP</th><th scope="col">Text kept</th><th scope="col">Headings</th><th scope="col">SEO</th>${vps.map((vp) => `<th scope="col">Visual ${esc(vp)}</th>`).join("")}<th scope="col">A11y serious</th><th scope="col">LCP</th></tr></thead>
 		<tbody>${rows}</tbody>
 	</table></div>
+	${v.oldUrls?.length ? `<h2>Old addresses</h2><div class="table-wrap"><table><thead><tr><th scope="col">Address</th><th scope="col">Kind</th><th scope="col">HTTP</th><th scope="col">Accounted for</th></tr></thead><tbody>${[...v.oldUrls].sort((a, b) => Number(a.ok) - Number(b.ok) || a.kind.localeCompare(b.kind)).map((j) => `<tr><td>${esc(j.path)}</td><td>${esc(j.kind)}</td><td>${j.status}</td><td class="${j.ok ? "" : "badtext"}">${esc(j.why)}</td></tr>`).join("")}</tbody></table></div>` : ""}
 	${v.menu ? `<h2>Burger menu</h2><p>${v.menu.itemsMissing.length ? `<span class="badtext">Missing items: ${esc(v.menu.itemsMissing.join(", "))}</span>` : "All menu items present."} ${v.menu.motion.ok ? "Timings within ±15%." : `<span class="badtext">${esc(v.menu.motion.diffs.join("; "))}</span>`}</p>` : ""}
 	${detail}
 </div>

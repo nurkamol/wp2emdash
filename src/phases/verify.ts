@@ -24,6 +24,9 @@ import { currentYearText } from "../transform/year.js";
 import { accessibility, type A11yResult, launchFor, measurePerformance, type PerfResult, visualDiff, type VisualResult } from "../verify/browser.js";
 import { compareHeadings, compareMotion, compareSeo, compareText, type HeadingResult, missingExternalLinks, missingMenuItems, type SeoResult, type TextResult } from "../verify/compare.js";
 import { verifyReport } from "../verify/report.js";
+import { accountDetail, accountUniverse, type Judged, judgeUrl, probeUrl, type UniverseInput } from "../verify/urls-accounted.js";
+import type { WpUrlRules } from "../transform/wp-urls.js";
+import { mapLimit } from "../audit/http.js";
 import { diffSections, groupSections, type SectionDiff } from "../verify/sections.js";
 import { type CacheProbe, cacheMisses, measurePayload, median, type PayloadResult, probeCache } from "../verify/perf.js";
 import { liveTrackers, pageRuntime, type PageRuntime, runtimeAnalyticsProblem } from "../verify/runtime.js";
@@ -67,6 +70,8 @@ export interface VerifyResult {
 	forms: { endpoint: string; status: number }[];
 	/** Performance package: route-cache probes (remote targets), cached home-page TTFB, home-page payload until load. */
 	performance?: { probes: CacheProbe[]; cachedTtfbMs?: number; payload?: PayloadResult };
+	/** urls-accounted: every old address and how it is accounted for. */
+	oldUrls?: Judged[];
 }
 
 export async function runVerify({ config, paths, reporter }: PhaseContext): Promise<GateCheck[]> {
@@ -263,7 +268,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const snaps = existsSync(join(paths.snapshot, "pages")) ? readdirSync(join(paths.snapshot, "pages")).map((f) => readJson<PageSnapshot>(join(paths.snapshot, "pages", f))).filter((x): x is PageSnapshot => !!x) : [];
 		// Analytics: every tracking id the old site loaded is carried over (unless the owner set analytics: false);
 		// staging and local load none (no test traffic in the client's reports), production loads them.
-		const siteCfg = readJson<{ analytics?: { google?: string[]; gtm?: string }; analyticsAdmin?: boolean }>(join(paths.project, "src", "site.config.json")) ?? {};
+		const siteCfg = readJson<{ analytics?: { google?: string[]; gtm?: string }; analyticsAdmin?: boolean; wpIds?: Record<string, string> }>(join(paths.project, "src", "site.config.json")) ?? {};
 		const carried = new Set([...(siteCfg.analytics?.google ?? []), ...(siteCfg.analytics?.gtm ? [siteCfg.analytics.gtm] : [])]);
 		const sourceIds = [...new Set(snaps.flatMap((x) => x.trackingIds ?? []))].filter((id) => !id.startsWith("UA-"));
 		const notCarried = config.analytics === false ? [] : sourceIds.filter((id) => !carried.has(id));
@@ -301,6 +306,27 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			await end.body?.cancel();
 			if (end.status !== 200) legacyBad.push(`${p} → ${loc} HTTP ${end.status}`);
 		}
+
+		// Every address the old site answered (pages, entries, terms, authors, attachment pages, feeds, search, query
+		// forms, upload files the pages used): 200, one 301 to a 200, or 404/410 only by decision (src/verify/urls-accounted.ts).
+		const ov = await loadOverrides(paths.overrides);
+		const wpRules = readJson<{ rules: WpUrlRules }>(join(paths.ir, "wp-urls.json"))?.rules;
+		const universe = accountUniverse({
+			urls: readJson<UniverseInput["urls"]>(join(paths.snapshot, "urls.json")) ?? [],
+			...(readJson<UniverseInput["discovery"]>(join(paths.snapshot, "discovery.json")) ? { discovery: readJson<UniverseInput["discovery"]>(join(paths.snapshot, "discovery.json")) } : {}),
+			pageAssets: snaps.flatMap((x) => [...x.images.map((i) => i.src), ...x.links.map((l) => l.href), ...(x.seo.og["og:image"] ? [x.seo.og["og:image"]] : [])]),
+			postDates: (readJson<{ status: string; date_gmt: string }[]>(join(paths.raw, "exporter", "content", "post.json")) ?? []).filter((p) => p.status === "publish").map((p) => p.date_gmt),
+			siteHosts: new Set([new URL(config.source.url).host, ...config.source.alternateHosts, new URL(prod).host]),
+			...(wpRules ? { rules: wpRules } : {}),
+		});
+		reporter.emit({ type: "step:start", step: "Old addresses", total: universe.length });
+		let probed = 0;
+		const judged = await mapLimit(universe, Math.max(4, config.audit.concurrency * 2), async (u) => {
+			const j = judgeUrl(u, await probeUrl(kitFetch, base, u.path), { ...(wpRules ? { rules: wpRules } : {}), wpIds: siteCfg.wpIds ?? {}, overrides: ov });
+			reporter.emit({ type: "step:progress", step: "Old addresses", done: ++probed, total: universe.length, item: u.path });
+			return j;
+		});
+		reporter.emit({ type: "step:end", step: "Old addresses", ok: judged.every((j) => j.ok), detail: `${judged.filter((j) => j.ok).length}/${judged.length} accounted for` });
 
 		// Sitemap: every entry answers 200 at its own address (no redirects), every published page is listed.
 		const sitemapLocs: string[] = [];
@@ -451,6 +477,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			}
 		}
 		check("legacy-urls", "Old sitemap and upload addresses redirect to working files", legacyBad.length === 0, legacyBad.slice(0, 6).join("; ") || `${legacy.length} checked`);
+		check("urls-accounted", "Every old address answers 200, one 301 to a 200, or 404/410 by decision", judged.every((j) => j.ok), accountDetail(judged));
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);
 		// Gate on sections where we can pair them; whole-page difference where we cannot (e.g. Gutenberg pages).
 		const sectionFails = results.flatMap((r) => Object.entries(r.sections).flatMap(([vp, list]) => list.filter((x) => x.ratio > g.visualDiff).map((x) => ({ text: `${r.path} ${vp} ${x.label} (${x.types.join("+")}) ${(x.ratio * 100).toFixed(1)}%`, ratio: x.ratio }))));
@@ -480,7 +507,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			check("menu", "Burger menu: same items, timings within ±15%, accessible behaviour", menu.itemsMissing.length === 0 && menu.motion.ok && behaviourBad.length === 0, [menu.itemsMissing.length ? `missing items: ${menu.itemsMissing.join(", ")}` : "", ...menu.motion.diffs, behaviourBad.length ? `behaviour: ${behaviourBad.join(", ")}` : ""].filter(Boolean).join("; ") || undefined);
 		}
 
-		const out: VerifyResult = { target: want, targetUrl: base, ranAt: new Date().toISOString(), pages: results, brokenLinks, security: { headers, missing: missingHeaders, wpPaths }, ...(menu ? { menu } : {}), forms: formEndpoints, performance: { probes, ...(cachedTtfbMs !== undefined ? { cachedTtfbMs } : {}), ...(payload ? { payload } : {}) } };
+		const out: VerifyResult = { target: want, targetUrl: base, ranAt: new Date().toISOString(), pages: results, brokenLinks, security: { headers, missing: missingHeaders, wpPaths }, ...(menu ? { menu } : {}), forms: formEndpoints, oldUrls: judged, performance: { probes, ...(cachedTtfbMs !== undefined ? { cachedTtfbMs } : {}), ...(payload ? { payload } : {}) } };
 		// The gate checks go with the report so cutover preflight can read the last result (preview runs are not recorded in state).
 		write(join(outDir, "verify.json"), { ...out, checks });
 		write(join(outDir, "index.html"), verifyReport(config.name, out, checks, g.visualDiff));

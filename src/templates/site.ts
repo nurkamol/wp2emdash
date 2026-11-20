@@ -140,6 +140,16 @@ export default {
 	redirects: { source: "unknown" },
 	/** legacy_html sections approved to ship as-is: "<slug>:<row path>". */
 	approvedLegacy: [],
+	/** Post types the kit does not migrate (coverage → Content types): { portfolio: { as: "skip" | "pages", reason: "…" } }. */
+	contentTypes: {},
+	/** Taxonomies with terms in use: { category: { as: "skip", reason: "…" } }. Authors with posts: authors: { as: "skip", reason: "…" }. */
+	taxonomies: {},
+	/** WordPress URLs with no page here (coverage → WordPress URLs): feed, commentsFeed, search, category, tag, author, date, attachment → a path, "home" or "gone". Unset = the kit's default. */
+	wpUrls: {},
+	/** Old addresses the owner decided are gone (verify urls-accounted): { "/locations.kml": "reason" }; "*" matches anything. */
+	gone: {},
+	/** Customizer Additional CSS (coverage → Additional CSS): "carry" | "drop", once the site has some. */
+	// customCss: "drop",
 };
 `;
 }

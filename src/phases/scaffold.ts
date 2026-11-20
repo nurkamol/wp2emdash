@@ -30,6 +30,8 @@ import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type D
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
 import { astroPerf, brandHashes, imageHosts, type PerfConfig, perfSite, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
 import { BLOCK_TYPES } from "../starter/library.js";
+import { customStylesheet } from "../transform/custom-css.js";
+import type { WpUrlRules } from "../transform/wp-urls.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
 
@@ -468,6 +470,19 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Performance package (src/scaffold/perf.ts): route-cache defaults, hashed brand files with sizes, favicons.
 	const perf = await perfSite(join(project, "public"), config.performance, brand, siteConfig.header.logoHeight);
 	Object.assign(siteConfig, perf.site, { header: { ...siteConfig.header, ...perf.header } }, brandHashes(join(project, "public"), brand));
+	// WordPress addresses with no page here (feeds, search, archives, attachment pages, query forms): transform's rule
+	// set (ir/wp-urls.json), applied by the middleware; verify judges every audited URL with the same rules.
+	const wpUrlPlan = readJson<{ rules: WpUrlRules }>(join(ir, "wp-urls.json"));
+	if (wpUrlPlan) (siteConfig as { wpUrls?: WpUrlRules }).wpUrls = { ...wpUrlPlan.rules, trailingSlash: trailing };
+	// Customizer Additional CSS, only when the owner decided "carry": its own file, linked after the starter's CSS.
+	mkdirSync(join(project, "public", "styles"), { recursive: true });
+	for (const f of readdirSync(join(project, "public", "styles"))) if (/^custom-[0-9a-f]{10}\.css$/.test(f)) rmSync(join(project, "public", "styles", f));
+	const carriedCss = readJson<{ decision: string | null; css: string }>(join(ir, "custom-css.json"));
+	if (carriedCss?.decision === "carry" && carriedCss.css.trim()) {
+		const sheet = customStylesheet(carriedCss.css);
+		writeFileSync(join(project, "public", "styles", sheet.file), sheet.content);
+		(siteConfig as { customCss?: string }).customCss = `/styles/${sheet.file}`;
+	}
 	write(join(project, "src", "site.config.json"), siteConfig);
 	write(join(project, "src", "styles", "tokens.css"), tokens.css + bricksBodyWeight(bricksDesignOut) + bricksLayoutTokens(bricksDesignOut?.layout) + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);
