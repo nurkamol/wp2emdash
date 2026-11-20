@@ -55,12 +55,14 @@ program
 	.option("--json", "stream progress events as JSON lines")
 	.option("--preview", "read-only phases: run out of order, don't record the gate")
 	.option("--force", "load: write to a live production (after go-live); a D1 Time Travel bookmark is recorded first and the restore command printed")
+	.option("--only <part>", "load: run one part only — settings (Settings → General, Social Links, SEO; no media, pages, menus or redirects): the safe way to apply settings to a live site")
 	.option("--overwrite-settings", "load: replace site settings (logo, social links, SEO…) an editor changed in the admin since the last load")
 	.action(async (slug: string, phase: string, o) => {
 		if (!isPhaseId(phase)) fail(`Unknown phase "${phase}". Phases: ${PHASE_IDS.join(", ")}`);
 		if (o.force && phase !== "load") fail("--force only applies to load");
 		if (o.overwriteSettings && phase !== "load") fail("--overwrite-settings only applies to load");
-		const result = await runPhase(slug, phase as never, { json: o.json, preview: o.preview, ...(o.force ? { force: true } : {}), ...(o.overwriteSettings ? { overwriteSettings: true } : {}) }).catch((e: Error) => fail(e.message));
+		if (o.only && (phase !== "load" || o.only !== "settings")) fail("--only applies to load, with: settings");
+		const result = await runPhase(slug, phase as never, { json: o.json, preview: o.preview, ...(o.force ? { force: true } : {}), ...(o.overwriteSettings ? { overwriteSettings: true } : {}), ...(o.only ? { only: o.only } : {}) }).catch((e: Error) => fail(e.message));
 		if (o.json) console.log(JSON.stringify({ type: "result", ...result }));
 		process.exit(result.ok ? 0 : result.notImplemented ? 3 : 2);
 	});

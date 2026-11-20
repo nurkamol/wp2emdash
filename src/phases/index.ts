@@ -20,6 +20,8 @@ export interface PhaseContext {
 	force?: boolean;
 	/** `run … load --overwrite-settings`: replace site settings an editor changed in the admin since the last load. */
 	overwriteSettings?: boolean;
+	/** load: run one part only ("settings": Settings → General/Social/SEO, no media/content/menus/redirects). */
+	only?: "settings";
 }
 
 /** A phase does its work, then returns the gate checks. Thrown errors count as a failed gate. */

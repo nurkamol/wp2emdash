@@ -17,6 +17,7 @@ export interface RunOptions {
 	force?: boolean;
 	/** load: replace site settings an editor changed in the admin since the last load. */
 	overwriteSettings?: boolean;
+	only?: "settings";
 }
 
 /** Phases that only read from WordPress (GET) or local files, write only inside the site workspace, and never touch Cloudflare. */
@@ -53,7 +54,7 @@ export async function runPhase(slug: string, phase: PhaseId, opts: RunOptions = 
 	let checks: GateCheck[];
 	let notImplemented = false;
 	try {
-		checks = await RUNNERS[phase]({ config, paths, reporter, ...(opts.force ? { force: true } : {}), ...(opts.overwriteSettings ? { overwriteSettings: true } : {}) });
+		checks = await RUNNERS[phase]({ config, paths, reporter, ...(opts.force ? { force: true } : {}), ...(opts.overwriteSettings ? { overwriteSettings: true } : {}), ...(opts.only ? { only: opts.only } : {}) });
 	} catch (err) {
 		notImplemented = err instanceof NotImplementedError;
 		const message = err instanceof Error ? err.message : String(err);

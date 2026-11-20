@@ -76,7 +76,8 @@ export async function ensureDevServer(project: string, port: number, log: (m: st
 	throw new Error("dev server did not start within 90 s");
 }
 
-export async function runLoad({ config, paths, reporter, force, overwriteSettings }: PhaseContext): Promise<GateCheck[]> {
+export async function runLoad({ config, paths, reporter, force, overwriteSettings, only }: PhaseContext): Promise<GateCheck[]> {
+	const onlySettings = only === "settings";
 	const checks: GateCheck[] = [];
 	const check = (id: string, label: string, ok: boolean, detail?: string) => checks.push({ id, label, ok, ...(detail ? { detail } : {}) });
 	// Default target: local for a site with opt-in staging; production (workers.dev before go-live) for a single-environment
@@ -208,6 +209,13 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const siteHosts = new Set([new URL(config.source.url).host, ...config.source.alternateHosts].map((h) => h.replace(/^www\./, "")));
 		const uploadsRe = /\/(?:wp-content\/uploads|storage)\/\d{4}\/\d{2}\/[^\s"')]+/i;
 
+		const sep = /\s([-–—|·•])\s/.exec(docs.find((d) => d.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-";
+		// Media already on the target, by content hash (filled by the media step; settings looks its uploads up here too).
+		const bySha = new Map<string, Awaited<ReturnType<typeof api.mediaList>>[number]>();
+		if (onlySettings) for (const m of await api.mediaList()) if (m.contentHash) bySha.set(String(m.contentHash).replace(/^sha1:/, ""), m);
+		// --only settings: just Settings (General, Social Links, SEO) — the safe way to apply them to a live site without
+		// rewriting pages an editor may have changed since launch.
+		if (!onlySettings) {
 		// ── Media ────────────────────────────────────────────────────────────────
 		const refs = new Map<string, MediaRef>();
 		const collect = (v: unknown) => {
@@ -234,7 +242,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 
 		reporter.emit({ type: "step:start", step: "Media", total: refs.size });
 		const existing = await api.mediaList();
-		const bySha = new Map(existing.filter((m) => m.contentHash).map((m) => [String(m.contentHash).replace(/^sha1:/, ""), m]));
+		for (const m of existing) if (m.contentHash) bySha.set(String(m.contentHash).replace(/^sha1:/, ""), m);
 		const existingIds = new Set(existing.map((m) => m.id));
 		let uploaded = 0;
 		let reused = 0;
@@ -340,7 +348,6 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		let created = 0;
 		let updated = 0;
 		let adopted = 0;
-		const sep = /\s([-–—|·•])\s/.exec(docs.find((d) => d.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-";
 		for (const [i, doc] of docs.entries()) {
 			const collection = COLLECTION[doc.kind];
 			const slug = doc.kind === "page" || doc.kind === "post" ? routeToSlug(doc.route?.path ?? doc.source.slug) : doc.source.slug;
@@ -438,6 +445,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			menuErrors.push(`settings: ${(e as Error).message}`);
 		}
 		check("menus", "Menus written", menuErrors.length === 0, menuErrors.join("; ") || site.menus.map((m) => `${m.role} ${m.items.length}`).join(", "));
+		}
 
 		// ── Site settings (Settings → General, Social Links, SEO) from ir/settings.json ──────────────────────
 		// What load wrote is remembered per setting: a value an editor changed in the admin since is kept
@@ -518,7 +526,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		// Redirects from the plugin exports (raw/redirects.json, made by extract). Kit rules are tagged with a group so a
 		// rerun updates them and never touches redirects someone added in the admin.
 		const redirectsFile = join(paths.raw, "redirects.json");
-		if (overrides.redirects.source !== "none" && existsSync(redirectsFile)) {
+		if (!onlySettings && overrides.redirects.source !== "none" && existsSync(redirectsFile)) {
 			const { rules = [] } = JSON.parse(readFileSync(redirectsFile, "utf8")) as { rules?: { source: string; destination: string; type: number }[] };
 			const errors: string[] = [];
 			let created = 0;
@@ -545,7 +553,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				errors.push(`list: ${(e as Error).message}`);
 			}
 			check("redirects", "Redirects imported", errors.length === 0, `${created} created, ${updated} updated, ${same} unchanged${errors.length ? `; ${errors.slice(0, 5).join("; ")}${errors.length > 5 ? "; …" : ""}` : ""}`);
-		} else if (overrides.redirects.source === "file") check("redirects", "Redirects imported", false, "redirects.source is \"file\" but raw/redirects.json is missing: put the redirect export in raw/plugin-exports/ and rerun extract");
+		} else if (!onlySettings && overrides.redirects.source === "file") check("redirects", "Redirects imported", false, "redirects.source is \"file\" but raw/redirects.json is missing: put the redirect export in raw/plugin-exports/ and rerun extract");
 
 		// ── Verify on the target ───────────────────────────────────────────────────
 		reporter.emit({ type: "step:start", step: "Verify target" });
