@@ -1,7 +1,7 @@
 /**
  * `wp2emdash provision <slug> <staging|production>`: create the Cloudflare resources an environment needs — D1
- * database, R2 media bucket, KV form outbox (when the site keeps one) — in the account that environment runs in, and
- * record them in sites/<slug>/cloudflare.json. Idempotent (an existing resource with the same name is reused) and
+ * database, R2 media bucket, KV form outbox (when the site keeps one), KV for Astro sessions (`SESSION`) — in the
+ * account that environment runs in, and record them in sites/<slug>/cloudflare.json. Idempotent (an existing resource with the same name is reused) and
  * never deletes anything: when the environment moves to another account, the old entries are kept under `previous`
  * so they can be removed later, once the new environment serves traffic.
  *
@@ -24,6 +24,8 @@ export interface EnvResources {
 	d1?: { name: string; id: string; location?: string; fingerprint?: string };
 	r2?: { bucket: string; location?: string };
 	outbox?: { name: string; id: string };
+	/** KV namespace bound as SESSION (Astro sessions); "<worker>-session", the title Wrangler would auto-provision. */
+	session?: { name: string; id: string };
 	worker?: { name?: string; url?: string; addresses?: string[] };
 	live?: boolean;
 	previous?: Omit<EnvResources, "previous">[];
@@ -58,10 +60,10 @@ export async function provision(slug: string, env: Env, opts: { location?: strin
 	const cf = (existsSync(cfFile) ? JSON.parse(readFileSync(cfFile, "utf8")) : {}) as { accountId?: string; accountName?: string } & Partial<Record<Env, EnvResources>>;
 	const { token, accountId } = credentialsFor(env, vars, cf);
 	if (!token || !accountId) throw new Error(`No Cloudflare token/account for ${env}: set CLOUDFLARE_API_TOKEN${env === "production" ? "_PRODUCTION" : ""} and CLOUDFLARE_ACCOUNT_ID${env === "production" ? "_PRODUCTION" : ""} (docs/cloudflare-api-token.md).`);
-	const call = async <T>(method: string, path: string, body?: unknown): Promise<{ ok: boolean; status: number; result?: T; errors?: { code: number; message: string }[] }> => {
+	const call = async <T>(method: string, path: string, body?: unknown): Promise<{ ok: boolean; status: number; result?: T; errors?: { code: number; message: string }[]; info?: { total_pages?: number } }> => {
 		const res = await fetcher(`${API}${path}`, { method, headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
-		const j = (await res.json().catch(() => ({}))) as { success?: boolean; result?: T; errors?: { code: number; message: string }[] };
-		return { ok: res.ok && j.success !== false, status: res.status, ...(j.result !== undefined ? { result: j.result } : {}), ...(j.errors ? { errors: j.errors } : {}) };
+		const j = (await res.json().catch(() => ({}))) as { success?: boolean; result?: T; errors?: { code: number; message: string }[]; result_info?: { total_pages?: number } };
+		return { ok: res.ok && j.success !== false, status: res.status, ...(j.result_info ? { info: j.result_info } : {}), ...(j.result !== undefined ? { result: j.result } : {}), ...(j.errors ? { errors: j.errors } : {}) };
 	};
 	const fail = (what: string, r: { status: number; errors?: { message: string }[] }) => new Error(`${what}: ${r.errors?.map((e) => e.message).join("; ") || `HTTP ${r.status}`}`);
 
@@ -108,27 +110,47 @@ export async function provision(slug: string, env: Env, opts: { location?: strin
 	}
 	next.r2 = { bucket, location };
 
-	// KV form outbox (only for sites that keep one)
-	if (config.forms.outbox) {
-		const title = next.outbox?.name ?? names.kv;
-		const list = await call<{ id: string; title: string }[]>("GET", `/accounts/${accountId}/storage/kv/namespaces?per_page=100`);
-		const ns = list.result?.find((n) => n.title === title);
-		if (ns) {
-			next.outbox = { name: title, id: ns.id };
-			result.reused.push(`KV ${title}`);
-		} else {
-			const made = await call<{ id: string }>("POST", `/accounts/${accountId}/storage/kv/namespaces`, { title });
-			if (!made.ok || !made.result) throw fail(`Creating KV namespace ${title} (Workers KV Storage: Edit)`, made);
-			next.outbox = { name: title, id: made.result.id };
-			result.created.push(`KV ${title}`);
+	// KV namespaces: every page of the account's list (the title is the only key to find an existing one by).
+	let kvList: { id: string; title: string }[] | undefined;
+	const kvNamespaces = async () => {
+		if (kvList) return kvList;
+		const all: { id: string; title: string }[] = [];
+		for (let page = 1; page <= 50; page++) {
+			const r = await call<{ id: string; title: string }[]>("GET", `/accounts/${accountId}/storage/kv/namespaces?per_page=100&page=${page}`);
+			if (!r.ok) throw fail("Listing KV namespaces (Workers KV Storage: Edit)", r);
+			all.push(...(r.result ?? []));
+			if ((r.result ?? []).length < 100 || page >= (r.info?.total_pages ?? page)) break;
 		}
-	}
+		kvList = all;
+		return all;
+	};
+	const kv = async (title: string): Promise<{ name: string; id: string }> => {
+		const ns = (await kvNamespaces()).find((n) => n.title === title);
+		if (ns) {
+			result.reused.push(`KV ${title}`);
+			return { name: title, id: ns.id };
+		}
+		const made = await call<{ id: string }>("POST", `/accounts/${accountId}/storage/kv/namespaces`, { title });
+		if (!made.ok || !made.result) throw fail(`Creating KV namespace ${title} (Workers KV Storage: Edit)`, made);
+		result.created.push(`KV ${title}`);
+		return { name: title, id: made.result.id };
+	};
+
+	// KV form outbox (only for sites that keep one)
+	if (config.forms.outbox) next.outbox = await kv(next.outbox?.name ?? names.kv);
+
+	// KV for Astro sessions (binding SESSION). Bound explicitly in wrangler.jsonc so the first `wrangler deploy` does not
+	// auto-provision it: a deploy that fails after that step leaves "<worker>-session" behind and every retry fails with
+	// 10014 "namespace already exists" (docs/spikes/M8-findings.md). Same title Wrangler uses, so a namespace an earlier
+	// deploy already created is found and reused: nothing changes for an existing site.
+	const workerName = env === "production" ? slug : `${slug}-staging`;
+	next.session = await kv(next.session?.name ?? `${workerName}-session`);
 
 	// workers.dev subdomain: the Worker's preview address until the switch.
 	const sub = await call<{ subdomain?: string }>("GET", `/accounts/${accountId}/workers/subdomain`);
 	if (sub.result?.subdomain) {
 		result.workersSubdomain = sub.result.subdomain;
-		const worker = env === "production" ? slug : `${slug}-staging`;
+		const worker = workerName;
 		next.worker = { name: worker, url: `https://${worker}.${sub.result.subdomain}.workers.dev` };
 	} else result.notes.push("The account has no workers.dev subdomain yet: open Workers & Pages once in the dashboard (it offers one) before the first deploy.");
 

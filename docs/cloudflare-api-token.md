@@ -28,7 +28,7 @@ Dashboard → **My Profile → API Tokens → Create Token → Create Custom Tok
 |---|---|---|---|---|
 | Account | Account Settings | Read | Resolve the account for Wrangler and `emdash migrate` | scaffold, load |
 | Account | Workers Scripts | Edit | Deploy staging and production Workers; set Worker secrets (email provider key, encryption key) | load, cutover |
-| Account | Workers KV Storage | Edit | The `SESSION` namespace Wrangler provisions on first deploy | load |
+| Account | Workers KV Storage | Edit | `wp2emdash provision` creates the form outbox and the `SESSION` namespace (Astro sessions, bound explicitly in `wrangler.jsonc`) | load |
 | Account | Workers R2 Storage | Edit | Create the media buckets (with the right location) | load |
 | Account | D1 | Edit | Create databases; `emdash migrate` (apply, check, release a stuck lock); backups before each load | load, cutover |
 | Account | Workers Tail | Read | Live logs while verifying (`wrangler tail`) | verify |
@@ -80,6 +80,17 @@ weeks out. Name it e.g. `wp2emdash go-live <domain>`.
 **Zone Resources:** Include → Specific zone → the client's domain. Revoke the token after the
 monitoring window (`target.cutover.monitorDays`).
 
+**It must be its own token.** Never reuse token A (or any token with "All zones" / an account-wide zone include) as
+the go-live token. The cutover preflight checks both, without ever printing a token:
+
+- `golive-token-separate` fails when `CLOUDFLARE_GOLIVE_TOKEN` is identical to `CLOUDFLARE_API_TOKEN` (or the
+  `_PRODUCTION` / `_STAGING` variant) — compared by SHA-256 hash.
+- `golive-token-scope` fails when the token can list any zone besides the primary domain and the alias domains
+  (`GET /zones`). Fix: dashboard → My Profile → API Tokens → the token → Edit → Zone Resources → **Include →
+  Specific zone** → the site's domain (and each alias), nothing else.
+
+`wp2emdash golive` refuses a go-live token that is identical to a build token as well.
+
 ### Alias domains (`target.aliasDomains`)
 
 When another domain of the client becomes a permanent 301 to the primary (README → "Two sites, one domain"),
@@ -117,8 +128,10 @@ Verified on 2026-11-20 against Cloudflare's docs:
 CLOUDFLARE_GOLIVE_TOKEN=<token B>
 ```
 
-`pnpm wp2emdash run <slug> cutover` (the read-only preflight) uses it to read the zone, record its DNS and check that
-no Worker route is in the way.
+`pnpm wp2emdash run <slug> cutover` (the read-only preflight) uses it to read the zone, record its DNS, check that
+no Worker route is in the way and check the token's own scope. `pnpm wp2emdash golive <slug>` (the switch; plan only
+without `--yes`) uses it — and only it — for the Worker routes, the alias redirect rules (`--aliases`), the DNS
+comparison and the rollback (`--rollback`). The kit reads it from `sites/<slug>/.env` only, never from the kit `.env`.
 
 ## Where the token goes
 
@@ -141,6 +154,20 @@ pnpm wp2emdash doctor         # verifies the token with Cloudflare; never prints
 1. Dashboard → API Tokens → the token → **Roll** (the old value stops working immediately).
 2. Paste the new value into the kit `.env`.
 3. `pnpm wp2emdash doctor` → *Cloudflare API token: active*.
+
+## GitHub Actions (the client repository)
+
+`pnpm wp2emdash publish <slug>` pushes the project to a private repository and sets the repository **variable**
+`CLOUDFLARE_ACCOUNT_ID`. It never sets the `CLOUDFLARE_API_TOKEN` **secret**: it prints the command and you run it
+yourself, pasting the token when asked:
+
+```bash
+gh secret set CLOUDFLARE_API_TOKEN --repo <owner>/<repo>
+```
+
+Use a build-only token there — token A, or a narrower copy of it for that one account (Account Settings Read, Workers
+Scripts / D1 / R2 / KV edit) — with **no Zone permissions**, never the go-live token. A leaked CI secret can then
+redeploy the site but cannot touch any domain, DNS record or route.
 
 ## Client-owned Cloudflare accounts
 

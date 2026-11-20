@@ -307,7 +307,9 @@ ${i.productionReady ? "" : "Not live yet: WordPress still serves " + i.productio
 
 ## Switch
 
-Add the two Worker routes (zone \`${host}\` → Worker \`${i.workerName}\`). Then: open the site logged out on a phone and
+Add the two Worker routes (zone \`${host}\` → Worker \`${i.workerName}\`) — from the migration kit,
+\`wp2emdash golive <slug>\` shows the plan and, rerun with \`--yes\` after the owner's go-ahead, creates them and
+smoke-tests the domain. Then: open the site logged out on a phone and
 a computer, send a test form, check \`/sitemap.xml\`, and submit it in Google Search Console.
 
 The site itself sends \`www.${host}\` (or the bare domain, whichever is not canonical) and plain \`http://\` to
@@ -315,7 +317,8 @@ ${i.productionUrl} with one permanent redirect, as WordPress did.
 
 ## Rollback
 
-Delete the two Worker routes. WordPress answers again immediately (it keeps running, unreachable, during the
+Delete the two Worker routes (\`wp2emdash golive <slug> --rollback --yes\` in the migration kit deletes exactly the
+ones it created). WordPress answers again immediately (it keeps running, unreachable, during the
 monitoring period). Content edited here after the switch has to be copied back by hand, so note any edits.
 
 ## After

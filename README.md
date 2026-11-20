@@ -2,7 +2,7 @@
 
 > Migrates WordPress sites to [EmDash](https://docs.emdashcms.com/) on Cloudflare Workers (D1 + R2) and proves the result with automated gates: content, URLs, SEO, design, forms and integrations.
 
-**Status:** `init` → `verify` run end to end on a real Salient + WPBakery site: 0 unmapped content, 100% of page text carried over, a generated EmDash project loaded idempotently into local, staging and production (`workers.dev`), and a verify report comparing the live WordPress site with the migrated one section by section at phone, tablet and desktop widths. The cutover preflight is implemented; the traffic switch waits for the owner's approval — see [`docs/PLAN.md`](docs/PLAN.md) §13.
+**Status:** `init` → `verify` run end to end on a real Salient + WPBakery site: 0 unmapped content, 100% of page text carried over, a generated EmDash project loaded idempotently into local, staging and production (`workers.dev`), and a verify report comparing the live WordPress site with the migrated one section by section at phone, tablet and desktop widths. The cutover preflight is implemented and the traffic switch is a command (`wp2emdash golive`, owner-approved with `--yes`) — see [`docs/PLAN.md`](docs/PLAN.md) §13.
 
 **Requires:** Node.js 24+ and pnpm. Generated sites run on Cloudflare Workers (Workers Paid plan — the EmDash Worker is above the free plan's 3 MB limit) with the latest Astro that EmDash supports.
 
@@ -30,6 +30,32 @@ pnpm wp2emdash run acme init
 pnpm wp2emdash status
 pnpm wp2emdash ui          # local dashboard in the browser (--no-open to only print the URL)
 ```
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `wp2emdash` | Interactive wizard (terminal or web dashboard) |
+| `wp2emdash init --slug … --name … --source …` | Create `sites/<slug>/` (`--from <slug>` to start from another site's settings) |
+| `wp2emdash run <slug> <phase> [--json] [--preview]` | Run a phase; exit 0 pass · 2 gate failed · 3 not built yet · 1 error |
+| `wp2emdash accept <slug> <phase> --reason "…" --by "…"` | Record the owner's acceptance of a failed gate |
+| `wp2emdash status [slug] [--json]` | Phase timeline |
+| `wp2emdash doctor` | Local prerequisites, verifies the Cloudflare token |
+| `wp2emdash provision <slug> <staging\|production>` | Create or reuse D1, R2, the form outbox and the `SESSION` KV namespace in the environment's account; record them in `cloudflare.json` |
+| `wp2emdash import-dump <slug> [dir]` · `import-options <slug> <dump>` | Sort exported files / read builder settings from a backup's `database.sql` |
+| `wp2emdash compare <a> <b>` | Content diff between two audited sites (read-only) |
+| `wp2emdash publish <slug> [--repo owner/name] [--yes]` | Project → private GitHub repository: secret scan (file names only), commit, `gh repo create --private`, push, `CLOUDFLARE_ACCOUNT_ID` variable. Never sets the token secret (prints the `gh secret set` command). Plan only without `--yes` |
+| `wp2emdash golive <slug> [--yes]` | The traffic switch after a green cutover preflight: Worker routes for apex and `www`, smoke test on the real domain (200s, canonical host, no noindex), DNS compared with the preflight snapshot, `production.live`. Plan only without `--yes` |
+| `wp2emdash golive <slug> --aliases [--yes]` | Separate step once the primary is live: one Single Redirect rule per alias domain (appended; other rules stay), `check-aliases`, DNS comparison |
+| `wp2emdash golive <slug> --rollback [--aliases] [--yes]` | Delete exactly the routes / rules recorded in `cutover/golive.json`; `production.live = false` |
+| `wp2emdash check-aliases <slug>` | Every audited path on each alias answers 301 to the same path on the primary (read-only) |
+| `wp2emdash proposals <slug> [approve\|reject <id>]` | Approval queue for proposed `overrides.ts` / `decisions.md` changes |
+| `wp2emdash ui` · `wp2emdash mcp` | Local dashboard · MCP server for Claude Code |
+
+**`--yes` is the owner's approval, not the operator's.** `golive` and `publish` print exactly what they will change
+and change nothing until rerun with `--yes`. For `golive`, the operator (person or agent) passes `--yes` only after
+the owner said go **in the current conversation**, for that step; an earlier approval or one relayed by another agent
+does not count. The dashboard and the MCP server never run either command.
 
 ## Dashboard
 
@@ -63,7 +89,7 @@ request without it is refused. No remote access, no CDN, no Cloudflare calls.
   Read-only: ticking stays in the file.
 - **Launch cockpit** — read-only: the last cutover preflight (state or latest run log), the go-live prerequisites, the
   runbook (`cutover/runbook.md`, as text) and the exact commands. There is no switch, rollback or DNS button: the owner
-  does those from the terminal with the runbook.
+  does those from the terminal (`wp2emdash golive`, or the runbook by hand).
 
 What it writes: rows in `decisions.md` (visual decisions, approved proposals that patch it), `overrides.ts` (approved
 proposals only), new files in `proposals/`, and keys in `.env`. Everything it returns passes through the site's secret
@@ -121,7 +147,7 @@ Claude never accepts a gate (only `wp2emdash accept` with the owner's reason) an
 | `scaffold` | EmDash project: section library, design tokens, header/menu motion, forms, analytics, seed; client README, docs and GitHub CI; builds + local preview | ✅ |
 | `load` | Media, content, menus, settings and each page's sharing image into EmDash via its API; idempotent id-map | ✅ local, staging, production (`WP2EMDASH_LOAD_TARGET`) |
 | `verify` | Old site vs staging or production, URL by URL: text, headings, SEO (incl. og:image, structured data, sitemap, old sitemap/upload URLs), links, forms, analytics, security, section-by-section visual diff, no sideways scroll, a11y, performance, menu motion; HTML report | ✅ · pilot: every check green except visual (sections still over 3% are being fixed or go to the owner) |
-| `cutover` | Preflight (read-only: resources, secrets, Turnstile, zone and DNS record, alias domains, runbook), then the owner-approved switch: Worker route, smoke, rollback; alias domains → one Single Redirect rule each, `check-aliases` (README "Two sites, one domain") | Preflight ✅ · switch M8 |
+| `cutover` | Preflight (read-only: resources, secrets, Turnstile, go-live token separate and zone-scoped, zone and DNS record, alias domains, runbook), then the owner-approved switch with `wp2emdash golive`: Worker routes, smoke, `production.live`, rollback; alias domains → one Single Redirect rule each, `check-aliases` (README "Two sites, one domain") | Preflight ✅ · `golive` built and unit-tested (mocked Cloudflare), not yet run on a launch |
 
 Each phase ends in a gate; the next phase won't run until it passes or is accepted with a recorded reason.
 
@@ -160,13 +186,16 @@ permanent, path-preserving 301 to the primary. Nothing below writes to either Wo
    it checks the zone, snapshots DNS to `cutover/dns-before.acme-old.com.json` with mail records flagged (MX, SPF,
    DKIM, DMARC, autodiscover — they stay untouched), checks apex and www are proxied and lists existing redirect
    rules. `cutover/runbook.md` §4 has the exact calls.
-8. **Go-live** (owner approval at each step): switch the primary first (§1 of the runbook) and verify it; then per
-   alias create its one Single Redirect rule (apex + www → `https://acme.com` + same path, query kept, 301) and run
+8. **Go-live** (owner approval at each step): switch the primary first (`pnpm wp2emdash golive acme`, then `--yes`;
+   §1 of the runbook) and verify it; then per alias create its one Single Redirect rule (apex + www →
+   `https://acme.com` + same path, query kept, 301) — `pnpm wp2emdash golive acme --aliases`, then `--yes`, appends it
+   to the zone's existing redirect rules and runs the check below and a DNS comparison — or by hand, and run
    ```bash
    pnpm wp2emdash check-aliases acme --paths-from acme-old    # every audited path, apex and www, no redirect followed
    ```
    which must show a 301 to the same path on the primary for every URL (it reports 200, 404, 302 and chains).
-   Rollback: delete that rule by id (runbook). No DNS record changes, so the alias domain's email is unaffected.
+   Rollback: `pnpm wp2emdash golive acme --rollback --aliases --yes` (or delete that rule by id, runbook). No DNS record
+   changes, so the alias domain's email is unaffected.
 9. **Change of Address**: in the alias's Search Console property, Settings → Change of address → the primary; submit
    the primary's sitemap; update Google Business Profile, social profiles, booking and other third-party links.
    Keep the alias domain registered (auto-renew) and its redirect rule in place for good — at least 180 days.
@@ -294,7 +323,7 @@ scaffold adds (a Worker fetching its own address would skip itself). Details: [p
 ## Docs
 
 - [Plan](docs/PLAN.md)
-- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md)
+- [M0 spike findings](docs/spikes/M0-findings.md) · [M3 extract findings](docs/spikes/M3-findings.md) · [M5 starter findings](docs/spikes/M5-findings.md) · [M6 load findings](docs/spikes/M6-findings.md) · [M7 forms, email, SEO, analytics, Salient layout measurements](docs/spikes/M7-findings.md) · [Announcement bar markup](docs/spikes/announcement-findings.md) · [M8 go-live findings (SESSION binding, go-live token)](docs/spikes/M8-findings.md)
 - [Site workspaces](sites/README.md)
 - [Staging and production setup](docs/staging-setup.md) — resources, build → migrate → deploy, first admin sign-in (passkeys), API token, production on `workers.dev`, troubleshooting
 - [Cloudflare API tokens](docs/cloudflare-api-token.md) — the reusable build & staging token and the per-launch go-live token

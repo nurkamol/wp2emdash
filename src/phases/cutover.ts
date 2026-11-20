@@ -15,6 +15,7 @@ import { credentialsFor } from "../commands/provision.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import { remoteTarget } from "../targets/remote.js";
 import { type AliasPlan, aliasPreflight, aliasRunbook, primaryHost } from "../cutover/aliases.js";
+import { goliveTokenChecks } from "../cutover/token.js";
 import type { PhaseContext } from "./index.js";
 
 const API = "https://api.cloudflare.com/client/v4";
@@ -109,6 +110,8 @@ export async function runCutover({ config, paths, reporter }: PhaseContext): Pro
 	let records: DnsRecord[] = [];
 	if (!golive) check("zone", `Zone ${domain} on Cloudflare (go-live token)`, false, "Create the go-live token (docs/cloudflare-api-token.md, token B) and set CLOUDFLARE_GOLIVE_TOKEN in sites/<slug>/.env");
 	else {
+		// Token hygiene: a separate token (never the build token), scoped to this site's zones only.
+		checks.push(...(await goliveTokenChecks({ golive, vars: { ...process.env, ...env }, allowedZones: [domain, ...config.target.aliasDomains] })));
 		const z = await cf<{ id: string; status: string; name: string; account?: { id: string; name?: string } }[]>(golive, `/zones?name=${domain}`);
 		const zone = z.result?.[0];
 		zoneId = zone?.id;
@@ -189,6 +192,15 @@ ZONE=${zone}
 - Production settings in the admin: site title, SEO, email; editors invited.
 
 ## 1. Switch (seconds, no DNS change)
+
+**With the kit** (recommended): \`pnpm wp2emdash golive <slug>\` prints exactly what it will change and changes
+nothing. After the owner's go-ahead, \`pnpm wp2emdash golive <slug> --yes\` creates the two routes (skips one already
+pointing at \`${o.worker}\`, stops on a route pointing elsewhere), smoke-tests the domain (200s, canonical host, no
+noindex), compares DNS with \`cutover/dns-before.json\`, sets \`cloudflare.json\` → \`production.live\` and records the
+route ids in \`cutover/golive.json\`. Rollback: \`pnpm wp2emdash golive <slug> --rollback --yes\` deletes exactly those
+routes.${o.aliases?.length ? ` Alias domains (§4) are a separate confirmed step: \`pnpm wp2emdash golive <slug> --aliases --yes\`.` : ""}
+
+**By hand** (the same calls):
 
 \`\`\`bash
 for host in ${o.domain} www.${o.domain}; do

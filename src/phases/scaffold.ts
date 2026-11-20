@@ -52,9 +52,18 @@ export const STACK = {
 	pnpm: "11.18.0",
 } as const;
 
-interface CloudflareResources {
-	staging?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; outbox?: { id: string } };
-	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; live?: boolean; outbox?: { id: string } };
+export interface CloudflareResources {
+	staging?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; outbox?: { id: string }; session?: { id: string } };
+	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; live?: boolean; outbox?: { id: string }; session?: { id: string } };
+}
+
+/**
+ * KV bindings of one environment in wrangler.jsonc: the form outbox (sites that keep one) and SESSION (Astro sessions)
+ * once provision recorded its namespace. An explicit SESSION binding keeps the Cloudflare adapter from adding a bare one
+ * that Wrangler auto-provisions on the first deploy (docs/spikes/M8-findings.md).
+ */
+export function kvBindings(cf: CloudflareResources, e: "staging" | "production", outbox: boolean): { binding: string; id: string }[] {
+	return [...(outbox && cf[e]?.outbox?.id ? [{ binding: "FORM_OUTBOX", id: cf[e]?.outbox?.id as string }] : []), ...(cf[e]?.session?.id ? [{ binding: "SESSION", id: cf[e]?.session?.id as string }] : [])];
 }
 
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
@@ -459,7 +468,14 @@ export default defineConfig({
 	// Forms: provider and addresses are config (not secrets); the API key and Turnstile secret are Wrangler secrets.
 	// Staging uses Cloudflare's always-pass Turnstile test keys (public test values, developers.cloudflare.com/turnstile/troubleshooting/testing).
 	const outboxDays = outboxVars(config.forms.outbox);
-	const outboxKv = (e: "staging" | "production") => (config.forms.outbox && cf[e]?.outbox?.id ? `,\n\t"kv_namespaces": [${JSON.stringify({ binding: "FORM_OUTBOX", id: cf[e]?.outbox?.id })}]` : "");
+	// KV: the form outbox, and SESSION (Astro sessions) bound explicitly once provision recorded it. Without an id the
+	// Cloudflare adapter adds a bare SESSION binding and Wrangler auto-provisions it on the first deploy, which leaves an
+	// orphan "<worker>-session" namespace when that deploy fails (docs/spikes/M8-findings.md).
+	const kvJson = (e: "staging" | "production") => {
+		const kv = kvBindings(cf, e, !!config.forms.outbox);
+		return kv.length ? `,\n\t"kv_namespaces": [${kv.map((x) => JSON.stringify(x)).join(", ")}]` : "";
+	};
+	for (const e of ["staging", "production"] as const) if (cf[e]?.d1?.id && !cf[e]?.session?.id) reporter.emit({ type: "log", level: "warn", message: `${e}: no SESSION namespace recorded in cloudflare.json; run \`wp2emdash provision ${config.slug} ${e}\` so the first deploy does not auto-provision it` });
 	const formVars = { ...outboxDays, EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
 	const prodVars = { ...formVars, ...(config.forms.turnstileSiteKey ? { TURNSTILE_SITE_KEY: config.forms.turnstileSiteKey } : {}) };
 	// Staging never emails the client: only email.stagingTo, else everything stays held in the outbox.
@@ -481,7 +497,7 @@ export default defineConfig({
 	"d1_databases": [${d1("production", `${workerName}-db`)}],
 	"r2_buckets": [${r2("production", `${workerName}-media`)}],
 	"vars": ${JSON.stringify(prodVars)},
-	"ratelimits": ${limiter(ns)}${outboxKv("production")},
+	"ratelimits": ${limiter(ns)}${kvJson("production")},
 	"triggers": { "crons": ["*/5 * * * *"] },${loader("production") ? `
 	// Runs the sandboxed plugins (Cloudflare Worker Loader, Workers Paid).
 	"worker_loaders": [{ "binding": "LOADER" }],` : ""}${seoPanel ? `
@@ -493,7 +509,7 @@ export default defineConfig({
 		"staging": {
 			"name": ${JSON.stringify(`${workerName}-staging`)},
 			"vars": ${JSON.stringify(stagingVars)},
-			"ratelimits": ${limiter(ns + 1)}${outboxKv("staging").replace(/\n\t/g, "\n\t\t\t")},
+			"ratelimits": ${limiter(ns + 1)}${kvJson("staging").replace(/\n\t/g, "\n\t\t\t")},
 			"d1_databases": [${d1("staging", `${workerName}-staging-db`)}],
 			"r2_buckets": [${r2("staging", `${workerName}-staging-media`)}]${loader("staging") ? `,
 			"worker_loaders": [{ "binding": "LOADER" }]` : ""}${seoPanel ? `,
