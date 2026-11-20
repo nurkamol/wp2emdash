@@ -1,0 +1,369 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "54255bd8e6"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Visit us",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Opening hours",
+                "marks": [
+                  "strong"
+                ]
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Monday to Friday, 7 am to 8 pm.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Classes for every level.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Private sessions on request.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Book a class",
+            "href": "/contact/",
+            "style": "primary",
+            "newTab": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "media_text",
+      "variant": "stacked",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]",
+        "rawHash": "90d9948df8"
+      },
+      "fields": {
+        "media": [
+          {
+            "wpId": 31,
+            "url": "https://studio.example/wp-content/uploads/2024/05/room.jpg",
+            "kind": "image",
+            "alt": "The studio"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "The main studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [],
+        "mediaSide": "right",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "video",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[3]",
+        "rawHash": "fcd4acc944"
+      },
+      "fields": {
+        "embedUrl": "https://www.youtube.com/watch?v=abc123"
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[4]",
+        "rawHash": "2831a5ca0b"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tc",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "td",
+                "text": "Our welcome message:",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "te",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tg",
+                "text": "welcome.mp3",
+                "marks": [
+                  "tf"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "tf",
+                "href": "https://studio.example/wp-content/uploads/2024/05/welcome.mp3"
+              }
+            ]
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[5]",
+        "rawHash": "604b2b43ff"
+      },
+      "fields": {
+        "intro": [
+          {
+            "_type": "block",
+            "_key": "th",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "ti",
+                "text": "Questions? Write to us.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "formRef": {
+          "provider": "forminator",
+          "id": "12"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "form",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[6]",
+        "rawHash": "75aaf6204b"
+      },
+      "fields": {
+        "intro": [],
+        "formRef": {
+          "provider": "ninja-forms",
+          "id": "3"
+        },
+        "aside": []
+      }
+    },
+    {
+      "type": "gallery",
+      "variant": "grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[7]",
+        "rawHash": "3448086e98"
+      },
+      "fields": {
+        "images": [
+          {
+            "wpId": 31,
+            "kind": "image"
+          },
+          {
+            "wpId": 32,
+            "kind": "image"
+          }
+        ],
+        "layout": "grid",
+        "lightbox": true
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [rank_math_breadcrumb]: breadcrumb trail of the SEO plugin, left out of the content (flagged: breadcrumbs)",
+      "path": "vc_row[0]/vc_column[0]/vc_column_text[0]/rank_math_breadcrumb[1]",
+      "tag": "rank_math_breadcrumb"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [su_box]: layout/styling wrapper removed, its content kept",
+      "path": "vc_row[0]/vc_column[0]/vc_column_text[0]/su_box[3]",
+      "tag": "su_box"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [one_half]: layout/styling wrapper removed, its content kept",
+      "path": "vc_row[0]/vc_column[0]/vc_column_text[0]/one_half[5]",
+      "tag": "one_half"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [one_half_last]: layout/styling wrapper removed, its content kept",
+      "path": "vc_row[0]/vc_column[0]/vc_column_text[0]/one_half_last[6]",
+      "tag": "one_half_last"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "shortcode [addtoany]: share buttons (AddToAny) not rebuilt in the content (a site widget can bring it back)",
+      "path": "vc_row[0]/vc_column[0]/vc_column_text[0]/addtoany[10]",
+      "tag": "addtoany"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "shortcode [tablepress]: table (TablePress) not rebuilt in the content (it shows the site's content: replace it with a section, or decide in overrides.ts)",
+      "path": "vc_row[1]/vc_column[0]/vc_column_text[0]/tablepress[0]",
+      "carriesContent": true,
+      "tag": "tablepress"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "shortcode [acme_widget]: unknown plugin shortcode, its output is not rebuilt (add it to the shortcode registry or a handler, or decide in overrides.ts)",
+      "path": "vc_row[1]/vc_column[0]/vc_column_text[0]/acme_widget[2]",
+      "carriesContent": true,
+      "tag": "acme_widget"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [caption]: captioned image: the picture and its caption text kept, in order",
+      "path": "vc_row[2]/vc_column[0]/vc_column_text[0]/caption[0]",
+      "tag": "caption"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "shortcode [audio]: audio player rebuilt as a link to the file (no audio section)",
+      "path": "vc_row[4]/vc_column[0]/vc_column_text[0]/audio[1]",
+      "tag": "audio"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "Stacked image + text in one column converted to media_text",
+      "path": "vc_row[2]"
+    }
+  ]
+}

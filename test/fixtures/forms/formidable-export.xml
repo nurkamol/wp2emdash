@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<channel>
+	<title>Synthetic Studio</title>
+	<form>
+		<id>7</id>
+		<form_key>contact</form_key>
+		<name><![CDATA[Contact us]]></name>
+		<description><![CDATA[]]></description>
+		<is_template>0</is_template>
+		<status>published</status>
+		<options><![CDATA[{"submit_value":"Send it","success_action":"message","success_msg":"<p>Got it, thank you.</p>"}]]></options>
+		<field>
+			<id>21</id>
+			<field_key>nm7</field_key>
+			<name><![CDATA[Your name]]></name>
+			<type>text</type>
+			<field_order>0</field_order>
+			<form_id>7</form_id>
+			<required>1</required>
+			<options><![CDATA[]]></options>
+			<field_options><![CDATA[{"placeholder":"Jane Doe"}]]></field_options>
+		</field>
+		<field>
+			<id>22</id>
+			<field_key>em7</field_key>
+			<name><![CDATA[Email]]></name>
+			<type>email</type>
+			<field_order>1</field_order>
+			<form_id>7</form_id>
+			<required>1</required>
+			<options><![CDATA[]]></options>
+			<field_options><![CDATA[{}]]></field_options>
+		</field>
+		<field>
+			<id>23</id>
+			<field_key>ct7</field_key>
+			<name><![CDATA[Contact me by]]></name>
+			<type>select</type>
+			<field_order>2</field_order>
+			<form_id>7</form_id>
+			<required>0</required>
+			<options><![CDATA[["Email","Phone"]]]></options>
+			<field_options><![CDATA[{}]]></field_options>
+		</field>
+		<field>
+			<id>24</id>
+			<field_key>ph7</field_key>
+			<name><![CDATA[Phone]]></name>
+			<type>phone</type>
+			<field_order>3</field_order>
+			<form_id>7</form_id>
+			<required>1</required>
+			<options><![CDATA[]]></options>
+			<field_options><![CDATA[{"hide_field":["23"],"hide_field_cond":["=="],"hide_opt":["Phone"],"show_hide":"show","any_all":"any"}]]></field_options>
+		</field>
+		<field>
+			<id>25</id>
+			<field_key>br7</field_key>
+			<name><![CDATA[Details]]></name>
+			<type>break</type>
+			<field_order>4</field_order>
+			<form_id>7</form_id>
+			<required>0</required>
+			<options><![CDATA[]]></options>
+			<field_options><![CDATA[{}]]></field_options>
+		</field>
+		<field>
+			<id>26</id>
+			<field_key>ms7</field_key>
+			<name><![CDATA[Message]]></name>
+			<type>textarea</type>
+			<field_order>5</field_order>
+			<form_id>7</form_id>
+			<required>0</required>
+			<options><![CDATA[]]></options>
+			<field_options><![CDATA[{}]]></field_options>
+		</field>
+		<field>
+			<id>27</id>
+			<field_key>fl7</field_key>
+			<name><![CDATA[Floor plan]]></name>
+			<type>file</type>
+			<field_order>6</field_order>
+			<form_id>7</form_id>
+			<required>0</required>
+			<options><![CDATA[]]></options>
+			<field_options><![CDATA[{"ftypes":{"pdf":"application/pdf","jpg|jpeg|jpe":"image/jpeg"},"size":"8","multiple":"1","max":"3"}]]></field_options>
+		</field>
+		<field>
+			<id>28</id>
+			<field_key>cc7</field_key>
+			<name><![CDATA[Card]]></name>
+			<type>credit_card</type>
+			<field_order>7</field_order>
+			<form_id>7</form_id>
+			<required>0</required>
+			<options><![CDATA[]]></options>
+			<field_options><![CDATA[{}]]></field_options>
+		</field>
+	</form>
+	<form>
+		<id>99</id>
+		<form_key>tpl</form_key>
+		<name><![CDATA[A template]]></name>
+		<is_template>1</is_template>
+		<status>published</status>
+		<options><![CDATA[{}]]></options>
+		<field><id>1</id><field_key>x</field_key><name>X</name><type>text</type><field_order>0</field_order><required>0</required><options></options><field_options>{}</field_options></field>
+	</form>
+	<item>
+		<title>Email Notification</title>
+		<wp:post_type>frm_form_actions</wp:post_type>
+		<wp:menu_order>7</wp:menu_order>
+		<content:encoded><![CDATA[{"email_to":"office@studio.example","email_subject":"New message"}]]></content:encoded>
+	</item>
+</channel>

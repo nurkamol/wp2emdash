@@ -13,8 +13,22 @@ export type { ContentBlock, InlinePart } from "./rich.js";
  * - signature — a drawn signature (PNG) or a typed full name (`<name>_typed`); see signature.ts;
  * - content — not an input: text shown in field order (`content`: paragraphs, lists, headings, safe links), e.g.
  *   the terms of a waiver. It is copied into the emailed record so the email shows what the visitor agreed to.
+ * - file — a file upload (uploads.ts): checked by size, extension and first bytes, stored in the site's R2 bucket under a
+ *   private prefix (never served publicly) and emailed as a one-time signed download link. Needs the MEDIA binding and
+ *   the FORM_FILE_SECRET Worker secret; sites with sensitive data get none unless the owner allowed them.
+ *
+ * Any field may carry `showIf` (shown only when another field has one of the given values; the server ignores a hidden
+ * field, so a hidden required field never blocks a send) and `step` (multi-step forms: the page shows one step at a
+ * time when JavaScript runs, all of them without it; the server always validates every visible field).
  */
-export type FormFieldType = "text" | "email" | "tel" | "number" | "url" | "date" | "textarea" | "select" | "checkbox" | "radio" | "consent" | "signature" | "content";
+export type FormFieldType = "text" | "email" | "tel" | "number" | "url" | "date" | "textarea" | "select" | "checkbox" | "radio" | "consent" | "signature" | "content" | "file";
+
+/** Show a field only when another field's value is (or, with `not`, is not) one of `equals`. A checkbox counts as "yes" when ticked. */
+export interface ShowIf {
+	field: string;
+	equals: string[];
+	not?: boolean;
+}
 
 export interface FormField {
 	name: string;
@@ -33,6 +47,16 @@ export interface FormField {
 	labelParts?: InlinePart[];
 	/** content: the blocks to show. */
 	content?: ContentBlock[];
+	/** file: allowed extensions without the dot (a subset of uploads.ts UPLOAD_TYPES; default: documents and pictures). */
+	accept?: string[];
+	/** file: largest file in MB (default 10, at most 25). */
+	maxMb?: number;
+	/** file: how many files one visitor may attach (default 1, at most 5). */
+	maxFiles?: number;
+	/** Conditional field: see ShowIf. */
+	showIf?: ShowIf;
+	/** Multi-step forms: the step (0-based) this field is on. */
+	step?: number;
 }
 export interface FormDefinition {
 	id: string;
@@ -46,4 +70,6 @@ export interface FormDefinition {
 	notice?: string;
 	/** After a successful send: hide the form and show the message, or reset it (default). */
 	afterSubmit?: "hide" | "reset";
+	/** Multi-step forms: one title per step (fields carry `step`). */
+	steps?: { title: string }[];
 }

@@ -1,0 +1,36 @@
+{
+	"settings": {
+		"title": "Book a visit",
+		"conditions": [
+			{
+				"when": [{ "connector": "AND", "key": "visit_type", "comparator": "equal", "value": "group" }],
+				"then": [{ "key": "group_size", "trigger": "show_field" }],
+				"else": [{ "key": "group_size", "trigger": "hide_field" }]
+			},
+			{
+				"when": [{ "connector": "AND", "key": "visit_type", "comparator": "greater", "value": "2" }],
+				"then": [{ "key": "notes", "trigger": "show_field" }]
+			}
+		],
+		"formContentData": [
+			{ "title": "About you", "formContentData": ["firstname", "lastname", "email", "phone"] },
+			{ "title": "Your visit", "formContentData": ["visit_type", "group_size", "notes", "attachment", "submit"] }
+		]
+	},
+	"fields": [
+		{ "type": "firstname", "label": "First name", "key": "firstname", "required": 1, "order": 1 },
+		{ "type": "lastname", "label": "Last name", "key": "lastname", "required": 1, "order": 2 },
+		{ "type": "email", "label": "Email", "key": "email", "required": 1, "order": 3 },
+		{ "type": "phone", "label": "Phone", "key": "phone", "required": 0, "order": 4, "placeholder": "555-0100" },
+		{ "type": "listradio", "label": "Visit type", "key": "visit_type", "required": 1, "order": 5, "options": [{ "label": "Solo", "value": "solo" }, { "label": "Group", "value": "group" }] },
+		{ "type": "number", "label": "Group size", "key": "group_size", "required": 1, "order": 6 },
+		{ "type": "textarea", "label": "Notes", "key": "notes", "order": 7 },
+		{ "type": "file_upload", "label": "Medical clearance", "key": "attachment", "order": 8, "upload_types": "pdf, jpg", "max_file_size": "4" },
+		{ "type": "product", "label": "Day pass", "key": "day_pass", "order": 9 },
+		{ "type": "submit", "label": "Request booking", "key": "submit", "order": 10 }
+	],
+	"actions": [
+		{ "type": "email", "label": "Admin email", "to": "frontdesk@studio.example", "active": 1 },
+		{ "type": "successmessage", "label": "Success", "success_msg": "<p>Thanks, we will confirm your visit.</p>", "active": 1 }
+	]
+}

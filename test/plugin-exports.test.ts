@@ -50,10 +50,10 @@ describe("forms from plugin exports", () => {
 		expect(f?.definition?.id).toBe("gravity-forms-3");
 		expect(f?.definition?.submitLabel).toBe("Send message");
 		expect(f?.definition?.successMessage).toBe("Thanks, we'll reply soon.");
-		expect(f?.definition?.fields.map((x) => `${x.name}:${x.type}${x.required ? "*" : ""}`)).toEqual(["first_name:text*", "last_name:text*", "email:email*", "topic:select", "message:textarea", "consent:checkbox*"]);
+		expect(f?.definition?.fields.map((x) => `${x.name}:${x.type}${x.required ? "*" : ""}`)).toEqual(["first_name:text*", "last_name:text*", "email:email*", "topic:select", "message:textarea", "consent:checkbox*", "cv:file"]);
 		expect(f?.definition?.fields[4]?.label).toBe("Message");
 		expect(f?.definition?.fields[5]?.label).toBe("I agree to the terms");
-		expect(f?.definition?.warnings.join()).toMatch(/fileupload/);
+		expect(f?.definition?.warnings).toEqual([]);
 		expect(f?.recipients).toEqual(["owner@acme.example", "team@acme.example"]);
 	});
 
@@ -90,10 +90,12 @@ describe("forms from plugin exports", () => {
 		expect(d?.id).toBe("contact-form-7-55");
 		expect(d?.submitLabel).toBe("Book now");
 		expect(d?.successMessage).toMatch(/^Thank you for your message/);
-		expect(d?.fields.map((x) => `${x.name}:${x.type}${x.required ? "*" : ""}:${x.label}`)).toEqual(["your_name:text*:Your name", "your_email:email*:Your email", "your_phone:tel:Phone", "topic:select:topic", "your_message:textarea:Your message (optional)", "terms:checkbox*:I agree to the privacy policy"]);
+		expect(d?.fields.map((x) => `${x.name}:${x.type}${x.required ? "*" : ""}:${x.label}`)).toEqual(["your_name:text*:Your name", "your_email:email*:Your email", "your_phone:tel:Phone", "topic:select:topic", "your_message:textarea:Your message (optional)", "terms:checkbox*:I agree to the privacy policy", "cv:file:cv"]);
 		expect(d?.fields[2]?.placeholder).toBe("555-0100");
 		expect(d?.fields[3]?.options).toEqual(["Classes", "Private sessions"]);
-		expect(d?.warnings.join()).toMatch(/file upload "cv"/);
+		// File uploads are carried since forms 1.7 (CF7's default limit: 1 MB).
+		expect(d?.fields[6]).toMatchObject({ type: "file", maxMb: 1 });
+		expect(d?.warnings).toEqual([]);
 		expect(f[0]?.recipients).toEqual(["studio@acme.example"]);
 	});
 

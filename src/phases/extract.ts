@@ -16,7 +16,7 @@ import { WpClient, WpHttpError, versionAtLeast } from "../extract/client.js";
 import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.js";
 import { bricksMediaRefs, bricksOptionsNote, readBricksOptions, usesBricks } from "../extract/bricks.js";
 import { elementorMediaRefs, elementorNote, readElementorOptions, usesElementor } from "../extract/elementor.js";
-import { type RedirectRule, recognise, type Unconverted } from "../extract/plugin-exports.js";
+import { formFromSnapshot, type RedirectRule, recognise, type Unconverted } from "../extract/plugin-exports.js";
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
 import { type CustomCss, customCssFromHtml } from "../transform/custom-css.js";
 import type { PhaseContext } from "./index.js";
@@ -337,6 +337,11 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 				const out = f.raw ? { ...f.raw, recipients: f.recipients ?? [], source: file } : { provider: f.provider, id: f.id, title: f.title, status: f.status, definition: f.definition, recipients: f.recipients ?? [], source: file };
 				write(join(raw, "forms", f.provider, `${f.id}.json`), out);
 				formsSummary.push({ provider: f.provider, id: f.id, title: f.title, status: f.status, fields: f.definition?.fields.length ?? 0, notifications: f.recipients?.length ?? 0, ok: true });
+				// The same form under the other id pages embed it with (CF7 5.8+ short hash): its own definition file.
+				for (const alias of f.aliases ?? []) {
+					write(join(raw, "forms", f.provider, `${alias}.json`), { ...out, id: alias, aliasOf: f.id, ...(f.definition ? { definition: { ...f.definition, id: `${f.provider}-${alias}` } } : {}) });
+					formsSummary.push({ provider: f.provider, id: alias, title: f.title, status: f.status, fields: f.definition?.fields.length ?? 0, notifications: f.recipients?.length ?? 0, ok: true });
+				}
 			}
 		}
 		// Later files win for the same source (an owner may send an updated export).
@@ -348,6 +353,17 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 		reporter.emit({ type: "step:end", step: "Plugin exports", ok: unread.length === 0, detail: `${dropped.length} files, ${formsSummary.length} forms, ${bySource.size} redirects` });
 	}
 
+	// Rendered-HTML fallback: a live form without a plugin export is rebuilt from the audit's view of its HTML, with a
+	// warning that keeps scaffold's forms gate red until someone checks it against the live form (formFromSnapshot).
+	for (const af of auditIntegrations.filter((i) => i.kind === "form" && i.form).map((i) => i.form as Parameters<typeof formFromSnapshot>[0])) {
+		if (!["ninja-forms", "formidable", "ws-form", "forminator", "contact-form-7", "wpforms", "gravity-forms"].includes(af.provider) || !af.providerFormId) continue;
+		if (formsSummary.some((f) => f.ok && f.provider === af.provider && f.id === af.providerFormId)) continue;
+		const f = formFromSnapshot(af);
+		if (!f?.definition) continue;
+		write(join(raw, "forms", f.provider, `${f.id}.json`), { provider: f.provider, id: f.id, title: f.title, status: f.status, definition: f.definition, recipients: [], source: "rendered-html" });
+		formsSummary.push({ provider: f.provider, id: f.id, title: f.title, status: f.status, fields: f.definition.fields.length, notifications: 0, ok: true });
+		notes.push(`${f.provider} form #${f.id}: no plugin export, rebuilt from the live page's HTML (${f.definition.fields.length} fields): check it against the live form; recipients come from kit.config.`);
+	}
 	const missingForms = auditForms.filter((af) => !formsSummary.some((f) => f.ok && f.provider === af.provider && f.id === af.providerFormId));
 	check(
 		"forms",

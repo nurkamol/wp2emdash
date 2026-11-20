@@ -244,10 +244,98 @@ if (!reduce && "IntersectionObserver" in window) {
 }
 // Signature fields: the drawing pad (without JavaScript the typed-name input is the signature).
 mountSignaturePads();
+/**
+ * Conditional fields (data-show-if, the definition's `showIf`): shown only while the field they depend on has one of the
+ * values; a hidden field's inputs are disabled, so they are neither validated nor sent. Without JavaScript every field
+ * shows and the server ignores the ones that do not apply (packages/forms/src/logic.ts).
+ */
+function applyConditions(form: HTMLFormElement): void {
+	const valuesOf = (name: string): string[] => {
+		const inputs = [...form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[name="${CSS.escape(name)}"]`)].filter((i) => !i.disabled);
+		return inputs.flatMap((i) => (i instanceof HTMLInputElement && (i.type === "checkbox" || i.type === "radio") ? (i.checked ? [i.type === "checkbox" && !form.querySelector(`[data-field="${CSS.escape(name)}"].field--checkbox-group`) ? "yes" : i.value] : []) : [i.value]));
+	};
+	// Twice: a field depending on a field that was just hidden follows it.
+	for (let pass = 0; pass < 2; pass++) {
+		for (const el of form.querySelectorAll<HTMLElement>("[data-show-if]")) {
+			let rule: { field: string; equals: string[]; not?: boolean };
+			try {
+				rule = JSON.parse(el.dataset.showIf ?? "");
+			} catch {
+				continue;
+			}
+			const values = valuesOf(rule.field).map((x) => x.trim().toLowerCase());
+			const hit = values.some((x) => rule.equals.map((w) => w.trim().toLowerCase()).includes(x));
+			const show = rule.not ? !hit : hit;
+			el.hidden = !show;
+			for (const input of el.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input, select, textarea")) input.disabled = !show;
+		}
+	}
+}
+/**
+ * Multi-step forms (data-steps): one step at a time with Back/Next; Next checks the current step's fields first. Without
+ * JavaScript all steps show as one form. The server validates every field either way.
+ */
+function mountSteps(form: HTMLFormElement): void {
+	const steps = [...form.querySelectorAll<HTMLElement>(".form__step[data-step]")];
+	if (steps.length < 2) return;
+	const progress = form.querySelector<HTMLElement>("[data-form-progress]");
+	const tail = [...form.querySelectorAll<HTMLElement>(":scope > .form__notice, :scope > .cf-turnstile, :scope > button[type=submit]")];
+	let at = 0;
+	const show = (i: number, focus: boolean) => {
+		at = i;
+		steps.forEach((s, j) => {
+			s.hidden = j !== i;
+			const nav = s.querySelector<HTMLElement>("[data-form-nav]");
+			if (nav) nav.hidden = false;
+		});
+		for (const t of tail) t.hidden = i !== steps.length - 1;
+		if (progress) {
+			progress.hidden = false;
+			progress.textContent = `Step ${i + 1} of ${steps.length}`;
+		}
+		if (focus) steps[i]?.querySelector<HTMLElement>("input:not([type=hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled)")?.focus();
+	};
+	form.addEventListener("click", (e) => {
+		const t = e.target as HTMLElement;
+		if (t.closest("[data-step-back]")) show(Math.max(0, at - 1), true);
+		else if (t.closest("[data-step-next]")) {
+			const invalid = [...(steps[at]?.querySelectorAll<HTMLInputElement>("input, select, textarea") ?? [])].find((i) => !i.disabled && !i.checkValidity());
+			if (invalid) invalid.reportValidity();
+			else show(Math.min(steps.length - 1, at + 1), true);
+		}
+	});
+	// A server error on a field of an earlier step: go back to that step.
+	form.addEventListener("form:invalid", (e) => {
+		const name = (e as CustomEvent<string>).detail;
+		const i = steps.findIndex((s) => s.querySelector(`[data-field="${CSS.escape(name)}"]`));
+		if (i >= 0 && i < at) show(i, true);
+	});
+	form.addEventListener("form:reset", () => show(0, false));
+	show(0, false);
+}
+/** File fields: size and count checked before sending (the server checks again, with the file's first bytes). */
+function checkFiles(form: HTMLFormElement): boolean {
+	for (const input of form.querySelectorAll<HTMLInputElement>('input[type="file"]:not(:disabled)')) {
+		const max = Number(input.dataset.maxMb ?? 10) * 1024 * 1024;
+		const most = Number(input.dataset.maxFiles ?? 1);
+		const files = [...(input.files ?? [])];
+		const msg = files.length > most ? `Choose at most ${most} file${most > 1 ? "s" : ""}.` : files.some((f) => f.size > max) ? `Each file can be at most ${input.dataset.maxMb ?? 10} MB.` : "";
+		input.setCustomValidity(msg);
+		if (msg) return input.reportValidity();
+	}
+	return true;
+}
 for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")) {
+	if (form.querySelector("[data-show-if]")) {
+		applyConditions(form);
+		form.addEventListener("input", () => applyConditions(form));
+		form.addEventListener("change", () => applyConditions(form));
+	}
+	mountSteps(form);
 	form.addEventListener("submit", async (e) => {
 		e.preventDefault();
 		const status = form.querySelector<HTMLElement>(".form__status");
+		if (!checkFiles(form)) return;
 		if (!form.checkValidity()) {
 			form.reportValidity();
 			return;
@@ -266,10 +354,13 @@ for (const form of document.querySelectorAll<HTMLFormElement>("form[data-form]")
 				const err = field?.querySelector<HTMLElement>(".field__error");
 				if (err) err.textContent = msg;
 				field?.querySelector<HTMLElement>("input:not([type=hidden]), textarea, select")?.setAttribute("aria-invalid", "true");
+				form.dispatchEvent(new CustomEvent("form:invalid", { detail: name }));
 			}
 			if (res.ok) {
 				track("lead", form.dataset.form ?? "form");
 				form.reset();
+				applyConditions(form);
+				form.dispatchEvent(new Event("form:reset"));
 				// Fluent "Hide Form": only the thank-you message stays.
 				if (form.dataset.after === "hide") form.classList.add("is-sent");
 			}

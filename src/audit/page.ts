@@ -97,11 +97,17 @@ function formProvider($form: cheerio.Cheerio<never>, html: string): { provider: 
 	const cls = $form.attr("class") ?? "";
 	const dataId = $form.attr("data-form_id") ?? $form.attr("data-formid");
 	if (/fluent_form|frm-fluent-form/.test(cls) || $form.find('[name^="_fluentform_"]').length) return { provider: "fluent-forms", id: dataId ?? $form.attr("id")?.match(/\d+/)?.[0] };
-	if (/wpcf7-form/.test(cls)) return { provider: "contact-form-7", id: $form.closest(".wpcf7").attr("id") };
+	// CF7 wraps the form in <div class="wpcf7" id="wpcf7-f<post id>-p<page>-o<n>">: the post id is the form's id.
+	if (/wpcf7-form/.test(cls)) {
+		const wrap = $form.closest(".wpcf7").attr("id") ?? "";
+		return { provider: "contact-form-7", id: /^wpcf7-f(\d+)/.exec(wrap)?.[1] ?? (wrap || undefined) };
+	}
 	if (/wpforms-form/.test(cls)) return { provider: "wpforms", id: $form.attr("data-formid") };
 	if ($form.closest(".gform_wrapper").length || /gform/.test($form.attr("id") ?? "")) return { provider: "gravity-forms", id: $form.attr("id")?.match(/\d+/)?.[0] };
-	if (/nf-form|ninja/.test(cls)) return { provider: "ninja-forms" };
-	if (/frm-show-form/.test(cls)) return { provider: "formidable" };
+	if (/nf-form|ninja/.test(cls) || $form.closest("[id^=nf-form-]").length) return { provider: "ninja-forms", id: /nf-form-(\d+)/.exec($form.closest("[id^=nf-form-]").attr("id") ?? "")?.[1] };
+	if (/frm-show-form/.test(cls)) return { provider: "formidable", id: $form.find('input[name="form_id"]').attr("value") ?? /form_(?:\w+_)?(\d+)/.exec($form.attr("id") ?? "")?.[1] };
+	if (/\bwsf-form\b/.test(cls)) return { provider: "ws-form", id: $form.attr("data-id") ?? $form.find('input[name="wsf_form_id"]').attr("value") };
+	if (/forminator-custom-form|forminator-ui/.test(cls)) return { provider: "forminator", id: $form.attr("data-form-id") ?? $form.find('input[name="form_id"]').attr("value") };
 	if (/elementor-form/.test(cls)) return { provider: "elementor-forms" };
 	if (/search-form|searchform/.test(cls) || $form.find('input[name="s"]').length) return { provider: "wp-search" };
 	if (/mc4wp|mailchimp/.test(cls + ($form.attr("action") ?? ""))) return { provider: "mailchimp" };
@@ -109,6 +115,8 @@ function formProvider($form: cheerio.Cheerio<never>, html: string): { provider: 
 	void html;
 	return { provider: "html" };
 }
+
+const fid2 = (f: { attribs?: Record<string, string> }) => f.attribs?.id;
 
 function extractForms($: cheerio.CheerioAPI, html: string): FormSnapshot[] {
 	const forms: FormSnapshot[] = [];
@@ -130,11 +138,20 @@ function extractForms($: cheerio.CheerioAPI, html: string): FormSnapshot[] {
 				if (!name || ["hidden", "submit", "button", "image", "reset"].includes(type)) return;
 				if (/^(_|__)|nonce|honeypot|g-recaptcha|cf-turnstile|ak_|_wp_http_referer/i.test(name)) return;
 				const key = `${name}:${type}`;
-				if (seen.has(key)) return;
+				if (seen.has(key)) {
+					// More radio buttons / checkboxes of the same group: their labels are the options.
+					if (type === "radio" || type === "checkbox") {
+						const prev = fields.find((x) => x.name === name && x.type === type);
+						const optLabel = clean($f.closest("label").text() || (fid2(f) ? $(el).find(`label[for="${fid2(f)}"]`).first().text() : "") || $f.attr("value"));
+						if (prev && optLabel) prev.options = [...(prev.options ?? []), optLabel];
+					}
+					return;
+				}
 				seen.add(key);
 				const fid = $f.attr("id");
 				const label = clean(
-					(fid ? $(el).find(`label[for="${fid}"]`).first().text() : "") ||
+					((type === "radio" || type === "checkbox") && $f.closest("fieldset").length ? $f.closest("fieldset").find("legend").first().text() : "") ||
+						(fid ? $(el).find(`label[for="${fid}"]`).first().text() : "") ||
 						$f.closest("label").text() ||
 						$f.closest(".ff-el-group, .wpforms-field, .gfield, .form-group, p").find("label").first().text() ||
 						$f.attr("aria-label"),
@@ -147,7 +164,7 @@ function extractForms($: cheerio.CheerioAPI, html: string): FormSnapshot[] {
 								.get()
 								.filter(Boolean)
 						: type === "radio" || type === "checkbox"
-							? undefined
+							? [clean($f.closest("label").text() || (fid ? $(el).find(`label[for="${fid}"]`).first().text() : "") || $f.attr("value"))].filter(Boolean)
 							: undefined;
 				fields.push({
 					name,

@@ -1,0 +1,9 @@
+[vc_row][vc_column][vc_column_text]<h2>Visit us</h2>[rank_math_breadcrumb]
+[su_box title="Opening hours"]Monday to Friday, 7 am to 8 pm.[/su_box]
+[one_half]Classes for every level.[/one_half][one_half_last]Private sessions on request.[/one_half_last]
+[button link="/contact/" target="_blank"]Book a class[/button]
+[addtoany buttons="facebook,twitter"]
+[/vc_column_text][/vc_column][/vc_row][vc_row][vc_column][vc_column_text][tablepress id="4"]
+[acme_widget][/vc_column_text][/vc_column][/vc_row][vc_row][vc_column][vc_column_text][caption id="attachment_31" align="alignnone" width="300"]<img class="wp-image-31" src="https://studio.example/wp-content/uploads/2024/05/room.jpg" alt="The studio" /> The main studio[/caption][/vc_column_text][/vc_column][/vc_row][vc_row][vc_column][vc_column_text][embed]https://www.youtube.com/watch?v=abc123[/embed][/vc_column_text][/vc_column][/vc_row][vc_row][vc_column][vc_column_text]<p>Our welcome message:</p>
+[audio src="https://studio.example/wp-content/uploads/2024/05/welcome.mp3"]
+[/vc_column_text][/vc_column][/vc_row][vc_row][vc_column][vc_column_text]<p>Questions? Write to us.</p>[/vc_column_text][forminator_form id="12"][/vc_column][/vc_row][vc_row][vc_column][ninja_form id=3][/vc_column][/vc_row][vc_row][vc_column][gallery ids="31,32"][/vc_column][/vc_row]

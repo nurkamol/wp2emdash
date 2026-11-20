@@ -1,0 +1,104 @@
+[
+  {
+    "provider": "ninja-forms",
+    "id": "3",
+    "title": "Book a visit",
+    "status": "publish",
+    "definition": {
+      "id": "ninja-forms-3",
+      "title": "Book a visit",
+      "submitLabel": "Request booking",
+      "successMessage": "Thanks, we will confirm your visit.",
+      "fields": [
+        {
+          "name": "first_name",
+          "label": "First name",
+          "type": "text",
+          "required": true,
+          "half": true,
+          "autocomplete": "given-name"
+        },
+        {
+          "name": "last_name",
+          "label": "Last name",
+          "type": "text",
+          "required": true,
+          "half": true,
+          "autocomplete": "family-name"
+        },
+        {
+          "name": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "autocomplete": "email"
+        },
+        {
+          "name": "phone",
+          "label": "Phone",
+          "type": "tel",
+          "placeholder": "555-0100",
+          "autocomplete": "tel"
+        },
+        {
+          "name": "visit_type",
+          "label": "Visit type",
+          "type": "radio",
+          "required": true,
+          "options": [
+            "Solo",
+            "Group"
+          ],
+          "step": 1
+        },
+        {
+          "name": "group_size",
+          "label": "Group size",
+          "type": "number",
+          "required": true,
+          "step": 1,
+          "showIf": {
+            "field": "visit_type",
+            "equals": [
+              "group"
+            ]
+          }
+        },
+        {
+          "name": "notes",
+          "label": "Notes",
+          "type": "textarea",
+          "step": 1
+        },
+        {
+          "name": "attachment",
+          "label": "Medical clearance",
+          "type": "file",
+          "accept": [
+            "pdf",
+            "jpg"
+          ],
+          "maxMb": 4,
+          "step": 1
+        }
+      ],
+      "steps": [
+        {
+          "title": "About you"
+        },
+        {
+          "title": "Your visit"
+        }
+      ],
+      "warnings": [
+        "payment field \"Day pass\" (product) is out of scope: the rebuilt form takes no payments — keep the plugin's checkout elsewhere, or drop the form (overrides.ts integrations \"form:<provider>:<id>\")"
+      ],
+      "notes": [
+        "“Notes”: conditional logic not carried (an operator other than is / is not: show when visit_type greater \"2\"); the field is always shown"
+      ]
+    },
+    "recipients": [
+      "frontdesk@studio.example"
+    ]
+  }
+]

@@ -273,7 +273,7 @@
     {
       "level": "error",
       "code": "unmapped",
-      "message": "No handler for [acme_custom_quote] (carries content)",
+      "message": "shortcode [acme_custom_quote]: unknown plugin shortcode, its output is not rebuilt (add it to the shortcode registry or a handler, or decide in overrides.ts)",
       "path": "vc_row[0]/vc_column[0]/acme_custom_quote[5]",
       "carriesContent": true,
       "tag": "acme_custom_quote"

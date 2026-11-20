@@ -5,7 +5,7 @@
  * an owner-approved step (load, M6).
  */
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
 import { backupsOptions } from "../scaffold/backups.js";
@@ -29,7 +29,7 @@ import type { IrPage, IrSite } from "../ir/schema.js";
 import { resolveGoogleHref, selfHostGoogleFonts } from "../scaffold/fonts.js";
 import { clientRepoFiles, deployScripts, writeClientRepo } from "../scaffold/client-repo.js";
 import { loadOverrides } from "../config/overrides.js";
-import { applySensitivePolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
+import { applySensitivePolicy, applyUploadPolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
 import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras, stackBreakpoint } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
 import { astroSessions, sessionsBucketBinding, sessionStore } from "../scaffold/sessions.js";
@@ -99,7 +99,7 @@ const TURNSTILE_TEST = { TURNSTILE_SITE_KEY: "1x00000000000000000000AA", TURNSTI
  *   Cloudflare's always-pass Turnstile test keys (developers.cloudflare.com/turnstile/troubleshooting/testing).
  */
 export function workerVars(config: Pick<KitConfig, "email" | "forms">, o: { staging: boolean; productionHost: string }): { production: Record<string, string>; staging: Record<string, string> } {
-	const formVars: Record<string, string> = { ...outboxVars(config.forms.outbox), EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
+	const formVars: Record<string, string> = { ...outboxVars(config.forms.outbox), ...(config.forms.uploads && config.forms.uploads.days !== 30 ? { FORM_UPLOAD_DAYS: String(config.forms.uploads.days) } : {}), EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
 	const single = o.staging ? {} : { FORM_LIVE_HOST: o.productionHost.replace(/^www\./, ""), ...(config.email.stagingTo.length ? { FORM_TEST_TO: config.email.stagingTo.join(",") } : {}) };
 	const production = { ...formVars, ...single, ...(config.forms.turnstileSiteKey ? { TURNSTILE_SITE_KEY: config.forms.turnstileSiteKey } : {}) };
 	const stagingMail = config.email.stagingTo.length ? { FORM_TO: config.email.stagingTo.join(",") } : { FORM_TO: "", ...(config.forms.outbox ? { FORM_OUTBOX_HOLD: "1" } : {}) };
@@ -575,7 +575,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 			}
 			const base: FormDefinitionOut | undefined = raw.definition ? { ...raw.definition, warnings: raw.definition.warnings ?? [], ...(config.sensitiveData ? { sensitive: true } : {}) } : raw.form ? fluentFormToDefinition({ ...raw, form: raw.form }, config.sensitiveData) : undefined;
 			if (!base) continue;
-			const def = applySensitivePolicy(base, config.forms.sensitive, config.forms.notice);
+			const def = applySensitivePolicy(applyUploadPolicy(base, config.forms.uploads, config.sensitiveData), config.forms.sensitive, config.forms.notice);
 			forms.push(def);
 			if (def.withheld?.length) reporter.emit({ type: "log", level: "info", message: `${def.id}: not collected under forms.sensitive="${config.forms.sensitive}": ${def.withheld.join(", ")}` });
 			const { warnings: _w, withheld: _h, ...out } = def;
@@ -587,12 +587,21 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	for (const f of existsSync(irForms) ? readdirSync(irForms).filter((x) => x.endsWith(".json")) : []) {
 		const raw = readJson<FormDefinitionOut>(join(irForms, f));
 		if (!raw) continue;
-		const def = applySensitivePolicy({ ...raw, ...(config.sensitiveData ? { sensitive: true } : {}) }, config.forms.sensitive, config.forms.notice);
+		const def = applySensitivePolicy(applyUploadPolicy({ ...raw, ...(config.sensitiveData ? { sensitive: true } : {}) }, config.forms.uploads, config.sensitiveData), config.forms.sensitive, config.forms.notice);
 		forms.push(def);
 		if (def.withheld?.length) reporter.emit({ type: "log", level: "info", message: `${def.id}: not collected under forms.sensitive="${config.forms.sensitive}": ${def.withheld.join(", ")}` });
 		const { warnings: _w, withheld: _h, ...out } = def;
 		write(join(project, "src", "forms", `${def.id}.json`), out);
 	}
+
+	// File upload fields (@wp2emdash/forms uploads.ts): the download route and the hourly clean-up only on sites that
+	// have them; the Worker secret FORM_FILE_SECRET signs the one-time links (a random one in .dev.vars for local runs).
+	const formUploads = forms.some((f) => f.fields.some((x) => x.type === "file"));
+	if (formUploads) {
+		write(join(project, "src", "site.config.json"), { ...siteConfig, formUploads: true });
+		reporter.emit({ type: "log", level: "warn", message: `forms with file uploads: set the Worker secret that signs the download links before testing them (npx wrangler secret put FORM_FILE_SECRET — any random text of 16+ characters, in every environment); files are kept ${config.forms.uploads ? config.forms.uploads.days : 30} days under backups/form-uploads/ in the MEDIA bucket` });
+	} else rmSync(join(project, "src", "pages", "api", "forms", "file.ts"), { force: true });
+	for (const f of forms) for (const n of f.notes ?? []) reporter.emit({ type: "log", level: "info", message: `${f.id}: ${n}` });
 
 	// Seed (with the migrated content for local preview)
 	const sep = /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-";
@@ -699,6 +708,10 @@ ${sess.options}${ap.options}	integrations: [
 	// Local dev: Turnstile's always-pass test keys so forms work under `astro dev` (kept if the developer edited the file).
 	const devVars = join(project, ".dev.vars");
 	if (!existsSync(devVars)) write(devVars, "# Local only (gitignored). Turnstile always-pass test keys; add EMAIL_API_KEY and FORM_FROM to test real delivery.\nTURNSTILE_SITE_KEY=1x00000000000000000000AA\nTURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA\n");
+	if (formUploads) {
+		const dv = readFileSync(devVars, "utf8");
+		if (!/^FORM_FILE_SECRET=/m.test(dv)) write(devVars, `${dv}${dv.endsWith("\n") ? "" : "\n"}FORM_FILE_SECRET=${randomBytes(24).toString("hex")}\n`);
+	}
 	// Client repository: README, docs, CI, .env.example.
 	const used = new Set([...pages, ...posts, ...entries, ...partials, ...popups].flatMap((d) => d.sections.map((s) => `section_${s.type}`)));
 	const keptDocs = writeClientRepo(

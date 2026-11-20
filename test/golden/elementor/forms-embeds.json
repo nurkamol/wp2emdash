@@ -88,7 +88,7 @@
           }
         ],
         "formRef": {
-          "provider": "cf7",
+          "provider": "contact-form-7",
           "id": "12"
         },
         "aside": []

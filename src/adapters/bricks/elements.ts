@@ -115,8 +115,8 @@ function editorHtml(html: string, path: string, e: BricksElement, env: Env): Fra
 	return [...richFromHtml(autop(rest), env.ctx(path)), ...forms];
 }
 
-const FORM_SHORTCODE = /\[(fluentform|contact-form-7|wpforms|gravityform|ninja_form|formidable)\b[^\]]*\]/g;
-const FORM_PROVIDER: Record<string, string> = { fluentform: "fluent-forms", "contact-form-7": "cf7", wpforms: "wpforms", gravityform: "gravity-forms", ninja_form: "ninja-forms", formidable: "formidable" };
+const FORM_SHORTCODE = /\[(fluentform|contact-form-7|wpforms|gravityform|ninja_form|formidable|forminator_form|ws_form)\b[^\]]*\]/g;
+const FORM_PROVIDER: Record<string, string> = { fluentform: "fluent-forms", "contact-form-7": "contact-form-7", wpforms: "wpforms", gravityform: "gravity-forms", ninja_form: "ninja-forms", formidable: "formidable", forminator_form: "forminator", ws_form: "ws-form" };
 function formShortcode(sc: string): Fragment[] {
 	const tag = /^\[([\w-]+)/.exec(sc)?.[1] ?? "";
 	const id = /\bid=["']?([\w-]+)/.exec(sc)?.[1];
