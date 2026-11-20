@@ -6,6 +6,7 @@
  * (WP2EMDASH_TARGET=local|staging|production overrides). Report: reports/verify/index.html + verify.json.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { type SeoRuleFinding, seoRules } from "../verify/seo-rules.js";
 import { dirname, join } from "node:path";
 import { defaultTarget, noProductionTargets, readCf, siteEnvironments } from "../core/environments.js";
 import { loadSiteEnv } from "../extract/credentials.js";
@@ -56,6 +57,8 @@ export interface PageResult {
 	text?: TextResult;
 	headings?: HeadingResult;
 	seo?: SeoResult;
+	/** Kit SEO rules on the migrated page (src/verify/seo-rules.ts). */
+	seoRules?: SeoRuleFinding[];
 	missingExternal: string[];
 	imagesWithoutAlt: string[];
 	forms: { ok: boolean; detail: string }[];
@@ -201,6 +204,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 						}
 						r.missingExternal = missingExternalLinks(source.links, snap.links);
 						r.imagesWithoutAlt = snap.images.filter((im) => im.alt === undefined).map((im) => im.src);
+						r.seoRules = seoRules(snap);
 						// Content forms only: the theme's search box is site chrome, not a migrated form.
 						for (const sf of source.forms.filter((f) => !/search/i.test(f.provider ?? "") && !f.fields.every((x) => x.name === "s" || x.type === "hidden") && f.fields.some((x) => x.type !== "hidden"))) {
 							const visible = (f: { type: string }) => !["hidden", "submit", "button"].includes(f.type);
@@ -571,9 +575,18 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		check("content", `Page text kept ≥ ${(g.textSimilarity * 100).toFixed(0)}%`, lowText.length === 0, lowText.map((r) => `${r.path} ${((r.text?.recall ?? 0) * 100).toFixed(1)}% (${r.text?.missing.slice(0, 5).join(", ")})`).join("; ") || `lowest ${(Math.min(...results.map((r) => r.text?.recall ?? 1)) * 100).toFixed(1)}%`);
 		const badHead = results.filter((r) => r.headings && !r.headings.ok);
 		check("headings", "Headings: same h1, every h1–h3 kept", badHead.length === 0, badHead.map((r) => `${r.path}: ${r.headings?.h1Source !== r.headings?.h1Target ? `h1 "${r.headings?.h1Target ?? "—"}" vs "${r.headings?.h1Source}"` : ""} ${r.headings?.missing.slice(0, 3).join(" | ")}`).join("; ") || undefined);
-		const seoFail = (k: keyof SeoResult) => results.filter((r) => r.seo && !r.seo[k].ok).map((r) => r.path);
+		// A title or description the owner rewrote on purpose (overrides.ts seo, e.g. after an SEO audit) is not a difference.
+		const seoDecided = (await loadOverrides(paths.overrides)).seo;
+		const decided = (r: PageResult, k: keyof SeoResult) => (k === "title" || k === "description") && !!r.seo && seoDecided[r.path]?.[k] !== undefined && seoDecided[r.path]?.[k]?.trim() === (r.seo[k] as { target?: string }).target?.trim();
+		const seoFail = (k: keyof SeoResult) => results.filter((r) => r.seo && !r.seo[k].ok && !decided(r, k)).map((r) => r.path);
 		check("seo-title", "SEO titles identical", seoFail("title").length === 0, seoFail("title").join(", ") || undefined);
 		check("seo-description", "Meta descriptions identical", seoFail("description").length === 0, seoFail("description").join(", ") || undefined);
+		// Kit SEO rules (one h1, heading order, title and description length) and /llms.txt for AI assistants.
+		const ruleFails = results.flatMap((r) => (r.seoRules ?? []).filter((x) => x.level !== "note").map((x) => `${r.path}: ${x.rule} (${x.detail})`));
+		const ruleNotes = results.flatMap((r) => (r.seoRules ?? []).filter((x) => x.level === "note").map((x) => `${r.path}: ${x.rule}`));
+		const llms = await kitFetch(`${base}/llms.txt`).then((res) => res.status).catch(() => 0);
+		if (llms !== 200) ruleFails.push(`/llms.txt: HTTP ${llms}`);
+		check("seo-rules", "SEO rules: one h1, no skipped heading levels, titles 20–65 characters, descriptions up to 160, /llms.txt", ruleFails.length === 0, ruleFails.slice(0, 6).join("; ") || (ruleNotes.length ? `notes: ${ruleNotes.slice(0, 4).join(", ")}` : undefined));
 		check("seo-canonical", "Canonical URLs point at the production URL", seoFail("canonical").length === 0, seoFail("canonical").slice(0, 3).map((p) => `${p}: ${results.find((r) => r.path === p)?.seo?.canonical.target ?? "none"}`).join("; ") || undefined);
 		check("seo-robots", !live ? "Not indexed before go-live (noindex)" : "Indexability kept", seoFail("robots").length === 0, seoFail("robots").join(", ") || undefined);
 		check("seo-jsonld", "Structured data types kept", seoFail("jsonLd").length === 0, [...new Set(results.flatMap((r) => r.seo?.jsonLd.missing ?? []))].join(", ") ? `missing: ${[...new Set(results.flatMap((r) => r.seo?.jsonLd.missing ?? []))].join(", ")}` : undefined);

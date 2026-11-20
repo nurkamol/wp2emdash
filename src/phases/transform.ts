@@ -377,7 +377,11 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 
 	reporter.emit({ type: "step:start", step: "Adapt content", total: pages.length + partialsRaw.length + popupsRaw.length + posts.length });
 	let done = 0;
+	const seoNorm = (p: string) => (p === "/" ? "/" : `/${p.replace(/^\/+|\/+$/g, "")}/`);
 	const emit = (doc: IrPage, file: string, published: boolean) => {
+		// SEO text the owner rewrote on purpose (overrides.ts seo): onto the page, so load writes it and a rerun keeps it.
+		const seoOv = doc.route?.path ? overrides.seo[seoNorm(doc.route.path)] ?? overrides.seo[doc.route.path] : undefined;
+		if (seoOv) doc = { ...doc, seo: { ...doc.seo, ...(seoOv.title ? { title: seoOv.title } : {}), ...(seoOv.description ? { description: seoOv.description } : {}) } };
 		const v = irPage.safeParse(doc);
 		if (!v.success) invalid.push(`${file}: ${v.error.issues.slice(0, 3).map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`);
 		write(join(paths.ir, file), v.success ? v.data : doc);

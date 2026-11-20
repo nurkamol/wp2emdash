@@ -36,6 +36,8 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - **Term meta:** load fills an empty description on a term that already exists on the target (never an editor's); Yoast per-term SEO (`wpseo_taxonomy_meta` via `import-options`) is counted in the coverage report, not carried (EmDash 1.5 has no per-term SEO).
 - **Go-live checklist:** the owner exports past form entries from WordPress before the switch and before hosting is retired, and invites the team (counts per role).
 
+- **SEO rules on every page** ([docs/seo-rules.md](docs/seo-rules.md)): one `<h1>` and no skipped heading levels (the middleware re-levels headings in `<main>` before caching, keeping their look), a visually hidden `<h1>` on heading-less pages, the logo in 1x/2x with `srcset`, `/llms.txt`; verify check `seo-rules`; `overrides.ts seo` for titles and descriptions the owner rewrites after an audit.
+
 ### Fixed
 - An inlined component script (the comment form, under Astro's 4 KB inline limit) was blocked by the public CSP on every page: generated projects never inline scripts (`vite.build.assetsInlineLimit: 0`) and the comment script renders only where the comment form does.
 - Verify crashed before the old-address check (`archivePaths` used before it was defined).

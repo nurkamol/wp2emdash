@@ -9,6 +9,7 @@ Astro, Wrangler and Cloudflare versions before code depended on it — check the
 | Doc | What it covers |
 |---|---|
 | [PLAN.md](PLAN.md) | Source of truth for scope, architecture, phases, gates, the section library, adapters, the in-house plugins, safety rules, milestones and current status (§13) |
+| [seo-rules.md](seo-rules.md) | The kit's on-page SEO rules and the scenario for handling an SEO audit of a live site |
 | [WordPress → EmDash parity](parity/wp-to-emdash.md) | 110-feature matrix: where each WordPress feature lives in EmDash 1.5, what the kit does with it, the gap and its priority ([JSON](parity/wp-to-emdash.json), same data) |
 | [Environment setup](staging-setup.md) | Production on `workers.dev` (the default) and opt-in staging: resources, build → migrate → deploy, first admin sign-in (passkeys), load token, client CI, go-live and after it, troubleshooting |
 | [Cloudflare API tokens](cloudflare-api-token.md) | The reusable build token (kit `.env`) and the separate, zone-scoped go-live token used only at cutover; permission sets and where each token goes |

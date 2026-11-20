@@ -3,6 +3,7 @@
  * Redirects live in EmDash's redirects table (editable in the admin), not here.
  */
 import { env } from "cloudflare:workers";
+import { fixOutline } from "./utils/outline";
 import { defineMiddleware } from "astro:middleware";
 import site from "./site.config.json";
 import { isEditor } from "./utils/editor";
@@ -277,5 +278,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// Never indexed: staging, and production on any address but its own domain (workers.dev before the switch).
 	if ((env as { STAGING?: string }).STAGING === "1" || bare(context.url.hostname) !== bare(PRODUCTION.hostname)) headers.set("X-Robots-Tag", "noindex, nofollow");
 	if (goneStatus) return new Response(response.body, { status: goneStatus, headers });
-	return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+	const out = new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+	// SEO heading outline (one h1, no skipped levels) on public pages; the admin and API are left alone.
+	const Rewriter = (globalThis as { HTMLRewriter?: unknown }).HTMLRewriter;
+	if (html && response.status === 200 && Rewriter && !context.url.pathname.startsWith("/_emdash")) return fixOutline(out, Rewriter as never);
+	return out;
 });

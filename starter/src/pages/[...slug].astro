@@ -1,4 +1,5 @@
 ---
+import { hasHeading } from "../utils/outline";
 /**
  * Every page at its WordPress path (nested paths included). The front page is the entry with slug "home".
  * Blog sites (site.config.json `blog`) also answer here: the posts page and its numbered pages, category/tag/author
@@ -167,6 +168,8 @@ if (accessStored) {
 }
 const accessBack = `${Astro.url.pathname}${(() => { const q = new URLSearchParams(Astro.url.search); q.delete("access"); const s = q.toString(); return s ? `?${s}` : ""; })()}`;
 const blocks = (page ? (data.content ?? []) : []) as any[];
+/** A page with no heading at all (a login or booking widget page): a visually hidden <h1> with its title (SEO rules). */
+const needsH1 = blocks.length > 0 && !hasHeading(blocks);
 const seo = entry ? getSeoMeta(entry, { siteUrl: Astro.url.origin, path: slug === "home" ? "/" : Astro.url.pathname }) : listing?.seo;
 const first = blocks[0];
 // The header sits over a hero picture only when it is transparent at the top of the page (audit); a solid header keeps
@@ -212,7 +215,7 @@ if (crumbCfg?.pages && page && slug !== "home") {
 		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "pages", id: data.id, slug: entry.id }} overHero={!!overHero} breadcrumbs={trail}>
 			{
 				blocks.length ? (
-					<div {...entry.edit.content}><Sections value={blocks} leadImage /></div>
+					<div {...entry.edit.content}>{needsH1 && <h1 class="visually-hidden">{data.title}</h1>}<Sections value={blocks} leadImage /></div>
 				) : (
 					<section class="section container"><h1 class="heading heading--h1">{data.title}</h1></section>
 				)

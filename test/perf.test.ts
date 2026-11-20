@@ -26,7 +26,7 @@ describe("route caching config", () => {
 
 	it("has one rule per public page plus the sitemaps and image variants, tagged with EmDash collection names", () => {
 		const rules = routeRules(perf(), ["/", "/about-us/", "services/physical-therapy", "/about-us"]);
-		expect(Object.keys(rules)).toEqual(["/", "/about-us", "/services/physical-therapy", "/sitemap.xml", "/sitemap-[collection].xml", "/_image"]);
+		expect(Object.keys(rules)).toEqual(["/", "/about-us", "/services/physical-therapy", "/sitemap.xml", "/llms.txt", "/sitemap-[collection].xml", "/_image"]);
 		expect(rules["/"]).toEqual({ maxAge: 604800, swr: 86400, tags: ["pages", "site_parts", "popups"] });
 		// A blog or collections site: pages also carry those tags (footer widgets such as Recent posts show them).
 		expect(routeRules(perf(), ["/"], ["posts", "team"])["/"]?.tags).toEqual(["pages", "site_parts", "popups", "posts", "team"]);
@@ -176,9 +176,11 @@ describe("brand files", () => {
 			return outs.map((o) => Buffer.alloc(o.width === 192 ? 9000 : 100, o.width));
 		};
 		const out = await perfSite(pub, perf(), { logo: "/brand/logo.png", logoOnTop: "/brand/logo-on-dark.svg", favicon: "/brand/favicon.png" }, 56, encode);
-		expect(calls[0]).toBe("image/png → 87x112 image/webp");
+		expect(calls[0]).toBe("image/png → 87x112 image/webp, 44x56 image/webp");
 		expect(out.header.logoImg).toMatchObject({ width: 87, height: 112 });
 		expect(out.header.logoImg?.src).toMatch(/^\/brand\/h\/logo\.[0-9a-f]{10}\.webp$/);
+		// 1x for the header height, 2x for sharp screens (SEO rule: no single-size images).
+		expect(out.header.logoImg?.srcset).toMatch(/^\/brand\/h\/logo-1x\.[0-9a-f]{10}\.webp 1x, \/brand\/h\/logo\.[0-9a-f]{10}\.webp 2x$/);
 		// SVG: copied as it is (hashed name), its own size.
 		expect(out.header.logoOnTopImg).toMatchObject({ width: 300, height: 100 });
 		expect(out.header.logoOnTopImg?.src).toMatch(/^\/brand\/h\/logo-on-dark\.[0-9a-f]{10}\.svg$/);

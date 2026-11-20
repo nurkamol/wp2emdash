@@ -46,6 +46,8 @@ export function routeRules(perf: PerfConfig, pagePaths: string[], contentTags: s
 		rules[p] = page;
 	}
 	rules["/sitemap.xml"] = { maxAge: perf.maxAge, swr: perf.swr, tags: ["pages"] };
+	// /llms.txt lists the pages and newest posts: it lives and is purged like them (settings: the site name and tagline).
+	rules["/llms.txt"] = { maxAge: perf.pageMaxAge, swr: perf.swr, tags: ["pages", ...contentTags, "emdash:settings"] };
 	rules["/sitemap-[collection].xml"] = { maxAge: perf.maxAge, swr: perf.swr, tags: ["pages"] };
 	// Transformed images (query = width/format): EmDash 1.5 does not purge them when an image is replaced in place,
 	// so they live a day; a deploy (new Worker version) starts a fresh cache.
@@ -242,6 +244,8 @@ export function imageSize(buf: Buffer): { width: number; height: number } | unde
 
 export interface BrandImage {
 	src: string;
+	/** 1x and 2x files for the header height (raster logos), so a phone never downloads more than it shows. */
+	srcset?: string;
 	width: number;
 	height: number;
 }
@@ -319,8 +323,15 @@ export async function optimizeBrand(publicDir: string, brand: { logo?: string; l
 		const h = Math.min(size.height, Math.max(1, Math.round(logoHeight * 2)));
 		const w = Math.max(1, Math.round((size.width * h) / size.height));
 		if (ext !== ".svg" && ext !== ".gif") {
-			const [webp] = (await encode(buf, MIME[ext] ?? "image/png", [{ width: w, height: h, type: "image/webp", quality: 0.9 }])) ?? [];
-			if (webp && webp.length < buf.length) return { src: put(name, ".webp", webp), width: w, height: h };
+			// 2x for sharp screens, 1x (the header height itself) for the rest: `srcset` lets the browser pick.
+			const h1 = Math.max(1, Math.round(h / 2));
+			const w1 = Math.max(1, Math.round((size.width * h1) / size.height));
+			const want = h1 < h ? [{ width: w, height: h, type: "image/webp" as const, quality: 0.9 }, { width: w1, height: h1, type: "image/webp" as const, quality: 0.9 }] : [{ width: w, height: h, type: "image/webp" as const, quality: 0.9 }];
+			const [webp, webp1] = (await encode(buf, MIME[ext] ?? "image/png", want)) ?? [];
+			if (webp && webp.length < buf.length) {
+				const src = put(name, ".webp", webp);
+				return { src, ...(webp1 ? { srcset: `${put(`${name}-1x`, ".webp", webp1)} 1x, ${src} 2x` } : {}), width: w, height: h };
+			}
 		}
 		return { src: put(name, ext, buf), width: size.width, height: size.height };
 	};

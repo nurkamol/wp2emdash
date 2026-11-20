@@ -96,6 +96,13 @@ export const overridesSchema = z.object({
 	 * Old addresses the owner decided are gone: path patterns (`*` = any characters, query included when the pattern has
 	 * one) → reason. Verify accepts 404/410 for them (urls-accounted).
 	 */
+	/**
+	 * SEO text the owner rewrote on purpose (e.g. after an SEO audit): old path → new title and/or meta description, with
+	 * the reason. Transform writes it onto the page; verify accepts it as decided instead of "not identical".
+	 */
+	seo: z
+		.record(z.string().regex(/^\//, "a path starting with /"), z.object({ title: z.string().min(1).max(120).optional(), description: z.string().min(1).max(320).optional(), reason: z.string().min(3, "give the owner's reason") }))
+		.default({}),
 	gone: z.record(z.string().regex(/^\//, "a path starting with /"), z.string().min(3, "give the owner's reason")).default({}),
 	/**
 	 * WordPress addresses with no page on the new site (feeds, search, archives, attachment pages, query forms): a path
