@@ -9,13 +9,13 @@
 <p align="center"><strong>Move a WordPress site to EmDash on Cloudflare, and prove nothing was lost.</strong></p>
 
 <p align="center">
-  <a href=".github/workflows/ci.yml"><img alt="CI: pnpm test and typecheck" src="https://img.shields.io/badge/CI-test%20%2B%20typecheck-4F46E5?logo=githubactions&logoColor=white"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0F172A"></a>
-  <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-06B6D4?logo=nodedotjs&logoColor=white">
-  <img alt="Tests: 957 passing" src="https://img.shields.io/badge/tests-957%20passing-1F9D6B">
+  <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/nurkamol/wp2emdash?color=F6821F"></a>
+  <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
+  <img alt="Tests: 982 passing" src="https://img.shields.io/badge/tests-982%20passing-1F9D6B">
 </p>
 
-wp2emdash is an open-source kit that migrates WordPress sites to
+wp2emdash is an open-source kit, built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net), that migrates WordPress sites to
 [EmDash](https://docs.emdashcms.com/) (Astro on Cloudflare Workers, D1 and R2). It rebuilds builder pages as editable
 EmDash sections, carries content, media, menus, forms, SEO and old URLs, ships each site with an in-house admin plugin
 suite, and stops at an automated gate whenever the result does not match the live site.
@@ -228,7 +228,7 @@ Load and verify targets: `WP2EMDASH_LOAD_TARGET` / `WP2EMDASH_TARGET` = `local`,
 
 ## Plugin suite
 
-Every migrated site ships with PixelKraft plugins — built by PixelKraft as native admin pages inside the client's
+Every migrated site ships with eight PixelKraft plugins, built as native EmDash admin pages inside the client's
 own site (no external service, no extra account). Each is switched in the site's `sites/<slug>/kit.config.ts` and
 takes effect at the next `scaffold`.
 
@@ -780,4 +780,5 @@ Client workspaces (`sites/<slug>/`) never enter this repository: only `sites/REA
 
 ## License
 
-MIT © Nurkamol Vokhidov — see [LICENSE](LICENSE).
+MIT © Nurkamol Vokhidov — see [LICENSE](LICENSE). Built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net).
+Project page: <https://nurkamol.github.io/wp2emdash/>.
