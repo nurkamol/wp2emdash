@@ -1,6 +1,7 @@
 import { mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import type { Browser, Page } from "playwright";
+import { CONSENT_BANNERS } from "./consent-banners.js";
 import { USER_AGENT } from "./http.js";
 
 /**
@@ -139,6 +140,9 @@ export async function captureMenu(browser: Browser, url: string, viewport: { nam
 		await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
 		await page.waitForTimeout(800);
 
+		// Cookie/consent banners (the kit's own and common WordPress plugins) sit over the page: hidden on both sides so the
+		// menu comparison sees the menu, not the banner's links.
+		await page.addStyleTag({ content: `${CONSENT_BANNERS} { display: none !important; }` }).catch(() => {});
 		result.themeSettings = await page.evaluate(() => ({ ...document.body.dataset }) as Record<string, string>);
 		const hit = await findToggle(page);
 		if (!hit) return result;

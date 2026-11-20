@@ -338,6 +338,8 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			siteHosts: new Set([new URL(config.source.url).host, ...config.source.alternateHosts, new URL(prod).host]),
 			...(wpRules ? { rules: wpRules } : {}),
 		});
+		// Collection archives (custom post types): real routes for the old-address judgement and the entries check below.
+		const archivePaths = (cptIr?.collections ?? []).filter((c) => c.routable && c.archive).map((c) => c.archive as string);
 		reporter.emit({ type: "step:start", step: "Old addresses", total: universe.length });
 		let probed = 0;
 		const judged = await mapLimit(universe, Math.max(4, config.audit.concurrency * 2), async (u) => {
@@ -351,7 +353,6 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		// real RSS (site feed + one archive feed per taxonomy and author) with the newest posts first.
 		// Collections: every published entry at its WordPress address with its title; every archive (and its term archives) 200.
 		const entryProblems: string[] = [];
-		const archivePaths = (cptIr?.collections ?? []).filter((c) => c.routable && c.archive).map((c) => c.archive as string);
 		await mapLimit([...irEntries.map((p) => ({ path: p.route?.path ?? "/", title: p.title })), ...archivePaths.map((path) => ({ path, title: undefined as string | undefined }))], Math.max(4, config.audit.concurrency), async (x) => {
 			try {
 				const res = await kitFetch(`${base}${x.path}`, { redirect: "manual" });

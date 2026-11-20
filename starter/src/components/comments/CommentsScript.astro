@@ -1,0 +1,11 @@
+---
+/**
+ * The comment form's script, in its own component so Astro emits it only on pages that show comments (a component's
+ * script is rendered where the component renders). Never inlined: the public CSP allows script files only
+ * (astro.config `vite.build.assetsInlineLimit: 0`).
+ */
+---
+
+<script>
+	import "../../scripts/comments";
+</script>

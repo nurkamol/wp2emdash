@@ -747,6 +747,9 @@ ${sess.options}${ap.options}	integrations: [
 		}),
 	],
 	devToolbar: { enabled: false },
+	// Never inline a script or asset into the HTML: the public CSP allows script files only, so an inlined component
+	// script (Astro inlines those under 4 KB) would be blocked. Every script stays a file under /_astro/.
+	vite: { build: { assetsInlineLimit: 0 } },
 });
 `,
 	);

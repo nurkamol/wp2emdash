@@ -1,4 +1,5 @@
 ---
+import CommentsScript from "./CommentsScript.astro";
 /**
  * Comments under a post, page or entry (site.config.json `comments`; utils/comments.ts): the approved comments, threaded
  * one level as EmDash stores them, and — where the collection takes new comments and the entry is not closed — the
@@ -123,9 +124,7 @@ const list = items as C[];
 	)
 }
 {form && siteKey && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>}
-<script>
-	import "../../scripts/comments";
-</script>
+{form && <CommentsScript />}
 
 <style>
 	.container--narrow { max-width: min(100% - 2 * var(--gutter), 46rem); }

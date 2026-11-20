@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { type Browser, chromium, type Page } from "playwright";
 import type { KitConfig } from "../config/schema.js";
 import type { Reporter } from "../core/progress.js";
+import { CONSENT_BANNERS } from "./consent-banners.js";
 import { USER_AGENT } from "./http.js";
 
 /** File-safe name for a URL path: "/" → "home", "/about-us/" → "about-us", query → hash suffix. */
@@ -22,7 +23,7 @@ html { scroll-behavior: auto !important; }
 
 const CONSENT_BUTTONS = [
 	// The kit's own banner (Privacy & consent) on the migrated site: rejected, so screenshots load no trackers.
-	"[data-consent-banner]:not([hidden]) [data-consent-reject]",
+	"div.consent[class*='consent--'] [data-consent-reject]",
 	"#cookie_action_close_header",
 	".cky-btn-accept",
 	"#onetrust-accept-btn-handler",
@@ -47,6 +48,9 @@ async function settle(page: Page, maskSelectors: string[]): Promise<number> {
 			break;
 		}
 	}
+	// Whatever banner is still showing (notice mode has no reject button; a plugin not listed above) is hidden, never
+	// accepted on the visitor's behalf and never left over the page.
+	await page.addStyleTag({ content: `${CONSENT_BANNERS} { display: none !important; }` }).catch(() => {});
 	// Scroll through the page so lazy images and scroll-triggered (waypoint) animations fire.
 	await page.evaluate(async () => {
 		const step = Math.max(200, Math.floor(window.innerHeight * 0.8));

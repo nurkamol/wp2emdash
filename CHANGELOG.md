@@ -37,6 +37,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - **Go-live checklist:** the owner exports past form entries from WordPress before the switch and before hosting is retired, and invites the team (counts per role).
 
 ### Fixed
+- An inlined component script (the comment form, under Astro's 4 KB inline limit) was blocked by the public CSP on every page: generated projects never inline scripts (`vite.build.assetsInlineLimit: 0`) and the comment script renders only where the comment form does.
+- Verify crashed before the old-address check (`archivePaths` used before it was defined).
+- Verify's menu capture clicked the consent banner's button instead of the burger, and screenshots accepted the kit's own banner instead of rejecting it: banners are now rejected or hidden on both sides (`src/audit/consent-banners.ts`).
 - WPBakery/Bricks rows that hold a collection (video, form, gallery…) plus loose images or buttons dropped them without a word: they are now carried as sections after the collection, and icons that have no place are reported in the coverage report.
 - Coming-soon mode now purges cached pages when it is saved (a cached page never reaches the middleware), and the middleware reads the switch on every render so a stale isolate cannot re-cache the public page.
 - Blog load reruns: child categories were created again ("term already exists") because EmDash returns a hierarchical taxonomy as a tree; the term list is now flattened.
