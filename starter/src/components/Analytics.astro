@@ -2,8 +2,9 @@
 /**
  * Analytics carried over from the WordPress site (Google tag / GA4, Tag Manager, Cloudflare Web Analytics), from
  * site.config.json. Loaded only on the production domain — never on staging, previews or localhost — and never for
- * signed-in editors (the old site excluded logged-in users too). The script is a bundled file, so the page's
- * Content-Security-Policy needs no inline scripts.
+ * signed-in editors (the old site excluded logged-in users too). The loader is a real file (public/scripts/site-analytics.js):
+ * Astro inlines small processed <script>s, and the public CSP has no inline-script allowance for them — an inline
+ * loader was blocked and no analytics ran on a launched site.
  */
 import site from "../site.config.json";
 import { isEditor } from "../utils/editor";
@@ -14,35 +15,4 @@ const on = !!a && production && !import.meta.env.DEV && !isEditor(Astro.cookies,
 ---
 
 {on && <meta name="site-analytics" content={JSON.stringify(a)} />}
-{
-	on && (
-		<script>
-			const meta = document.querySelector<HTMLMetaElement>('meta[name="site-analytics"]');
-			const a = JSON.parse(meta?.content ?? "{}") as { google?: string[]; gtm?: string; cloudflareToken?: string };
-			const w = window as unknown as { dataLayer: unknown[] };
-			w.dataLayer = w.dataLayer || [];
-			const add = (src: string, attrs: Record<string, string> = {}) => {
-				const s = document.createElement("script");
-				s.async = true;
-				s.src = src;
-				for (const [k, v] of Object.entries(attrs)) s.setAttribute(k, v);
-				document.head.appendChild(s);
-			};
-			if (a.google?.length) {
-				// gtag() must push the arguments object itself (Google's snippet does the same).
-				function gtag(..._args: unknown[]) {
-					// biome-ignore lint/style/noArguments: gtag reads the Arguments object
-					w.dataLayer.push(arguments);
-				}
-				gtag("js", new Date());
-				for (const id of a.google) gtag("config", id);
-				add(`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(a.google[0] as string)}`);
-			}
-			if (a.gtm) {
-				w.dataLayer.push({ "gtm.start": Date.now(), event: "gtm.js" });
-				add(`https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(a.gtm)}`);
-			}
-			if (a.cloudflareToken) add("https://static.cloudflareinsights.com/beacon.min.js", { defer: "", "data-cf-beacon": JSON.stringify({ token: a.cloudflareToken }) });
-		</script>
-	)
-}
+{on && <script is:inline src="/scripts/site-analytics.js" defer></script>}

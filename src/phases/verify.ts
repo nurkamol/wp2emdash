@@ -25,6 +25,7 @@ import { compareHeadings, compareMotion, compareSeo, compareText, type HeadingRe
 import { verifyReport } from "../verify/report.js";
 import { diffSections, groupSections, type SectionDiff } from "../verify/sections.js";
 import { type CacheProbe, cacheMisses, measurePayload, median, type PayloadResult, probeCache } from "../verify/perf.js";
+import { pageRuntime, type PageRuntime, runtimeAnalyticsProblem } from "../verify/runtime.js";
 import type { PhaseContext } from "./index.js";
 import { ensureDevServer } from "./load.js";
 
@@ -333,7 +334,10 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		// Captures where a photo still had not loaded after retries and a reload: named in the visual result, so a
 		// missing image is never mistaken for a layout difference.
 		const incomplete: string[] = [];
+		let runtime: PageRuntime | undefined;
 		try {
+			// Live: what the home page really loads in a browser (tracker requests, CSP-blocked scripts).
+			if (live && carried.size) runtime = await pageRuntime(browser, `${base}/`).catch(() => undefined);
 			const shots = await captureScreenshots(browser, results.filter((r) => r.status === 200).map((r) => r.targetUrl), config, join(outDir, "screens"), reporter, "no-preference");
 			// WP2EMDASH_RECAPTURE_SOURCE=1: photograph the live WordPress pages again (read-only) with the current capture
 			// code, replacing the audit's screenshots — without rerunning the audit's design capture.
@@ -423,6 +427,10 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		check("security-headers", "Security headers set", missingHeaders.length === 0, missingHeaders.length ? `missing: ${missingHeaders.join(", ")}` : undefined);
 		check("sitemap", "Sitemap lists every published page at its own address (200, no redirects)", sitemapErrors.length === 0 && unlisted.length === 0 && sitemapLocs.length > 0, [...sitemapErrors.slice(0, 6), ...(unlisted.length ? [`not listed: ${unlisted.slice(0, 6).join(", ")}`] : [])].join("; ") || `${sitemapLocs.length} URLs`);
 		const wpOpen = wpPaths.filter((w) => w.status !== 404 && w.status !== 410);
+		if (live && carried.size) {
+			const rtProblem = runtime ? runtimeAnalyticsProblem(runtime, { google: siteCfg.analytics?.google ?? [], ...(siteCfg.analytics?.gtm ? { gtm: siteCfg.analytics.gtm } : {}) }) : "home page could not be loaded in the browser";
+			check("analytics-runtime", "Analytics scripts load in a browser, nothing blocked by the CSP", !rtProblem, rtProblem || runtime?.trackers.map((u) => new URL(u).pathname).join(", "));
+		}
 		check("analytics", live ? "Analytics carried over and loading" : "Analytics carried over, not loaded before go-live", !analyticsProblem, analyticsProblem || (carried.size ? `${[...carried].join(", ")}${(want as string) === "production" ? "" : " (production only)"}` : "none on the old site"));
 		check("legacy-urls", "Old sitemap and upload addresses redirect to working files", legacyBad.length === 0, legacyBad.slice(0, 6).join("; ") || `${legacy.length} checked`);
 		check("wp-endpoints", "WordPress endpoints gone (404/410)", wpOpen.length === 0, wpOpen.map((w) => `${w.path} ${w.status}`).join(", ") || undefined);

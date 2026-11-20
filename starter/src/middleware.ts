@@ -20,8 +20,10 @@ const embedHosts = [...new Set(Object.values(PROVIDER_HOSTS).flat())].flatMap((h
 /** Analytics hosts, only when the site carries analytics (components/Analytics.astro). */
 const analytics = (site as { analytics?: { google?: string[]; gtm?: string; cloudflareToken?: string } }).analytics;
 const google = analytics?.google?.length || analytics?.gtm;
-const analyticsScripts = [google ? "https://www.googletagmanager.com" : "", analytics?.cloudflareToken ? "https://static.cloudflareinsights.com" : ""].filter(Boolean).join(" ");
-const analyticsConnect = [google ? "https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com" : "", analytics?.cloudflareToken ? "https://cloudflareinsights.com" : ""].filter(Boolean).join(" ");
+// Cloudflare Web Analytics is always allowed: when it is switched on for the zone, Cloudflare injects its beacon into every
+// page by itself (no site setting), and a CSP without it blocks the beacon (seen on a launched site).
+const analyticsScripts = [google ? "https://www.googletagmanager.com" : "", "https://static.cloudflareinsights.com"].filter(Boolean).join(" ");
+const analyticsConnect = [google ? "https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com" : "", "https://cloudflareinsights.com"].filter(Boolean).join(" ");
 const INLINE_SCRIPTS = [announcementScript];
 let inlineHashes: Promise<string> | undefined;
 async function sha256(text: string): Promise<string> {
