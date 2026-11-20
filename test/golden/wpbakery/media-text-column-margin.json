@@ -69,7 +69,7 @@
             "label": "Book Now",
             "href": "/book/",
             "style": "primary",
-            "spaceAbove": 40
+            "spaceAbove": 64
           }
         ],
         "mediaSide": "left",

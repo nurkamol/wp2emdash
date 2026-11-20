@@ -1,0 +1,179 @@
+{
+  "sections": [
+    {
+      "type": "media_text",
+      "variant": "cover",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "gap": "none",
+      "valign": "middle",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "a799891d2f"
+      },
+      "fields": {
+        "mediaHeight": [
+          {
+            "desktop": "55vh",
+            "small": "40vh",
+            "phone": "300px"
+          }
+        ],
+        "columnGap": "0px",
+        "mediaRadius": "5px",
+        "headingGap": 30,
+        "stackSpace": "8%",
+        "bodyEnd": "10%",
+        "media": [
+          {
+            "wpId": 203,
+            "kind": "image"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Sample Studio Sessions",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "A first paragraph written for this fixture, kept to a shorter measure by its own padding.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "A second paragraph with the same padding.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Book Now",
+            "href": "/book/",
+            "style": "primary",
+            "spaceAbove": 45
+          }
+        ],
+        "mediaSide": "right",
+        "ratio": "1/2"
+      }
+    },
+    {
+      "type": "media_text",
+      "variant": "cover",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "gap": "none",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]",
+        "rawHash": "d8e84ee801"
+      },
+      "valign": "top",
+      "fields": {
+        "mediaHeight": [
+          {
+            "desktop": "400px"
+          }
+        ],
+        "columnGap": "0px",
+        "headingPad": "1.5%",
+        "media": [
+          {
+            "wpId": 204,
+            "kind": "image"
+          }
+        ],
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "A sample heading for this fixture",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Text with the theme’s default element spacing above a button – and “quotes”.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "buttons": [
+          {
+            "label": "Read More",
+            "href": "/about/",
+            "style": "primary",
+            "spaceAbove": 64
+          }
+        ],
+        "mediaSide": "right",
+        "ratio": "1/2"
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[0]/vc_column[1]/vc_row_inner[0]/vc_column_inner[0]/divider[0]",
+      "tag": "divider"
+    },
+    {
+      "level": "info",
+      "code": "dropped-decorative",
+      "message": "divider dropped (decorative)",
+      "path": "vc_row[2]/vc_column[1]/vc_row_inner[0]/vc_column_inner[0]/divider[0]",
+      "tag": "divider"
+    }
+  ]
+}

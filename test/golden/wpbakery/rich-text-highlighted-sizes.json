@@ -88,7 +88,9 @@
           "bodySize": "1.2vw",
           "bodySizeSmall": "16px",
           "bodyLeading": 1.8,
-          "bodyWidth": "90%"
+          "bodyWidth": "90%",
+          "headRowGap": "7%",
+          "scribble": true
         }
       }
     }
