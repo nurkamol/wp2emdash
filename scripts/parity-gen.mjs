@@ -1,6 +1,6 @@
 // Generates docs/parity/wp-to-emdash.{md,json} from one table so both stay in sync.
 import { writeFileSync, mkdirSync } from "node:fs";
-const OUT = "/Users/nurkamol/coding/wp-to-emdash-kit/docs/parity";
+const OUT = new URL("../docs/parity", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
 // conf: src = read in the installed emdash 1.5.0 source; docs = docs.emdashcms.com only; none = not in source (theme/kit must build it)
