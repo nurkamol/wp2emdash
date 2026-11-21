@@ -21,6 +21,7 @@ import announcementScript from "./scripts/inline/announcement.js?raw";
 import { commentPostTarget } from "./utils/comments";
 import { commentsConfig } from "./utils/comments-data";
 import { reportDirectives, reportingEndpoints } from "./utils/csp-report";
+import { SPECULATION_RULES_PATH } from "./utils/prefetch";
 
 /**
  * Content-Security-Policy. Scripts and frames: this site, Cloudflare Turnstile and the embed providers the
@@ -139,6 +140,8 @@ async function legacyUpload(name: string): Promise<string | undefined> {
 }
 
 const PRODUCTION = new URL(site.productionUrl);
+/** kit.config performance.prefetch (site.config.json `prefetch: false` when off). */
+const prefetchOn = (site as { prefetch?: boolean }).prefetch !== false;
 const bare = (h: string) => h.replace(/^www\./, "");
 
 /** Original file behind an /_image transform URL (EmDash media only), for the fallback when a transform fails. */
@@ -303,6 +306,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	}
 	// Browsers always revalidate a page; the shared route cache keeps that fast, and EmDash purges only that cache.
 	if (html && !headers.has("cache-control")) headers.set("Cache-Control", "no-cache");
+	// Page preloading in Chrome/Edge (utils/prefetch.ts): a header, so no inline script for the CSP. Appended: Cloudflare
+	// Speed Brain may already send its own rule set. Never for editors: their pages bypass the cache.
+	if (html && prefetchOn && !isEditor(context.cookies, context.url)) headers.append("Speculation-Rules", `"${SPECULATION_RULES_PATH}"`);
 	// Never indexed: staging, and production on any address but its own domain (workers.dev before the switch).
 	if ((env as { STAGING?: string }).STAGING === "1" || bare(context.url.hostname) !== bare(PRODUCTION.hostname)) headers.set("X-Robots-Tag", "noindex, nofollow");
 	if (goneStatus) return new Response(response.body, { status: goneStatus, headers });

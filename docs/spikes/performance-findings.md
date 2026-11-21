@@ -214,3 +214,41 @@ cached, or evicted by Cloudflare) still renders once — preloading moves that r
   only by hash, and an inline script reached the live site once (a component script under 4 KB that Astro inlined),
   caught only by verify after the deploy. The lint fails scaffold when `assetsInlineLimit` is not 0, or a component has
   `<script is:inline>` code, `define:vars`, `set:html` not from `scripts/inline/`, or an `on*=` handler.
+
+## Speculation Rules for page preloading (2026-11-22)
+
+- **Why:** a live Playwright run showed the hover `<link rel=prefetch>` firing, but the click fetched the page again
+  (navigation `transferSize` > 0): pages carry `Cache-Control: no-cache`, so the browser revalidates the prefetched copy.
+- **Local test** (throwaway, not committed): Node http server, two pages with `Cache-Control: no-cache`, the starter's
+  CSP shape (`default-src 'self'; script-src 'self'`) and `Speculation-Rules: "/cdn-cgi/speculation",
+  "/speculation-rules.json"` (the rules file from `speculationRules()`), driven by Playwright Chromium 159.0.8154.6,
+  **headless** (headless honours header-delivered rules). Hover a link 600 ms, click:
+  - Rules header: `deliveryType: "navigational-prefetch"`, server saw `GET /two/` **once** (`Sec-Purpose: prefetch`), no
+    request at click. `transferSize` 700 / `encodedBodySize` 400: the entry reports the prefetch's bytes, so
+    `transferSize` is not 0 — check `deliveryType` or the server log, not `transferSize`.
+  - Hover only 260 ms and 100 ms: still `navigational-prefetch` (moderate also starts on pointerdown; the click uses the
+    in-flight prefetch).
+  - No header: `deliveryType: ""`, one normal request at click.
+  - `<link rel=prefetch>` on hover (today's script): `GET /two/` with `Sec-Purpose: prefetch`, then **again** at click,
+    `deliveryType: ""`, `transferSize` 730 — reproduces the live finding.
+  - Rules file served as `application/json`: ignored, no prefetch. The content type must be
+    `application/speculationrules+json` → `public/_headers` sets it (Cloudflare static assets: `_headers` overrides the
+    default Content-Type; it does not apply to Worker responses).
+  - CSP `default-src 'none'; script-src 'none'`: rules still fetched and used. Chromium applies no CSP directive to a
+    header-delivered rule set (only inline rules need `'inline-speculation-rules'`), so the hash-only `script-src` is
+    untouched. Same-origin anyway.
+  - Exclusions held in the browser: `/doc.pdf`, `?s=`, `target=_blank`, `data-prefetch="false"`, `/_emdash/admin` were
+    hovered 400 ms each and never requested; `/old.html` was prefetched.
+  - The rules file is requested once per page view (revalidated); tiny.
+- **URL patterns:** objects starting at `pathname` inherit protocol/host/port from the rules file URL (same-origin only)
+  and leave search/hash as wildcards. A string pattern or an object starting at `search` would inherit the pathname.
+  URLPattern regex groups may not contain capturing groups (`(?:…)` inside only). Node 24's `URLPattern` agrees with
+  Chromium; `test/prefetch.test.ts` checks the rules against `prefetchable()` with it.
+- **Built:** `starter/public/speculation-rules.json` (= `speculationRules()` in `starter/src/utils/prefetch.ts`, document
+  rules, `moderate`, prefetch only — never prerender, which runs page scripts, booking widgets, analytics). The middleware
+  appends `Speculation-Rules: "/speculation-rules.json"` on HTML responses when `prefetch` is on, never for editors;
+  coming-soon 503s and non-HTML responses never get it. Appended, so Cloudflare Speed Brain's own rule set is kept.
+  `site.ts` keeps the hover `<link rel=prefetch>` only where `HTMLScriptElement.supports("speculationrules")` is false
+  (Safari, Firefox), so Chrome/Edge do not fetch twice. Signed-in editors in Chrome/Edge get no preloading (their pages
+  bypass the cache anyway).
+- **Not yet checked live:** a Cloudflare deploy (`_headers` Content-Type on the real asset, a cached page's header).

@@ -578,8 +578,12 @@ for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog.person
 	});
 }
 
-/** Page preloading on hover / focus / first touch (utils/prefetch.ts). Off when <html data-prefetch="off">. */
-if (document.documentElement.dataset.prefetch !== "off") {
+/**
+ * Page preloading on hover / focus / first touch (utils/prefetch.ts). Off when <html data-prefetch="off">. Browsers with
+ * Speculation Rules (Chrome, Edge) preload from the middleware's Speculation-Rules header instead, whose copy the click
+ * actually uses: this is the fallback for the others (Safari, Firefox), so no page is fetched twice.
+ */
+if (document.documentElement.dataset.prefetch !== "off" && !(HTMLScriptElement as { supports?: (type: string) => boolean }).supports?.("speculationrules")) {
 	const done = new Set<string>();
 	const supportsPrefetch = document.createElement("link").relList?.supports?.("prefetch") ?? false;
 	const go = (a: Element | null) => {
