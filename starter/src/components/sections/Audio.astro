@@ -1,0 +1,22 @@
+---
+/** An audio player: EmDash's Media draws an <audio> for an audio/* file (emdash 1.5 EmDashMedia.astro). */
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import { Media } from "emdash/ui";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const attrs: Record<string, unknown> = { controls: true, preload: "metadata", ...(v.autoplay ? { autoplay: true } : {}), ...(v.loop ? { loop: true } : {}) };
+---
+
+<Section value={v} type="audio">
+	<Heading value={v} />
+	<figure class="audio">
+		{v.audio && <Media value={v.audio} {...attrs} />}
+		{v.caption && <figcaption>{v.caption}</figcaption>}
+	</figure>
+</Section>
+
+<style>
+	.audio { margin: 0; max-width: 720px; }
+	.audio :global(audio) { display: block; width: 100%; }
+	.audio figcaption { margin-top: 0.5rem; font-size: 0.9em; opacity: 0.85; }
+</style>

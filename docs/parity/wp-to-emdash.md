@@ -10,9 +10,9 @@ The matrix covers 110 features; 103 of them are in scope.
 
 | | Count | Share of in-scope |
 |---|---|---|
-| ✅ Done | 83 | 81% |
+| ✅ Done | 84 | 82% |
 | ➖ Superseded (nothing to carry) | 6 | 6% |
-| 🟡 Partial | 14 | 14% |
+| 🟡 Partial | 13 | 13% |
 | ❌ Missing | 0 | 0% |
 | ⛔ Out of scope (not counted) | 7 | — |
 
@@ -68,7 +68,7 @@ Columns: the WordPress feature · its EmDash 1.5 home (evidence level in italics
 | WP feature | EmDash 1.5 home | Kit status + refs | Gap & approach | Effort / risk | Pri | Sites |
 |---|---|---|---|---|---|---|
 | WPBakery + Salient <sub>`wpbakery`</sub> | Kit section library as `blocks` field (block types) | ✅ done: src/adapters/wpbakery (~70 element handlers + row recognisers), golden tests | Long tail of third-party `vc_*` add-ons via `wp2emdash-map`. | — | — | 1/2 |
-| Gutenberg core blocks <sub>`gutenberg`</sub> | Converter supports core audio/file/table/embed/… | 🟡 partial: src/adapters/gutenberg/index.ts: 30 core blocks; no `core/file`, `core/audio`; dynamic blocks (latest-posts, query, categories, archives) → `dynamic` error | Add file/audio handlers (S). Query/latest-posts need a `posts_list` section (with the blog work). | M / low | P1 | 2/2 |
+| Gutenberg core blocks <sub>`gutenberg`</sub> | Converter supports core audio/file/table/embed/… | ✅ done: src/adapters/gutenberg/index.ts: 34 core blocks. `core/file` → a link to the file + its download button (both point at the upload, so load moves it into the media library and rewrites them, gate `documents`; attachment-page links and the PDF preview reported); `core/audio` → new `audio` section (file through the media import like a video, caption, autoplay/loop; starter Audio.astro draws EmDash's `<audio>` player); `core/latest-posts` and `core/query` (post type `post`) → new `posts_list` section (count ≤ 50, category filter by slug, image/date/author/excerpt from the block's settings or its post template, columns; starter PostsList.astro lists published posts at render time, refreshed by the `posts` cache tag); ordering, offset, author/tag/search filters, pagination and other post-template blocks are reported, a site without posts drops the list (info), other post types and a site without a blog are `unmapped` errors; fixtures + goldens `gutenberg/file-audio`, `gutenberg/posts-list`, `gutenberg/posts-list-no-posts` | Other dynamic blocks (categories, archives, tag cloud, calendar, RSS) still → `dynamic` error; `core/table` stays legacy_html. Not yet run on a real site with these blocks. Bricks/Elementor/Divi post grids could reuse `posts_list` (not mapped yet). | — | — | 2/2 |
 | Gutenberg block libraries (Kadence, Spectra, GenerateBlocks, Stackable, CoBlocks; Otter) <sub>`gutenberg-libs`</sub> | Kit section library *(not in EmDash)* | 🟡 partial: src/adapters/gutenberg/libraries.ts (built 2026-11-21 from the libraries' saved block formats, docs/spikes/gutenberg-libraries-findings.md): row/column/container layouts (Kadence row layout presets, Spectra columns and row containers, GenerateBlocks grid and v2 grid/flex elements, Stackable columns / feature grid, CoBlocks row) → columns with widths and background; advanced heading, buttons, icon list, info box, tabs, accordion/FAQ, testimonials, team, counters, maps, galleries, pricing, CTA → sections; Kadence/Spectra/CoBlocks form blocks → form definitions (recipients never copied); unknown library blocks keep their text and are reported with the library name; 5 synthetic fixtures + goldens | Not yet run on a real site using these libraries. Missing: Otter (`themeisle-blocks/`), Stackable v2 (`ugb/`), Kadence advanced form (stored in a `kadence_form` post, reported), Spectra how-to/review/slider/modal and other long-tail blocks (reported, text kept); blog posts go through the Portable Text converter, so library blocks inside posts are not mapped by these handlers. | M / med | P1 | 0/2 |
 | Classic editor content <sub>`classic`</sub> | Portable Text | ✅ done: ir/portable-text.ts `autop`, shortcodes through the shortcode parser | — | — | — | — |
 | Bricks <sub>`bricks`</sub> | Kit section library | ✅ done: src/adapters/bricks (elements, templates, components, forms, menus); measured on one real site | Query loops / posts element need a posts listing section (reported as `dynamic`). | — | — | 1/2 |
@@ -237,7 +237,7 @@ Columns: the WordPress feature · its EmDash 1.5 home (evidence level in italics
 | 17 | P1 | Widgets / sidebars | `widgets` | M | Done 2026-11-21 (docs/spikes/site-features-findings.md); not yet on a real classic-theme site. |
 | 18 | P1 | Media completeness: upload library-only files and PDFs linked in content | `media-files`, `pdf` | S | Done 2026-11-21 (content & forms batch): linked documents, library documents, captions, dedupe report. |
 | 19 | P1 | Divi adapter | `divi` | L | Reuses the shortcode parser. |
-| 20 | P1 | Gutenberg: core file/audio, block libraries (Kadence, Spectra, GenerateBlocks) | `gutenberg`, `gutenberg-libs` | M |  |
+| 20 | P1 | Gutenberg: core file/audio, block libraries (Kadence, Spectra, GenerateBlocks) | `gutenberg`, `gutenberg-libs` | M | Core file/audio and latest-posts/query loop (`audio`, `posts_list` sections) done 2026-11-21. |
 | 21 | P1 | Scheduled and password-protected content | `scheduled`, `password-protected` | M | Password-protected and private content done 2026-11-21 (password page, hashed WordPress password). |
 | 22 | P1 | Off-account backups (scheduled site export + R2) | `backups` | M |  |
 | 23 | P1 | Forms: Ninja/Formidable/Elementor extractors, file uploads, conditional logic | `forms-other`, `forms-features` | M | Done 2026-11-21: Ninja, Formidable, WS Form, Forminator, HTML fallback; forms 1.7 uploads, conditions, steps. |

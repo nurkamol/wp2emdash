@@ -341,6 +341,8 @@ Implemented once in `starter/` as EmDash `blockTypes` + Astro components. Stylin
 | `steps` | items[] (title, text, icon) | process/timeline elements |
 | `tabs` | tabs[] (label, body PT) | `vc_tta_tabs`, `tabbed_section` |
 | `video` | provider/url or file, poster, caption | `vc_video`, `nectar_video_lightbox`, core/embed |
+| `audio` | audio file, caption, autoplay/loop | core/audio |
+| `posts_list` | count, category slugs, show image/date/author/excerpt, columns (listed at render time) | core/latest-posts, core/query |
 | `form` | form definition ref, heading, intro | CF7/WPForms/Gravity/Salient forms (§8) |
 | `map` | embed URL or address, height | `vc_gmaps`, map embeds |
 | `embed` | sanitised HTML from allowlist (iframe providers), height | `vc_raw_html` that is a known widget |

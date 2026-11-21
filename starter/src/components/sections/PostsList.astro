@@ -1,0 +1,46 @@
+---
+/**
+ * The newest blog posts (WordPress latest-posts / query loop), listed when the page renders. Pages carry the `posts`
+ * cache tag on blog sites (utils/cache.ts), so publishing a post refreshes every page with this section.
+ */
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import PostCard from "../blog/PostCard.astro";
+import { blogConfig, listPosts, type PostEntry } from "../../utils/blog-data";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const count = Number.isInteger(v.count) && v.count >= 1 && v.count <= 50 ? v.count : 5;
+const categories = String(v.categories ?? "")
+	.split(",")
+	.map((s) => s.trim())
+	.filter(Boolean);
+let posts: PostEntry[] = [];
+if (blogConfig) {
+	try {
+		posts = (await listPosts({ page: 1, perPage: count, ...(categories.length ? { where: { category: categories } } : {}) })).entries;
+	} catch (e) {
+		console.warn("posts_list: could not list posts", e);
+	}
+}
+const show = { image: v.show_image !== false, date: v.show_date !== false, author: v.show_author === true, excerpt: v.show_excerpt !== false };
+const columns = Number.isInteger(v.columns) && v.columns >= 1 && v.columns <= 6 ? v.columns : undefined;
+---
+
+<Section value={v} type="posts_list">
+	<Heading value={v} />
+	{
+		posts.length ? (
+			<div class:list={["posts-list", { "posts-list--cols": columns }]} style={columns ? `--posts-cols:${columns}` : undefined}>
+				{posts.map((p) => <PostCard post={p} level={v.heading ? "h3" : "h2"} show={show} />)}
+			</div>
+		) : (
+			<p class="posts-list__empty">No posts yet.</p>
+		)
+	}
+</Section>
+
+<style>
+	.posts-list { display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); }
+	.posts-list--cols { grid-template-columns: repeat(var(--posts-cols), minmax(0, 1fr)); }
+	@media (max-width: 760px) { .posts-list--cols { grid-template-columns: 1fr; } }
+	.posts-list__empty { opacity: 0.8; }
+</style>

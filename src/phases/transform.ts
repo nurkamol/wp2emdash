@@ -368,10 +368,15 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		return r;
 	}
 
+	/** `<taxonomy>:<term id>` → slug (category filters of latest-posts / query loop blocks). */
+	const termSlugs = new Map((readJson<WpTaxonomy[]>(join(exp, "taxonomies.json")) ?? []).flatMap((t) => (t.terms ?? []).map((x) => [`${t.name}:${x.id}`, x.slug] as const)));
 	/** Gutenberg / classic content; block-library form blocks (Kadence, Spectra, CoBlocks) bring their definitions. */
 	function adaptGutenbergPost(p: ExporterPost, common: { kind: Exclude<IrPage["kind"], "entry">; keys: Keys; popupFor: typeof popupFor; postCount: number; rowOverrides: Record<string, SectionType | "drop"> }) {
-		const r = adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id), postId: p.id });
+		const r = adaptGutenberg(p.content, { ...common, reusable: (id) => reusable.get(id), postId: p.id, termSlug: (tax, id) => termSlugs.get(`${tax}:${id}`) });
 		for (const f of r.forms ?? []) blockForms.set(f.id, f);
+		// A latest-posts section lists the blog's posts: with no blog on the new site it would show nothing.
+		const noBlog = config.blog === false || overrides.contentTypes.post?.as === "pages" || overrides.contentTypes.post?.as === "skip";
+		if (noBlog) for (const s of r.sections.filter((x) => x.type === "posts_list")) r.diagnostics.push({ level: "error", code: "unmapped", message: "Latest-posts list, but the new site has no blog (kit.config blog: false or overrides.ts contentTypes.post): it would list nothing — remove the block or migrate the posts", path: s.sourceRef.path, carriesContent: true, tag: "posts_list" });
 		return r;
 	}
 

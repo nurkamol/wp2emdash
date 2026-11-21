@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { adaptGutenberg } from "../src/adapters/gutenberg/index.js";
 import { adaptWpbakery } from "../src/adapters/wpbakery/index.js";
 import { Keys } from "../src/ir/portable-text.js";
 import { fluentFormToDefinition } from "../src/scaffold/forms.js";
@@ -14,7 +15,7 @@ const media = (m: { wpId?: number; url?: string } | undefined) => (m ? { $media:
 
 describe("section library", () => {
 	it("has one block type per IR section type, all prefixed section_", () => {
-		expect(BLOCK_TYPES).toHaveLength(21);
+		expect(BLOCK_TYPES).toHaveLength(23);
 		expect(BLOCK_TYPES.every((b) => b.slug.startsWith("section_") && b.versions[0]?.fields.length)).toBe(true);
 	});
 
@@ -39,6 +40,26 @@ describe("IR → EmDash blocks", () => {
 				expect(drops.filter((d) => !(s.type === "embed" && d.startsWith("variant="))), `${file} ${s.type}`).toEqual([]);
 			});
 		}
+	});
+
+	it("converts audio and latest-posts sections into values that conform to their block types", () => {
+		const dir = join(import.meta.dirname, "fixtures", "gutenberg");
+		const terms: Record<string, string> = { "category:7": "news", "category:9": "studio-life" };
+		const types = new Set<string>();
+		for (const file of ["file-audio.html", "posts-list.html"]) {
+			const src = readFileSync(join(dir, file), "utf8").replace(/^<!-- fixture \{.*?\} -->\n?/, "");
+			const { sections } = adaptGutenberg(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 12, termSlug: (tax, id) => terms[`${tax}:${id}`] });
+			sections.forEach((s, i) => {
+				types.add(s.type);
+				const drops: string[] = [];
+				const v = sectionToBlock(s, `k${i}`, media, (d) => drops.push(...d));
+				expect(conformToBlockType(v).dropped, `${file} ${s.type}`).toEqual([]);
+				expect(drops, `${file} ${s.type}`).toEqual([]);
+				if (s.type === "audio") expect(v.audio).toBeDefined();
+				if (s.type === "posts_list" && s.fields.categories.length) expect(v.categories).toBe(s.fields.categories.join(", "));
+			});
+		}
+		expect([...types]).toEqual(expect.arrayContaining(["audio", "posts_list"]));
 	});
 
 	it("drops unknown keys and invalid select values, and says so", () => {

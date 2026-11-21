@@ -2,7 +2,7 @@
  * Gutenberg + classic adapter (PLAN §7). Block comments → block tree (same shape as WordPress's
  * parser) → rows → the shared section recognisers. Classic content (no blocks) becomes rich text.
  */
-import type { Diagnostic, MediaRef, Section, SectionType } from "../../ir/schema.js";
+import type { Diagnostic, MediaRef, PtBlock, Section, SectionType } from "../../ir/schema.js";
 import { autop, type Keys } from "../../ir/portable-text.js";
 import { embedOrLegacy, type Fragment, type HandlerCtx, mediaFrom, richFromHtml } from "../wpbakery/elements.js";
 import { adaptWpbakery, mergeRich, recognise, type Row, splitRow } from "../wpbakery/index.js";
@@ -70,7 +70,14 @@ export interface GutenbergOptions {
 	asFragments?: boolean;
 	/** The post's id (form ids of block-library forms: `<postId>-<n>`). */
 	postId?: number;
+	/** A term's slug by taxonomy and WordPress id (category filters of core/latest-posts and core/query). */
+	termSlug?: (taxonomy: string, id: number) => string | undefined;
 }
+
+/** Top-level core blocks that make a section of their own. */
+const OWN_SECTION = new Set(["core/audio", "core/latest-posts", "core/query"]);
+/** Block attributes that only style the block (handled the same way for every block, not content). */
+const STYLE_ATTRS = new Set(["className", "align", "style", "anchor", "fontSize", "fontFamily", "textColor", "backgroundColor", "gradient", "borderColor", "layout", "lock", "metadata", "textAlign"]);
 
 const DECORATIVE = new Set(["core/spacer", "core/separator", "core/nextpage", "core/more"]);
 const PROSE = new Set(["core/paragraph", "core/heading", "core/list", "core/list-item", "core/quote", "core/pullquote", "core/verse", "core/preformatted", "core/code", "core/freeform", "core/footnotes"]);
@@ -168,6 +175,14 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 				const v = typeof b.attrs.id === "number" ? { wpId: b.attrs.id, kind: "video" as const } : src ? { url: src, kind: "video" as const } : undefined;
 				return [{ kind: "video", ...(v ? { video: v } : {}) }];
 			}
+			case "core/audio":
+				return audioBlock(b, path);
+			case "core/file":
+				return fileBlock(b, path, ctx);
+			case "core/latest-posts":
+				return latestPosts(b, path);
+			case "core/query":
+				return queryLoop(b, path);
 			case "core/html":
 				return embedOrLegacy(b.innerHTML, ctx, "core/html");
 			case "core/shortcode":
@@ -195,6 +210,165 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 				return [...(text ? richFromHtml(b.innerHTML, ctx) : []), ...b.innerBlocks.flatMap((i, k) => fragmentsOf(i, `${path}/${k}`))];
 			}
 		}
+	}
+
+	/** Attributes of a block that no handler carries (style attributes aside): reported, never silently dropped. */
+	function reportUnmapped(b: Block, path: string, handled: string[], why: string) {
+		const left = Object.keys(b.attrs).filter((k) => !handled.includes(k) && !STYLE_ATTRS.has(k));
+		if (left.length) diag({ level: "info", code: "lossy", message: `${b.name}: ${left.map((k) => `${k}=${JSON.stringify(b.attrs[k]).slice(0, 40)}`).join(", ")} not carried (${why})`, path, tag: b.name });
+	}
+
+	/** core/audio: the file (through the media import, like a video), its caption and the source's autoplay/loop flags. */
+	function audioBlock(b: Block, path: string): Fragment[] {
+		const tag = /<audio\b([^>]*)>/.exec(b.innerHTML)?.[1] ?? "";
+		const src = /\bsrc="([^"]+)"/.exec(tag)?.[1] ?? /<source[^>]+src="([^"]+)"/.exec(b.innerHTML)?.[1] ?? str(b.attrs.src);
+		const id = typeof b.attrs.id === "number" ? b.attrs.id : undefined;
+		const audio: MediaRef | undefined = id ? { wpId: id, kind: "file", ...(src ? { url: src } : {}) } : mediaFrom(src, "file");
+		if (!audio) {
+			diag({ level: "error", code: "unmapped", message: "core/audio without a file", path, carriesContent: true, tag: b.name });
+			return [];
+		}
+		const caption = /<figcaption[^>]*>([\s\S]*?)<\/figcaption>/.exec(b.innerHTML)?.[1]?.replace(/<[^>]+>/g, "").trim();
+		const autoplay = b.attrs.autoplay === true || /\bautoplay\b/.test(tag);
+		const loop = b.attrs.loop === true || /\bloop\b/.test(tag);
+		reportUnmapped(b, path, ["id", "src", "caption", "autoplay", "loop"], "the player always loads the file's metadata only");
+		return [{ kind: "audio", audio, ...(caption ? { caption } : {}), ...(autoplay ? { autoplay: true } : {}), ...(loop ? { loop: true } : {}) }];
+	}
+
+	/**
+	 * core/file: a link to the file and its download button. Both point at the file itself, so load uploads it to the
+	 * media library and rewrites them like any other upload linked from content (src/targets/emdash/documents.ts).
+	 */
+	function fileBlock(b: Block, path: string, ctx: HandlerCtx): Fragment[] {
+		const links = [...b.innerHTML.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].map((m) => ({ attrs: m[1] ?? "", text: (m[2] ?? "").replace(/<[^>]+>/g, "").trim(), href: /\bhref="([^"]+)"/.exec(m[1] ?? "")?.[1] }));
+		const isButton = (l: { attrs: string }) => /wp-block-file__button/.test(l.attrs);
+		const main = links.find((l) => !isButton(l));
+		const btn = links.find(isButton);
+		const file = str(b.attrs.href) ?? btn?.href ?? main?.href;
+		if (!file) {
+			diag({ level: "error", code: "unmapped", message: "core/file without a file address", path, carriesContent: true, tag: b.name });
+			return [];
+		}
+		const fileName = (() => {
+			try {
+				return decodeURIComponent(file.split(/[?#]/)[0]?.split("/").pop() ?? "");
+			} catch {
+				return file.split("/").pop() ?? "";
+			}
+		})();
+		const label = main?.text || str(b.attrs.fileName)?.replace(/<[^>]+>/g, "").trim() || fileName || "Download";
+		const blank = /target="_blank"/.test(main?.attrs ?? "") || b.attrs.textLinkTarget === "_blank";
+		// The text may link to the attachment page (textLinkHref), which does not exist after the move: it links to the file.
+		if (main?.href && main.href !== file) diag({ level: "info", code: "lossy", message: `core/file: the file name linked to ${main.href} (the attachment page); it links to the file itself now`, path, tag: b.name });
+		if (b.attrs.displayPreview === true) diag({ level: "info", code: "lossy", message: "core/file: the inline PDF preview is not rebuilt (the link and download button are)", path, tag: b.name });
+		reportUnmapped(b, path, ["id", "href", "fileId", "fileName", "textLinkHref", "textLinkTarget", "showDownloadButton", "downloadButtonText", "displayPreview", "previewHeight"], "the file is a link and a download button");
+		const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+		const out: Fragment[] = richFromHtml(`<p><a href="${esc(file)}"${blank ? ' target="_blank"' : ""}>${esc(label)}</a></p>`, ctx);
+		const showButton = b.attrs.showDownloadButton !== false && (btn !== undefined || b.attrs.showDownloadButton === true);
+		if (showButton) out.push({ kind: "button", button: { label: btn?.text || str(b.attrs.downloadButtonText)?.replace(/<[^>]+>/g, "").trim() || "Download", href: file, style: "primary" } });
+		return out;
+	}
+
+	/** Category ids → slugs; ids the extract does not know are reported (the list would show every category). */
+	function categorySlugs(ids: number[], b: Block, path: string): string[] {
+		const slugs = ids.flatMap((id) => opts.termSlug?.("category", id) ?? []);
+		const missing = ids.filter((id) => !opts.termSlug?.("category", id));
+		if (missing.length) diag({ level: "warn", code: "lossy", message: `${b.name}: category ${missing.map((id) => `#${id}`).join(", ")} not found in the extract — ${slugs.length ? "left out of the filter" : "the list shows posts of every category"}`, path, tag: b.name });
+		return slugs;
+	}
+
+	/** A post listing on a site without posts lists nothing: dropped and reported (as for builder post grids). */
+	function noPosts(b: Block, path: string): boolean {
+		if (opts.postCount > 0) return false;
+		diag({ level: "info", code: "dynamic", message: `${b.name}: lists posts, but the site has none — dropped`, path, tag: b.name });
+		return true;
+	}
+
+	const clampCount = (n: number, b: Block, path: string) => {
+		if (n > 50) diag({ level: "warn", code: "lossy", message: `${b.name}: ${n} posts asked for, the list shows at most 50`, path, tag: b.name });
+		return Math.min(50, Math.max(1, Math.round(n)));
+	};
+
+	/** core/latest-posts → posts_list (newest first, optional categories, which parts of each post show). */
+	function latestPosts(b: Block, path: string): Fragment[] {
+		if (noPosts(b, path)) return [];
+		const a = b.attrs;
+		const raw = Array.isArray(a.categories) ? a.categories : a.categories !== undefined && a.categories !== "" ? [a.categories] : [];
+		const ids = raw.map((c) => (typeof c === "object" && c ? Number((c as { id?: unknown }).id) : Number(c))).filter((n) => Number.isInteger(n) && n > 0);
+		const notes: string[] = [];
+		if (a.order === "asc" || (a.orderBy !== undefined && a.orderBy !== "date")) notes.push(`order ${String(a.orderBy ?? "date")} ${String(a.order ?? "desc")} (the list is newest first)`);
+		if (a.selectedAuthor !== undefined) notes.push(`only author #${String(a.selectedAuthor)} (the list shows every author)`);
+		if (a.displayPostContent === true && a.displayPostContentRadio === "full_post") notes.push("full post text (the list shows the excerpt)");
+		if (notes.length) diag({ level: "warn", code: "lossy", message: `${b.name}: ${notes.join("; ")}`, path, tag: b.name });
+		const grid = a.postLayout === "grid";
+		reportUnmapped(b, path, ["categories", "postsToShow", "displayPostContent", "displayPostContentRadio", "displayPostDate", "displayFeaturedImage", "displayAuthor", "postLayout", "columns", "order", "orderBy", "selectedAuthor"], "the list uses the site's post cards");
+		return [
+			{
+				kind: "posts",
+				count: clampCount(typeof a.postsToShow === "number" ? a.postsToShow : 5, b, path),
+				categories: categorySlugs(ids, b, path),
+				showExcerpt: a.displayPostContent === true,
+				showDate: a.displayPostDate === true,
+				showImage: a.displayFeaturedImage === true,
+				showAuthor: a.displayAuthor === true,
+				...(grid ? { columns: Math.min(6, Math.max(1, typeof a.columns === "number" ? a.columns : 3)) } : {}),
+			},
+		];
+	}
+
+	/** core/query (Query Loop) of posts → posts_list; what its post template shows decides the parts of each post. */
+	function queryLoop(b: Block, path: string): Fragment[] {
+		const q = (b.attrs.query ?? {}) as Record<string, unknown>;
+		const postType = str(q.postType) ?? "post";
+		// Text around the loop inside the block (a heading above it) is kept.
+		const around = b.innerBlocks.filter((i) => !/^core\/(post-template|query-pagination|query-no-results|query-title|query-total)$/.test(i.name)).flatMap((i, k) => fragmentsOf(i, `${path}/${k}`));
+		if (postType !== "post") {
+			diag({ level: "error", code: "unmapped", message: `core/query: lists "${postType}" entries — only blog posts have a list section`, path, carriesContent: true, tag: b.name });
+			return around;
+		}
+		if (noPosts(b, path)) return around;
+		const descendants = (x: Block): Block[] => x.innerBlocks.flatMap((i) => [i, ...descendants(i)]);
+		const all = descendants(b);
+		const template = all.find((x) => x.name === "core/post-template");
+		const shown = new Set(all.map((x) => x.name));
+		const notes: string[] = [];
+		if (q.inherit === true) diag({ level: "info", code: "lossy", message: "core/query: inherits the page's query — listed as the newest posts", path, tag: b.name });
+		if (q.order === "asc" || (q.orderBy !== undefined && q.orderBy !== "date")) notes.push(`order ${String(q.orderBy ?? "date")} ${String(q.order ?? "desc")} (the list is newest first)`);
+		if (typeof q.offset === "number" && q.offset > 0) notes.push(`skips the first ${q.offset} post(s) (the list starts at the newest)`);
+		if (q.author !== undefined && q.author !== "") notes.push(`only author ${String(q.author)} (the list shows every author)`);
+		if (typeof q.search === "string" && q.search) notes.push(`search "${q.search}" (the list is not filtered)`);
+		if (Array.isArray(q.exclude) && q.exclude.length) notes.push(`excludes ${q.exclude.length} post(s) (not excluded)`);
+		if (q.sticky === "only" || q.sticky === "exclude") notes.push(`sticky posts ${q.sticky === "only" ? "only" : "left out"} (the list shows every post)`);
+		if (Array.isArray(q.parents) && q.parents.length) notes.push("only children of chosen posts (the list shows every post)");
+		if (Array.isArray(q.format) && q.format.length) notes.push(`only post formats ${q.format.join(", ")} (the list shows every format)`);
+		const tax = (q.taxQuery ?? {}) as Record<string, unknown>;
+		const otherTax = Object.entries(tax).filter(([k, v]) => k !== "category" && Array.isArray(v) && v.length);
+		if (otherTax.length) notes.push(`filtered by ${otherTax.map(([k]) => k).join(", ")} (only category filters are kept)`);
+		if (notes.length) diag({ level: "warn", code: "lossy", message: `core/query: ${notes.join("; ")}`, path, tag: b.name });
+		const parts = new Set(["core/post-template", "core/post-title", "core/post-excerpt", "core/post-date", "core/post-featured-image", "core/post-author", "core/post-author-name", "core/query-pagination", "core/query-pagination-previous", "core/query-pagination-next", "core/query-pagination-numbers", "core/query-no-results"]);
+		const inTemplate = template ? descendants(template) : [];
+		const extra = [...new Set(inTemplate.map((x) => x.name).filter((n) => !parts.has(n) && !CONTAINERS.has(n)))];
+		if (extra.length) diag({ level: "info", code: "lossy", message: `core/query: the post template's ${extra.join(", ")} not shown (each post shows its picture, title, date, author and excerpt as chosen)`, path, tag: b.name });
+		if (shown.has("core/query-pagination")) diag({ level: "info", code: "lossy", message: "core/query: page numbers not rebuilt — the list shows the newest posts; the posts page has numbered pages", path, tag: b.name });
+		if (shown.has("core/query-no-results")) diag({ level: "info", code: "lossy", message: "core/query: its no-results text is replaced by the list's own", path, tag: b.name });
+		reportUnmapped(b, path, ["query", "queryId", "namespace", "tagName", "displayLayout", "enhancedPagination"], "the list uses the site's post cards");
+		const tl = (template?.attrs.layout ?? {}) as { type?: string; columnCount?: number };
+		const dl = (b.attrs.displayLayout ?? {}) as { type?: string; columns?: number };
+		const columns = tl.type === "grid" ? (tl.columnCount ?? 3) : dl.type === "flex" ? (dl.columns ?? 3) : undefined;
+		const ids = (Array.isArray(tax.category) ? tax.category : []).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+		return [
+			...around,
+			{
+				kind: "posts",
+				count: clampCount(typeof q.perPage === "number" ? q.perPage : Number(q.perPage) || 10, b, path),
+				categories: categorySlugs(ids, b, path),
+				showExcerpt: shown.has("core/post-excerpt"),
+				showDate: shown.has("core/post-date"),
+				showImage: shown.has("core/post-featured-image"),
+				showAuthor: shown.has("core/post-author") || shown.has("core/post-author-name"),
+				...(columns ? { columns: Math.min(6, Math.max(1, columns)) } : {}),
+			},
+		];
 	}
 
 	/** Fragments of any block; containers nested inside a column become subrows. */
@@ -239,6 +413,30 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 			diagnostics.push(...r.diagnostics);
 			extraSections.push({ at: rows.length, sections: r.sections });
 			runStart = i + 1;
+			return;
+		}
+		// An audio player or a posts list is a section of its own (text between two of them stays between them); the
+		// heading that ends the text before it is its title.
+		if (!opts.asFragments && OWN_SECTION.has(b.name)) {
+			const frags = fragmentsOf(b, path);
+			if (!frags.some((f) => f.kind === "audio" || f.kind === "posts")) {
+				if (!run.length) runStart = i;
+				run.push(...frags);
+				return;
+			}
+			const last = run.at(-1);
+			let title: Fragment[] = [];
+			if (last?.kind === "rich") {
+				let k = last.blocks.length;
+				while (k > 0 && /^h[1-6]$/.test((last.blocks[k - 1] as PtBlock).style)) k--;
+				if (k < last.blocks.length) {
+					title = [{ ...last, blocks: last.blocks.slice(k) }];
+					run = k ? [...run.slice(0, -1), { ...last, blocks: last.blocks.slice(0, k) }] : run.slice(0, -1);
+				}
+			}
+			flush(i);
+			run = [...title, ...frags];
+			flush(i + 1);
 			return;
 		}
 		// A block-library item collection (accordion, tabs, testimonials, form, map…) is a section of its own; a heading

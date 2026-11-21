@@ -1,0 +1,222 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-4]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Class downloads",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Everything you need before your first session.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t6",
+                "text": "Studio timetable",
+                "marks": [
+                  "t5"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t5",
+                "href": "https://fixture.example/wp-content/uploads/2026/03/Studio-Timetable.pdf"
+              }
+            ]
+          },
+          {
+            "_type": "block",
+            "_key": "t7",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "Intake form (Word)",
+                "marks": [
+                  "t8"
+                ]
+              }
+            ],
+            "markDefs": [
+              {
+                "_type": "link",
+                "_key": "t8",
+                "href": "https://fixture.example/wp-content/uploads/2026/03/intake-form.docx",
+                "blank": true
+              }
+            ]
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": [
+          {
+            "label": "Download",
+            "href": "https://fixture.example/wp-content/uploads/2026/03/Studio-Timetable.pdf",
+            "style": "primary"
+          }
+        ]
+      }
+    },
+    {
+      "type": "audio",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[5-5]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "Guided relaxation",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "audio": {
+          "wpId": 303,
+          "kind": "file",
+          "url": "https://fixture.example/wp-content/uploads/2026/03/breathing-10min.mp3"
+        },
+        "caption": "A ten-minute breathing practice",
+        "loop": true
+      }
+    },
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[6-6]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "tc",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "td",
+                "text": "Play it before class or at home.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    },
+    {
+      "type": "audio",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[7-7]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "audio": {
+          "url": "https://cdn.example/audio/welcome.ogg",
+          "kind": "file"
+        },
+        "autoplay": true
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "core/file: the file name linked to https://fixture.example/intake-form/ (the attachment page); it links to the file itself now",
+      "path": "blocks[3]",
+      "tag": "core/file"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "core/file: the inline PDF preview is not rebuilt (the link and download button are)",
+      "path": "blocks[3]",
+      "tag": "core/file"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "core/audio: preload=\"none\" not carried (the player always loads the file's metadata only)",
+      "path": "blocks[7]",
+      "tag": "core/audio"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "core/audio without a file",
+      "path": "blocks[8]",
+      "carriesContent": true,
+      "tag": "core/audio"
+    }
+  ]
+}

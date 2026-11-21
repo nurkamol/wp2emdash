@@ -422,6 +422,13 @@ export const section = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("steps"), ...base, fields: z.object({ heading, items: z.array(z.object({ title: z.string(), body: richText.default([]), icon: icon.optional() })).min(1) }) }),
 	z.object({ type: z.literal("tabs"), ...base, fields: z.object({ heading, tabs: z.array(z.object({ label: z.string(), body: richText })).min(1) }) }),
 	z.object({ type: z.literal("video"), ...base, fields: z.object({ heading, video: mediaRef.optional(), embedUrl: z.string().optional(), poster: mediaRef.optional(), caption: z.string().optional() }) }),
+	/** An audio player (Gutenberg core/audio): the file, its caption, the source's autoplay/loop flags. */
+	z.object({ type: z.literal("audio"), ...base, fields: z.object({ heading, audio: mediaRef, caption: z.string().optional(), autoplay: z.boolean().optional(), loop: z.boolean().optional() }) }),
+	/**
+	 * The newest blog posts, listed at render time from the `posts` collection (Gutenberg core/latest-posts, core/query):
+	 * how many, only these category slugs (none = every category), which parts of each post show, cards per row.
+	 */
+	z.object({ type: z.literal("posts_list"), ...base, fields: z.object({ heading, count: z.number().int().min(1).max(50).default(5), categories: z.array(z.string()).default([]), showExcerpt: z.boolean().default(true), showDate: z.boolean().default(true), showImage: z.boolean().default(true), showAuthor: z.boolean().default(false), columns: z.number().int().min(1).max(6).optional() }) }),
 	z.object({ type: z.literal("form"), ...base, fields: z.object({ heading, intro: richText.default([]), formRef: z.object({ provider: z.string(), id: z.string() }), aside: richText.default([]), /** The form under the heading, not beside it (a builder column stacks them), at most this wide (px), this far below (px or fluid). */ stacked: z.boolean().optional(), formWidth: z.number().int().min(200).max(2000).optional(), formGap: fluidLength.optional() }) }),
 	z.object({ type: z.literal("map"), ...base, fields: z.object({ heading, embedUrl: z.string().optional(), address: z.string().optional(), height: z.string().optional() }) }),
 	z.object({ type: z.literal("embed"), ...base, fields: z.object({ heading, provider: z.string(), html: z.string(), height: z.string().optional() }) }),

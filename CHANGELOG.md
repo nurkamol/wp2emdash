@@ -6,6 +6,14 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Gutenberg `core/file` and `core/audio`** (parity row `gutenberg`, issue #5): a file block becomes a link to the file plus its download button, both moved into the media library by load (gate `documents`); an audio block becomes the new **`audio` section** (file through the media import like a video, caption, autoplay/loop; starter `Audio.astro` uses EmDash's audio player). Attachment-page links, the PDF preview and unused attributes are reported.
+- **`posts_list` section** for Gutenberg `core/latest-posts` and `core/query` loops of posts: how many posts, category filter (WordPress ids → slugs), which parts show (image, date, author, excerpt), posts per row; the starter's `PostsList.astro` lists the newest published posts at render time and refreshes with the `posts` cache tag. Ordering, offset, author/tag/search filters, pagination and other post-template blocks are reported; a site without posts drops the list (info); other post types, or a list on a site without a blog, are `unmapped` errors. Findings: docs/spikes/gutenberg-core-findings.md.
+- Extract and load also take `.aac`, `.flac`, `.oga` and `.opus` uploads.
+
+### Changed
+- Section library: 23 block types (was 21). `PostCard`/`PostMeta` accept which parts to show (defaults unchanged, except that the byline no longer starts with " · " when a post has no date).
+
 ## [1.0.0] — 2026-11-21
 
 First public release. The full pipeline (init → audit → extract → transform → scaffold → load → verify → cutover) with

@@ -46,6 +46,10 @@ export const DOC_MIME: Record<string, string> = {
 	".m4a": "audio/mp4",
 	".wav": "audio/wav",
 	".ogg": "audio/ogg",
+	".oga": "audio/ogg",
+	".opus": "audio/ogg",
+	".aac": "audio/aac",
+	".flac": "audio/flac",
 };
 
 /** EmDash 1.5's global upload allowlist (prefixes ending in / match a whole family). */

@@ -33,6 +33,8 @@ export type Fragment =
 	| { kind: "form"; provider: string; id: string }
 	| { kind: "embed"; provider: string; html: string }
 	| { kind: "video"; video?: MediaRef; embedUrl?: string; poster?: MediaRef }
+	| { kind: "audio"; audio: MediaRef; caption?: string; autoplay?: boolean; loop?: boolean }
+	| { kind: "posts"; count: number; categories: string[]; showExcerpt: boolean; showDate: boolean; showImage: boolean; showAuthor: boolean; columns?: number }
 	| { kind: "map"; embedUrl?: string; address?: string }
 	| { kind: "marquee"; blocks: RichText; media?: MediaRef; link?: Button }
 	| { kind: "legacy"; html: string; reason: string }

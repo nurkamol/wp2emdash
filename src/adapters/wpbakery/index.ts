@@ -451,7 +451,7 @@ export interface RecogniseCtx {
 
 /** Collection sections that carry an intro (the text between their heading and their items). */
 const INTRO_COLLECTIONS = new Set<string>(["faq", "team", "price", "form", "feature"]);
-const COLLECTIONS = ["faq", "tab", "team", "testimonial", "gallery", "price", "stat", "form", "embed", "video", "map", "marquee", "legacy", "feature"] as const;
+const COLLECTIONS = ["faq", "tab", "team", "testimonial", "gallery", "price", "stat", "form", "embed", "video", "audio", "posts", "map", "marquee", "legacy", "feature"] as const;
 type CollectionKind = (typeof COLLECTIONS)[number];
 
 const isHeading = (b: PtBlock) => /^h[1-6]$/.test(b.style);
@@ -632,6 +632,12 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					break;
 				case "video":
 					for (const [i, v] of items("video").entries()) push({ ...base("video"), fields: { ...(i === 0 ? h : {}), ...(v.video ? { video: v.video } : {}), ...(v.embedUrl ? { embedUrl: v.embedUrl } : {}), ...(v.poster ? { poster: v.poster } : {}) } });
+					break;
+				case "audio":
+					for (const [i, a] of items("audio").entries()) push({ ...base("audio"), fields: { ...(i === 0 ? h : {}), audio: a.audio, ...(a.caption ? { caption: a.caption } : {}), ...(a.autoplay ? { autoplay: true } : {}), ...(a.loop ? { loop: true } : {}) } });
+					break;
+				case "posts":
+					for (const [i, { kind: _k, ...p }] of items("posts").entries()) push({ ...base("posts_list"), fields: { ...(i === 0 ? h : {}), ...p } });
 					break;
 				case "map":
 					for (const [i, m] of items("map").entries()) push({ ...base("map"), fields: { ...(i === 0 ? h : {}), ...(m.embedUrl ? { embedUrl: m.embedUrl } : {}), ...(m.address ? { address: m.address } : {}) } });
@@ -843,12 +849,12 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 	return sections;
 }
 
-const COLLECTION_PRIORITY: CollectionKind[] = ["form", "faq", "tab", "team", "testimonial", "price", "gallery", "stat", "embed", "map", "video", "marquee", "legacy", "feature"];
+const COLLECTION_PRIORITY: CollectionKind[] = ["form", "faq", "tab", "team", "testimonial", "price", "gallery", "stat", "posts", "embed", "map", "video", "audio", "marquee", "legacy", "feature"];
 function pickCollection(present: readonly CollectionKind[]): CollectionKind | undefined {
 	return COLLECTION_PRIORITY.find((k) => present.includes(k));
 }
 function collectionSection(k: CollectionKind): SectionType {
-	return ({ faq: "faq", tab: "tabs", team: "team", testimonial: "testimonials", gallery: "gallery", price: "pricing", stat: "stats", form: "form", embed: "embed", video: "video", map: "map", marquee: "cta_banner", legacy: "legacy_html", feature: "feature_grid" } as const)[k];
+	return ({ faq: "faq", tab: "tabs", team: "team", testimonial: "testimonials", gallery: "gallery", price: "pricing", stat: "stats", form: "form", embed: "embed", video: "video", audio: "audio", posts: "posts_list", map: "map", marquee: "cta_banner", legacy: "legacy_html", feature: "feature_grid" } as const)[k];
 }
 
 function richBefore(all: Fragment[], k: CollectionKind): RichText {

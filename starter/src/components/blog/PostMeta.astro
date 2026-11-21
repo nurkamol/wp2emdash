@@ -7,14 +7,18 @@ interface Props {
 	post: PostEntry;
 	/** Also list the tags (single post). */
 	tags?: boolean;
+	/** Leave out the date, the bylines or the categories (a latest-posts section that does not show them). */
+	showDate?: boolean;
+	showAuthor?: boolean;
+	showCategories?: boolean;
 }
-const { post, tags } = Astro.props;
+const { post, tags, showDate = true, showAuthor = true, showCategories = true } = Astro.props;
 const d = post.data;
-const date = d.publishedAt ? new Date(d.publishedAt) : undefined;
+const date = showDate && d.publishedAt ? new Date(d.publishedAt) : undefined;
 const lang = (site as { lang?: string }).lang ?? "en";
-const bylines = ((d.bylines ?? []) as { byline: { slug: string; displayName: string } }[]).map((c) => c.byline).filter(Boolean);
+const bylines = showAuthor ? ((d.bylines ?? []) as { byline: { slug: string; displayName: string } }[]).map((c) => c.byline).filter(Boolean) : [];
 const terms = (d.terms ?? {}) as Record<string, { slug: string; label: string }[]>;
-const cats = (terms.category ?? []).filter((t) => t.slug !== "uncategorized");
+const cats = showCategories ? (terms.category ?? []).filter((t) => t.slug !== "uncategorized") : [];
 const tagList = tags ? (terms.tag ?? []) : [];
 ---
 
@@ -23,7 +27,7 @@ const tagList = tags ? (terms.tag ?? []) : [];
 	{
 		bylines.length > 0 && (
 			<span class="post-meta__by">
-				{" · "}
+				{date && " · "}
 				{bylines.map((b, i) => (
 					<>
 						{i > 0 && ", "}
@@ -36,7 +40,7 @@ const tagList = tags ? (terms.tag ?? []) : [];
 	{
 		cats.length > 0 && (
 			<span class="post-meta__terms">
-				{" · "}
+				{(date || bylines.length > 0) && " · "}
 				{cats.map((t, i) => (
 					<>
 						{i > 0 && ", "}
