@@ -68,7 +68,7 @@ copy was reset to the new history. A local-only planning branch was not pushed.
       `cms`.
 - [x] Branch protection on `main`: PRs required, CI required, no force-push (after the history rewrite).
 - [x] Dependabot (actions + npm) and secret scanning / push protection on.
-- [ ] Social preview image (the logo on a 1280×640 card).
+- [x] Social preview image (the logo on a 1280×640 card).
 
 ## 6. After publishing
 
