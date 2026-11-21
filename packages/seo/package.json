@@ -1,6 +1,6 @@
 {
   "name": "@wp2emdash/seo",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "SEO & Analytics for EmDash: editor SEO panel, dashboard, Search Console, IndexNow, tracking codes managed by ID, conversion events, consent mode, Cloudflare Web Analytics visits, sharing text per page and archive SEO",
   "license": "MIT",
   "private": true,

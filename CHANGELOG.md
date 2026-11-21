@@ -6,6 +6,14 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-11-22
+
+### Added
+- **Instant page switches** (Speculation Rules): pages a visitor points at are prefetched by the browser's speculation rules (`moderate` eagerness, prefetch only, never prerender), delivered as a `Speculation-Rules` header pointing at the static `/speculation-rules.json` (`application/speculationrules+json` via `_headers`; no inline script, CSP untouched). The prefetched page is used on the click despite `Cache-Control: no-cache` (`deliveryType: navigational-prefetch`), which the old `<link rel=prefetch>` was not. Exclusions shared with `prefetchable()`; never for signed-in editors; appended to Cloudflare Speed Brain's header. Safari/Firefox keep the link fallback. Findings: `docs/spikes/performance-findings.md`.
+- **Business details in the footer** (`starter/src/components/BusinessInfo.astro`, kit.config `business.footer`, default on): name, address (linked to the map), phone (`tel:`), email and opening hours as visible text, from the same data as the JSON-LD. Scaffold leaves it out when the migrated footer already shows the street address or phone. New `business` entry in `overrides.ts` to correct or add the details.
+- **Content checks** (`@wp2emdash/seo` 0.4.0): text length thresholds (under 150 words a problem, under 300 a warning; contact/legal/thank-you pages only noted), **Repeated words** (most frequent meaningful word over 4%, not judged under 80 words), **Easy to read** (Flesch–Kincaid grade, English only; scaffold passes the site language), and a **Pages that need more text** list on the SEO dashboard.
+- **WebMCP form annotations** (`@wp2emdash/forms` 1.9.0, `@wp2emdash/forms/webmcp`; kit.config `forms.webmcp`, Worker var `FORM_WEBMCP`): form sections, the comment form and site search carry `toolname`/`tooldescription`/`toolparamdescription` built from the form's own fields, so AI agents in Chrome can fill them in. Agents never submit site forms (the visitor does; Turnstile, honeypot and limits unchanged); only search auto-submits. Sensitive forms (and every form on `sensitiveData` sites) are not exposed. Findings: `docs/spikes/webmcp-findings.md`.
+
 ## [1.2.1] — 2026-11-22
 
 ### Added
