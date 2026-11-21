@@ -4,7 +4,9 @@
  * export through one-time download links; import of exported files; an activity log; a dashboard widget; and the
  * recipients setting (stored in the same KV, so the form endpoint reads it per request; it overrides FORM_TO). With
  * keep sent (FORM_OUTBOX_KEEP_SENT="1") the inbox holds every message with its delivery status (Emailed / Waiting /
- * Failed), filterable, and any message can be emailed again.
+ * Failed), filterable, and any message can be emailed again. Settings also holds the chat notifications (chat.ts:
+ * Telegram, Slack, a generic webhook — each only once its Worker secret exists) with a rate-limited test button, and a
+ * notification's link (`/messages/<time>_<hex>`) opens that message on page load.
  *
  * Admins only. The `admin` route keeps EmDash's default plugin-route permission, `plugins:manage` (Admin role); EmDash
  * checks it and its CSRF header before the handler runs, and the handler checks the role again. The `download` route
@@ -17,6 +19,7 @@
  */
 import { definePlugin, pluginResponse } from "emdash";
 import { deleteQueued, deliveryOf, importQueued, isOutboxKey, keepsSent, listSummaries, type OutboxEnv, outboxStatus, parseRecipients, type Queued, readCounts, readQueued, resolveRecipients, retentionDays, sendQueued, testRecipients, updateQueued, writeRecipientSetting } from "../outbox.js";
+import { CHANNEL_NAME, CHANNELS, type Channel, chatEnabled, type ChatEnv, chatSettingsFromForm, keyFromPage, readChatFailures, readChatSettings, secretSet, sendTestNotification, siteSensitive, writeChatSettings } from "../chat.js";
 import { FORMS_PLUGIN } from "../meta.js";
 import { exportFileName, grantDownload, logActivity, parseImport, readActivity, redeemDownload, toCsv, toJson, toQueued } from "./data.js";
 import { adminsOnly, type Filter, filtered, message, overview, type Overview, PAGE, parseDelivery, TABS, toSend, WIDGET, widget } from "./views.js";
@@ -32,13 +35,26 @@ interface Interaction {
 }
 
 // Bindings exist only in the Worker: imported per request, not at module level (astro.config loads the descriptor in Node).
-const outboxEnv = async () => ((await import("cloudflare:workers")) as unknown as { env: OutboxEnv }).env;
+const outboxEnv = async () => ((await import("cloudflare:workers")) as unknown as { env: OutboxEnv & ChatEnv }).env;
 
-async function build(env: OutboxEnv, filter: Filter = {}, extra: Partial<Overview> = {}): Promise<Overview> {
+/** Options from the descriptor (`formsPlugin({ forms })` in astro.config): the site's forms, for the chat form picker. */
+export interface FormsPluginOptions {
+	forms?: { id: string; title: string }[];
+}
+
+/** The site's forms for the chat picker: the descriptor's list, plus any form id seen in messages or counts. */
+function siteForms(options: FormsPluginOptions, seen: string[]): { id: string; title: string }[] {
+	const out = (options.forms ?? []).filter((f) => typeof f?.id === "string" && /^[\w-]{1,80}$/.test(f.id)).map((f) => ({ id: f.id, title: String(f.title ?? f.id).slice(0, 120) }));
+	for (const id of seen) if (!out.some((f) => f.id === id)) out.push({ id, title: id });
+	return out.slice(0, 100);
+}
+
+async function build(env: OutboxEnv & ChatEnv, filter: Filter = {}, extra: Partial<Overview> = {}, options: FormsPluginOptions = {}): Promise<Overview> {
 	const since = new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
+	const week = new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10);
 	// Keep sent: an inbox, so the newest messages are listed; otherwise the oldest (the queue drains oldest first).
 	const keepSent = keepsSent(env);
-	const [{ items, more }, counts, activity, status, recipients] = await Promise.all([listSummaries(env, 1000, { newest: keepSent }),readCounts(env, since), readActivity(env.FORM_OUTBOX), outboxStatus(env), resolveRecipients(env)]);
+	const [{ items, more }, counts, activity, status, recipients, chatSettings, failures] = await Promise.all([listSummaries(env, 1000, { newest: keepSent }), readCounts(env, since), readActivity(env.FORM_OUTBOX), outboxStatus(env), resolveRecipients(env), readChatSettings(env), readChatFailures(env, week)]);
 	let matches: Set<string> | undefined;
 	const q = filter.q?.trim().toLowerCase();
 	if (q) {
@@ -52,13 +68,15 @@ async function build(env: OutboxEnv, filter: Filter = {}, extra: Partial<Overvie
 	const forms = [...new Set([...items.map((i) => i.s.form), ...counts.map((c) => c.form)])].sort();
 	const configTo = (env.FORM_TO ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 	const test = env.FORM_LIVE_HOST ? { test: { host: env.FORM_LIVE_HOST, to: testRecipients(env) } } : {};
-	return { status, items, more, counts, activity, days: retentionDays(env), forms, filter, recipients: { ...recipients, configTo, ...test }, provider: env.EMAIL_PROVIDER ?? "brevo", keepSent, ...(matches ? { matches } : {}), ...extra };
+	const secrets = Object.fromEntries(CHANNELS.map((ch) => [ch, secretSet(env, ch)])) as Record<Channel, boolean>;
+	const chat = { enabled: chatEnabled(env), settings: chatSettings, secrets, sensitive: siteSensitive(env), forms: siteForms(options, forms), failures };
+	return { status, items, more, counts, activity, days: retentionDays(env), forms, filter, recipients: { ...recipients, configTo, ...test }, provider: env.EMAIL_PROVIDER ?? "brevo", keepSent, chat, ...(matches ? { matches } : {}), ...extra };
 }
 
 const str = (v: unknown, max = 200) => (typeof v === "string" ? v.slice(0, max) : undefined);
 const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
 
-export function createPlugin() {
+export function createPlugin(options: FormsPluginOptions = {}) {
 	return definePlugin({
 		...FORMS_PLUGIN,
 		admin: {
@@ -86,7 +104,18 @@ export function createPlugin() {
 					}
 					const key = isOutboxKey(i.value) ? i.value : undefined;
 					const act = i.action_id;
-					const page = async (filter: Filter = {}, tab: number = TABS.inbox, extra: Partial<Overview> = {}) => overview(await build(env, filter, extra), tab);
+					const page = async (filter: Filter = {}, tab: number = TABS.inbox, extra: Partial<Overview> = {}) => overview(await build(env, filter, extra, options), tab);
+
+					// A chat notification's link: /messages/<time>_<hex> opens that message (chat.ts → inboxLink).
+					if (i.type === "page_load") {
+						const linked = keyFromPage(i.page);
+						if (linked) {
+							const q = await updateQueued(env, linked, { read: true });
+							if (!q) return { blocks: await page(), toast: { message: "That message is no longer here (deleted, or its retention period ended).", type: "info" } };
+							await logActivity(kv, who, "Opened a message", 1);
+							return { blocks: message(linked, q, await outboxStatus(env)) };
+						}
+					}
 
 					if (i.type === "block_action" && key) {
 						if (act === "open") {
@@ -165,6 +194,27 @@ export function createPlugin() {
 						const v = i.values ?? {};
 						const show = v.show === "unread" || v.show === "read" ? v.show : "all";
 						return { blocks: await page({ ...(str(v.q, 120) ? { q: str(v.q, 120) } : {}), form: str(v.form, 80) ?? "all", show, delivery: parseDelivery(v.delivery) }) };
+					}
+
+					if (i.type === "form_submit" && act === "chat") {
+						// Chat notifications: channels (only those whose secret exists), Telegram chat id, forms, content.
+						const seen = (await listSummaries(env, 1000)).items.map((m) => m.s.form);
+						const { settings, errors } = chatSettingsFromForm(i.values ?? {}, { env, forms: siteForms(options, seen).map((f) => f.id) });
+						if (errors.length) return { blocks: await page({}, TABS.settings, { chatErrors: errors }), toast: { message: "Chat notifications not saved. See the errors.", type: "error" } };
+						await writeChatSettings(env, settings);
+						const on = CHANNELS.filter((ch) => settings[ch].on);
+						// The log records the change and how many channels are on — never a chat id or a secret.
+						await logActivity(kv, who, "Changed chat notifications", on.length);
+						return { blocks: await page({}, TABS.settings), toast: { message: on.length ? `Chat notifications on: ${on.map((ch) => CHANNEL_NAME[ch]).join(", ")}.` : "Chat notifications are off.", type: "success" } };
+					}
+
+					if (i.type === "block_action" && act === "chat-test") {
+						const r = await sendTestNotification(env, { origin: new URL(ctx.request.url).origin, pluginId: FORMS_PLUGIN.id });
+						if (r.result === "limited") return { blocks: await page({}, TABS.settings), toast: { message: `A test was just sent. Try again in ${plural(r.seconds, "second")}.`, type: "info" } };
+						if (r.result === "none") return { blocks: await page({}, TABS.settings), toast: { message: "Turn a channel on (and save) before sending a test.", type: "info" } };
+						await logActivity(kv, who, "Sent a test chat notification", r.sent.length);
+						const name = (ch: Channel) => CHANNEL_NAME[ch];
+						return { blocks: await page({}, TABS.settings), toast: r.failed.length ? { message: `Test not delivered to ${r.failed.map(name).join(", ")}${r.sent.length ? `; sent to ${r.sent.map(name).join(", ")}` : ""}. Check the secret and the settings.`, type: "error" } : { message: `Test sent to ${r.sent.map(name).join(", ")}.`, type: "success" } };
 					}
 
 					if (i.type === "form_submit" && act === "recipients") {

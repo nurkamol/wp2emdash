@@ -2,6 +2,7 @@
  * Form messages: Block Kit views (plain JSON, shapes from @emdash-cms/blocks 1.5). Visitor text is only ever placed in
  * plain-text fields, which the admin renders escaped.
  */
+import { CHANNEL_NAME, CHANNEL_SECRET, CHANNELS, type Channel, type ChatSettings } from "../chat.js";
 import { type DayCount, type Delivery, deliveryOf, MAX_RECIPIENTS, type OutboxStatus, type Queued, type Summary } from "../outbox.js";
 import { attachmentDataUrl } from "../signature.js";
 import type { Activity } from "./data.js";
@@ -69,6 +70,22 @@ export interface Overview {
 	recipientErrors?: string[];
 	/** Keep sent (FORM_OUTBOX_KEEP_SENT): every message is kept, also once emailed — the page is a full inbox. */
 	keepSent?: boolean;
+	/** Chat notifications (chat.ts): the settings, which secrets exist (never their values), recent give-ups. */
+	chat?: ChatView;
+	chatErrors?: string[];
+}
+
+export interface ChatView {
+	/** false: FORM_CHAT="0" — the feature is off for this site. */
+	enabled: boolean;
+	settings: ChatSettings;
+	secrets: Record<Channel, boolean>;
+	/** The site handles sensitive data: notification only. */
+	sensitive: boolean;
+	/** The site's forms for the picker (id and title). */
+	forms: { id: string; title: string }[];
+	/** Notifications given up on in the last 7 days, per channel. */
+	failures: Record<Channel, number>;
 }
 
 /** The inbox rows the filter shows, in display order. */
@@ -307,6 +324,64 @@ function settings(o: Overview): Block[] {
 		},
 		...(r.test ? [{ type: "context", text: `These recipients get messages sent from ${r.test.host}. Messages sent from any other address (the site's workers.dev address before launch, preview links) are tests: they go only to ${r.test.to.length ? r.test.to.join(", ") : "the test inbox (none set: they are kept here unsent)"}.` }] : []),
 		{ type: "context", text: o.provider === "emdash" ? "Email goes through EmDash's own email settings (Settings → Email), with the sender address set there." : "The email service, its key and the sender address are set in the site's configuration by your developer." },
+		...(o.chat ? chatSettings(o.chat, o.chatErrors) : []),
+	];
+}
+
+const CHANNEL_HELP: Record<Channel, string> = {
+	telegram: "a Telegram bot posts to a chat, group or channel",
+	slack: "an incoming webhook posts to a Slack channel",
+	webhook: "a JSON POST to any address: Discord, Google Chat, Microsoft Teams workflows, Make, Zapier or n8n (and through those WhatsApp)",
+};
+
+/** Settings → Chat notifications: per channel on/off (only when its secret exists), Telegram chat id, forms, content. */
+export function chatSettings(c: ChatView, errors?: string[]): Block[] {
+	const head: Block[] = [{ type: "divider" }, { type: "header", text: "Chat notifications" }];
+	if (!c.enabled) return [...head, { type: "context", text: "Chat notifications are turned off for this site in its configuration (ask your developer)." }];
+	const s = c.settings;
+	const ready = (ch: Channel) => c.secrets[ch] && (ch !== "telegram" || !!s.telegram.chatId);
+	const live = CHANNELS.filter((ch) => s[ch].on && ready(ch));
+	const missing = CHANNELS.filter((ch) => !c.secrets[ch]);
+	const failed = CHANNELS.filter((ch) => c.failures[ch] > 0);
+	const fields: Block[] = [];
+	if (c.secrets.telegram) {
+		fields.push({ type: "toggle", action_id: "telegram_on", label: "Telegram", description: CHANNEL_HELP.telegram, initial_value: s.telegram.on });
+		fields.push({ type: "text_input", action_id: "telegram_chat_id", label: "Telegram chat id", placeholder: "-1001234567890", ...(s.telegram.chatId ? { initial_value: s.telegram.chatId } : {}) });
+	}
+	if (c.secrets.slack) fields.push({ type: "toggle", action_id: "slack_on", label: "Slack", description: CHANNEL_HELP.slack, initial_value: s.slack.on });
+	if (c.secrets.webhook) {
+		fields.push({ type: "toggle", action_id: "webhook_on", label: "Webhook", description: CHANNEL_HELP.webhook, initial_value: s.webhook.on });
+		fields.push({ type: "select", action_id: "webhook_format", label: "Webhook format", options: [{ label: "JSON event (Make, Zapier, n8n, Teams workflows)", value: "json" }, { label: "Text only — { text } (Google Chat, Mattermost)", value: "text" }, { label: "Discord", value: "discord" }], initial_value: s.webhook.format });
+	}
+	if (!c.sensitive)
+		fields.push({
+			type: "radio",
+			action_id: "content",
+			label: "What is sent",
+			options: [
+				{ label: "Summary: form, time, the sender's name and the start of the message (about 200 characters) — never email addresses, phone numbers or files", value: "summary" },
+				{ label: "Notification only: form, time and the link — nothing the visitor wrote", value: "notice" },
+			],
+			initial_value: s.content,
+		});
+	const formIds = c.forms.map((f) => f.id);
+	if (formIds.length > 1 || (s.forms !== "all" && s.forms.length)) {
+		fields.push({ type: "select", action_id: "forms_scope", label: "Which forms notify", options: [{ label: "All forms", value: "all" }, { label: "Only the forms ticked below", value: "pick" }], initial_value: s.forms === "all" ? "all" : "pick" });
+		fields.push({ type: "checkbox", action_id: "forms_picked", label: "Forms", options: c.forms.map((f) => ({ label: f.title && f.title !== f.id ? `${f.title} (${f.id})` : f.id, value: f.id })), initial_value: s.forms === "all" ? [] : s.forms });
+	}
+	return [
+		...head,
+		{ type: "context", text: "Get a message in a chat app when someone sends a form, with a link to it here. Nothing is sent until a channel is turned on. Sending never delays or blocks a visitor's form; a failed notification is retried a few times, then dropped (the email and this inbox are unaffected)." },
+		...(c.sensitive ? [{ type: "banner", title: "Notification only", description: "This site handles sensitive information: a notification says only which form was used, when, and links here. Nothing a visitor wrote leaves the site.", variant: "default" }] : []),
+		...missing.map((ch) => ({ type: "context", text: `${CHANNEL_NAME[ch]} (${CHANNEL_HELP[ch]}): not available yet — set the secret ${CHANNEL_SECRET[ch]} with \`wrangler secret put ${CHANNEL_SECRET[ch]}\` (your developer does this once), then turn it on here.` })),
+		...(errors?.length ? [{ type: "banner", title: "Not saved", description: errors.slice(0, 10).join(" "), variant: "error" }] : []),
+		...(missing.length < CHANNELS.length ? [{ type: "form", block_id: "chat", fields, submit: { label: "Save chat notifications", action_id: "chat" } }] : []),
+		{
+			type: "fields",
+			fields: CHANNELS.map((ch) => ({ label: CHANNEL_NAME[ch], value: !c.secrets[ch] ? "Secret not set" : s[ch].on ? (ready(ch) ? "On" : "On, but the chat id is missing") : "Off" })),
+		},
+		...(failed.length ? [{ type: "banner", title: "Some notifications could not be delivered", description: `In the last 7 days, after several tries: ${failed.map((ch) => `${CHANNEL_NAME[ch]} ${plural(c.failures[ch], "notification")}`).join(", ")}. Check the channel's secret and settings, then send a test.`, variant: "alert" }] : []),
+		...(live.length ? [{ type: "actions", elements: [{ type: "button", action_id: "chat-test", label: "Send a test notification", style: "secondary" }] }, { type: "context", text: "Sends a short test (no visitor data) to every channel that is on. At most once a minute." }] : []),
 	];
 }
 

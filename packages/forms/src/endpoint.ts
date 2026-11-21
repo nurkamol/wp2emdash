@@ -23,19 +23,31 @@
  * (inline for EMAIL_PROVIDER=emdash), and the email records the submission time and the exact text the visitor was
  * shown (terms, consent) with its SHA-256 (buildEmail). A form generated for a site with
  * sensitive data only has the fields the owner approved (e.g. contact details), so that is all this can send.
+ * Once a message is accepted (emailed or kept), chat notifications (chat.ts) go out in the background through the
+ * Worker's waitUntil: the visitor's answer never waits for them and they can never fail the submission.
  */
-import { env } from "cloudflare:workers";
+import { env, waitUntil } from "cloudflare:workers";
 import type { APIRoute } from "astro";
+import { type ChatEnv, notifyChat } from "./chat.js";
 import { deliver, parseAddress } from "./deliver.js";
 import { sendViaEmDash } from "./emdash-email.js";
-import { countMessage, emailConfigured, enqueue, isTestRequest, keepsSent, type OutboxEnv, recipientsFor, usesEmDashEmail } from "./outbox.js";
+import { FORMS_PLUGIN } from "./meta.js";
+import { countMessage, emailConfigured, enqueueKey, isTestRequest, keepsSent, type OutboxEnv, recipientsFor, usesEmDashEmail } from "./outbox.js";
 import { contentToHtml, contentToText, partsToHtml, partsToText } from "./rich.js";
 import { type Attachment, checkSignaturePng, checkTypedSignature, typedName } from "./signature.js";
 import type { FormDefinition, FormField } from "./types.js";
 import { visibility } from "./logic.js";
 import { checkUpload, maxFilesOf, type StoredUpload, storeUpload, type UploadEnv, uploadLine, uploadsReady } from "./uploads.js";
 
-interface Env extends OutboxEnv, UploadEnv {
+/** Background work after the response (chat notifications). Without waitUntil (not a Worker) it simply runs on. */
+function background(p: Promise<unknown>): void {
+	try {
+		if (typeof waitUntil === "function") return waitUntil(p);
+	} catch {}
+	void p.catch(() => {});
+}
+
+interface Env extends OutboxEnv, UploadEnv, ChatEnv {
 	EMAIL_PROVIDER?: string;
 	EMAIL_API_KEY?: string;
 	MAILGUN_REGION?: string;
@@ -207,12 +219,16 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	// Kept for later delivery when email is not set up or the provider refuses (outbox, owner opt-in): the visitor's
 	// message is not lost, and the cron emails it once delivery works.
 	const record = { form: form.id, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html, ...files, ...(test ? { test: true } : {}) };
+	// Chat notifications (chat.ts): after the answer, in the background; `key` links to the message when it is kept.
+	const announce = (key?: string) => background(notifyChat(e, { form, values, ...(name ? { name } : {}), at: new Date(), origin: new URL(request.url).origin, pluginId: FORMS_PLUGIN.id, ...(key ? { key } : {}), test }));
 	// `failed`: the provider refused it (one attempt made), else waiting (not tried: on hold or email not set up).
 	const keep = async (reason: string, failed = false) => {
 		try {
-			if (await enqueue(e, { ...record, ...(failed ? { attempts: 1, status: "failed" as const } : {}) })) {
+			const key = await enqueueKey(e, { ...record, ...(failed ? { attempts: 1, status: "failed" as const } : {}) });
+			if (key) {
 				console.log(JSON.stringify({ form: form.id, outcome: "queued", reason, ...(test ? { test: true } : {}) }));
 				await countMessage(e, form.id, "kept").catch(() => {});
+				announce(key);
 				return reply(request, 200, { ok: true, message: form.successMessage });
 			}
 		} catch (err) {
@@ -229,13 +245,14 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	if (!result.ok) return (await keep(result.reason, true)) ?? fail(502, "Your message could not be sent. Please call or email us instead.", result.reason);
 	// Keep sent (owner opt-in): the emailed message stays in Form messages, marked emailed, until the retention period
 	// ends. Best effort — the visitor's message is already delivered, so a KV error does not fail the request.
-	let kept = false;
+	let keptKey: string | undefined;
 	if (keepsSent(e)) {
 		const id = "id" in result && typeof result.id === "string" ? result.id : undefined;
-		kept = await enqueue(e, { ...record, status: "emailed", emailedAt: new Date().toISOString(), emailedTo: to, ...(id ? { messageId: id } : {}) }).catch(() => false);
+		keptKey = await enqueueKey(e, { ...record, status: "emailed", emailedAt: new Date().toISOString(), emailedTo: to, ...(id ? { messageId: id } : {}) }).catch(() => undefined);
 	}
-	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: provider, recipients: to.length, ...(test ? { test: true } : {}), ...(keepsSent(e) ? { kept } : {}) }));
+	console.log(JSON.stringify({ form: form.id, outcome: "sent", via: provider, recipients: to.length, ...(test ? { test: true } : {}), ...(keepsSent(e) ? { kept: !!keptKey } : {}) }));
 	await countMessage(e, form.id, "emailed").catch(() => {});
+	announce(keptKey);
 	return reply(request, 200, { ok: true, message: form.successMessage });
 };
 

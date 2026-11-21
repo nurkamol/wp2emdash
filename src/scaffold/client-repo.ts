@@ -50,6 +50,8 @@ export interface ClientRepoInput {
 	turnstileProduction: boolean;
 	/** Messages kept in Workers KV when email cannot be sent (days kept; hold = keep all, send none). */
 	outbox?: { days: number; hold: boolean; keepSent?: boolean };
+	/** Chat notifications for form messages (kit.config forms.chat, on by default with the outbox). */
+	formChat?: boolean;
 	/** Tracking carried over from the old site (Google tag ids, Tag Manager container, Cloudflare beacon token). */
 	analytics?: LegacyAnalytics;
 	/** Analytics is managed in SEO & Analytics (@wp2emdash/seo): tracking codes, conversion events, Visits. */
@@ -611,6 +613,8 @@ messages as CSV or JSON through a link that works once for two minutes (the file
 private), or paste an exported file to bring messages back (duplicates are skipped). **Activity:** who did what, without
 message content. **Settings:** who form messages are emailed to (up to 10 addresses; empty uses \`FORM_TO\`). Editors and other roles cannot open it. With Cloudflare access to
 the account the queue is also in Workers KV: \`npx wrangler kv key list --binding FORM_OUTBOX --remote\`${single ? "" : " (add `--env staging`\nfor staging)"}, then \`npx wrangler kv key get <key> --binding FORM_OUTBOX --remote\`.
+
+` : ""}${i.outbox && i.formChat ? `**Chat notifications.** A new form message can also ping a chat app — Telegram, Slack, or any service that takes a webhook (Discord, Google Chat, Microsoft Teams, Make, Zapier, n8n; WhatsApp through one of those) — with a link to the message in Form messages. An Admin turns each channel on in **Form messages → Settings → Chat notifications**, picks which forms notify and what is sent: ${i.sensitiveData ? "on this site **only that a message arrived** (form, time, link) — nothing a visitor wrote leaves the website" : "a **summary** (form, time, the sender's name and the first ~200 characters of the message; never email addresses, phone numbers or files) or **notification only** (form, time, link)"}. A channel is offered only once its secret is set, by whoever manages the Cloudflare account: \`npx wrangler secret put TELEGRAM_BOT_TOKEN\` (a bot from @BotFather; the chat id goes in the settings), \`npx wrangler secret put SLACK_WEBHOOK_URL\` (a Slack incoming webhook) or \`npx wrangler secret put CHAT_WEBHOOK_URL\`. **Send a test notification** checks it. Notifications never slow down or block a form; one that fails is retried a few times and then dropped (Site health shows it), while the email and the inbox are unaffected. Setup per channel: \`packages/forms/README.md\` → Chat notifications.
 
 ` : ""}${single ? `**Test messages never reach ${i.email.to.length ? i.email.to.join(", ") : "the site's recipients"}.** A message sent from any address other than
 ${i.productionUrl} — the workers.dev address before go-live, a preview link after it — is a test: it is emailed only to

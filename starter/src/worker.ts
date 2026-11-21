@@ -1,5 +1,6 @@
 import { env as workerEnv } from "cloudflare:workers";
 import handler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
+import { type ChatEnv, flushChat } from "@wp2emdash/forms/chat";
 import { flushOutbox, type OutboxEnv } from "@wp2emdash/forms/outbox";
 import { purgeUploads, type UploadEnv } from "@wp2emdash/forms/uploads";
 import site from "./site.config.json";
@@ -15,6 +16,8 @@ export default {
 	// file upload fields, once an hour: files visitors sent that are past their retention period are deleted.
 	scheduled: async (controller, env, ctx) => {
 		ctx.waitUntil(flushOutbox(workerEnv as unknown as OutboxEnv).catch(() => {}));
+		// Chat notifications (Telegram, Slack, webhook) that failed right after a form message are retried here.
+		ctx.waitUntil(flushChat(workerEnv as unknown as ChatEnv).catch(() => {}));
 		if ((site as { formUploads?: boolean }).formUploads && new Date(controller.scheduledTime).getUTCMinutes() < 5) ctx.waitUntil(purgeUploads(workerEnv as unknown as UploadEnv).catch(() => 0));
 		// Pages an edit purged are rendered again here, not for the next visitor (src/utils/rewarm.ts).
 		// Admins switch it and ask for a full refresh on Site health → Speed.
