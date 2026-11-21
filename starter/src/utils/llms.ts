@@ -11,7 +11,8 @@ export interface LlmsEntry {
 
 const line = (s: string) => s.replace(/\s+/g, " ").trim();
 
-export function llmsTxt(site: { name: string; tagline?: string; description?: string }, pages: LlmsEntry[], posts: LlmsEntry[] = [], more: { heading: string; items: LlmsEntry[] }[] = []): string {
+/** `more`: further lists (a catalogue shop's products); `languages`: a multilingual site's other languages (their home pages); the lists hold the default language only. */
+export function llmsTxt(site: { name: string; tagline?: string; description?: string }, pages: LlmsEntry[], posts: LlmsEntry[] = [], more: { heading: string; items: LlmsEntry[] }[] = [], languages: LlmsEntry[] = []): string {
 	const out = [`# ${line(site.name)}`, ""];
 	const summary = line(site.description || site.tagline || "");
 	if (summary) out.push(`> ${summary}`, "");
@@ -25,6 +26,7 @@ export function llmsTxt(site: { name: string; tagline?: string; description?: st
 	list("Posts", posts);
 	// Further lists (a catalogue shop's products), after pages and posts.
 	for (const m of more) list(m.heading, m.items);
+	list("Other languages", languages);
 	return `${out.join("\n").trimEnd()}\n`;
 }
 

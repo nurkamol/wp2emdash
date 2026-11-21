@@ -18,6 +18,7 @@ import type { GateCheck } from "../core/state.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import type { IrPage, IrSite, MediaRef, Section } from "../ir/schema.js";
 import { COMMENTS_CLOSED_FIELD, menuItemExtras, PAGES_SEARCHABLE, POSTS_COLLECTION, productionCanonical, routeToSlug } from "../scaffold/seed.js";
+import { GROUP_FIELD, LANG_FIELD } from "../transform/multilingual.js";
 import { emdashMenuLabel, emdashMenuNames } from "../transform/menus.js";
 import type { WidgetPlan } from "../transform/widgets.js";
 import { pageData, pageFields } from "../transform/pages.js";
@@ -373,6 +374,22 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					}
 				} catch (e) {
 					schemaErrors.push(`pages attribute fields: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
+				}
+			}
+			// Multilingual sites (src/transform/multilingual.ts): `lang` and `translation_group` on every collection that has
+			// language-tagged entries (seeded on a new site; created here on one set up before).
+			if (site.i18n) {
+				const langCols = [...new Set([...irDocs.filter((d) => d.i18n).map((d) => collectionOf(d, !!blogPlan)), ...cptCols.filter((c) => c.routable).map((c) => c.slug)])];
+				for (const c of langCols) {
+					try {
+						const have = new Set((await api.fields(c)).map((f) => f.slug));
+						for (const f of [LANG_FIELD, GROUP_FIELD].filter((x) => !have.has(x.slug))) {
+							await api.createField(c, { ...f });
+							schemaChanges.push(`${c}.${f.slug} created`);
+						}
+					} catch (e) {
+						schemaErrors.push(`${c} language fields: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
+					}
 				}
 			}
 			const missingCols = ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.map((c) => c.slug)].filter((c) => !cols.some((x) => x.slug === c));
@@ -778,6 +795,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				const data: Record<string, unknown> = col ? { title: doc.title, ...(col.core.sections ? { content } : {}) } : { title: doc.title, content };
 				const isPost = collection === "posts" && !!doc.post;
 				if (commentForm.has(collection)) data[COMMENTS_CLOSED_FIELD.slug] = commentsClosed.has(key);
+				// Multilingual: the entry's language and translation group (src/transform/multilingual.ts).
+				if (doc.i18n && site.i18n) Object.assign(data, { [LANG_FIELD.slug]: doc.i18n.lang, [GROUP_FIELD.slug]: doc.i18n.group });
 				if (col) {
 					Object.assign(data, fixLinks(entryFields(doc, col, resolver, postMedia)));
 					const featured = col.core.featuredImage ? resolver(doc.featuredImage) : undefined;

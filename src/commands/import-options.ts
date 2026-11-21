@@ -10,6 +10,10 @@ import { sitePaths } from "../core/paths.js";
 import { folderSourcesFromDump } from "../extract/media-folders.js";
 import { phpUnserialize, readOptionsFromDump, readTablesFromDump } from "../extract/sql-options.js";
 import { rankMathTermMeta, SEO_TERMMETA_FILE } from "../transform/term-meta.js";
+import { ML_FILE } from "../transform/multilingual.js";
+
+/** WPML and Polylang settings (language URL mode, default language): src/transform/multilingual.ts. */
+export const ML_OPTIONS = ["icl_sitepress_settings", "polylang"];
 
 /**
  * Rank Math and Yoast options the site settings read (social profiles, default sharing image, verification, title
@@ -66,6 +70,14 @@ export async function importOptions(slug: string, dump: string, sitesDir?: strin
 	});
 	const termFile = join(paths.raw, SEO_TERMMETA_FILE);
 	if (Object.keys(termmeta).length) writeFileSync(termFile, `${JSON.stringify({ rankMath: termmeta }, null, 2)}\n`);
+	// WPML / Polylang (src/transform/multilingual.ts): the plugins' URL settings (secrets dropped: WPML keeps a site key)
+	// and WPML's translations table (element, type, group, language only).
+	const mlOptions = await readOptionsFromDump(dump, ML_OPTIONS);
+	const wpml = ((await readTablesFromDump(dump, ["icl_translations"], { icl_translations: ["translation_id", "element_type", "element_id", "trid", "language_code", "source_language_code"] })).icl_translations ?? []).map((r) => ({ element_id: r.element_id ?? null, element_type: r.element_type ?? null, trid: r.trid ?? null, language_code: r.language_code ?? null, source_language_code: r.source_language_code ?? null }));
+	if (Object.keys(mlOptions).length || wpml.length) {
+		const options = Object.fromEntries(Object.entries(mlOptions).map(([k, v]) => [k, withoutSecrets(v, dropped, k)]));
+		writeFileSync(join(paths.raw, ML_FILE), `${JSON.stringify({ ...(Object.keys(options).length ? { options } : {}), ...(wpml.length ? { wpml } : {}) }, null, 2)}\n`);
+	}
 	// FileBird / Real Media Library folders (their own tables; folder names, parents and attachment ids only).
 	const folders = await folderSourcesFromDump(dump);
 	if (folders.length) writeFileSync(join(paths.raw, "media-folders-dump.json"), `${JSON.stringify({ sources: folders }, null, 2)}\n`);

@@ -16,7 +16,8 @@ import { captureMenu, type MenuCapture, motionRecipe } from "../audit/interactio
 import { type PageSnapshot, parsePage } from "../audit/page.js";
 import { siteHosts } from "../audit/urls.js";
 import type { GateCheck } from "../core/state.js";
-import type { IrPage } from "../ir/schema.js";
+import type { IrPage, IrSite } from "../ir/schema.js";
+import { type HreflangPage, hreflangParity, reciprocityProblems } from "../verify/hreflang.js";
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
 import { backupsHeartbeat } from "../verify/backups.js";
 import { healthHeartbeat } from "../verify/health.js";
@@ -147,6 +148,9 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const irProtected = [...irPages, ...(blogIr && existsSync(join(paths.ir, "posts")) ? readdirSync(join(paths.ir, "posts")).map((f) => readJson<IrPage>(join(paths.ir, "posts", f)) as IrPage) : [])].filter((p) => p.access?.as === "protect" && p.route);
 		const published = new Set([...irPages.filter((p) => p.source.status === "publish" && !p.access), ...irPosts, ...irEntries].map((p) => p.route?.path));
 		const pagesToCheck = baseline.filter((u) => published.has(u.path) || published.has(u.path.replace(/\/$/, "")) || u.path === "/");
+		// Multilingual sites (src/transform/multilingual.ts): hreflang parity and reciprocity, every language's pages.
+		const siteI18n = readJson<IrSite>(join(paths.ir, "site.json"))?.i18n;
+		const hreflangDiffs: string[] = [];
 		const outDir = join(paths.reports, "verify");
 		rmSync(join(outDir, "screens"), { recursive: true, force: true });
 		rmSync(join(outDir, "diff"), { recursive: true, force: true });
@@ -187,6 +191,11 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 					const snap = parsePage(html, { url: targetUrl, finalUrl: targetUrl, status: 200, redirects: [], contentType: res.headers.get("content-type") ?? "", ms: 0, ...(res.headers.get("x-robots-tag") ? { xRobotsTag: res.headers.get("x-robots-tag") as string } : {}) }, tHosts);
 					targetSnaps.set(u.path, snap);
 					const source = readJson<PageSnapshot>(join(paths.snapshot, "pages", `${name}.json`));
+					// Multilingual: the same hreflang set as the live page (languages → paths).
+					if (siteI18n?.supported && source) {
+						const diff = hreflangParity(source.seo.hreflang ?? [], snap.seo.hreflang ?? []);
+						if (diff.length) hreflangDiffs.push(`${u.path}: ${diff.slice(0, 3).join(", ")}`);
+					}
 					const sourceHtml = existsSync(join(paths.snapshot, "html", `${name}.html`)) ? readFileSync(join(paths.snapshot, "html", `${name}.html`), "utf8") : "";
 					if (source) {
 						r.text = compareText(sourceText(liveYear(sourceHtml)), sourceText(html));
@@ -586,6 +595,32 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		// ── Gate ────────────────────────────────────────────────────────────────
 		const notOk = results.filter((r) => r.status !== 200);
 		check("urls", "Every audited page answers 200 at the same path", notOk.length === 0, notOk.map((r) => `${r.path} ${r.status}${r.redirectedTo ? ` → ${r.redirectedTo}` : ""}`).join("; ") || `${results.length} pages`);
+		if (siteI18n?.supported) {
+			// Every published translation answers at its WordPress address, audited or not; its hreflang links are read too.
+			const langDocs = [...irPages.filter((p) => p.source.status === "publish" && !p.access), ...irPosts, ...irEntries].filter((d) => d.i18n && d.route);
+			const hreflangPages: HreflangPage[] = [...targetSnaps].map(([path, snap]) => ({ path, hreflang: snap.seo.hreflang ?? [] }));
+			const langBad: string[] = [];
+			const unchecked = langDocs.filter((d) => !targetSnaps.has(d.route?.path as string) && !results.some((r) => r.path === d.route?.path));
+			await mapLimit(unchecked, 4, async (d) => {
+				const path = d.route?.path as string;
+				try {
+					const res = await kitFetch(`${base}${path}`, { redirect: "manual" });
+					const html = await res.text();
+					if (res.status !== 200) return langBad.push(`${path} (${d.i18n?.lang}) ${res.status}`);
+					hreflangPages.push({ path, hreflang: parsePage(html, { url: `${base}${path}`, finalUrl: `${base}${path}`, status: 200, redirects: [], contentType: res.headers.get("content-type") ?? "", ms: 0 }, tHosts).seo.hreflang ?? [] });
+				} catch (e) {
+					langBad.push(`${path} (${d.i18n?.lang}) ${(e as Error).message.split("\n")[0]}`);
+				}
+			});
+			for (const r of notOk) {
+				const d = langDocs.find((x) => x.route?.path === r.path);
+				if (d) langBad.push(`${r.path} (${d.i18n?.lang}) ${r.status}`);
+			}
+			const counts = siteI18n.languages.map((l) => `${l.code} ${langDocs.filter((d) => d.i18n?.lang === l.code).length}`).join(", ");
+			check("languages-urls", "Every published page, post and entry answers 200 at its address in every language", langBad.length === 0, langBad.slice(0, 8).join("; ") || counts);
+			const recip = reciprocityProblems(hreflangPages.filter((p) => p.hreflang.length));
+			check("hreflang", "hreflang: the live page's alternates kept, every pair reciprocal, x-default on the default language", recip.length === 0 && hreflangDiffs.length === 0, [...hreflangDiffs.slice(0, 4), ...recip.slice(0, 4)].join("; ") || `${hreflangPages.filter((p) => p.hreflang.length).length} pages with alternates`);
+		}
 		const lowText = results.filter((r) => r.text && r.text.recall < g.textSimilarity);
 		check("content", `Page text kept ≥ ${(g.textSimilarity * 100).toFixed(0)}%`, lowText.length === 0, lowText.map((r) => `${r.path} ${((r.text?.recall ?? 0) * 100).toFixed(1)}% (${r.text?.missing.slice(0, 5).join(", ")})`).join("; ") || `lowest ${(Math.min(...results.map((r) => r.text?.recall ?? 1)) * 100).toFixed(1)}%`);
 		const badHead = results.filter((r) => r.headings && !r.headings.ok);

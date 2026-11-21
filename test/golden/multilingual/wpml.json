@@ -1,0 +1,240 @@
+{
+	"i18n": {
+		"plugin": "wpml",
+		"defaultLang": "en",
+		"urlMode": "directory",
+		"supported": true,
+		"languages": [
+			{
+				"code": "en",
+				"prefix": "",
+				"hreflang": "en",
+				"label": "English",
+				"default": true
+			},
+			{
+				"code": "de",
+				"prefix": "de",
+				"hreflang": "de",
+				"label": "Deutsch",
+				"default": false
+			},
+			{
+				"code": "fr",
+				"prefix": "fr",
+				"hreflang": "fr",
+				"label": "Français",
+				"default": false
+			}
+		]
+	},
+	"docs": [
+		{
+			"file": "pages/a-propos.fr.json",
+			"kind": "page",
+			"path": "/fr/a-propos/",
+			"i18n": {
+				"lang": "fr",
+				"group": "g-20"
+			},
+			"title": "À propos"
+		},
+		{
+			"file": "pages/about.json",
+			"kind": "page",
+			"path": "/about/",
+			"i18n": {
+				"lang": "en",
+				"group": "g-20"
+			},
+			"title": "About"
+		},
+		{
+			"file": "pages/accueil.fr.json",
+			"kind": "page",
+			"path": "/fr/",
+			"i18n": {
+				"lang": "fr",
+				"group": "g-10"
+			},
+			"title": "Accueil"
+		},
+		{
+			"file": "pages/contact.json",
+			"kind": "page",
+			"path": "/contact/",
+			"i18n": {
+				"lang": "en",
+				"group": "g-60"
+			},
+			"title": "Contact"
+		},
+		{
+			"file": "pages/home.json",
+			"kind": "page",
+			"path": "/",
+			"i18n": {
+				"lang": "en",
+				"group": "g-10"
+			},
+			"title": "Home"
+		},
+		{
+			"file": "pages/leistungen.de.json",
+			"kind": "page",
+			"path": "/de/leistungen/",
+			"i18n": {
+				"lang": "de",
+				"group": "g-40"
+			},
+			"title": "Leistungen"
+		},
+		{
+			"file": "pages/reparatur.de.json",
+			"kind": "page",
+			"path": "/de/leistungen/reparatur/",
+			"i18n": {
+				"lang": "de",
+				"group": "g-50"
+			},
+			"title": "Reparatur"
+		},
+		{
+			"file": "pages/services.json",
+			"kind": "page",
+			"path": "/services/",
+			"i18n": {
+				"lang": "en",
+				"group": "g-40"
+			},
+			"title": "Services"
+		},
+		{
+			"file": "pages/startseite.de.json",
+			"kind": "page",
+			"path": "/de/",
+			"i18n": {
+				"lang": "de",
+				"group": "g-10"
+			},
+			"title": "Startseite"
+		},
+		{
+			"file": "partials/footer.json",
+			"kind": "partial",
+			"path": null,
+			"i18n": null,
+			"title": "Footer"
+		},
+		{
+			"file": "posts/ouverture-printemps.fr.json",
+			"kind": "post",
+			"path": "/fr/ouverture-printemps/",
+			"i18n": {
+				"lang": "fr",
+				"group": "trid-300"
+			},
+			"title": "Ouverture de printemps"
+		},
+		{
+			"file": "posts/spring-opening.json",
+			"kind": "post",
+			"path": "/spring-opening/",
+			"i18n": {
+				"lang": "en",
+				"group": "trid-300"
+			},
+			"title": "Spring opening"
+		},
+		{
+			"file": "posts/werkstatt-tag.de.json",
+			"kind": "post",
+			"path": "/de/werkstatt-tag/",
+			"i18n": {
+				"lang": "de",
+				"group": "trid-301"
+			},
+			"title": "Werkstatt-Tag"
+		}
+	],
+	"menus": [
+		{
+			"name": "Main",
+			"role": "primary",
+			"lang": null,
+			"emdash": "primary",
+			"items": [
+				"/about/"
+			]
+		},
+		{
+			"name": "Principal",
+			"role": "primary",
+			"lang": "fr",
+			"emdash": "primary-fr",
+			"items": [
+				"/fr/a-propos/"
+			]
+		},
+		{
+			"name": "Haupt",
+			"role": "primary",
+			"lang": "de",
+			"emdash": "primary-de",
+			"items": [
+				"/de/leistungen/",
+				"/de/leistungen/reparatur/"
+			]
+		}
+	],
+	"partials": [
+		{
+			"role": "footer",
+			"file": "partials/footer.json"
+		}
+	],
+	"checks": [
+		{
+			"id": "languages-url-mode",
+			"label": "Language URLs kept as they are (a directory per language, or no language in the URL)",
+			"ok": true,
+			"detail": "wpml: directories /de/ /fr/, default en unprefixed (from options)"
+		},
+		{
+			"id": "languages-assigned",
+			"label": "Every migrated page and post has its language",
+			"ok": true,
+			"detail": "en 5, de 4, fr 3"
+		},
+		{
+			"id": "languages-groups",
+			"label": "Each translation group holds one entry per language",
+			"ok": true,
+			"detail": "4 translated groups"
+		},
+		{
+			"id": "languages-routes",
+			"label": "Every published translation keeps its language directory",
+			"ok": true
+		}
+	],
+	"report": [
+		"## Languages",
+		"",
+		"WPML, default language **en**, URL mode **directory** (from options). Migrated with every address kept: each entry carries `lang` and `translation_group`; the starter prints `<html lang>`, hreflang alternates and a language switcher.",
+		"",
+		"| Language | Directory | hreflang | Pages | Posts | Entries |",
+		"|---|---|---|---|---|---|",
+		"| English (en) — default | — | en | 4 | 1 | 0 |",
+		"| Deutsch (de) | /de/ | de | 3 | 1 | 0 |",
+		"| Français (fr) | /fr/ | fr | 2 | 1 | 0 |",
+		"",
+		"4 translation group(s); 1 default-language entry without a translation (the switcher links to the language's home page there).",
+		"",
+		"**Not migrated** (listed so nothing is lost silently; decide in overrides.ts / decisions.md):",
+		"",
+		"- salient_g_sections footer-fr (fr): translated site chrome, only the default language's is migrated",
+		"",
+		"Not carried by design: string translations (WPML String Translation, Polylang strings: theme and widget texts) and per-language taxonomy term links (terms of every language are migrated as their own terms, unlinked)."
+	]
+}

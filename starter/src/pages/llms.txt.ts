@@ -10,6 +10,7 @@ import { type LlmsEntry, llmsListed, llmsTxt } from "../utils/llms";
 import { resultHref } from "../utils/search";
 import { collectionsConfig } from "../utils/collections-data";
 import { entryHref } from "../utils/collections";
+import { homeOf, type I18nConfig } from "../utils/i18n";
 
 export const prerender = false;
 
@@ -29,11 +30,15 @@ export const GET: APIRoute = async () => {
 		if (!llmsListed(seo?.robots, e.data)) return undefined;
 		return { title: String(e.data.title ?? path), url: `${origin}${path}`, ...(seo?.description ? { description: seo.description } : {}) };
 	};
-	const pageList = (pages.entries as { data: Record<string, any> }[]).flatMap((e) => entry(e, resultHref(e.data.slug ?? e.data.id, s.trailingSlash)) ?? []);
+	// Multilingual sites: the default language's pages and posts, then a link to each other language's home page.
+	const i18n = (site as { i18n?: I18nConfig }).i18n;
+	const inDefault = (e: { data: Record<string, any> }) => !i18n || !e.data.lang || e.data.lang === i18n.defaultLang;
+	const pageList = (pages.entries as { data: Record<string, any> }[]).filter(inDefault).flatMap((e) => entry(e, resultHref(e.data.slug ?? e.data.id, s.trailingSlash)) ?? []);
 	pageList.sort((a, b) => (a.url === `${origin}/` ? -1 : b.url === `${origin}/` ? 1 : a.url.localeCompare(b.url)));
-	const postList = (posts.entries as PostEntry[]).flatMap((e) => entry(e, postHref(e)) ?? []);
+	const postList = (posts.entries as PostEntry[]).filter(inDefault).flatMap((e) => entry(e, postHref(e)) ?? []);
+	const languages = (i18n?.languages ?? []).filter((l) => l.code !== i18n?.defaultLang && l.prefix).map((l) => ({ title: l.label, url: `${origin}${homeOf(l, s.trailingSlash)}` }));
 	const data = (settings as { data?: { title?: string; tagline?: string } } | undefined)?.data;
 	const more = shopCollections.map((c, i) => ({ heading: c.label, items: ((shopLists[i]?.entries ?? []) as { id: string; data: Record<string, any> }[]).flatMap((e) => entry(e, entryHref(String(e.data.slug ?? e.id), s.trailingSlash)) ?? []).sort((a, b) => a.url.localeCompare(b.url)) }));
-	const body = llmsTxt({ name: data?.title?.trim() || s.name, ...(data?.tagline ? { tagline: data.tagline } : {}) }, pageList, postList, more);
+	const body = llmsTxt({ name: data?.title?.trim() || s.name, ...(data?.tagline ? { tagline: data.tagline } : {}) }, pageList, postList, more, languages);
 	return new Response(body, { headers: { "content-type": "text/markdown; charset=utf-8", "x-robots-tag": "noindex" } });
 };

@@ -1,0 +1,173 @@
+{
+	"i18n": {
+		"plugin": "polylang",
+		"defaultLang": "fr",
+		"urlMode": "directory",
+		"supported": true,
+		"languages": [
+			{
+				"code": "fr",
+				"prefix": "",
+				"hreflang": "fr-FR",
+				"label": "Français",
+				"default": true
+			},
+			{
+				"code": "en",
+				"prefix": "en",
+				"hreflang": "en-GB",
+				"label": "English",
+				"default": false
+			}
+		]
+	},
+	"docs": [
+		{
+			"file": "pages/a-propos.json",
+			"kind": "page",
+			"path": "/a-propos/",
+			"i18n": {
+				"lang": "fr",
+				"group": "pll-pll_bbb"
+			},
+			"title": "À propos"
+		},
+		{
+			"file": "pages/about.en.json",
+			"kind": "page",
+			"path": "/en/about/",
+			"i18n": {
+				"lang": "en",
+				"group": "pll-pll_bbb"
+			},
+			"title": "About"
+		},
+		{
+			"file": "pages/accueil.json",
+			"kind": "page",
+			"path": "/",
+			"i18n": {
+				"lang": "fr",
+				"group": "pll-pll_aaa"
+			},
+			"title": "Accueil"
+		},
+		{
+			"file": "pages/home.en.json",
+			"kind": "page",
+			"path": "/en/",
+			"i18n": {
+				"lang": "en",
+				"group": "pll-pll_aaa"
+			},
+			"title": "Home"
+		},
+		{
+			"file": "pages/horaires.json",
+			"kind": "page",
+			"path": "/horaires/",
+			"i18n": {
+				"lang": "fr",
+				"group": "page-5"
+			},
+			"title": "Horaires"
+		},
+		{
+			"file": "partials/footer.json",
+			"kind": "partial",
+			"path": null,
+			"i18n": null,
+			"title": "Footer"
+		},
+		{
+			"file": "posts/galette-des-rois.json",
+			"kind": "post",
+			"path": "/galette-des-rois/",
+			"i18n": {
+				"lang": "fr",
+				"group": "pll-pll_ccc"
+			},
+			"title": "Galette des rois"
+		},
+		{
+			"file": "posts/kings-cake.en.json",
+			"kind": "post",
+			"path": "/en/kings-cake/",
+			"i18n": {
+				"lang": "en",
+				"group": "pll-pll_ccc"
+			},
+			"title": "Kings' cake"
+		}
+	],
+	"menus": [
+		{
+			"name": "Menu FR",
+			"role": "primary",
+			"lang": null,
+			"emdash": "primary",
+			"items": [
+				"/a-propos/"
+			]
+		},
+		{
+			"name": "Menu EN",
+			"role": "primary",
+			"lang": "en",
+			"emdash": "primary-en",
+			"items": [
+				"/en/about/"
+			]
+		}
+	],
+	"partials": [
+		{
+			"role": "footer",
+			"file": "partials/footer.json"
+		}
+	],
+	"checks": [
+		{
+			"id": "languages-url-mode",
+			"label": "Language URLs kept as they are (a directory per language, or no language in the URL)",
+			"ok": true,
+			"detail": "polylang: directories /en/, default fr unprefixed (from hreflang)"
+		},
+		{
+			"id": "languages-assigned",
+			"label": "Every migrated page and post has its language",
+			"ok": true,
+			"detail": "fr 4, en 3"
+		},
+		{
+			"id": "languages-groups",
+			"label": "Each translation group holds one entry per language",
+			"ok": true,
+			"detail": "3 translated groups"
+		},
+		{
+			"id": "languages-routes",
+			"label": "Every published translation keeps its language directory",
+			"ok": true
+		}
+	],
+	"report": [
+		"## Languages",
+		"",
+		"Polylang, default language **fr**, URL mode **directory** (from hreflang). Migrated with every address kept: each entry carries `lang` and `translation_group`; the starter prints `<html lang>`, hreflang alternates and a language switcher.",
+		"",
+		"| Language | Directory | hreflang | Pages | Posts | Entries |",
+		"|---|---|---|---|---|---|",
+		"| Français (fr) — default | — | fr-FR | 3 | 1 | 0 |",
+		"| English (en) | /en/ | en-GB | 2 | 1 | 0 |",
+		"",
+		"3 translation group(s); 1 default-language entry without a translation (the switcher links to the language's home page there).",
+		"",
+		"**Not migrated** (listed so nothing is lost silently; decide in overrides.ts / decisions.md):",
+		"",
+		"- salient_g_sections footer-en (en): translated site chrome, only the default language's is migrated",
+		"- menu Menu FR: Polylang language switcher item, replaced by the site's language switcher",
+		"",
+		"Not carried by design: string translations (WPML String Translation, Polylang strings: theme and widget texts) and per-language taxonomy term links (terms of every language are migrated as their own terms, unlinked)."
+	]
+}

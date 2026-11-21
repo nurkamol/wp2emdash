@@ -1,0 +1,38 @@
+{
+	"$comment": "Synthetic Polylang site (exemple.test): French default without a prefix, English in /en/ (Polylang 'The language is set from the directory name', default hidden). No exporter language fields and no database dump: languages come from Polylang's `language` taxonomy, translation groups from `post_translations`, the URL mode from the live hreflang links. The English menu sits on Polylang's `primary___en` location and the French menu carries Polylang's language switcher item (#pll_switcher). The English about page was not crawled (route built). Used by test/multilingual.test.ts; golden: test/golden/multilingual/polylang.json.",
+	"probe": { "site": { "language": "fr-FR" } },
+	"options": { "blogname": "Boulangerie", "page_on_front": 1, "page_for_posts": 0, "permalink_structure": "/%postname%/" },
+	"content": {
+		"page": [
+			{ "id": 1, "slug": "accueil", "title": "Accueil", "text": "Pain frais chaque matin.", "taxonomies": { "language": [{ "id": 2, "name": "Français", "slug": "fr" }], "post_translations": [{ "id": 90, "name": "pll_aaa", "slug": "pll_aaa" }] } },
+			{ "id": 2, "slug": "home", "title": "Home", "text": "Fresh bread every morning.", "taxonomies": { "language": [{ "id": 3, "name": "English", "slug": "en" }], "post_translations": [{ "id": 90, "name": "pll_aaa", "slug": "pll_aaa" }] } },
+			{ "id": 3, "slug": "a-propos", "title": "À propos", "text": "Une boulangerie de quartier.", "taxonomies": { "language": [{ "id": 2, "name": "Français", "slug": "fr" }], "post_translations": [{ "id": 91, "name": "pll_bbb", "slug": "pll_bbb" }] } },
+			{ "id": 4, "slug": "about", "title": "About", "text": "A neighbourhood bakery.", "taxonomies": { "language": [{ "id": 3, "name": "English", "slug": "en" }], "post_translations": [{ "id": 91, "name": "pll_bbb", "slug": "pll_bbb" }] } },
+			{ "id": 5, "slug": "horaires", "title": "Horaires", "text": "Ouvert du mardi au dimanche.", "taxonomies": { "language": [{ "id": 2, "name": "Français", "slug": "fr" }] } }
+		],
+		"post": [
+			{ "id": 20, "slug": "galette-des-rois", "title": "Galette des rois", "text": "La galette revient en janvier.", "taxonomies": { "language": [{ "id": 2, "name": "Français", "slug": "fr" }], "post_translations": [{ "id": 92, "name": "pll_ccc", "slug": "pll_ccc" }] } },
+			{ "id": 21, "slug": "kings-cake", "title": "Kings' cake", "text": "The galette is back in January.", "taxonomies": { "language": [{ "id": 3, "name": "English", "slug": "en" }], "post_translations": [{ "id": 92, "name": "pll_ccc", "slug": "pll_ccc" }] } }
+		],
+		"salient_g_sections": [
+			{ "id": 80, "slug": "footer", "title": "Footer", "text": "© Boulangerie", "taxonomies": { "language": [{ "id": 2, "name": "Français", "slug": "fr" }] } },
+			{ "id": 81, "slug": "footer-en", "title": "Footer EN", "text": "© Bakery", "taxonomies": { "language": [{ "id": 3, "name": "English", "slug": "en" }] } }
+		]
+	},
+	"menus": [
+		{ "id": 1, "name": "Menu FR", "locations": ["primary"], "items": [{ "id": 101, "parent_id": null, "sort_order": 1, "type": "post_type", "object": "page", "object_id": 3, "url": "https://exemple.test/a-propos/", "title": "À propos", "target": "", "classes": null }, { "id": 102, "parent_id": null, "sort_order": 2, "type": "custom", "object": "custom", "object_id": 0, "url": "#pll_switcher", "title": "Langues", "target": "", "classes": null }] },
+		{ "id": 2, "name": "Menu EN", "locations": ["primary___en"], "items": [{ "id": 201, "parent_id": null, "sort_order": 1, "type": "post_type", "object": "page", "object_id": 4, "url": "https://exemple.test/en/about/", "title": "About", "target": "", "classes": null }] }
+	],
+	"urls": [
+		{ "path": "/", "wp": { "id": 1 } },
+		{ "path": "/en/", "wp": { "id": 2 } },
+		{ "path": "/a-propos/", "wp": { "id": 3 } },
+		{ "path": "/horaires/", "wp": { "id": 5 } },
+		{ "path": "/galette-des-rois/", "wp": { "id": 20 } },
+		{ "path": "/en/kings-cake/", "wp": { "id": 21 } }
+	],
+	"snapshots": [
+		{ "name": "home", "wpId": 1, "url": "https://exemple.test/", "hreflang": [{ "lang": "fr-FR", "href": "https://exemple.test/" }, { "lang": "en-GB", "href": "https://exemple.test/en/" }, { "lang": "x-default", "href": "https://exemple.test/" }] },
+		{ "name": "a-propos", "wpId": 3, "url": "https://exemple.test/a-propos/", "hreflang": [{ "lang": "fr-FR", "href": "https://exemple.test/a-propos/" }, { "lang": "en-GB", "href": "https://exemple.test/en/about/" }, { "lang": "x-default", "href": "https://exemple.test/a-propos/" }] }
+	]
+}

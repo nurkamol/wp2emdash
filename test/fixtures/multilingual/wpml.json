@@ -1,0 +1,57 @@
+{
+	"$comment": "Synthetic WPML site (example.test): English default without a prefix, French and German in /fr/ and /de/ (WPML 'Different languages in directories'). Pages carry the EmDash Exporter's locale + translation_group; posts have neither and get their language from WPML's icl_translations table (database dump). The French front page and a German child page were not crawled by the audit (their routes are built). The French footer is translated site chrome. Used by test/multilingual.test.ts; golden: test/golden/multilingual/wpml.json.",
+	"probe": { "site": { "language": "en-US" }, "i18n": { "plugin": "wpml", "default_locale": "en", "locales": ["en", "fr", "de"] } },
+	"options": { "blogname": "Atelier", "page_on_front": 1, "page_for_posts": 0, "permalink_structure": "/%postname%/" },
+	"multilingual": {
+		"options": { "icl_sitepress_settings": { "default_language": "en", "language_negotiation_type": 1, "urls": { "directory_for_default_language": 0 } } },
+		"wpml": [
+			{ "element_id": 30, "element_type": "post_post", "trid": 300, "language_code": "en", "source_language_code": null },
+			{ "element_id": 31, "element_type": "post_post", "trid": 300, "language_code": "fr", "source_language_code": "en" },
+			{ "element_id": 32, "element_type": "post_post", "trid": 301, "language_code": "de", "source_language_code": null },
+			{ "element_id": 1, "element_type": "tax_nav_menu", "trid": 900, "language_code": "en", "source_language_code": null },
+			{ "element_id": 2, "element_type": "tax_nav_menu", "trid": 900, "language_code": "fr", "source_language_code": "en" }
+		]
+	},
+	"content": {
+		"page": [
+			{ "id": 1, "slug": "home", "title": "Home", "text": "Welcome to the studio.", "locale": "en", "translation_group": 10 },
+			{ "id": 11, "slug": "accueil", "title": "Accueil", "text": "Bienvenue à l'atelier.", "locale": "fr-FR", "translation_group": 10 },
+			{ "id": 12, "slug": "startseite", "title": "Startseite", "text": "Willkommen im Atelier.", "locale": "de-DE", "translation_group": 10 },
+			{ "id": 3, "slug": "about", "title": "About", "text": "We make things by hand.", "locale": "en", "translation_group": 20 },
+			{ "id": 13, "slug": "a-propos", "title": "À propos", "text": "Nous fabriquons à la main.", "locale": "fr-FR", "translation_group": 20 },
+			{ "id": 4, "slug": "services", "title": "Services", "text": "Repairs and commissions.", "locale": "en", "translation_group": 40 },
+			{ "id": 14, "slug": "leistungen", "title": "Leistungen", "text": "Reparaturen und Aufträge.", "locale": "de-DE", "translation_group": 40 },
+			{ "id": 15, "slug": "reparatur", "title": "Reparatur", "text": "Wir reparieren Möbel.", "locale": "de-DE", "translation_group": 50, "parent": 14 },
+			{ "id": 5, "slug": "contact", "title": "Contact", "text": "Write to us.", "locale": "en", "translation_group": 60 }
+		],
+		"post": [
+			{ "id": 30, "slug": "spring-opening", "title": "Spring opening", "text": "We open in April." },
+			{ "id": 31, "slug": "ouverture-printemps", "title": "Ouverture de printemps", "text": "Nous ouvrons en avril." },
+			{ "id": 32, "slug": "werkstatt-tag", "title": "Werkstatt-Tag", "text": "Ein Tag in der Werkstatt." }
+		],
+		"salient_g_sections": [
+			{ "id": 80, "slug": "footer", "title": "Footer", "text": "© Atelier", "locale": "en", "translation_group": 800 },
+			{ "id": 81, "slug": "footer-fr", "title": "Footer FR", "text": "© Atelier", "locale": "fr-FR", "translation_group": 800 }
+		]
+	},
+	"menus": [
+		{ "id": 1, "name": "Main", "locations": ["primary"], "items": [{ "id": 101, "parent_id": null, "sort_order": 1, "type": "post_type", "object": "page", "object_id": 3, "url": "https://example.test/about/", "title": "About", "target": "", "classes": null }] },
+		{ "id": 2, "name": "Principal", "locations": [], "items": [{ "id": 201, "parent_id": null, "sort_order": 1, "type": "post_type", "object": "page", "object_id": 13, "url": "https://example.test/fr/a-propos/", "title": "À propos", "target": "", "classes": null }] },
+		{ "id": 3, "name": "Haupt", "locations": [], "items": [{ "id": 301, "parent_id": null, "sort_order": 1, "type": "post_type", "object": "page", "object_id": 14, "url": "https://example.test/de/leistungen/", "title": "Leistungen", "target": "", "classes": null }, { "id": 302, "parent_id": null, "sort_order": 2, "type": "post_type", "object": "page", "object_id": 15, "url": "https://example.test/de/leistungen/reparatur/", "title": "Reparatur", "target": "", "classes": null }] }
+	],
+	"urls": [
+		{ "path": "/", "wp": { "id": 1 } },
+		{ "path": "/de/", "wp": { "id": 12 } },
+		{ "path": "/about/", "wp": { "id": 3 } },
+		{ "path": "/fr/a-propos/", "wp": { "id": 13 } },
+		{ "path": "/services/", "wp": { "id": 4 } },
+		{ "path": "/de/leistungen/", "wp": { "id": 14 } },
+		{ "path": "/contact/", "wp": { "id": 5 } },
+		{ "path": "/spring-opening/", "wp": { "id": 30 } },
+		{ "path": "/fr/ouverture-printemps/", "wp": { "id": 31 } }
+	],
+	"snapshots": [
+		{ "name": "home", "wpId": 1, "url": "https://example.test/", "hreflang": [{ "lang": "en", "href": "https://example.test/" }, { "lang": "fr", "href": "https://example.test/fr/" }, { "lang": "de", "href": "https://example.test/de/" }, { "lang": "x-default", "href": "https://example.test/" }] },
+		{ "name": "about", "wpId": 3, "url": "https://example.test/about/", "hreflang": [{ "lang": "en", "href": "https://example.test/about/" }, { "lang": "fr", "href": "https://example.test/fr/a-propos/" }, { "lang": "x-default", "href": "https://example.test/about/" }] }
+	]
+}

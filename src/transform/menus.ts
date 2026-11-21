@@ -44,13 +44,18 @@ export const isMegaClass = (classes: string[]) => classes.some((c) => /^(?:mega-
 /** The EmDash menu name for each IR menu, in order: the first menu of each header role keeps its role name (what the starter reads), every other menu its own slug. */
 export function emdashMenuNames(menus: IrSite["menus"]): string[] {
 	const taken = new Set<string>(["primary", "secondary", "footer"]);
-	const roleUsed = new Set<string>();
+	// Multilingual sites: a non-default language's menus are named like the default ones plus the language
+	// (`primary-fr`), each language with its own roles (the starter reads `primary-<lang>` on that language's pages).
+	const roleUsed = new Map<string, Set<string>>();
 	return menus.map((m) => {
-		if (m.role !== "other" && !roleUsed.has(m.role)) {
-			roleUsed.add(m.role);
-			return m.role;
+		const suffix = m.lang ? `-${m.lang}` : "";
+		const used = roleUsed.get(m.lang ?? "") ?? roleUsed.set(m.lang ?? "", new Set()).get(m.lang ?? "") ?? new Set<string>();
+		if (m.role !== "other" && !used.has(m.role)) {
+			used.add(m.role);
+			taken.add(`${m.role}${suffix}`);
+			return `${m.role}${suffix}`;
 		}
-		const base = (m.name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "menu").slice(0, 60);
+		const base = `${(m.name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "menu").slice(0, 60)}${suffix && !m.name.toLowerCase().endsWith(suffix) ? suffix : ""}`;
 		let name = base;
 		for (let n = 2; taken.has(name); n++) name = `${base}-${n}`;
 		taken.add(name);
