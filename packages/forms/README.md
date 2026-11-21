@@ -128,6 +128,7 @@ with `"triggers": { "crons": ["*/5 * * * *"] }`.
 | `TELEGRAM_BOT_TOKEN` | secret | Chat notifications → Telegram (below). Unset: Telegram is not offered |
 | `SLACK_WEBHOOK_URL` | secret | Chat notifications → Slack incoming webhook (`https://hooks.slack.com/services/…`). Unset: Slack is not offered |
 | `CHAT_WEBHOOK_URL` | secret | Chat notifications → generic webhook (any `https://` address). Unset: not offered |
+| `FORM_WEBMCP` | var | `"0"`: no WebMCP annotations (kit.config `forms.webmcp: false`). Unset: on (below) |
 | `FORM_CHAT` | var | `"0"`: no chat notifications on this site (kit.config `forms.chat: false`) |
 | `FORM_SENSITIVE` | var | `"1"`: the site handles sensitive data (kit.config `sensitiveData`) — chat notifications are notification only |
 | `FORM_FILE_SECRET` | secret | File upload fields (1.7): signs the one-time download links (16+ random characters). Without it (or without the `MEDIA` R2 binding) forms refuse files and ask the visitor to email them |
@@ -350,6 +351,24 @@ later. A drawn signature is sent as an attachment, `signature.png`:
 ends, like any message (with keep sent, until the retention period ends, emailed or not); the cron sends it with the attachment. On **Form messages** a message with a signature says
 "signature attached" in the inbox and shows the image on the message page (admins only; only a stored PNG that passes
 the same checks is shown). CSV/JSON exports carry the text record, not the image.
+
+## AI agents (WebMCP)
+
+`@wp2emdash/forms/webmcp` gives a form the WebMCP declarative attributes (`toolname`, `tooldescription`,
+`toolparamdescription`), so an AI agent in Chrome can fill it in. Plain HTML, no script. Everything comes from the form
+definition (id, title, labels, options, submit label). The agent fills the form; the visitor checks it and presses
+Submit, so Turnstile and the honeypot work as before (the honeypot is described to agents as "leave empty"). Forms
+marked `sensitive` and every form on a site with `FORM_SENSITIVE="1"` are not exposed. Off: `FORM_WEBMCP="0"`. Details
+and what Lighthouse checks: kit `docs/spikes/webmcp-findings.md`.
+
+```astro
+---
+import { formTool, paramDescription, HONEYPOT_DESCRIPTION } from "@wp2emdash/forms/webmcp";
+const tool = formTool(form, env); // undefined: not exposed
+---
+<form {...(tool ?? {})}>
+  <input name={f.name} toolparamdescription={paramDescription(f, form, env)} />
+```
 
 ## Privacy
 

@@ -112,7 +112,9 @@ export function workerVars(config: Pick<KitConfig, "email" | "forms"> & { sensit
 	// Chat notifications (@wp2emdash/forms chat.ts): FORM_CHAT="0" removes them; FORM_SENSITIVE="1" allows only
 	// "notification only" (nothing a visitor wrote leaves the site). The channel secrets are Wrangler secrets.
 	const chatVars: Record<string, string> = { ...(config.forms.chat === false ? { FORM_CHAT: "0" } : {}), ...(config.sensitiveData ? { FORM_SENSITIVE: "1" } : {}) };
-	const formVars: Record<string, string> = { ...outboxVars(config.forms.outbox), ...chatVars, ...(config.forms.uploads && config.forms.uploads.days !== 30 ? { FORM_UPLOAD_DAYS: String(config.forms.uploads.days) } : {}), EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
+	// WebMCP form annotations (@wp2emdash/forms webmcp.ts): FORM_WEBMCP="0" removes them.
+	const webmcpVars: Record<string, string> = config.forms.webmcp === false ? { FORM_WEBMCP: "0" } : {};
+	const formVars: Record<string, string> = { ...outboxVars(config.forms.outbox), ...chatVars, ...webmcpVars, ...(config.forms.uploads && config.forms.uploads.days !== 30 ? { FORM_UPLOAD_DAYS: String(config.forms.uploads.days) } : {}), EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
 	const single = o.staging ? {} : { FORM_LIVE_HOST: o.productionHost.replace(/^www\./, ""), ...(config.email.stagingTo.length ? { FORM_TEST_TO: config.email.stagingTo.join(",") } : {}) };
 	const production = { ...formVars, ...single, ...(config.forms.turnstileSiteKey ? { TURNSTILE_SITE_KEY: config.forms.turnstileSiteKey } : {}) };
 	const stagingMail = config.email.stagingTo.length ? { FORM_TO: config.email.stagingTo.join(",") } : { FORM_TO: "", ...(config.forms.outbox ? { FORM_OUTBOX_HOLD: "1" } : {}) };

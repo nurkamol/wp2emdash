@@ -6,6 +6,7 @@ import { env } from "cloudflare:workers";
 import { safeHref, type InlinePart } from "@wp2emdash/forms/rich";
 import { stepsOf } from "@wp2emdash/forms/logic";
 import { acceptedOf, maxFilesOf, maxMbOf, UPLOAD_TYPES } from "@wp2emdash/forms/uploads";
+import { formTool, HONEYPOT_DESCRIPTION, paramDescription, type WebMcpEnv } from "@wp2emdash/forms/webmcp";
 import { getForm, type FormField } from "../../forms";
 const { value: v } = Astro.props as { value: Record<string, any> };
 const form = getForm(v.form_id);
@@ -23,6 +24,9 @@ const groups = form ? stepsOf(form.fields, steps?.length ?? 0) : [];
 const need = (f: FormField) => !!f.required && !f.showIf;
 const cond = (f: FormField) => (f.showIf ? JSON.stringify(f.showIf) : undefined);
 const acceptAttr = (f: FormField) => acceptedOf(f).flatMap((x) => [`.${x}`, UPLOAD_TYPES[x]?.type ?? ""]).filter(Boolean).join(",");
+// WebMCP (agents can fill the form in; the visitor still submits it): attributes from the form's own data, none when off or sensitive.
+const tool = form ? formTool(form, env as WebMcpEnv) : undefined;
+const pd = (f: FormField) => (form ? paramDescription(f, form, env as WebMcpEnv) : undefined);
 const fileHint = (f: FormField) => `${acceptedOf(f).map((x) => x.toUpperCase()).join(", ")} · up to ${maxMbOf(f)} MB${maxFilesOf(f) > 1 ? ` each, ${maxFilesOf(f)} files` : ""}`;
 ---
 
@@ -35,7 +39,7 @@ const fileHint = (f: FormField) => `${acceptedOf(f).map((x) => x.toUpperCase()).
 		</div>
 		{
 			form ? (
-				<form class="form" method="post" action={`/api/forms/${form.id}`} data-form={form.id} data-after={form.afterSubmit ?? "reset"} data-steps={steps ? steps.length : undefined} enctype={form.fields.some((f) => f.type === "file") ? "multipart/form-data" : undefined} aria-labelledby={`form-name-${form.id}`} novalidate>
+				<form class="form" method="post" action={`/api/forms/${form.id}`} data-form={form.id} data-after={form.afterSubmit ?? "reset"} data-steps={steps ? steps.length : undefined} enctype={form.fields.some((f) => f.type === "file") ? "multipart/form-data" : undefined} aria-labelledby={`form-name-${form.id}`} novalidate {...(tool ?? {})}>
 					<span class="visually-hidden" id={`form-name-${form.id}`}>{form.title}</span>
 					{steps && <p class="form__progress" data-form-progress aria-live="polite" hidden />}
 					{groups.map((group, gi) => (
@@ -59,7 +63,7 @@ const fileHint = (f: FormField) => `${acceptedOf(f).map((x) => x.toUpperCase()).
 								<fieldset class="field field--radio" data-field={f.name} data-show-if={cond(f)}>
 									<legend class="field__label">{f.label}{req}</legend>
 									{(f.options ?? []).map((o) => (
-										<label class="choice"><input type="radio" name={f.name} value={o} required={need(f)} /> <span>{o}</span></label>
+										<label class="choice"><input type="radio" name={f.name} value={o} required={need(f)} toolparamdescription={pd(f)} /> <span>{o}</span></label>
 									))}
 									<span class="field__error" aria-live="polite" />
 								</fieldset>
@@ -69,7 +73,7 @@ const fileHint = (f: FormField) => `${acceptedOf(f).map((x) => x.toUpperCase()).
 								<fieldset class="field field--checkbox-group" data-field={f.name} data-show-if={cond(f)}>
 									<legend class="field__label">{f.label}{req}</legend>
 									{f.options.map((o) => (
-										<label class="choice"><input type="checkbox" name={f.name} value={o} /> <span>{o}</span></label>
+										<label class="choice"><input type="checkbox" name={f.name} value={o} toolparamdescription={pd(f)} /> <span>{o}</span></label>
 									))}
 									<span class="field__error" aria-live="polite" />
 								</fieldset>
@@ -77,7 +81,7 @@ const fileHint = (f: FormField) => `${acceptedOf(f).map((x) => x.toUpperCase()).
 						if (f.type === "consent")
 							return (
 								<div class="field field--consent" data-field={f.name} data-show-if={cond(f)}>
-									<label class="choice"><input type="checkbox" name={f.name} value="yes" required={need(f)} /> <span>{f.labelParts?.length ? parts(f.labelParts) : f.label}{req}</span></label>
+									<label class="choice"><input type="checkbox" name={f.name} value="yes" required={need(f)} toolparamdescription={pd(f)} /> <span>{f.labelParts?.length ? parts(f.labelParts) : f.label}{req}</span></label>
 									<span class="field__error" aria-live="polite" />
 								</div>
 							);
@@ -102,7 +106,7 @@ const fileHint = (f: FormField) => `${acceptedOf(f).map((x) => x.toUpperCase()).
 									<input type="hidden" name={f.name} data-signature-value />
 									<label class="signature__typed">
 										<span class="signature__typed-label"><span class="signature__or">Or type</span><span class="signature__alone">Type</span> your full name as your signature</span>
-										<input type="text" name={`${f.name}_typed`} required={need(f)} autocomplete="name" maxlength={200} />
+										<input type="text" name={`${f.name}_typed`} required={need(f)} autocomplete="name" maxlength={200} toolparamdescription={pd(f)} />
 									</label>
 									<span class="field__error" aria-live="polite" />
 								</fieldset>
@@ -111,11 +115,11 @@ const fileHint = (f: FormField) => `${acceptedOf(f).map((x) => x.toUpperCase()).
 							<label class:list={["field", `field--${f.type}`, { "field--half": f.half }]} data-field={f.name} data-show-if={cond(f)}>
 								<span class="field__label">{f.label}{req}</span>
 								{f.type === "textarea" ? (
-									<textarea name={f.name} required={need(f)} placeholder={f.placeholder} rows={typeof f.rows === "number" && f.rows >= 2 && f.rows <= 20 ? f.rows : 5} />
+									<textarea name={f.name} required={need(f)} placeholder={f.placeholder} toolparamdescription={pd(f)} rows={typeof f.rows === "number" && f.rows >= 2 && f.rows <= 20 ? f.rows : 5} />
 								) : f.type === "select" ? (
-									<select name={f.name} required={need(f)}><option value="" selected>{f.placeholder ?? "Choose…"}</option>{(f.options ?? []).map((o) => <option value={o}>{o}</option>)}</select>
+									<select name={f.name} required={need(f)} toolparamdescription={pd(f)}><option value="" selected>{f.placeholder ?? "Choose…"}</option>{(f.options ?? []).map((o) => <option value={o}>{o}</option>)}</select>
 								) : (
-									<input type={f.type === "date" && f.time ? "datetime-local" : f.type} name={f.name} required={need(f)} placeholder={f.placeholder} autocomplete={f.autocomplete} />
+									<input type={f.type === "date" && f.time ? "datetime-local" : f.type} name={f.name} required={need(f)} placeholder={f.placeholder} autocomplete={f.autocomplete} toolparamdescription={pd(f)} />
 								)}
 								<span class="field__error" aria-live="polite" />
 							</label>
@@ -129,7 +133,7 @@ const fileHint = (f: FormField) => `${acceptedOf(f).map((x) => x.toUpperCase()).
 					)}
 					</div>
 					))}
-					<input type="text" name="_hp" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true" />
+					<input type="text" name="_hp" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true" toolparamdescription={tool ? HONEYPOT_DESCRIPTION : undefined} />
 					{form.notice && <p class="form__notice">{form.notice}</p>}
 					{siteKey && <div class="cf-turnstile" data-sitekey={siteKey} data-theme="light" />}
 					<button type="submit" class="btn btn--primary">{form.submitLabel}</button>
