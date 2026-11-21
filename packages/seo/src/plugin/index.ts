@@ -24,6 +24,7 @@ import { DASHBOARD_PAGE, dashboard, type GoogleData, type GoogleState, type Inde
 import { analyticsTab, overviewAnalytics, panelVisits, VISITS_WIDGET, visitsTab, visitsWidget, type VisitsState } from "../analytics/views.js";
 import { viewsOfPath } from "../analytics/visits.js";
 import { purgePages, type StoredAnalytics } from "../analytics/store.js";
+import { BUSINESS_KEY, businessFooterBlocks, parseBusiness, type StoredBusiness } from "../business.js";
 import { ADMIN_ROLE, analyticsAction, loadAnalytics, type Toast, visitsState, workerBits } from "./analytics.js";
 import { dateRange, GoogleError, parseServiceAccount, pickProperty, SearchConsole } from "../google.js";
 import { type IndexNowResult, submitIndexNow } from "../indexnow.js";
@@ -164,6 +165,19 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 							altSaved++;
 						}
 					}
+					// Footer business details switch (Site checks tab; admins only, saving purges the cached pages).
+					let business: StoredBusiness | undefined = o.businessFooter ? parseBusiness(await ctx.kv.get<unknown>(BUSINESS_KEY)) : undefined;
+					let bizToast: Toast | undefined;
+					if (o.businessFooter && i.type === "form_submit" && i.action_id === "biz-footer") {
+						if ((ctx.user?.role ?? 0) < ADMIN_ROLE) bizToast = { message: "Only administrators can change this.", type: "error" };
+						else {
+							const footer = i.values?.footer === true;
+							business = { footer, updatedAt: new Date().toISOString(), updatedBy: (ctx.user?.name || ctx.user?.email || "an admin").slice(0, 80) };
+							await ctx.kv.set(BUSINESS_KEY, business);
+							const purged = await purgePages((await workerBits()).cache);
+							bizToast = { message: `Business details in the footer turned ${footer ? "on" : "off"}.${purged === "purged" ? " Live pages update within a few seconds." : purged === "failed" ? " Cached pages could not be refreshed right now: they show the change within the hour." : ""}`, type: purged === "failed" ? "info" : "success" };
+						}
+					}
 					const report = await siteReport(ctx, o, collections);
 					const missingAlt = [...report.usage.entries()]
 						// Pictures only (videos and files have no alt text), and only those the library knows.
@@ -179,7 +193,7 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 					const fetcher = (self ? (input: RequestInfo | URL, init?: RequestInit) => self.fetch(new Request(String(input), init)) : fetch) as typeof fetch;
 					const site = await siteChecks(origin, o.productionUrl, paths, fetcher).catch((e: Error) => [{ id: "site", label: "Site checks", status: "warn" as const, detail: `Could not run: ${e.message}` }]);
 					// Google Search Console and IndexNow actions.
-					let toast: { message: string; type: "success" | "error" | "info" } | undefined = altSaved ? { message: `${altSaved} image description${altSaved === 1 ? "" : "s"} saved.`, type: "success" } : (anToast ?? archiveToast);
+					let toast: { message: string; type: "success" | "error" | "info" } | undefined = altSaved ? { message: `${altSaved} image description${altSaved === 1 ? "" : "s"} saved.`, type: "success" } : (bizToast ?? anToast ?? archiveToast);
 					let google: GoogleState;
 					const act = i.action_id ?? "";
 					if (act.startsWith("gsc-")) {
@@ -203,10 +217,10 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 						o.analytics && analytics && visits
 							? { overview: overviewAnalytics(visits, analytics), visits: visitsTab(visits, host), tab: analyticsTab({ enabled: true, stored: analytics, options: o.analytics, productionUrl: o.productionUrl, admin: (ctx.user?.role ?? 0) >= ADMIN_ROLE, ...(anErrors ? { errors: anErrors } : {}) }) }
 							: undefined;
-					const tabFor: Record<string, TabKey> = { "save-alt": "images", refresh: "site", "indexnow-all": "indexnow", "visits-refresh": "visits" };
+					const tabFor: Record<string, TabKey> = { "save-alt": "images", refresh: "site", "biz-footer": "site", "indexnow-all": "indexnow", "visits-refresh": "visits" };
 					const archivesBlocks = archives.length ? archivesTab(await archivesState(ctx, archives)) : undefined;
 					return {
-						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}), google, ...(indexNow ? { indexNow } : {}), productionUrl: o.productionUrl, ...(an ? { analytics: an } : {}), ...(archivesBlocks ? { archives: archivesBlocks } : {}) }, act.startsWith("gsc-") ? "google" : act.startsWith("an-") ? "analytics" : act.startsWith("term-") ? "archives" : (tabFor[act] ?? "overview")),
+						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}), google, ...(indexNow ? { indexNow } : {}), productionUrl: o.productionUrl, ...(an ? { analytics: an } : {}), ...(archivesBlocks ? { archives: archivesBlocks } : {}), ...(o.businessFooter ? { businessFooter: businessFooterBlocks({ on: business?.footer ?? true, admin: (ctx.user?.role ?? 0) >= ADMIN_ROLE, ...(business ? { stored: business } : {}) }) } : {}) }, act.startsWith("gsc-") ? "google" : act.startsWith("an-") ? "analytics" : act.startsWith("term-") ? "archives" : (tabFor[act] ?? "overview")),
 						...(toast ? { toast } : {}),
 					};
 				},

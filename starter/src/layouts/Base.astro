@@ -234,8 +234,8 @@ const typekitHref = (site.fonts as { typekitHref?: string }).typekitHref;
 					</nav>
 				)
 			}
-			{/* Name, address, phone, hours (kit.config business.footer; scaffold leaves it out when the footer already shows them). */}
-			<BusinessInfo />
+			{/* Name, address, phone, hours (kit.config business.footer; scaffold leaves it out when the footer already shows them; admins hide it in SEO & Analytics → Site checks). */}
+			{chrome.businessFooter && <BusinessInfo />}
 			{siteCredit && <p class="site-credit container">{siteCredit.text} <a href={siteCredit.url}>{siteCredit.name}</a></p>}
 		</footer>
 		<Popups popups={popups.entries as any} />

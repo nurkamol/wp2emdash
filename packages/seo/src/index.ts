@@ -47,6 +47,11 @@ export interface SeoPanelOptions {
 	archives?: ArchiveBase[];
 	/** Site language (BCP 47, e.g. "en-US"): the reading-level check runs only for English. Unset: guessed from each page's text. */
 	lang?: string;
+	/**
+	 * The site was built with the footer business block (site.config `businessFooter`): the Site checks tab gets the
+	 * switch that shows or hides it (business.ts). Absent: no switch, nothing to hide.
+	 */
+	businessFooter?: boolean;
 }
 
 export function seoPlugin(options: SeoPanelOptions) {

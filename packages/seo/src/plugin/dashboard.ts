@@ -22,6 +22,8 @@ export interface DashboardData {
 	analytics?: { overview: Block[]; visits: Block[]; tab: Block[] };
 	/** Archive SEO (category, tag and collection term archives): plugin/social.ts. Absent on sites without archives. */
 	archives?: Block[];
+	/** The footer business-details switch (business.ts); absent on sites built without the block. */
+	businessFooter?: Block[];
 }
 
 function overview(d: DashboardData): Block[] {
@@ -155,6 +157,7 @@ function siteTab(d: DashboardData): Block[] {
 	return [
 		...d.site.map((c) => ({ type: "section", text: `${ICON[c.status]} ${c.label}: ${c.detail}` })),
 		{ type: "actions", elements: [{ type: "button", action_id: "refresh", label: "Check again", style: "secondary" }] },
+		...(d.businessFooter ?? []),
 	];
 }
 

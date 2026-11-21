@@ -75,22 +75,41 @@ function timeName(hhmm: string, locale: string): string {
 	}
 }
 
-/** "Mo-Fr" → "Mon–Fri", "Mo,We" / "Monday,Wednesday" → "Mon, Wed"; undefined when it names no day. */
+/**
+ * "Mo-Fr" → "Mon–Fri", "Mo,We" / "Monday,Wednesday" → "Mon, Wed", "Mo,Tu,We,Th,Fr" → "Mon–Fri", all seven days →
+ * "Every day" (English; other languages "Mon–Sun" in their own day names); undefined when it names no day. Runs of three
+ * or more consecutive days become a range; a range across the week end ("Fr-Mo") is kept as written.
+ */
 function formatDays(spec: string, locale: string): string | undefined {
 	const parts = spec.split(",").filter((p) => p.trim());
-	const out: string[] = [];
+	const days = new Set<number>();
+	const wraps: string[] = [];
 	for (const p of parts) {
 		const [from, to] = p.split("-");
 		const a = from ? dayIndex(from) : undefined;
 		if (a === undefined) return undefined;
-		if (to === undefined) out.push(dayName(a, locale));
+		if (to === undefined) days.add(a);
 		else {
 			const b = dayIndex(to);
 			if (b === undefined) return undefined;
-			out.push(`${dayName(a, locale)}–${dayName(b, locale)}`);
+			if (b < a) wraps.push(`${dayName(a, locale)}–${dayName(b, locale)}`);
+			else for (let d = a; d <= b; d++) days.add(d);
 		}
 	}
-	return out.length ? out.join(", ") : undefined;
+	if (!days.size && !wraps.length) return undefined;
+	if (days.size === 7) return /^en\b/i.test(locale) ? "Every day" : `${dayName(0, locale)}–${dayName(6, locale)}`;
+	const out: string[] = [];
+	const sorted = [...days].sort((x, y) => x - y);
+	for (let n = 0; n < sorted.length; ) {
+		let end = n;
+		while (end + 1 < sorted.length && sorted[end + 1] === (sorted[end] as number) + 1) end++;
+		const first = sorted[n] as number;
+		const last = sorted[end] as number;
+		if (end - n >= 2) out.push(`${dayName(first, locale)}–${dayName(last, locale)}`);
+		else for (let k = n; k <= end; k++) out.push(dayName(sorted[k] as number, locale));
+		n = end + 1;
+	}
+	return [...out, ...wraps].join(", ");
 }
 
 /** "06:00-21:00,22:00-23:00" → "6:00 AM–9:00 PM, 10:00 PM–11:00 PM"; undefined when it is not a time range list. */

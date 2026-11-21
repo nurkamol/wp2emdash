@@ -6,6 +6,13 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Footer business details switch** (`@wp2emdash/seo` 0.4.1): admins show or hide the footer's business name, address, phone and hours on SEO & Analytics → Site checks, without a rebuild. Stored in the SEO plugin's KV (`plugin:site-seo:business`), read with the page chrome, saving purges the cached pages. Never saved or unreadable: the block shows. Only on sites built with the block.
+
+### Changed
+- Footer business block is centred, like the credit line under it.
+- Opening hours group consecutive days: "Mo,Tu,We,Th,Fr" reads "Mon–Fri", all seven days "Every day" (English; other languages "Mon–Sun").
+
 ## [1.3.0] — 2026-11-22
 
 ### Added

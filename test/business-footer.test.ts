@@ -22,7 +22,12 @@ describe("opening hours formatter", () => {
 		expect(formatOpeningHours("Mo,We,Fr 09:00-12:00,13:00-17:30")).toEqual(["Mon, Wed, Fri 9:00 AM–12:00 PM, 1:00 PM–5:30 PM"]);
 		expect(formatOpeningHours("Monday,Tuesday 09:00-17:00")).toEqual(["Mon, Tue 9:00 AM–5:00 PM"]);
 		expect(formatOpeningHours("Sa 08:00-12:00 Su 10:00-14:00")).toEqual(["Sat 8:00 AM–12:00 PM", "Sun 10:00 AM–2:00 PM"]);
-		expect(formatOpeningHours("Mo-Su")).toEqual(["Mon–Sun"]);
+		expect(formatOpeningHours("Mo-Su")).toEqual(["Every day"]);
+		expect(formatOpeningHours("Mo,Tu,We,Th,Fr,Sa,Su 09:00-17:00")).toEqual(["Every day 9:00 AM–5:00 PM"]);
+		expect(formatOpeningHours("Mo,Tu,We,Th,Fr 09:00-17:00")).toEqual(["Mon–Fri 9:00 AM–5:00 PM"]);
+		expect(formatOpeningHours("Mo,Tu,Th,Fr,Sa 09:00-17:00")).toEqual(["Mon, Tue, Thu–Sat 9:00 AM–5:00 PM"]);
+		expect(formatOpeningHours("Fr-Mo 09:00-17:00")).toEqual(["Fri–Mon 9:00 AM–5:00 PM"]);
+		expect(formatOpeningHours("Mo-Su", "de")[0]).toContain("–");
 	});
 	it("follows the site's language", () => {
 		expect(formatOpeningHours("Mo-Fr 06:00-21:00", "en-GB")).toEqual(["Mon–Fri 6:00–21:00"]);
@@ -107,7 +112,7 @@ describe("footer contact block rendering contract", () => {
 	it("is in the footer, before the credit, and reads the same business as the JSON-LD", () => {
 		const base = starter("layouts/Base.astro");
 		const footer = base.slice(base.indexOf('<footer class="site-footer">'), base.indexOf("</footer>"));
-		expect(footer).toContain("<BusinessInfo />");
+		expect(footer).toContain("<BusinessInfo />}");
 		expect(footer.indexOf("<BusinessInfo />")).toBeLessThan(footer.indexOf("siteCredit &&"));
 		expect(c).toContain("sc.businessFooter ? sc.structuredData?.business : undefined");
 		expect(starter("components/StructuredData.astro")).toContain("structuredData?: { business?: Business");
@@ -121,5 +126,34 @@ describe("footer contact block rendering contract", () => {
 	});
 	it("is styled in the footer's own colours", () => {
 		expect(starter("styles/base.css")).toMatch(/\.business-info a \{ color: inherit;/);
+	});
+});
+
+describe("admin switch (SEO & Analytics → Site checks)", () => {
+	it("stores and reads the switch; a missing or broken row keeps the block on", async () => {
+		const { BUSINESS_OPTION, businessFooterBlocks, parseBusiness, readBusinessFooter } = await import("../packages/seo/src/business.js");
+		const db = (value: string | null, fail = false) => ({
+			prepare: (q: string) => ({ bind: (n: string) => ({ first: async <T,>() => { if (fail) throw new Error("x"); expect(q).toContain("FROM options"); expect(n).toBe(BUSINESS_OPTION); return (value === null ? null : { value }) as T; } }) }),
+		});
+		expect(await readBusinessFooter(undefined)).toBe(true);
+		expect(await readBusinessFooter(db(null))).toBe(true);
+		expect(await readBusinessFooter(db("{bad", false))).toBe(true);
+		expect(await readBusinessFooter(db(null, true))).toBe(true);
+		expect(await readBusinessFooter(db(JSON.stringify({ footer: false })))).toBe(false);
+		expect(await readBusinessFooter(db(JSON.stringify({ footer: true })))).toBe(true);
+		expect(parseBusiness({ footer: "no" })).toBeUndefined();
+		const admin = JSON.stringify(businessFooterBlocks({ on: false, admin: true }));
+		expect(admin).toContain('"action_id":"biz-footer"');
+		expect(admin).toContain('"initial_value":false');
+		expect(JSON.stringify(businessFooterBlocks({ on: true, admin: false }))).toContain("Only administrators");
+	});
+	it("the layout renders the block only when the chrome says so, and the SEO admin handles the save", () => {
+		expect(starter("layouts/Base.astro")).toContain("{chrome.businessFooter && <BusinessInfo />}");
+		const chrome = starter("utils/chrome.ts");
+		expect(chrome).toContain("businessFooterOn ? readBusinessFooter(");
+		const plugin = readFileSync(join(import.meta.dirname, "..", "packages/seo/src/plugin/index.ts"), "utf8");
+		expect(plugin).toContain('i.action_id === "biz-footer"');
+		expect(plugin).toContain("ADMIN_ROLE) bizToast");
+		expect(plugin).toContain("purgePages((await workerBits()).cache)");
 	});
 });
