@@ -80,3 +80,17 @@ describe("Google Fonts check never drops a font on a failed request", () => {
 		}
 	});
 });
+
+describe("self-hosting must cover every family the site uses", () => {
+	it("names the families missing from the download", async () => {
+		const { missingFamilies } = await import("../src/scaffold/fonts.js");
+		const href = "https://fonts.googleapis.com/css2?family=Outfit:ital,wght@0,400;1,400&family=Pinyon+Script:ital,wght@0,400&display=swap";
+		expect(missingFamilies(href, ["Pinyon Script"])).toEqual(["Outfit"]);
+		expect(missingFamilies(href, ["Outfit", "Pinyon Script"])).toEqual([]);
+	});
+	it("scaffold keeps the Google link and warns when a family is missing", () => {
+		const s = readFileSync(join(import.meta.dirname, "..", "src/phases/scaffold.ts"), "utf8");
+		expect(s).toContain("const missing = hosted ? missingFamilies(siteConfig.fonts.googleHref, hostedFamilies) : [];");
+		expect(s).toContain("fonts not self-hosted (Google Fonts kept): ${missing.join");
+	});
+});

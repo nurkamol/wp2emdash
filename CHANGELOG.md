@@ -12,6 +12,7 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ### Changed
 - Footer business block is centred, like the credit line under it.
+- Self-hosted fonts must cover every family the site uses: scaffold compares the download with the Google Fonts link and, when a family is missing (seen intermittently: a build had only the display font), warns, keeps the Google link and saves Google's answer to `reports/scaffold/google-fonts-answer.css`. A face without a woff2 file fails self-hosting instead of being skipped. The log names the self-hosted families.
 - Google Fonts never lose a family to a failed request: only Google's 400 means "not on Google Fonts"; a network error or 5xx is retried twice, then the whole font link is kept (warned). A font file that cannot be downloaded fails self-hosting (Google link kept) instead of leaving that font out. A transient failure had dropped a site's body font from a production build.
 - Opening hours group consecutive days: "Mo,Tu,We,Th,Fr" reads "Mon–Fri", all seven days "Every day" (English; other languages "Mon–Sun").
 

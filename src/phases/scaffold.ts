@@ -31,7 +31,7 @@ import { siteEnvironments } from "../core/environments.js";
 import { KIT_ROOT } from "../core/paths.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
-import { resolveGoogleHref, selfHostGoogleFonts, typekitKit } from "../scaffold/fonts.js";
+import { missingFamilies, resolveGoogleHref, selfHostGoogleFonts, typekitKit } from "../scaffold/fonts.js";
 import { clientRepoFiles, deployScripts, writeClientRepo } from "../scaffold/client-repo.js";
 import { loadOverrides } from "../config/overrides.js";
 import { applySensitivePolicy, applyUploadPolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
@@ -470,11 +470,17 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	if (siteConfig.fonts.googleHref) {
 		try {
 			const hosted = await selfHostGoogleFonts(siteConfig.fonts.googleHref, join(project, "public"), { body: siteConfig.fonts.body, display: siteConfig.fonts.display, displayWeight: siteConfig.fonts.displayWeight ?? 400 });
-			if (hosted) {
+			// Every family the site's text uses must be in the self-hosted CSS; otherwise the Google link is kept (a build
+			// once shipped without its body font). The log names the families so a short result is visible.
+			const hostedFamilies = [...new Set([...(hosted?.css ?? "").matchAll(/font-family:\s*'([^']+)'/g)].map((m) => m[1] as string))];
+			const missing = hosted ? missingFamilies(siteConfig.fonts.googleHref, hostedFamilies) : [];
+			if (hosted && missing.length) write(join(paths.reports, "scaffold", "google-fonts-answer.css"), `/* ${siteConfig.fonts.googleHref} */\n${hosted.source}`);
+			if (hosted && missing.length) reporter.emit({ type: "log", level: "warn", message: `fonts not self-hosted (Google Fonts kept): ${missing.join(", ")} missing from the download (got ${hostedFamilies.join(", ") || "nothing"}, ${hosted.files} files)` });
+			else if (hosted) {
 				fontsCss = hosted.css;
 				const { googleHref: _g, ...rest } = siteConfig.fonts;
 				siteConfig.fonts = { ...rest, selfHosted: true, preload: hosted.preload };
-				reporter.emit({ type: "log", level: "info", message: `fonts self-hosted: ${hosted.files} files, ${hosted.preload.length} preloaded` });
+				reporter.emit({ type: "log", level: "info", message: `fonts self-hosted: ${hosted.files} files (${hostedFamilies.join(", ")}), ${hosted.preload.length} preloaded` });
 			}
 		} catch (e) {
 			reporter.emit({ type: "log", level: "warn", message: `fonts not self-hosted (Google Fonts kept): ${(e as Error).message}` });

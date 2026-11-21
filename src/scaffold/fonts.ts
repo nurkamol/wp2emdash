@@ -16,6 +16,8 @@ export interface SelfHostedFonts {
 	/** Public paths of the files to preload (body regular, display at its heading weight), latin subset. */
 	preload: string[];
 	files: number;
+	/** The CSS Google answered with (kept for the report when a family is missing). */
+	source: string;
 }
 
 /**
@@ -83,7 +85,9 @@ export async function selfHostGoogleFonts(href: string, publicDir: string, want:
 	let files = 0;
 	for (const [, subset, face] of blocks) {
 		const url = /url\((https:[^)]+\.woff2)\)/.exec(face as string)?.[1];
-		if (!url) continue;
+		// Never skip a face silently (a build once shipped without its body font): an answer the kit cannot read fails
+		// self-hosting, and the caller keeps the Google Fonts link.
+		if (!url) throw new Error(`unexpected @font-face from Google Fonts (no woff2 file): ${(face as string).replace(/\s+/g, " ").slice(0, 160)}`);
 		const font = await fetcher(url, { headers: { "user-agent": UA } });
 		// A font file that cannot be fetched fails the whole step (the caller keeps the Google Fonts link): a site
 		// silently missing one of its fonts is worse than one loading them from Google.
@@ -99,7 +103,7 @@ export async function selfHostGoogleFonts(href: string, publicDir: string, want:
 		const weight = Number(/font-weight:\s*(\d+)/.exec(face as string)?.[1]);
 		if (subset === "latin" && style === "normal" && ((family === want.body && weight === 400) || (family === want.display && weight === want.displayWeight))) preload.push(local);
 	}
-	return { css: `/* Self-hosted from Google Fonts by wp2emdash scaffold (latin, latin-ext). */\n${out.join("\n")}\n`, preload: [...new Set(preload)], files };
+	return { css: `/* Self-hosted from Google Fonts by wp2emdash scaffold (latin, latin-ext). */\n${out.join("\n")}\n`, preload: [...new Set(preload)], files, source: css };
 }
 
 /**
@@ -115,4 +119,11 @@ export function typekitKit(htmls: string[]): { href?: string; jsKit?: string } {
 		jsKit ??= /(?:https:)?\/\/use\.typekit\.net\/([a-z0-9]{5,12})\.js\b/i.exec(html)?.[1];
 	}
 	return jsKit ? { jsKit } : {};
+}
+
+/** Families a css2 href asks for that the self-hosted CSS does not contain (none = every font made it). */
+export function missingFamilies(href: string, hosted: string[]): string[] {
+	const asked = new URL(href).searchParams.getAll("family").map((f) => (f.split(":")[0] ?? "").trim()).filter(Boolean);
+	const have = new Set(hosted.map((f) => f.toLowerCase()));
+	return asked.filter((f) => !have.has(f.toLowerCase()));
 }
