@@ -1,0 +1,332 @@
+{
+	"collections": [
+		{
+			"type": "product",
+			"slug": "products",
+			"label": "Products",
+			"labelSingular": "Product",
+			"description": "Migrated from the WordPress post type \"product\"",
+			"hierarchical": false,
+			"routable": true,
+			"base": "/product/",
+			"archive": "/shop/",
+			"perPage": 10,
+			"core": {
+				"excerpt": true,
+				"featuredImage": true,
+				"body": true,
+				"sections": false,
+				"menuOrder": false,
+				"ordered": false,
+				"parent": false,
+				"bylines": false
+			},
+			"fields": [
+				{
+					"slug": "product_type",
+					"label": "Product type",
+					"type": "select",
+					"kind": "select",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:product_type",
+						"type": "product_type"
+					},
+					"options": [
+						"simple",
+						"variable",
+						"external",
+						"grouped"
+					],
+					"note": "WooCommerce product type (variable: the price is the lowest variation price, shown as \"from\")"
+				},
+				{
+					"slug": "price",
+					"label": "Price",
+					"type": "number",
+					"kind": "number",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:price",
+						"type": "_regular_price"
+					},
+					"note": "regular price; variable products: the lowest variation price"
+				},
+				{
+					"slug": "sale_price",
+					"label": "Sale price",
+					"type": "number",
+					"kind": "number",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:sale_price",
+						"type": "_sale_price"
+					},
+					"note": "only a sale running when the shop was read (scheduled sales are noted, not carried)"
+				},
+				{
+					"slug": "currency",
+					"label": "Currency",
+					"type": "string",
+					"kind": "string",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:currency",
+						"type": "woocommerce_currency"
+					},
+					"note": "ISO 4217 code from kit.config shop.currency or WooCommerce's currency option"
+				},
+				{
+					"slug": "sku",
+					"label": "SKU",
+					"type": "string",
+					"kind": "string",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:sku",
+						"type": "_sku"
+					}
+				},
+				{
+					"slug": "stock_status",
+					"label": "Availability",
+					"type": "select",
+					"kind": "select",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:stock_status",
+						"type": "_stock_status"
+					},
+					"options": [
+						"instock",
+						"outofstock",
+						"onbackorder"
+					],
+					"note": "availability only: stock levels are not tracked"
+				},
+				{
+					"slug": "short_description",
+					"label": "Short description",
+					"type": "portableText",
+					"kind": "html",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:short_description",
+						"type": "post_excerpt"
+					}
+				},
+				{
+					"slug": "gallery",
+					"label": "Gallery",
+					"type": "repeater",
+					"kind": "gallery",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:gallery",
+						"type": "_product_image_gallery"
+					},
+					"subFields": [
+						{
+							"slug": "image",
+							"label": "Image",
+							"type": "image",
+							"kind": "image",
+							"wpName": "image"
+						}
+					],
+					"note": "gallery → repeater of images"
+				},
+				{
+					"slug": "attributes",
+					"label": "Attributes",
+					"type": "repeater",
+					"kind": "repeater",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:attributes",
+						"type": "_product_attributes"
+					},
+					"subFields": [
+						{
+							"slug": "name",
+							"label": "Attribute",
+							"type": "string",
+							"kind": "string",
+							"wpName": "name"
+						},
+						{
+							"slug": "value",
+							"label": "Values",
+							"type": "string",
+							"kind": "string",
+							"wpName": "value"
+						}
+					]
+				},
+				{
+					"slug": "variations",
+					"label": "Variations",
+					"type": "repeater",
+					"kind": "repeater",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:variations",
+						"type": "product_variation"
+					},
+					"subFields": [
+						{
+							"slug": "name",
+							"label": "Option",
+							"type": "string",
+							"kind": "string",
+							"wpName": "name"
+						},
+						{
+							"slug": "sku",
+							"label": "SKU",
+							"type": "string",
+							"kind": "string",
+							"wpName": "sku"
+						},
+						{
+							"slug": "price",
+							"label": "Price",
+							"type": "number",
+							"kind": "number",
+							"wpName": "price"
+						},
+						{
+							"slug": "sale_price",
+							"label": "Sale price",
+							"type": "number",
+							"kind": "number",
+							"wpName": "sale_price"
+						},
+						{
+							"slug": "stock_status",
+							"label": "Availability",
+							"type": "string",
+							"kind": "string",
+							"wpName": "stock_status"
+						}
+					],
+					"note": "variations summary: one row per variation (options, SKU, prices, availability)"
+				},
+				{
+					"slug": "buy_url",
+					"label": "Buy link",
+					"type": "url",
+					"kind": "url",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:buy_url",
+						"type": "_product_url"
+					},
+					"note": "where the Buy button goes (external checkout or Stripe Payment Link); external products keep WordPress's product URL"
+				},
+				{
+					"slug": "buy_label",
+					"label": "Buy button text",
+					"type": "string",
+					"kind": "string",
+					"wp": {
+						"source": "woocommerce",
+						"name": "woo:buy_label",
+						"type": "_button_text"
+					},
+					"note": "empty = \"Buy\""
+				}
+			],
+			"taxonomies": [
+				{
+					"name": "product_cat",
+					"wpName": "product_cat",
+					"base": "/product-category/",
+					"label": "Product categories",
+					"labelSingular": "Product category"
+				},
+				{
+					"name": "product_tag",
+					"wpName": "product_tag",
+					"base": "/product-tag/",
+					"label": "Product tags",
+					"labelSingular": "Product tag"
+				}
+			],
+			"definitions": [],
+			"unknownMeta": [],
+			"notCarried": [],
+			"decision": {
+				"by": "override",
+				"reason": "WooCommerce catalogue mode (kit.config shop)"
+			},
+			"entries": 5,
+			"published": 5,
+			"sortOrder": 2,
+			"shop": {
+				"checkout": "external",
+				"currency": "EUR",
+				"contactPath": "/contact/"
+			}
+		}
+	],
+	"taxonomies": [
+		{
+			"name": "product_cat",
+			"wpName": "product_cat",
+			"label": "Product categories",
+			"labelSingular": "Product category",
+			"hierarchical": true,
+			"base": "/product-category/",
+			"collections": [
+				"products"
+			],
+			"terms": [
+				{
+					"wpId": 70,
+					"slug": "mugs",
+					"label": "Mugs",
+					"count": 1
+				},
+				{
+					"wpId": 71,
+					"slug": "bowls",
+					"label": "Bowls",
+					"count": 1
+				},
+				{
+					"wpId": 72,
+					"slug": "vases",
+					"label": "Vases",
+					"count": 1
+				},
+				{
+					"wpId": 73,
+					"slug": "courses",
+					"label": "Courses",
+					"count": 1
+				}
+			]
+		},
+		{
+			"name": "product_tag",
+			"wpName": "product_tag",
+			"label": "Product tags",
+			"labelSingular": "Product tag",
+			"hierarchical": false,
+			"base": "/product-tag/",
+			"collections": [
+				"products"
+			],
+			"terms": [
+				{
+					"wpId": 75,
+					"slug": "blue",
+					"label": "Blue",
+					"count": 1
+				}
+			]
+		}
+	],
+	"bylines": []
+}

@@ -6,6 +6,10 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **WooCommerce catalogue mode** (PLAN §8b, `docs/spikes/shop-findings.md`): kit.config `shop: { mode: "catalogue", checkout: "external" | "stripe-payment-links" | "contact" }` lets a small shop migrate (owner decision; unset, the new audit/transform gate `shop` stops the site). Products become a `products` collection at their WordPress addresses (`/product/<slug>/`, `/shop/`, `/product-category/<slug>/`) with price, sale price, currency, SKU, availability, gallery, attributes and a variations table; product cards and a product page in the starter; Product + Offer structured data; products in the sitemap, llms.txt and search. The Buy button goes to each product's `buy_url` (external checkout or Stripe Payment Link) or to the contact form with the product prefilled; cart, checkout and my-account 301 to `/shop/`. Everything catalogue mode cannot carry (coupons, reviews, stock levels, downloads, scheduled sales, bookings…) is listed in `reports/audit/shop.md` and the coverage report; more than `shop.maxProducts` (200) products, subscriptions and memberships keep stopping.
+- Form prefill from the address (`@wp2emdash/forms/prefill`): `?product=` and same-name query values fill empty text fields in the browser (never hidden, checkbox or file fields).
+
 ## [1.4.0] — 2026-11-22
 
 ### Added

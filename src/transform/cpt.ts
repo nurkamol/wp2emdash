@@ -10,8 +10,9 @@
  */
 import type { Diagnostic } from "../ir/schema.js";
 import { type CptField, convertValue, type EmDashFieldType, fieldKind, fieldSlug, fieldsForType, isInternalMeta, mapField, RESERVED_SLUGS, type WpFieldDef, type WpFieldGroup, acfFromMeta } from "./cpt-fields.js";
-import type { CollectionsConfig } from "../../starter/src/utils/collections.js";
+import type { CollectionShop, CollectionsConfig } from "../../starter/src/utils/collections.js";
 import { emdashTaxonomyName } from "./blog.js";
+import { INTERNAL_TAXONOMIES } from "./content-types.js";
 
 export type { CptField } from "./cpt-fields.js";
 
@@ -107,6 +108,17 @@ export interface CptCollection {
 	entries: number;
 	published: number;
 	sortOrder: number;
+	/** WooCommerce catalogue mode: this collection holds the products (src/transform/shop.ts). */
+	shop?: CollectionShop;
+}
+
+/** A collection the kit shapes itself (WooCommerce products): its own fields first, a fixed archive, which taxonomies. */
+export interface BuiltinCollection {
+	fields: CptField[];
+	archive?: string;
+	/** WordPress taxonomies that become EmDash taxonomies of this collection (others are carried by the fields). */
+	taxonomies?: (wpName: string) => boolean;
+	shop?: CollectionShop;
 }
 
 export interface CptPlan {
@@ -170,6 +182,8 @@ export interface PlanInput {
 	firstSortOrder: number;
 	/** Builder of an entry's post_content. */
 	builderOf: (p: CptEntrySource) => string;
+	/** Post types the kit shapes itself (WooCommerce `product` in catalogue mode). */
+	builtin?: Record<string, BuiltinCollection | undefined>;
 }
 
 const LIVE = new Set(["publish", "future", "draft", "pending", "private"]);
@@ -208,13 +222,14 @@ export function planCollections(input: PlanInput): CptPlan {
 		const base = [...bases].sort((x, y) => y[1] - x[1])[0]?.[0];
 		const hasArchive = rest.has_archive ?? a?.has_archive;
 		const archiveWanted = typeof hasArchive === "string" && hasArchive ? `/${hasArchive.replace(/^\/+|\/+$/g, "")}/` : hasArchive ? (base && base !== "/" ? base : `/${t.name}/`) : undefined;
-		const archive = archiveWanted && !input.pagePaths.has(archiveWanted) ? archiveWanted : undefined;
+		const builtin = input.builtin?.[t.name];
+		const archive = builtin?.archive ?? (archiveWanted && !input.pagePaths.has(archiveWanted) ? archiveWanted : undefined);
 		const builders = new Set(entries.map((e) => input.builderOf(e)));
 		// Fields: every definition for this type, then the owner's per-field decisions.
 		const { fields: defs, groups } = fieldsForType(input.groups, t.name);
 		const decidedFields = decision?.fields ?? {};
-		const taken = new Set<string>(RESERVED_SLUGS);
-		const fields: CptField[] = [];
+		const taken = new Set<string>([...RESERVED_SLUGS, ...(builtin?.fields ?? []).map((f) => f.slug)]);
+		const fields: CptField[] = [...(builtin?.fields ?? []).map((f) => ({ ...f, ...(f.options ? { options: [...f.options] } : {}) }))];
 		const notCarried: CptCollection["notCarried"] = [];
 		for (const d of defs) {
 			const forced = decidedFields[d.name];
@@ -253,7 +268,8 @@ export function planCollections(input: PlanInput): CptPlan {
 		const typeTaxes = new Set([...(a?.taxonomies ?? rest.taxonomies ?? []), ...input.taxonomies.filter((x) => x.post_types?.includes(t.name)).map((x) => x.name), ...entries.flatMap((e) => Object.entries(e.taxonomies ?? {}).filter(([, l]) => l.length).map(([k]) => k))]);
 		for (const wp of [...typeTaxes].sort()) {
 			const tx = input.taxonomies.find((x) => x.name === wp);
-			if (!tx || ["post_format", "nav_menu", "link_category"].includes(wp)) continue;
+			if (!tx || ["post_format", "nav_menu", "link_category"].includes(wp) || INTERNAL_TAXONOMIES.has(wp)) continue;
+			if (builtin?.taxonomies && !builtin.taxonomies(wp)) continue;
 			const used = entries.some((e) => (e.taxonomies?.[wp] ?? []).length);
 			if (!used) continue;
 			const shared = input.blogTaxonomies.get(wp);
@@ -303,6 +319,7 @@ export function planCollections(input: PlanInput): CptPlan {
 			entries: t.entries.length,
 			published: t.entries.filter((e) => e.status === "publish").length,
 			sortOrder: input.firstSortOrder + i,
+			...(builtin?.shop ? { shop: builtin.shop } : {}),
 		});
 	}
 	return { collections, taxonomies: [...cptTaxonomies.values()], bylines: [] };
@@ -476,6 +493,7 @@ export function starterCollectionsConfig(plan: CptPlan): CollectionsConfig {
 			references: [...c.fields.filter((f) => f.type === "reference").map((f) => f.slug), ...(c.core.parent ? ["parent"] : [])],
 			fields: c.fields.map((f) => ({ slug: f.slug, label: f.label, type: f.type, ...(f.subFields ? { subFields: f.subFields.map((s) => ({ slug: s.slug, label: s.label, type: s.type })) } : {}) })),
 			taxonomies: c.taxonomies.map((t) => ({ taxonomy: t.name, base: t.base, label: t.label, labelSingular: t.labelSingular })),
+			...(c.shop ? { shop: c.shop } : {}),
 		}));
 }
 
@@ -487,7 +505,7 @@ export function cptReport(plan: CptPlan, docs: { entry?: EntryData; source: { st
 	for (const c of plan.collections) {
 		const mine = docs.filter((d) => d.entry?.collection === c.slug);
 		L.push(`### ${c.label} (\`${c.type}\` → collection \`${c.slug}\`)`, "");
-		L.push(`${c.entries} entries (${c.published} published) · ${c.decision.by === "override" ? `decided in overrides.ts${c.decision.reason ? `: ${c.decision.reason}` : ""}` : "kit default (a public post type)"} · ${c.routable ? `entries at \`${c.base ?? "/"}<slug>/\`${c.archive ? `, archive at \`${c.archive}\` (${c.perPage} per page)` : ", no archive (WordPress had none, or a page has its address)"}` : "no addresses of their own (WordPress showed them only inside other pages)"}${c.hierarchical ? " · hierarchical (parent kept)" : ""}.`);
+		L.push(`${c.entries} entries (${c.published} published) · ${c.shop ? "WooCommerce catalogue mode (kit.config shop; shop report below)" : c.decision.by === "override" ? `decided in overrides.ts${c.decision.reason ? `: ${c.decision.reason}` : ""}` : "kit default (a public post type)"} · ${c.routable ? `entries at \`${c.base ?? "/"}<slug>/\`${c.archive ? `, archive at \`${c.archive}\` (${c.perPage} per page)` : ", no archive (WordPress had none, or a page has its address)"}` : "no addresses of their own (WordPress showed them only inside other pages)"}${c.hierarchical ? " · hierarchical (parent kept)" : ""}.`);
 		L.push("", `Core: title, slug, status, dates${c.core.featuredImage ? ", featured image" : ""}${c.core.excerpt ? ", excerpt" : ""}${c.core.body ? ", content (Portable Text)" : ""}${c.core.sections ? ", sections (builder content)" : ""}${c.core.menuOrder ? ", order" : ""}${c.core.parent ? ", parent" : ""}${c.taxonomies.length ? `, terms (${c.taxonomies.map((t) => t.name).join(", ")})` : ""}${c.core.bylines ? ", byline" : ""}. Field definitions: ${c.definitions.join("; ") || "none"}.`);
 		if (c.fields.length) {
 			L.push("", "| Field | EmDash type | WordPress | Entries with a value | Note |", "|---|---|---|---|---|");

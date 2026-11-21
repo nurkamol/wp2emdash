@@ -1,0 +1,122 @@
+---
+/**
+ * The top of a product page (WooCommerce catalogue mode, utils/shop.ts): pictures (featured image, then the gallery),
+ * name, price with the sale price, availability, SKU, short description and the Buy button — to the product's
+ * `buy_url` (external checkout or Stripe Payment Link) or the contact form with the product prefilled. Below it the
+ * entry template shows the description, then this file's attributes list and variations table. No cart.
+ */
+import { Image, PortableText } from "emdash/ui";
+import site from "../../site.config.json";
+import type { CollectionShop } from "../../utils/collections";
+import { fillTokens, hasContent } from "../../utils/pt";
+import { availabilityLabel, buyButton, formatPrice, priceView } from "../../utils/shop";
+
+interface Props {
+	data: Record<string, any>;
+	shop: CollectionShop;
+	edit: Record<string, any>;
+	/** The listing (eyebrow link back to the shop). */
+	listing?: { href: string; label: string };
+	part: "top" | "details";
+}
+const { data: d, shop, edit, listing, part } = Astro.props;
+const lang = (site as { lang?: string }).lang ?? "en";
+const price = priceView(d, shop, lang);
+const buy = buyButton(d, shop);
+const pictures = [d.featured_image, ...((d.gallery ?? []) as any[]).map((r) => r?.image)].filter(Boolean);
+const attributes = ((d.attributes ?? []) as { name?: string; value?: string }[]).filter((a) => a?.name && a?.value);
+const variations = ((d.variations ?? []) as { name?: string; sku?: string; price?: number; sale_price?: number; stock_status?: string }[]).filter((v) => v?.name);
+const currency = d.currency || shop.currency;
+const money = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? formatPrice(n, currency, lang) : "");
+---
+
+{
+	part === "top" ? (
+		<header class="section space-normal product">
+			<div class="container product__layout">
+				{pictures.length > 0 && (
+					<div class="product__media">
+						<Image image={pictures[0]} class="product__image" sizes="(max-width: 900px) 100vw, 50vw" loading="eager" fetchpriority="high" />
+						{pictures.length > 1 && <div class="product__thumbs" {...edit.gallery}>{pictures.slice(1).map((img) => <Image image={img} sizes="(max-width: 900px) 25vw, 8rem" />)}</div>}
+					</div>
+				)}
+				<div class="product__summary">
+					{listing && <p class="eyebrow"><a href={listing.href}>{listing.label}</a></p>}
+					<h1 class="heading heading--h1" {...edit.title}>{d.title}</h1>
+					{price && (
+						<p class="product__price" {...edit.price}>
+							{price.from && <span class="product__from">From </span>}
+							{price.regular && <del><span class="visually-hidden">Regular price </span>{price.regular}</del>} <ins><span class="visually-hidden">{price.onSale ? "Sale price " : ""}</span>{price.current}</ins>
+						</p>
+					)}
+					{d.stock_status && d.stock_status !== "instock" && <p class="product__stock" {...edit.stock_status}>{availabilityLabel(d.stock_status)}</p>}
+					{hasContent(d.short_description) && <div class="prose product__short" {...edit.short_description}><PortableText value={fillTokens(d.short_description)} /></div>}
+					{buy && (buy.href ? <a class="btn btn--primary product__buy" href={buy.href} rel={buy.external ? "noopener" : undefined} {...edit.buy_url}>{buy.label}</a> : <span class="btn btn--primary product__buy" aria-disabled="true">{buy.label}</span>)}
+					{d.sku && <p class="product__sku">SKU: <span {...edit.sku}>{d.sku}</span></p>}
+				</div>
+			</div>
+		</header>
+	) : (
+		(attributes.length > 0 || variations.length > 0) && (
+			<div class="section space-normal product-details">
+				<div class="container container--narrow">
+					{attributes.length > 0 && (
+						<section {...edit.attributes}>
+							<h2 class="heading heading--h4">Details</h2>
+							<dl class="product-details__attributes">{attributes.map((a) => <div><dt>{a.name}</dt><dd>{a.value}</dd></div>)}</dl>
+						</section>
+					)}
+					{variations.length > 0 && (
+						<section {...edit.variations}>
+							<h2 class="heading heading--h4">Options</h2>
+							<div class="product-details__scroll">
+								<table class="product-details__table">
+									<thead><tr><th scope="col">Option</th>{variations.some((v) => v.sku) && <th scope="col">SKU</th>}<th scope="col">Price</th><th scope="col">Availability</th></tr></thead>
+									<tbody>
+										{variations.map((v) => (
+											<tr>
+												<th scope="row">{v.name}</th>
+												{variations.some((x) => x.sku) && <td>{v.sku ?? ""}</td>}
+												<td>{typeof v.sale_price === "number" && typeof v.price === "number" && v.sale_price < v.price ? <><del>{money(v.price)}</del> {money(v.sale_price)}</> : money(v.price)}</td>
+												<td>{availabilityLabel(v.stock_status)}</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						</section>
+					)}
+				</div>
+			</div>
+		)
+	)
+}
+
+<style>
+	.product__layout { display: grid; gap: clamp(1.5rem, 4vw, 3.5rem); grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); align-items: start; }
+	.product__media :global(.product__image) { width: 100%; height: auto; border-radius: var(--radius-media, 0); }
+	.product__thumbs { display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 5rem), 1fr)); margin-top: 0.5rem; }
+	.product__thumbs :global(img) { width: 100%; height: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--radius-media, 0); }
+	.product__summary { display: grid; gap: 1rem; align-content: start; }
+	.product__summary > * { margin: 0; }
+	.product__summary .eyebrow a { color: inherit; }
+	.product__price { font-size: var(--font-size-h4, 1.35rem); font-weight: 600; }
+	.product__price del { font-weight: 400; opacity: 0.65; margin-right: 0.35em; }
+	.product__price ins { text-decoration: none; }
+	.product__from { font-weight: 400; }
+	.product__stock { font-weight: 600; }
+	.product__buy { justify-self: start; }
+	.product__buy[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+	.product__sku { font-size: 0.9em; opacity: 0.75; }
+	.container--narrow { max-width: min(100% - 2 * var(--gutter), 46rem); }
+	.product-details .container { display: grid; gap: clamp(1.5rem, 4vw, 2.5rem); }
+	.product-details h2 { margin: 0 0 0.75rem; }
+	.product-details__attributes { display: grid; gap: 0.5rem 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); margin: 0; }
+	.product-details__attributes dt { font-size: 0.85em; opacity: 0.75; }
+	.product-details__attributes dd { margin: 0.15rem 0 0; font-weight: 600; }
+	.product-details__scroll { overflow-x: auto; }
+	.product-details__table { width: 100%; border-collapse: collapse; }
+	.product-details__table :is(th, td) { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent); }
+	.product-details__table thead th { font-size: 0.85em; opacity: 0.75; font-weight: 500; }
+	.product-details__table del { opacity: 0.65; }
+</style>

@@ -5,6 +5,8 @@ import { captureDesign, captureRootVariables, captureScreenshots, type DesignCap
 import { type Discovery, discoverRest, discoverSitemaps, type UrlSource } from "../audit/discover.js";
 import { fingerprint } from "../audit/fingerprint.js";
 import { fetchUrl, mapLimit } from "../audit/http.js";
+import { readStoreApi } from "../audit/shop.js";
+import { shopGate, shopReport } from "../transform/shop.js";
 import { scanIntegrations } from "../audit/integrations.js";
 import { type PageSnapshot, parsePage } from "../audit/page.js";
 import { captureHeaderScroll, captureMenu, type HeaderScrollCapture, type MenuCapture, motionRecipe } from "../audit/interactions.js";
@@ -266,7 +268,16 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	// Every builder the audit can recognise has an adapter now (Divi since 2026-11-21); keep the list for future ones.
 	const UNSUPPORTED_BUILDERS: string[] = [];
 	const unsupportedBuilders = Object.keys(fp.builders).filter((b) => UNSUPPORTED_BUILDERS.includes(b));
-	const outOfScope = fp.plugins.filter((p) => p.action === "out-of-scope");
+	// WooCommerce: catalogue mode by the owner's decision (kit.config shop; src/transform/shop.ts) takes WooCommerce
+	// itself out of the out-of-scope list; its own gate checks what the shop holds. Subscriptions/memberships stay out.
+	const woo = fp.plugins.some((p) => p.slug === "woocommerce" || p.slug === "wc");
+	rmSync(join(snap, "shop.json"), { force: true });
+	const shopFacts = woo ? await readStoreApi(site.origin, (u) => fetchUrl(u, { headers: { Accept: "application/json" }, retries: 1 }), fp.plugins.map((p) => p.slug)) : undefined;
+	if (shopFacts) {
+		write(join(snap, "shop.json"), { facts: shopFacts });
+		write(join(reportDir, "shop.md"), `${shopReport(shopFacts, config.shop, `# Shop (WooCommerce) — ${config.name}`).join("\n")}\n`);
+	}
+	const outOfScope = fp.plugins.filter((p) => p.action === "out-of-scope" && !(config.shop && (p.slug === "woocommerce" || p.slug === "wc")));
 	// A form the owner decided to handle elsewhere (overrides.ts → integrations: "replace" | "drop", e.g. a waiver signed
 	// in the booking system) is not rebuilt on the site, so it does not make the site sensitive.
 	const decisions = (await loadOverrides(paths.overrides).catch(() => undefined))?.integrations ?? {};
@@ -289,6 +300,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 		},
 		{ id: "builders-supported", label: "All page builders supported in v1", ok: unsupportedBuilders.length === 0, detail: unsupportedBuilders.length ? `found ${unsupportedBuilders.join(", ")} — accept only if those pages are rebuilt by hand` : Object.keys(fp.builders).join(", ") },
 		{ id: "no-out-of-scope", label: "No out-of-scope plugins (shop, multilingual, membership)", ok: outOfScope.length === 0, detail: outOfScope.map((p) => p.name).join(", ") || undefined },
+		...(shopFacts ? [{ id: "shop", label: "WooCommerce: catalogue mode decided by the owner (kit.config shop) and nothing it cannot carry", ...shopGate(shopFacts, config.shop) }] : []),
 		{
 			id: "sensitive-data-flag",
 			label: "Sensitive form fields match the sensitiveData setting",

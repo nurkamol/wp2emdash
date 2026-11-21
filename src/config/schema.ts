@@ -510,6 +510,37 @@ export const kitConfigSchema = z.object({
 	 */
 	blog: z.boolean().optional(),
 
+	/**
+	 * WooCommerce shops (docs/PLAN.md §8b). Unset on a WooCommerce site = the audit stops (`shop` gate): a shop needs the
+	 * owner's decision. `mode: "catalogue"` migrates the products as a `products` collection (pages at their WordPress
+	 * addresses, `/shop/` and `/product-category/<slug>/` listings, Product structured data) with NO cart, checkout or
+	 * customer accounts on the new site: the cart, checkout and my-account addresses 301 to the shop listing.
+	 * `checkout` picks what each product's Buy button does:
+	 *   - "external": the product's `buy_url` (an editor fills it in the admin; an external/affiliate product keeps
+	 *     WordPress's product URL and button text);
+	 *   - "stripe-payment-links": the same `buy_url` field, holding a Stripe Payment Link per product (made in Stripe);
+	 *   - "contact": a link to the contact form with the product's name prefilled (`<contactPath>?product=<name>`).
+	 * Shops above `maxProducts`, or with subscriptions or memberships, keep stopping: catalogue mode cannot carry them.
+	 */
+	shop: z
+		.object({
+			mode: z.literal("catalogue"),
+			checkout: z.enum(["external", "stripe-payment-links", "contact"]).default("external"),
+			/** ISO 4217 code (USD, EUR…); unset = WooCommerce's `woocommerce_currency` option, else the shop's public prices. */
+			currency: z
+				.string()
+				.regex(/^[A-Z]{3}$/, "an ISO 4217 code such as USD")
+				.optional(),
+			/** Site path of the page with the contact form (checkout "contact"); unset = the page at /contact/ or /contact-us/. */
+			contactPath: z
+				.string()
+				.regex(/^\/(?!\/)[\w\-./~%]{0,200}$/)
+				.optional(),
+			/** Catalogue mode is for small shops: above this many products the audit keeps stopping. */
+			maxProducts: z.number().int().positive().max(2000).default(200),
+		})
+		.optional(),
+
 	/** Third-party widget settings the page markup does not carry (public values, no secrets). */
 	embeds: z
 		.object({

@@ -27,7 +27,9 @@ import { autoExcerpt, blogRoute, feedHref, ptText, ptToHtml, rssXml } from "../u
 import { blogConfig, bylineOf, cacheBlog, featuredPosts, listPosts, neighbours, type PostEntry, postHref, relatedPosts, termOf } from "../utils/blog-data";
 import Archive from "../components/collections/Archive.astro";
 import Entry from "../components/collections/Entry.astro";
-import { collectionRoute } from "../utils/collections";
+import { type CollectionShop, collectionRoute } from "../utils/collections";
+import { mediaUrl } from "../utils/media";
+import { productJsonLd } from "../utils/shop";
 import { cacheCollections, type CollectionEntry, collectionsConfig, findEntry, listEntries, termOf as collectionTermOf } from "../utils/collections-data";
 import Comments from "../components/comments/Comments.astro";
 import { ancestorSlugs, type BreadcrumbsConfig, type Crumb, pageTrail, postTrail } from "../utils/breadcrumbs";
@@ -103,7 +105,7 @@ if (blog && route) {
 }
 
 // ── Collections (custom post types): archives and term archives ────────────────────────────────────────────────
-let archive: { heading: string; intro?: string | null; eyebrow?: string; entries: CollectionEntry[]; listing: string; page: number; hasMore: boolean; description?: string | null; seoTitle?: string; robots?: string } | undefined;
+let archive: { heading: string; intro?: string | null; eyebrow?: string; entries: CollectionEntry[]; listing: string; page: number; hasMore: boolean; description?: string | null; seoTitle?: string; robots?: string; shop?: CollectionShop } | undefined;
 const croute = !listing && collectionsConfig.length && Astro.params.slug ? collectionRoute(Astro.url.pathname, collectionsConfig) : undefined;
 if (croute) {
 	const listingPath = Astro.url.pathname.replace(/page\/\d+\/?$/, "");
@@ -111,14 +113,15 @@ if (croute) {
 		const c = croute.collection;
 		const [list, ch] = await Promise.all([listEntries(c, { page: croute.page }), loadChrome()]);
 		chrome = ch;
-		archive = { heading: c.label, entries: list.entries, listing: listingPath, page: croute.page, hasMore: list.hasMore };
+		archive = { heading: c.label, entries: list.entries, listing: listingPath, page: croute.page, hasMore: list.hasMore, ...(c.shop ? { shop: c.shop } : {}) };
 		cacheCollections(Astro.cache, [c], [list.cacheHint]);
 	} else {
 		const [term, ch, termSeo] = await Promise.all([collectionTermOf(croute.taxonomy, croute.slug), loadChrome(), readTermSeo(db, croute.taxonomy, croute.slug)]);
 		chrome = ch;
 		if (term) {
 			const lists = await Promise.all(croute.collections.map((c) => listEntries(c, { page: croute.page, where: { [croute.taxonomy]: croute.slug } })));
-			archive = { heading: term.label, intro: term.description, description: termSeo?.description ?? term.description, eyebrow: croute.label, entries: lists.flatMap((l) => l.entries), listing: listingPath, page: croute.page, hasMore: lists.some((l) => l.hasMore), ...(termSeo?.title ? { seoTitle: archiveTitle(termSeo.title, croute.page) } : {}), ...(termSeo?.noindex ? { robots: "noindex, follow" } : {}) };
+			const termShop = croute.collections.find((c) => c.shop)?.shop;
+			archive = { ...(termShop ? { shop: termShop } : {}), heading: term.label, intro: term.description, description: termSeo?.description ?? term.description, eyebrow: croute.label, entries: lists.flatMap((l) => l.entries), listing: listingPath, page: croute.page, hasMore: lists.some((l) => l.hasMore), ...(termSeo?.title ? { seoTitle: archiveTitle(termSeo.title, croute.page) } : {}), ...(termSeo?.noindex ? { robots: "noindex, follow" } : {}) };
 			cacheCollections(Astro.cache, croute.collections, lists.map((l) => l.cacheHint));
 		}
 	}
@@ -181,6 +184,15 @@ const first = blocks[0];
 // the page below it, as on the source site.
 const overHero = first?._type === "section_hero" && (first.bg_image || first.bg_video) && (site as { header?: { transparentOnTop?: boolean } }).header?.transparentOnTop !== false;
 const byline = post?.data.bylines?.[0]?.byline as { displayName?: string } | undefined;
+// Products (WooCommerce catalogue mode): schema.org Product with its offer next to the page's WebPage node.
+const productShop = found?.collection.shop;
+const productLd = productShop
+	? (() => {
+			const canonical = seo?.canonical ?? `${site.productionUrl.replace(/\/$/, "")}${Astro.url.pathname}`;
+			const images = [data.featured_image, ...((data.gallery ?? []) as any[]).map((r) => r?.image)].map((m) => mediaUrl(m)).filter((u): u is string => !!u).map((u) => new URL(u, site.productionUrl).href);
+			return productJsonLd(data, productShop, { canonical, title: String(data.title ?? ""), description: seo?.description || data.excerpt || null, images });
+		})()
+	: undefined;
 // Visible breadcrumbs, only when the old site showed them (site.config.json `breadcrumbs`); the structured data follows them.
 const crumbCfg = (site as { breadcrumbs?: BreadcrumbsConfig }).breadcrumbs;
 let trail: Crumb[] | undefined;
@@ -202,14 +214,14 @@ if (crumbCfg?.pages && page && slug !== "home") {
 		</Base>
 	) : archive ? (
 		<Base chrome={chrome} title={archive.seoTitle ?? (archive.page > 1 ? `${archive.heading} – Page ${archive.page}` : archive.heading)} pageTitle={archive.heading} description={archive.description} robots={archive.robots} canonical={`${site.productionUrl.replace(/\/$/, "")}${Astro.url.pathname}`}>
-			<Archive heading={archive.heading} intro={archive.intro} eyebrow={archive.eyebrow} entries={archive.entries} listing={archive.listing} page={archive.page} hasMore={archive.hasMore} />
+			<Archive heading={archive.heading} intro={archive.intro} eyebrow={archive.eyebrow} entries={archive.entries} listing={archive.listing} page={archive.page} hasMore={archive.hasMore} shop={archive.shop} />
 		</Base>
 	) : locked ? (
 		<Base chrome={chrome} title={`Protected: ${data.title ?? ""}`} pageTitle={data.title} description={null} robots="noindex, nofollow">
 			<AccessGate title={`Protected: ${data.title ?? ""}`} collection={page ? "pages" : "posts"} slug={slug} back={accessBack} state={Astro.url.searchParams.get("access")} />
 		</Base>
 	) : found ? (
-		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: found.collection.slug, id: data.id, slug: found.entry.id }}>
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: found.collection.slug, id: data.id, slug: found.entry.id }} structuredData={productLd ? [productLd] : undefined}>
 			<Entry collection={found.collection} entry={found.entry} edit={found.entry.edit ?? {}} />
 		</Base>
 	) : post ? (

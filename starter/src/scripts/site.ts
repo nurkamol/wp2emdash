@@ -2,6 +2,7 @@
  * Site behaviour, no framework: header scroll states, burger menu (motion from motion.css),
  * popups (<dialog>), tabs, reveal-on-scroll, form submission, signature pads, conversion events.
  */
+import { mountPrefill } from "@wp2emdash/forms/prefill";
 import { mountSignaturePads } from "@wp2emdash/forms/signature-pad";
 import { classifyLink } from "@wp2emdash/seo/analytics/events";
 import { prefetchable, slowConnection } from "../utils/prefetch";
@@ -247,6 +248,8 @@ if (!reduce && "IntersectionObserver" in window && !motionOff("motionEntrance"))
 }
 // Signature fields: the drawing pad (without JavaScript the typed-name input is the signature).
 mountSignaturePads();
+// ?product= (a catalogue product's Buy button → the contact form) and other query values fill the empty fields of that name.
+mountPrefill();
 /**
  * Conditional fields (data-show-if, the definition's `showIf`): shown only while the field they depend on has one of the
  * values; a hidden field's inputs are disabled, so they are neither validated nor sent. Without JavaScript every field

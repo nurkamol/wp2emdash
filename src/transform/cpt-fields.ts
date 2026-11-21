@@ -15,7 +15,8 @@
 import { isPhpSerialized, phpUnserialize } from "../extract/php-unserialize.js";
 import type { MediaRef } from "../ir/schema.js";
 
-export type FieldSource = "acf" | "metabox" | "pods" | "meta";
+/** `woocommerce`: the kit's own product fields (catalogue mode, src/transform/shop.ts), values computed from WooCommerce meta. */
+export type FieldSource = "acf" | "metabox" | "pods" | "meta" | "woocommerce";
 
 /** A field as the WordPress plugin defines it. */
 export interface WpFieldDef {
@@ -39,7 +40,7 @@ export interface WpFieldDef {
 }
 
 export interface WpFieldGroup {
-	source: Exclude<FieldSource, "meta">;
+	source: Exclude<FieldSource, "meta" | "woocommerce">;
 	title: string;
 	postTypes: string[];
 	fields: WpFieldDef[];
@@ -720,5 +721,5 @@ export function acfFromMeta(def: WpFieldDef, meta: Record<string, unknown>, pref
 
 /** Meta keys that belong to WordPress, plugins or a field definition, not to unmapped content. */
 export function isInternalMeta(key: string): boolean {
-	return key.startsWith("_") || /^(rank_math_|yoast_|_yoast|wpb_|vc_|nectar|_bricks|bricks_|_elementor|elementor_|_et_|et_|_oembed|_thumbnail_id|_wp_|_edit_|_pingme|_encloseme|ast-|site-|theme-|_genesis|footnotes$|inline_featured_image$|slide_template$|rs_page_bg_color$|sbg_|_fl_|fl_builder|_kad|kadence|_uag|uag_|spectra|_aioseo|aioseo_|_seopress|seopress_|_jetpack|jetpack_|amp_|_amp|ocean_|_ocean|_generate|generate_|_astra|astra-|_dp_|_menu_item|classic-editor-remember|_last_editor|_encloseme|_pods_|pods_)/i.test(key);
+	return key.startsWith("_") || /^(rank_math_|yoast_|_yoast|wpb_|vc_|nectar|_bricks|bricks_|_elementor|elementor_|_et_|et_|_oembed|_thumbnail_id|_wp_|_edit_|_pingme|_encloseme|ast-|site-|theme-|_genesis|footnotes$|inline_featured_image$|slide_template$|rs_page_bg_color$|sbg_|_fl_|fl_builder|_kad|kadence|_uag|uag_|spectra|_aioseo|aioseo_|_seopress|seopress_|_jetpack|jetpack_|amp_|_amp|ocean_|_ocean|_generate|generate_|_astra|astra-|_dp_|_menu_item|classic-editor-remember|_last_editor|_encloseme|_pods_|pods_|total_sales$)/i.test(key);
 }

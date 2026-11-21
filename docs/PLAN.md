@@ -627,9 +627,24 @@ Docs are generated from real data where possible (config schema → `configurati
 
 ---
 
+## 8b. WooCommerce catalogue mode (owner decision; built 2026-11-22, not yet run on a real shop)
+
+Small shops migrate with their products as pages and an external checkout; there is no cart, checkout or customer account on EmDash. Verified facts and limits: `docs/spikes/shop-findings.md`.
+
+- **Decision first.** A WooCommerce site stops at the audit gate `shop` until the owner sets `shop: { mode: "catalogue", checkout: "external" | "stripe-payment-links" | "contact" }` in kit.config (`currency`, `contactPath`, `maxProducts` optional). The audit reads the public Store API and writes `reports/audit/shop.md`: product count and types, variations, sales, downloads, stock tracking, reviews, coupons, attributes, extensions — and what catalogue mode does with each. The transform repeats the gate with the Exporter's data (every product and variation).
+- **Still out of scope:** more than `maxProducts` (default 200) products, subscriptions (type or plugin), memberships. The gate stays red whatever is set.
+- **Reported, never silently dropped:** cart and checkout, customer accounts, orders/customers (never migrated), coupons, payment/tax/shipping settings, variable products (price "from" + variations table), grouped and other product types, bookings, digital downloads (the external checkout delivers them), stock levels (availability kept), scheduled sales, reviews and ratings, attribute archives, hidden products. Each is a row in the shop report and the coverage report.
+- **Products collection** `products` (the CPT mapper, §8 / `cpt-findings.md`, with built-in fields): title, slug, description (body), short description, featured image, gallery, `product_type`, `price` (variable: lowest variation price), `sale_price` (only a running sale), `currency` (`shop.currency` → `woocommerce_currency` → Store API), `sku`, `stock_status`, `attributes` and `variations` (repeaters), `buy_url`, `buy_label`; product categories/tags (and brands) as taxonomies. Addresses kept exactly: `/product/<slug>/`, the listing at the shop page's address (`/shop/`), `/product-category/<slug>/`, `/product-tag/<slug>/` (verify parity as for any collection).
+- **Buy button:** `external` → the entry's `buy_url` (filled in by the owner; `_product_url` + `_button_text` for external products); `stripe-payment-links` → the same field holding a Stripe Payment Link; `contact` → `<contactPath>?product=<name>` (the forms package prefills the message). A product without a link falls back to the contact page when there is one; out of stock → a disabled button.
+- **WooCommerce pages:** the shop page becomes the listing; cart, checkout and my-account are not migrated and 301 to the listing with everything under them and `?add-to-cart=` (wpUrls `shop`, also judged by verify).
+- **Starter:** product cards on the listings, a product page (pictures, price with sale, availability, SKU, Buy button, description, attributes, variations), Product + Offer/AggregateOffer JSON-LD through `StructuredData`, products in the collection sitemap, `/sitemap/archives.xml`, llms.txt and search.
+- Not built: a `product_grid` section for product blocks/shortcodes on other pages (reported by the adapters), multi-currency, real checkout.
+
+---
+
 ## 9. Out of scope for v1 (detected and reported, migration stops for a decision)
 
-WooCommerce/shop, membership/LMS/paywalls, multisite, WPML/Polylang, user accounts/front-end login, custom plugins with business logic (→ later via `wordpress-plugin-to-emdash`), Bricks pages (adapter in v2, built against a real client site).
+WooCommerce/shop beyond catalogue mode (carts and checkout on EmDash, more than `shop.maxProducts` products, subscriptions, memberships; small shops: catalogue mode by owner decision, §8b), membership/LMS/paywalls, multisite, WPML/Polylang, user accounts/front-end login, custom plugins with business logic (→ later via `wordpress-plugin-to-emdash`), Bricks pages (adapter in v2, built against a real client site).
 
 ---
 

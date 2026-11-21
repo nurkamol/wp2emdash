@@ -4,6 +4,8 @@
  * (entries built with WPBakery/Bricks/Gutenberg keep them, like pages), the content, and the custom fields in their
  * order — short values as a definition list, rich text as prose, images and galleries as pictures, references as
  * links, lists of rows as small cards. Styling comes from the design tokens (styles/tokens.css).
+ * Products (WooCommerce catalogue mode: the collection's `shop`) open with ProductDetail — pictures, price, Buy button —
+ * and end with their attributes and variations; the generic field list leaves those fields out.
  */
 import { Image, PortableText } from "emdash/ui";
 import Sections from "../Sections.astro";
@@ -12,6 +14,8 @@ import { type CollectionConfig, type CollectionFieldConfig, entryHref, fieldText
 import type { CollectionEntry } from "../../utils/collections-data";
 import { fillTokens, hasContent } from "../../utils/pt";
 import Comments from "../comments/Comments.astro";
+import ProductDetail from "./ProductDetail.astro";
+import { PRODUCT_FIELDS } from "../../utils/shop";
 
 interface Props {
 	collection: CollectionConfig;
@@ -36,23 +40,25 @@ const kind = (f: CollectionFieldConfig) => {
 	if (f.type === "json") return "json";
 	return "short";
 };
-const shown = collection.fields.filter((f) => (f.type === "reference" ? refs(f.slug).length > 0 : hasValue(d[f.slug])));
+const shop = collection.shop;
+const shown = collection.fields.filter((f) => !(shop && PRODUCT_FIELDS.has(f.slug)) && (f.type === "reference" ? refs(f.slug).length > 0 : hasValue(d[f.slug])));
 const short = shown.filter((f) => kind(f) === "short" || kind(f) === "file" || kind(f) === "refs");
 const long = shown.filter((f) => !short.includes(f));
 const fileHref = (v: any) => v?.src ?? v?.url ?? (v?.meta?.storageKey ? `/_emdash/api/media/file/${encodeURIComponent(v.meta.storageKey)}` : undefined);
 ---
 
 <article class="entry">
-	<header class="section space-normal entry__header">
+	{shop && <ProductDetail part="top" data={d} shop={shop} edit={edit} listing={collection.archive ? { href: collection.archive, label: collection.label } : undefined} />}
+	{!shop && <header class="section space-normal entry__header">
 		<div class="container container--narrow">
 			{parent && <p class="eyebrow"><a href={entryHref(String(parent.data.slug ?? parent.id), style)}>{parent.data.title}</a></p>}
 			{!parent && collection.archive && <p class="eyebrow"><a href={collection.archive}>{collection.label}</a></p>}
 			<h1 class="heading heading--h1" {...edit.title}>{d.title}</h1>
 			{typeof d.excerpt === "string" && d.excerpt.trim() && <p class="lead entry__excerpt" {...edit.excerpt}>{d.excerpt}</p>}
 		</div>
-	</header>
+	</header>}
 	{
-		d.featured_image && (
+		!shop && d.featured_image && (
 			<div class="container entry__figure">
 				<Image image={d.featured_image} class="entry__image" sizes="(max-width: 1200px) 100vw, 1200px" loading="eager" fetchpriority="high" />
 			</div>
@@ -114,6 +120,7 @@ const fileHref = (v: any) => v?.src ?? v?.url ?? (v?.meta?.storageKey ? `/_emdas
 			</div>
 		)
 	}
+	{shop && <ProductDetail part="details" data={d} shop={shop} edit={edit} />}
 	<Comments collection={collection.slug} contentId={String(d.id ?? "")} closed={d.comments_closed} publishedAt={d.publishedAt} />
 </article>
 

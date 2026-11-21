@@ -11,7 +11,7 @@
 /** A path on the new site to 301 to (e.g. "/", "/search/"), or "gone" (410). */
 export type WpUrlTarget = string;
 
-export type WpUrlKind = "feed" | "comments-feed" | "search" | "category" | "tag" | "author" | "date" | "attachment" | "paged" | "wp-id";
+export type WpUrlKind = "feed" | "comments-feed" | "search" | "category" | "tag" | "author" | "date" | "attachment" | "paged" | "wp-id" | "shop";
 
 export interface WpAttachment {
 	/** The attachment page's own path on WordPress (`/photo-name/`, `/parent/photo-name/`). */
@@ -46,6 +46,12 @@ export interface WpUrlRules {
 	 * (`cat:7` → /category/news/, `author:1` → /author/jane/, `tag:tips` → /tag/tips/).
 	 */
 	blog?: { index: string; archives: string[]; ids?: Record<string, string> };
+	/**
+	 * WooCommerce catalogue mode (kit.config `shop`): the cart, checkout and my-account addresses (and everything under
+	 * them: `/my-account/orders/`, `/checkout/order-received/…`) and any `?add-to-cart=` link 301 to the products listing
+	 * `to` — there is no cart on the new site.
+	 */
+	shop?: { paths: string[]; to: string };
 }
 
 export type WpUrlAction =
@@ -110,6 +116,7 @@ export function matchWpUrl(pathname: string, search: URLSearchParams, rules: WpU
 		const to = blog?.ids?.[key];
 		return to ? { kind, to: styled(to, style) } : act(kind, fallback, style);
 	};
+	if (rules.shop && search.has("add-to-cart")) return { kind: "shop", to: styled(rules.shop.to, style) };
 	if (path === "/" || path === "/index.php") {
 		const feed = search.get("feed");
 		if (feed !== null) return /comments/.test(feed) ? act("comments-feed", rules.commentsFeed, style) : blogFeed ? { kind: "feed", to: blogFeed } : act("feed", rules.feed, style);
@@ -126,6 +133,7 @@ export function matchWpUrl(pathname: string, search: URLSearchParams, rules: WpU
 		return undefined;
 	}
 	if (pages.has(norm(path))) return undefined;
+	if (rules.shop?.paths.some((p) => norm(path).startsWith(norm(p)))) return { kind: "shop", to: styled(rules.shop.to, style) };
 
 	// Blog: the posts page and archives with their pages and feeds are real routes; feed variants → /feed/.
 	if (blog && blogFeed) {

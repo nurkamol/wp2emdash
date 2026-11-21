@@ -34,6 +34,18 @@ export interface CollectionConfig {
 	fields: CollectionFieldConfig[];
 	/** Taxonomies of this collection: term archives at `<base><term>/`. */
 	taxonomies: { taxonomy: string; base: string; label: string; labelSingular: string }[];
+	/** WooCommerce catalogue mode (kit.config `shop`): this collection holds the products (utils/shop.ts renders them). */
+	shop?: CollectionShop;
+}
+
+/** How the products collection sells (kit.config `shop`; src/transform/shop.ts). */
+export interface CollectionShop {
+	/** What the Buy button does: the entry's `buy_url` (external checkout or Stripe Payment Link), or the contact form. */
+	checkout: "external" | "stripe-payment-links" | "contact";
+	/** ISO 4217 code for prices without their own `currency` value. */
+	currency?: string;
+	/** The contact form page (checkout "contact"): the button links to `<contactPath>?product=<name>`. */
+	contactPath?: string;
 }
 
 export type CollectionsConfig = CollectionConfig[];

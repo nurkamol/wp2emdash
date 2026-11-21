@@ -25,7 +25,7 @@ describe("@wp2emdash/forms package", () => {
 		expect([d.id, d.version]).toEqual([p.id, p.version]);
 		expect(d).toMatchObject({ format: "native", entrypoint: `${pkg.name}/plugin` });
 		expect(pkg.version).toBe(FORMS_PLUGIN.version);
-		expect(Object.keys(pkg.exports)).toEqual([".", "./endpoint", "./outbox", "./deliver", "./plugin", "./types", "./rich", "./signature", "./signature-pad", "./logic", "./uploads", "./chat", "./webmcp"]);
+		expect(Object.keys(pkg.exports)).toEqual([".", "./endpoint", "./outbox", "./deliver", "./plugin", "./types", "./rich", "./signature", "./signature-pad", "./logic", "./uploads", "./chat", "./webmcp", "./prefill"]);
 	});
 	it("endpoint: unknown form 404, honeypot answers success without sending", async () => {
 		for (const k of Object.keys(env)) delete env[k];

@@ -19,7 +19,8 @@
     "./logic": "./src/logic.ts",
     "./uploads": "./src/uploads.ts",
     "./chat": "./src/chat.ts",
-    "./webmcp": "./src/webmcp.ts"
+    "./webmcp": "./src/webmcp.ts",
+    "./prefill": "./src/prefill.ts"
   },
   "files": ["src", "README.md"],
   "peerDependencies": {
