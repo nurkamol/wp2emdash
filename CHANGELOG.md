@@ -11,6 +11,7 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ### Changed
 - Footer business block is centred, like the credit line under it.
+- Google Fonts never lose a family to a failed request: only Google's 400 means "not on Google Fonts"; a network error or 5xx is retried twice, then the whole font link is kept (warned). A font file that cannot be downloaded fails self-hosting (Google link kept) instead of leaving that font out. A transient failure had dropped a site's body font from a production build.
 - Opening hours group consecutive days: "Mo,Tu,We,Th,Fr" reads "Mon–Fri", all seven days "Every day" (English; other languages "Mon–Sun").
 
 ## [1.3.0] — 2026-11-22

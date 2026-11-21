@@ -463,7 +463,9 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 				const { googleHref: _g, ...rest } = siteConfig.fonts;
 				siteConfig.fonts = rest;
 			}
-		} catch {}
+		} catch (e) {
+			reporter.emit({ type: "log", level: "warn", message: `Google Fonts could not be checked, every family kept: ${(e as Error).message}` });
+		}
 	}
 	if (siteConfig.fonts.googleHref) {
 		try {

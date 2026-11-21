@@ -24,14 +24,23 @@ export interface SelfHostedFonts {
  * then upright only, then the bare family (its default style). Families Google does not have are left out.
  */
 export async function resolveGoogleHref(href: string, fetcher: typeof fetch = fetch): Promise<{ href?: string; dropped: string[]; reduced: string[] }> {
-	const ok = async (u: string) => {
-		try {
-			const r = await fetcher(u, { headers: { "user-agent": UA } });
-			await r.body?.cancel();
-			return r.ok;
-		} catch {
-			return false;
+	// Google answers 400 for a family or style it does not have; only that counts as "not on Google Fonts". A network
+	// error or a 5xx is retried, then thrown: the caller keeps the whole href rather than dropping a font that exists
+	// (a dropped body font once reached production after one failed request).
+	const ok = async (u: string): Promise<boolean> => {
+		let last = "";
+		for (let attempt = 0; attempt < 3; attempt++) {
+			try {
+				const r = await fetcher(u, { headers: { "user-agent": UA } });
+				await r.body?.cancel();
+				if (r.ok) return true;
+				if (r.status >= 400 && r.status < 500 && r.status !== 429) return false;
+				last = `HTTP ${r.status}`;
+			} catch (e) {
+				last = (e as Error).message;
+			}
 		}
+		throw new Error(`Google Fonts did not answer (${last}): ${u}`);
 	};
 	if (await ok(href)) return { href, dropped: [], reduced: [] };
 	const u = new URL(href);
@@ -76,7 +85,9 @@ export async function selfHostGoogleFonts(href: string, publicDir: string, want:
 		const url = /url\((https:[^)]+\.woff2)\)/.exec(face as string)?.[1];
 		if (!url) continue;
 		const font = await fetcher(url, { headers: { "user-agent": UA } });
-		if (!font.ok) continue;
+		// A font file that cannot be fetched fails the whole step (the caller keeps the Google Fonts link): a site
+		// silently missing one of its fonts is worse than one loading them from Google.
+		if (!font.ok) throw new Error(`font file ${url} answered HTTP ${font.status}`);
 		const bytes = Buffer.from(await font.arrayBuffer());
 		const name = `${createHash("sha1").update(bytes).digest("hex").slice(0, 12)}.woff2`;
 		writeFileSync(join(dir, name), bytes);

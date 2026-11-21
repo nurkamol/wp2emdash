@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { selfHostGoogleFonts, typekitKit } from "../src/scaffold/fonts.js";
+import { resolveGoogleHref, selfHostGoogleFonts, typekitKit } from "../src/scaffold/fonts.js";
 import { fontCsp, TYPEKIT_CSP } from "../starter/src/utils/fonts.js";
 
 const face = (family: string, style: string, weight: number, file: string) => `@font-face {\n  font-family: '${family}';\n  font-style: ${style};\n  font-weight: ${weight};\n  font-display: swap;\n  src: url(https://fonts.gstatic.com/s/x/${file}.woff2) format('woff2');\n  unicode-range: U+0000-00FF;\n}`;
@@ -43,5 +43,40 @@ describe("Adobe Fonts (Typekit) kept from the live site", () => {
 		expect(mw).toMatch(/style-src[^`]*fontHosts\.style/);
 		expect(mw).toMatch(/font-src[^`]*fontHosts\.font/);
 		expect(readFileSync(join(import.meta.dirname, "..", "starter", "src", "layouts", "Base.astro"), "utf8")).toContain("{typekitHref && <link rel=\"stylesheet\" href={typekitHref} />}");
+	});
+});
+
+describe("Google Fonts check never drops a font on a failed request", () => {
+	const href = "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400&family=Pinyon+Script&display=swap";
+	it("drops only a family Google answers 400 for", async () => {
+		const f = (async (u: string) => new Response("", { status: u.includes("Nope") || (u.includes("Outfit") && u.includes("Pinyon")) ? 400 : 200 })) as unknown as typeof fetch;
+		const r = await resolveGoogleHref("https://fonts.googleapis.com/css2?family=Outfit&family=Nope&display=swap", f);
+		expect(r.dropped).toEqual(["Nope"]);
+		expect(r.href).toContain("family=Outfit");
+	});
+	it("retries a network error or 5xx and keeps the family when the retry answers", async () => {
+		let n = 0;
+		const f = (async (u: string) => {
+			if (u === href) return new Response("", { status: 400 });
+			if (u.includes("Outfit") && n++ === 0) throw new Error("socket hang up");
+			return new Response("", { status: 200 });
+		}) as unknown as typeof fetch;
+		const r = await resolveGoogleHref(href, f);
+		expect(r.dropped).toEqual([]);
+		expect(r.href).toContain("Outfit");
+	});
+	it("throws (caller keeps the whole href) when Google keeps failing", async () => {
+		const f = (async () => new Response("", { status: 503 })) as unknown as typeof fetch;
+		await expect(resolveGoogleHref(href, f)).rejects.toThrow(/did not answer \(HTTP 503\)/);
+	});
+	it("a font file that cannot be downloaded fails self-hosting instead of leaving the font out", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "fonts-"));
+		try {
+			const css = "/* latin */\n@font-face { font-family: 'Outfit'; font-weight: 400; src: url(https://fonts.gstatic.com/a.woff2) format('woff2'); }";
+			const f = (async (u: string) => (u.includes("css2") ? new Response(css) : new Response("", { status: 500 }))) as unknown as typeof fetch;
+			await expect(selfHostGoogleFonts("https://fonts.googleapis.com/css2?family=Outfit", dir, { body: "Outfit", display: "Outfit", displayWeight: 400 }, f)).rejects.toThrow(/HTTP 500/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });
