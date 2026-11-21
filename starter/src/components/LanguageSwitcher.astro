@@ -1,0 +1,59 @@
+---
+/**
+ * Language switcher (multilingual sites, site.config.json `i18n`): one link per language, to this page's translation
+ * or, when it has none, to that language's home page (utils/i18n.ts switcherLinks). Plain links, no script: works
+ * without JavaScript and from the route cache. The current language is marked with aria-current.
+ */
+import type { SwitcherLink } from "../utils/i18n";
+
+interface Props {
+	links: SwitcherLink[];
+	/** "bar": in the header bar; "panel": in the mobile menu panel. */
+	variant?: "bar" | "panel";
+}
+const { links, variant = "bar" } = Astro.props;
+---
+
+{
+	links.length > 1 && (
+		<nav class:list={["lang-switcher", `lang-switcher--${variant}`]} aria-label="Language">
+			<ul role="list">
+				{links.map((l) => (
+					<li>
+						<a href={l.href} hreflang={l.hreflang} lang={l.hreflang} aria-current={l.current ? "true" : undefined} title={l.home ? `${l.label} (home page)` : l.label}>
+							{variant === "bar" ? l.code.toUpperCase() : l.label}
+						</a>
+					</li>
+				))}
+			</ul>
+		</nav>
+	)
+}
+
+<style>
+	.lang-switcher ul {
+		display: flex;
+		gap: 0.5em;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.lang-switcher a {
+		color: inherit;
+		text-decoration: none;
+		font-size: 0.875em;
+		letter-spacing: 0.04em;
+		opacity: 0.75;
+	}
+	.lang-switcher a:hover,
+	.lang-switcher a:focus-visible,
+	.lang-switcher a[aria-current] {
+		opacity: 1;
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
+	}
+	.lang-switcher--panel ul {
+		flex-wrap: wrap;
+		gap: 1em;
+	}
+</style>

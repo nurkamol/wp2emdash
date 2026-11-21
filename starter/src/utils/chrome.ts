@@ -12,6 +12,7 @@ import { env } from "cloudflare:workers";
 import { getEmDashCollection, getEmDashEntry, getMenuWithCacheHint, getSiteSettingsWithCacheHint, getWidgetAreaWithCacheHint } from "emdash";
 import site from "../site.config.json";
 import { loadMotion, motionPanelOn } from "./motion";
+import { type I18nConfig, langOfPath, menuNameFor } from "./i18n";
 
 /** Where the old theme showed widget areas (site.config.json `widgetAreas`, from the migration) and whether a classic footer menu is shown. */
 const areasConfig = (site as { widgetAreas?: { footer?: string[]; sidebar?: string[] } }).widgetAreas;
@@ -27,17 +28,28 @@ async function loadAreas(names: string[]): Promise<{ data: Areas; cacheHint: { t
 	return { data: all.map((a) => a.data), cacheHint: { tags: all.flatMap((a) => a.cacheHint.tags ?? []) } };
 }
 
-export async function loadChrome() {
+/** Multilingual sites (site.config.json `i18n`): a language's own menu (`primary-fr`), else the default language's. */
+const i18n = (site as { i18n?: I18nConfig }).i18n;
+async function menuFor(name: string, pathname: string | undefined) {
+	const lang = i18n && pathname ? langOfPath(pathname, i18n) : undefined;
+	const own = lang ? menuNameFor(name, lang, i18n as I18nConfig) : name;
+	if (own === name) return getMenuWithCacheHint(name);
+	const [mine, base] = await Promise.all([getMenuWithCacheHint(own), getMenuWithCacheHint(name)]);
+	return mine.data ? mine : { data: base.data, cacheHint: { tags: [...(base.cacheHint.tags ?? []), ...(mine.cacheHint.tags ?? [])] } };
+}
+
+/** `pathname`: the page's path, for a multilingual site's per-language menus (utils/i18n.ts). */
+export async function loadChrome(pathname?: string) {
 	const [settings, primary, secondary, footer, popups, announcementPart, footerWidgets, sidebar, footerMenu, motion, businessFooter] = await Promise.all([
 		getSiteSettingsWithCacheHint(),
-		getMenuWithCacheHint("primary"),
-		getMenuWithCacheHint("secondary"),
+		menuFor("primary", pathname),
+		menuFor("secondary", pathname),
 		getEmDashEntry("site_parts", "footer"),
 		getEmDashCollection("popups", { status: "published" }),
 		getEmDashEntry("site_parts", "announcement"),
 		areasConfig?.footer?.length ? loadAreas(areasConfig.footer) : undefined,
 		areasConfig?.sidebar?.length ? loadAreas(areasConfig.sidebar) : undefined,
-		footerMenuOn ? getMenuWithCacheHint("footer") : undefined,
+		footerMenuOn ? menuFor("footer", pathname) : undefined,
 		// Motion settings (Plugins → Motion): one options row, only when the panel is on. No cache hint of its own —
 		// saving purges every page through the analytics/settings tags set below.
 		motionPanelOn ? loadMotion() : undefined,

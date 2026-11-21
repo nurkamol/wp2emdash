@@ -238,11 +238,11 @@ describe("starter: route cache, CSP, announcement schedule, background video", (
 
 	it("sets every route-cache tag in the page's frontmatter (a layout renders after the headers are sent)", () => {
 		const slug = starter("pages/[...slug].astro");
-		expect(slug).toContain('await Promise.all([getEmDashEntry("pages", slug), loadChrome()])');
+		expect(slug).toContain('await Promise.all([getEmDashEntry("pages", slug), loadChrome(Astro.url.pathname)])');
 		expect(slug).toContain("cachePage(Astro.cache, page ? \"page\" : \"other\");\nif (chrome) cacheChrome(Astro.cache, chrome);");
 		expect(slug).toContain("<Base chrome={chrome}");
 		const chrome = starter("utils/chrome.ts");
-		for (const call of ["getSiteSettingsWithCacheHint()", 'getMenuWithCacheHint("primary")', 'getMenuWithCacheHint("secondary")', 'getEmDashEntry("site_parts", "footer")', 'getEmDashCollection("popups", { status: "published" })', 'getEmDashEntry("site_parts", "announcement")']) expect(chrome).toContain(call);
+		for (const call of ["getSiteSettingsWithCacheHint()", 'menuFor("primary", pathname)', 'menuFor("secondary", pathname)', "getMenuWithCacheHint(name)", 'getEmDashEntry("site_parts", "footer")', 'getEmDashCollection("popups", { status: "published" })', 'getEmDashEntry("site_parts", "announcement")']) expect(chrome).toContain(call);
 		expect(chrome).toContain("for (const r of Object.values(chrome)) if (r && typeof r === \"object\" && \"cacheHint\" in r && r.cacheHint) cache.set(r.cacheHint);");
 	});
 

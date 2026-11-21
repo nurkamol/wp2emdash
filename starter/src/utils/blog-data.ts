@@ -15,17 +15,23 @@ export const blogConfig = (site as { blog?: BlogConfig }).blog;
 export type PostEntry = { id: string; data: Record<string, any> };
 
 const LIST = { status: "published" as const, orderBy: { published_at: "desc" as const } };
+/**
+ * Multilingual sites (site.config.json `i18n`): the blog's listings, archives and feeds (all at default-language
+ * addresses) list the default language's posts; a translated post still answers at its own address.
+ */
+const defaultLang = (site as { i18n?: { defaultLang: string } }).i18n?.defaultLang;
+const inLang = (where: Record<string, unknown> = {}) => (defaultLang ? { ...where, lang: defaultLang } : where);
 
 /** One page of published posts, newest first (`where`: a taxonomy name → term slug, or `byline` → byline group id). */
 export async function listPosts(opts: { page: number; perPage: number; where?: Record<string, string | string[]> }) {
-	const r = await getEmDashCollection("posts", { ...LIST, limit: opts.perPage, offset: (opts.page - 1) * opts.perPage, ...(opts.where ? { where: opts.where } : {}) });
+	const r = await getEmDashCollection("posts", { ...LIST, limit: opts.perPage, offset: (opts.page - 1) * opts.perPage, ...(opts.where || defaultLang ? { where: inLang(opts.where) as Record<string, string | string[]> } : {}) });
 	return { entries: r.entries as PostEntry[], hasMore: !!r.hasMore, cacheHint: r.cacheHint };
 }
 
 /** Featured (sticky) posts, shown first on the posts page's first page, as WordPress does. */
 export async function featuredPosts(limit = 10) {
 	// Boolean fields are INTEGER columns; SQLite's affinity compares the text "1" as 1.
-	const r = await getEmDashCollection("posts", { ...LIST, limit, where: { featured: "1" } });
+	const r = await getEmDashCollection("posts", { ...LIST, limit, where: inLang({ featured: "1" }) as Record<string, string> });
 	return r.entries as PostEntry[];
 }
 

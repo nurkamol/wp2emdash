@@ -49,7 +49,8 @@ export const INTERNAL_TYPES: Record<string, string> = {
 };
 
 /** Taxonomies that classify configuration, not content. */
-export const INTERNAL_TAXONOMIES = new Set(["nav_menu", "link_category", "post_format", "wp_theme", "wp_template_part_area", "wp_pattern_category", "template_tag", "template_bundle", "elementor_library_type", "elementor_library_category", "product_type", "product_visibility", "product_shipping_class", "nt_wmc_folder", "filebird_folder", "media_folder", "rml_folder"]);
+export const INTERNAL_TAXONOMIES = new Set(["nav_menu", "link_category", "post_format", "wp_theme", "wp_template_part_area", "wp_pattern_category", "template_tag", "template_bundle", "elementor_library_type", "elementor_library_category", "product_type", "product_visibility", "product_shipping_class", "nt_wmc_folder", "filebird_folder", "media_folder", "rml_folder", // multilingual plugins: language assignment, read by src/transform/multilingual.ts
+	"language", "post_translations", "term_language", "term_translations"]);
 
 export type InventoryStatus = "migrated" | "decided" | "internal" | "undecided";
 

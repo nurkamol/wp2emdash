@@ -438,6 +438,9 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		...(widgetAreas ? { widgetAreas } : {}),
 		...(features?.breadcrumbs ? { breadcrumbs: { pages: features.breadcrumbs.pages, posts: features.breadcrumbs.posts, ...(features.breadcrumbs.home ? { home: features.breadcrumbs.home } : {}) } } : {}),
 		...(footerMenu ? { footerMenu: true } : {}),
+		// Multilingual (WPML / Polylang, src/transform/multilingual.ts): languages, their URL directory and hreflang. The
+		// starter reads it for <html lang>, hreflang alternates, the language switcher and per-language menus.
+		...(site.i18n?.supported ? { i18n: { defaultLang: site.i18n.defaultLang, languages: site.i18n.languages.map((l) => ({ code: l.code, prefix: l.prefix, hreflang: l.hreflang, label: l.label })) } } : {}),
 		// Structured data: the business (from the live site's JSON-LD) and each page's schema type (AboutPage, ContactPage…).
 		structuredData: {
 			...(site.business ? { business: site.business } : {}),

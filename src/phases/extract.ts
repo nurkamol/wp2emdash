@@ -24,6 +24,7 @@ import { hashPassword, PROTECTED_FILE, type ProtectedEntry } from "../transform/
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
 import { type CustomCss, customCssFromHtml } from "../transform/custom-css.js";
 import type { PhaseContext } from "./index.js";
+import { buildPlan, ML_FILE, type MlRaw, TEMPLATE_TYPES } from "../transform/multilingual.js";
 
 export const MIN_EXPORTER = "1.2.0";
 
@@ -52,6 +53,10 @@ export interface ExporterPost {
 	author?: unknown;
 	/** "open" | "closed" (Exporter 1.2): whether the entry took new comments. */
 	comment_status?: string;
+	/** BCP 47 locale (Exporter, when WPML or Polylang is active): src/transform/multilingual.ts. */
+	locale?: string;
+	/** WPML trid / Polylang translation group (Exporter, when WPML or Polylang is active). */
+	translation_group?: string | number;
 }
 
 export interface ExporterMedia {
@@ -276,6 +281,21 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	const totalPosts = [...byType.values()].reduce((n, l) => n + l.length, 0);
 	reporter.emit({ type: "step:end", step: "Content", ok: typeErrors === 0, detail: `${totalPosts} entries in ${byType.size} types` });
 	check("content-fetched", "All post types fetched", typeErrors === 0, `${totalPosts} entries: ${typeSummaries.map((t) => `${t.name} ${t.fetched}`).join(", ")}`);
+
+	// ── Languages (WPML / Polylang, src/transform/multilingual.ts) ────────────────────────────────────────────────
+	// The exporter gives each entry its locale and translation group when a multilingual plugin is active; Polylang's
+	// language taxonomies and WPML's table (from a database dump: import-dump / import-options) fill in.
+	{
+		const mlRaw = readJson<MlRaw>(join(raw, ML_FILE)) ?? {};
+		const probeI18n = probe.i18n && typeof probe.i18n === "object" ? (probe.i18n as MlRaw["probe"]) : undefined;
+		const items = [...byType.values()].flat();
+		const built = buildPlan({ raw: { ...mlRaw, ...(probeI18n ? { probe: probeI18n } : {}) }, posts: items, ...(probe.site?.language ? { siteLanguage: probe.site.language } : {}) });
+		if (built) {
+			const missing = items.filter((p) => p.status === "publish" && !TEMPLATE_TYPES.has(p.post_type) && !built.entries.get(p.id)?.lang);
+			check("languages", `Language of every published entry read (${built.plan.plugin === "wpml" ? "WPML" : "Polylang"})`, missing.length === 0, missing.length ? `${missing.length} without a language (e.g. ${missing.slice(0, 4).map((p) => `${p.post_type}:${p.slug}`).join(", ")}): update the EmDash Exporter, or put a database backup in sites/<slug>/dump/ and run import-dump (WPML's translations table), then extract again` : `${built.plan.languages.map((l) => l.code).join(", ")}; default ${built.plan.defaultLang}`);
+			notes.push(`Multilingual site (${built.plan.plugin}): ${built.plan.languages.length} languages (${built.plan.languages.map((l) => l.code).join(", ")}), URL mode ${built.plan.urlMode} (from ${built.plan.modeSource}; the audit's hreflang links and a database dump refine it). Planned in transform (coverage report → Languages).`);
+		}
+	}
 
 	const mismatched = typeSummaries.filter((t) => t.expected !== undefined && t.expected !== t.fetched);
 	check("counts-match", "Fetched counts match the exporter's own totals", mismatched.length === 0, mismatched.map((t) => `${t.name}: ${t.fetched}/${t.expected}`).join(", ") || undefined);

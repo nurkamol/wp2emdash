@@ -288,7 +288,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 			detail: menus.map((m) => `${m.viewport}: ${m.error ? `error ${m.error}` : m.found ? `${m.items.length} items` : "no toggle (inline nav)"}`).join("; "),
 		},
 		{ id: "builders-supported", label: "All page builders supported in v1", ok: unsupportedBuilders.length === 0, detail: unsupportedBuilders.length ? `found ${unsupportedBuilders.join(", ")} — accept only if those pages are rebuilt by hand` : Object.keys(fp.builders).join(", ") },
-		{ id: "no-out-of-scope", label: "No out-of-scope plugins (shop, multilingual, membership)", ok: outOfScope.length === 0, detail: outOfScope.map((p) => p.name).join(", ") || undefined },
+		{ id: "no-out-of-scope", label: "No out-of-scope plugins (shop, membership)", ok: outOfScope.length === 0, detail: outOfScope.map((p) => p.name).join(", ") || undefined },
 		{
 			id: "sensitive-data-flag",
 			label: "Sensitive form fields match the sensitiveData setting",

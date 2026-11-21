@@ -549,6 +549,11 @@ export const irPage = z.object({
 	 * protect = published behind the password page (the hash stays in raw/protected.json, never in the IR); draft; publish.
 	 */
 	access: z.object({ kind: z.enum(["password", "private"]), as: z.enum(["protect", "draft", "publish"]) }).optional(),
+	/**
+	 * Multilingual sites only (WPML, Polylang; src/transform/multilingual.ts): the entry's language code and its
+	 * translation group (shared by its translations). Load writes them to the `lang` and `translation_group` fields.
+	 */
+	i18n: z.object({ lang: z.string(), group: z.string() }).optional(),
 	diagnostics: z.array(diagnostic),
 });
 export type IrPage = z.infer<typeof irPage>;
@@ -597,7 +602,18 @@ export const irSite = z.object({
 			sameAs: z.array(z.string()).optional(),
 		})
 		.optional(),
-	menus: z.array(z.object({ name: z.string(), role: z.enum(["primary", "secondary", "footer", "other"]), wpLocations: z.array(z.string()), items: z.array(irMenuItem) })),
+	/** `lang`: a menu of a non-default language (multilingual sites); its EmDash name gets the language suffix (`primary-fr`). */
+	menus: z.array(z.object({ name: z.string(), role: z.enum(["primary", "secondary", "footer", "other"]), wpLocations: z.array(z.string()), items: z.array(irMenuItem), lang: z.string().optional() })),
+	/** Multilingual sites (src/transform/multilingual.ts): languages and how their URLs look; absent on single-language sites. */
+	i18n: z
+		.object({
+			plugin: z.enum(["wpml", "polylang"]),
+			defaultLang: z.string(),
+			urlMode: z.enum(["directory", "content", "subdomain", "domain", "query", "unknown"]),
+			supported: z.boolean(),
+			languages: z.array(z.object({ code: z.string(), prefix: z.string(), hreflang: z.string(), label: z.string(), default: z.boolean() })),
+		})
+		.optional(),
 	/** announcement = the bar above the header (ir/partials/announcement.json, site part slug "announcement"). */
 	partials: z.array(z.object({ role: z.enum(["footer", "header", "announcement", "other"]), file: z.string() })),
 	popups: z.array(z.object({ slug: z.string(), file: z.string() })),

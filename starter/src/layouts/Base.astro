@@ -13,6 +13,8 @@ import Consent from "../components/Consent.astro";
 import SiteWidgets from "../components/SiteWidgets.astro";
 import site from "../site.config.json";
 import { announcementState, type Chrome, loadChrome } from "../utils/chrome";
+import { pageLanguages } from "../utils/i18n-data";
+import { homeOf } from "../utils/i18n";
 import type { Crumb } from "../utils/breadcrumbs";
 import { safeHref } from "../utils/links";
 import { isEditor } from "../utils/editor";
@@ -31,7 +33,8 @@ interface Props {
 	image?: string | null;
 	canonical?: string | null;
 	robots?: string | null;
-	content?: { collection: string; id: string; slug?: string | null };
+	/** `group`: the entry's translation group (multilingual sites: hreflang alternates and the language switcher). */
+	content?: { collection: string; id: string; slug?: string | null; group?: string | null; lang?: string | null };
 	/** First section is a full-bleed hero: the header starts transparent over it. */
 	overHero?: boolean;
 	/** Site chrome the page loaded (utils/chrome.ts). */
@@ -51,7 +54,7 @@ const blogFeed = (site as { blog?: unknown }).blog ? [{ title: "Feed", href: (si
 
 // Site chrome: loaded by the page (route-cache tags must be set before the response streams: utils/chrome.ts), or here
 // for a page that did not pass it.
-const chrome = chromeProp ?? (await loadChrome());
+const chrome = chromeProp ?? (await loadChrome(Astro.url.pathname));
 const { settings, primary, secondary, footer, popups } = chrome;
 // Classic-theme widget areas and footer menu, only on sites where the old theme showed them (utils/chrome.ts).
 const footerAreas = (site as { widgetAreas?: { footer?: string[] } }).widgetAreas?.footer ?? [];
@@ -124,7 +127,7 @@ const pageCtx = createPublicPageContext({
 	description: description || settings.data?.tagline || undefined,
 	canonical: canonical ?? `${site.productionUrl}${Astro.url.pathname}`,
 	image: ogImage,
-	content,
+	...(content ? { content: { collection: content.collection, id: content.id, ...(content.slug !== undefined ? { slug: content.slug } : {}) } } : {}),
 	seo: { ogImage, robots },
 	siteName: siteTitle,
 	// EmDash makes the page entry's SEO image absolute with this address, and that value wins over `seo.ogImage`.
@@ -134,13 +137,16 @@ const pageCtx = createPublicPageContext({
 	siteUrl: servingOrigin === productionOrigin ? site.productionUrl : servingOrigin,
 });
 const canonicalUrl = canonical ?? `${site.productionUrl}${Astro.url.pathname}`;
+// Multilingual sites (site.config.json `i18n`): the page's language, its hreflang alternates on the production address
+// (as the canonical) and the language switcher (utils/i18n.ts). Undefined on a single-language site.
+const langs = await pageLanguages(Astro.url.pathname, productionOrigin ?? servingOrigin, content ? { collection: content.collection, group: content.group ?? null, lang: content.lang ?? null } : undefined);
 /** Google Fonts stylesheet, only when the fonts were not self-hosted at scaffold time. */
 const googleHref = (site.fonts as { googleHref?: string }).googleHref;
 const typekitHref = (site.fonts as { typekitHref?: string }).typekitHref;
 ---
 
 <!doctype html>
-<html lang={site.lang} data-prefetch={(site as { prefetch?: boolean }).prefetch === false ? "off" : undefined} {...motion.attrs} class:list={{ "has-announcement": !!announcement && !announcementLater, "motion-calm": motion.calm, "video-phones": (site as { phoneVideo?: boolean }).phoneVideo === true }}>
+<html lang={langs?.lang.hreflang ?? site.lang} data-prefetch={(site as { prefetch?: boolean }).prefetch === false ? "off" : undefined} {...motion.attrs} class:list={{ "has-announcement": !!announcement && !announcementLater, "motion-calm": motion.calm, "video-phones": (site as { phoneVideo?: boolean }).phoneVideo === true }}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -153,7 +159,9 @@ const typekitHref = (site.fonts as { typekitHref?: string }).typekitHref;
 		<title>{fullTitle}</title>
 		<EmDashHead page={pageCtx} />
 		{/* EmDash's head has no og:locale; SEO plugins publish it (en-US → en_US). */}
-		<meta property="og:locale" content={(site as { ogLocale?: string }).ogLocale ?? (site.lang ?? "en").replace("-", "_")} />
+		{/* Multilingual: a translation's own locale; its hreflang alternates (self, each translation, x-default). */}
+		<meta property="og:locale" content={langs?.lang.prefix ? langs.lang.hreflang.replace("-", "_") : ((site as { ogLocale?: string }).ogLocale ?? (site.lang ?? "en").replace("-", "_"))} />
+		{langs?.alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
 		{/* With sharing cards (@wp2emdash/og) the plugin sets every og:image tag; otherwise these describe the page's image. */}
 		{!ogCards && (ogImage || defaultOg?.url) && <meta property="og:image:alt" content={ogImage ? (pageTitle ?? title ?? siteTitle) : defaultOg?.alt || siteTitle} />}
 		{!ogCards && ogImageMeta.width && <meta property="og:image:width" content={String(ogImageMeta.width)} />}
@@ -190,7 +198,7 @@ const typekitHref = (site.fonts as { typekitHref?: string }).typekitHref;
 		<EmDashBodyStart page={pageCtx} />
 		<a href="#main" class="skip-link">Skip to content</a>
 		{announcement && <Announcement block={announcement} hidden={announcementLater} />}
-		<SiteHeader primary={primary.data?.items ?? []} secondary={secondary.data?.items ?? []} siteTitle={siteTitle} brand={{ ...(brand.logo ? { logo: brand.logo } : {}), ...(brand.logoOnTop ? { logoOnTop: brand.logoOnTop } : {}) }} socialHref={(href: string) => socialHrefFor(href, s)} />
+		<SiteHeader languages={langs?.switcher ?? []} home={langs ? homeOf(langs.lang, (site as { trailingSlash?: "always" | "never" }).trailingSlash) : "/"} primary={primary.data?.items ?? []} secondary={secondary.data?.items ?? []} siteTitle={siteTitle} brand={{ ...(brand.logo ? { logo: brand.logo } : {}), ...(brand.logoOnTop ? { logoOnTop: brand.logoOnTop } : {}) }} socialHref={(href: string) => socialHrefFor(href, s)} />
 		<main id="main" tabindex="-1">
 			{
 				breadcrumbs && breadcrumbs.length > 1 && (

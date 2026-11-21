@@ -54,6 +54,8 @@ import { planWidgets, type WpSidebar, type WpWidget, widgetsFromOptions, widgets
 import type { BricksBox, RootVariables, ScreenshotResult } from "../audit/browser.js";
 import type { ExporterPost, MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
+import type { SitePaths } from "../core/paths.js";
+import { baseLocations, buildPlan, localizeRoute, menuLanguage, ML_FILE, type MlDoc, type MlRaw, multilingualChecks, multilingualReport, normCode, TEMPLATE_TYPES, translationGroups, type WpmlRow } from "../transform/multilingual.js";
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_]+/g, "-");
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
@@ -99,7 +101,22 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		return checks;
 	}
 	const overrides = await loadOverrides(paths.overrides);
-	const content = (type: string) => readJson<ExporterPost[]>(join(exp, "content", `${type}.json`)) ?? [];
+	const contentRaw = (type: string) => readJson<ExporterPost[]>(join(exp, "content", `${type}.json`)) ?? [];
+	// ── Languages (WPML / Polylang; src/transform/multilingual.ts) ────────────────────────────────────────────────
+	// Every entry's language and translation group, the site's languages and URL mode. Translated site chrome (headers,
+	// footers, popups, builder templates) is not migrated: only the default language's, the rest is listed in the report.
+	const ml = languagePlan(paths, contentRaw);
+	const mlSkipped = new Map<number, string>();
+	const content = (type: string) => {
+		const list = contentRaw(type);
+		if (!ml || !TEMPLATE_TYPES.has(type)) return list;
+		return list.filter((p) => {
+			const lang = ml.entries.get(p.id)?.lang;
+			if (!lang || lang === ml.plan.defaultLang) return true;
+			mlSkipped.set(p.id, `${type} ${p.slug || p.id} (${lang}): translated site chrome, only the default language's is migrated`);
+			return false;
+		});
+	};
 	const options = readJson<Record<string, unknown>>(join(exp, "options.json")) ?? {};
 	const menusRaw = readJson<MenuRaw[]>(join(exp, "menus.json")) ?? [];
 	// Description, title attribute and classes per item from WordPress's REST API (extract: raw/menu-items.json).
@@ -207,7 +224,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		megaIds ??= megaMenuIds(snapshotHtml.find((h) => h.name === "home")?.html ?? snapshotHtml[0]?.html);
 		const build = (parent: number | null, depth: number): IrMenuItem[] =>
 			m.items
-				.filter((i) => (i.parent_id ?? 0) === (parent ?? 0))
+				.filter((i) => (i.parent_id ?? 0) === (parent ?? 0) && !(ml && i.url === "#pll_switcher" && mlSkipped.set(-i.id, `menu ${m.name}: Polylang language switcher item, replaced by the site's language switcher`)))
 				.sort((a, b) => a.sort_order - b.sort_order)
 				.map((i) => {
 					const rest = menuItemsRest.get(i.id);
@@ -228,17 +245,22 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const pathById = new Map(urls.filter((u) => u.wp).map((u) => [u.wp?.id as number, u.path]));
 	const frontId = Number(options.page_on_front ?? 0);
 	const byId = new Map(pages.map((p) => [p.id, p]));
+	// Multilingual: the front page's translations are their language's home (/fr/); a translation the audit did not
+	// see gets its language directory in front of its WordPress path.
+	const frontGroup = ml ? ml.entries.get(frontId)?.group : undefined;
 	const routeOf = (p: ExporterPost): string => {
 		if (p.id === frontId) return "/";
 		const known = pathById.get(p.id);
 		if (known) return overrides.routes[known] ?? known;
+		const lang = ml?.entries.get(p.id)?.lang;
+		if (ml && frontGroup && ml.entries.get(p.id)?.group === frontGroup && lang && lang !== ml.plan.defaultLang) return localizeRoute("/", lang, ml.plan);
 		const segs = [p.slug];
 		let parent = p.parent ? byId.get(p.parent) : undefined;
 		while (parent) {
 			segs.unshift(parent.slug);
 			parent = parent.parent ? byId.get(parent.parent) : undefined;
 		}
-		const path = `/${segs.join("/")}/`;
+		const path = ml ? localizeRoute(`/${segs.join("/")}/`, lang, ml.plan) : `/${segs.join("/")}/`;
 		return overrides.routes[path] ?? path;
 	};
 
@@ -400,6 +422,13 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			const social = Object.keys(socialOv).length ? { ...(doc.seo.social ?? {}), ...socialOv, source: "override" as const } : doc.seo.social;
 			doc = { ...doc, seo: { ...doc.seo, ...(seoOv.title ? { title: seoOv.title } : {}), ...(seoOv.description ? { description: seoOv.description } : {}), ...(social ? { social } : {}) } };
 		}
+		// Multilingual: language and translation group on every routable entry; a translation's file gets its language
+		// (two languages may share a slug).
+		const lang = ml && doc.route && ["page", "post", "entry"].includes(doc.kind) ? ml.entries.get(doc.source.wpId) : undefined;
+		if (ml && lang?.lang) {
+			doc = { ...doc, i18n: { lang: lang.lang, group: lang.group ?? `${doc.source.type}-${doc.source.wpId}` } };
+			if (lang.lang !== ml.plan.defaultLang) file = file.replace(/\.json$/, `.${lang.lang}.json`);
+		}
 		const v = irPage.safeParse(doc);
 		if (!v.success) invalid.push(`${file}: ${v.error.issues.slice(0, 3).map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`);
 		write(join(paths.ir, file), v.success ? v.data : doc);
@@ -506,7 +535,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		if (known && p.status === "publish") return overrides.routes[known] ?? known;
 		const cat = p.taxonomies?.category?.[0]?.slug;
 		const author = authorOf(p);
-		const path = permalinkPath(permalinkStructure, { id: p.id, slug: p.slug || `post-${p.id}`, ...(wpGmtToIso(p.date_gmt) ? { dateGmt: wpGmtToIso(p.date_gmt) as string } : {}), ...(cat ? { category: cat } : {}), ...(author ? { author: discoveredAuthors.get(author.id)?.slug ?? bylineSlug(author.name) } : {}) }, trailingAlways);
+		const path = (ml ? (x: string) => localizeRoute(x, ml.entries.get(p.id)?.lang, ml.plan) : (x: string) => x)(permalinkPath(permalinkStructure, { id: p.id, slug: p.slug || `post-${p.id}`, ...(wpGmtToIso(p.date_gmt) ? { dateGmt: wpGmtToIso(p.date_gmt) as string } : {}), ...(cat ? { category: cat } : {}), ...(author ? { author: discoveredAuthors.get(author.id)?.slug ?? bylineSlug(author.name) } : {}) }, trailingAlways));
 		return overrides.routes[path] ?? path;
 	};
 	for (const p of blogOn ? blogPosts : postsDecided ? [] : posts) {
@@ -595,7 +624,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			const siblings = entriesOf.get(p.post_type) ?? [];
 			const segs = [p.slug || `${p.post_type}-${p.id}`];
 			for (let q = p.parent ? siblings.find((x) => x.id === p.parent) : undefined, g = 0; q && g < 20; q = q.parent ? siblings.find((x) => x.id === q?.parent) : undefined, g++) segs.unshift(q.slug);
-			const path = `/${p.post_type}/${segs.join("/")}/`;
+			const path = ml ? localizeRoute(`/${p.post_type}/${segs.join("/")}/`, ml.entries.get(p.id)?.lang, ml.plan) : `/${p.post_type}/${segs.join("/")}/`;
 			return overrides.routes[path] ?? path;
 		};
 		const plan = planCollections({
@@ -811,7 +840,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		if (/footer/i.test(l)) return "footer";
 		return "other";
 	};
-	const menus: IrSite["menus"] = menusRaw.map((m) => ({ name: m.name, role: menuRole(m.locations), wpLocations: m.locations, items: menuTree(m) }));
+	// Multilingual: each menu's language (a non-default language's menu is named `<role>-<lang>`; Polylang's
+	// `primary___fr` locations count as `primary`).
+	const menuLang = (m: MenuRaw) => (ml ? menuLanguage({ ...(m.id !== undefined ? { id: m.id } : {}), locations: m.locations, ...(typeof (m as { locale?: unknown }).locale === "string" ? { locale: (m as { locale?: string }).locale as string } : {}), items: m.items }, ml.plan, ml.wpml, siteHosts) : undefined);
+	const menus: IrSite["menus"] = menusRaw.map((m) => {
+		const lang = menuLang(m);
+		const locations = ml ? baseLocations(m.locations) : m.locations;
+		return { name: m.name, role: menuRole(locations), wpLocations: m.locations, items: menuTree(m), ...(lang && ml && lang !== ml.plan.defaultLang ? { lang } : {}) };
+	});
 	// Bricks has no menu locations: the site header template says which menu is the main one (a nav-menu element, or
 	// a nav-nested element with its own links), and its buttons are the header's calls to action (secondary menu).
 	const headerTpl = bricksParts.header && bricksTemplates.get(bricksParts.header.id);
@@ -872,7 +908,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const homeSnap = existsSync(pagesDir) ? readdirSync(pagesDir).map((f) => readJson<{ url?: string; seo?: { jsonLd?: unknown[] } }>(join(pagesDir, f))).find((x) => { try { return !!x?.url && new URL(x.url).pathname === "/"; } catch { return false; } }) : undefined;
 	// Owner corrections (overrides.ts business) on top: the JSON-LD and the footer contact block both read this.
 	const business = applyBusinessOverride(businessFromJsonLd(homeSnap?.seo?.jsonLd ?? []), overrides.business, siteTitle);
-	const site: IrSite = { version: IR_VERSION, title: siteTitle, ...(business ? { business } : {}), ...(typeof options.blogdescription === "string" && options.blogdescription ? { tagline: options.blogdescription } : {}), ...(frontId ? { frontPage: "/" } : {}), ...(siteIconId ? { siteIcon: { wpId: siteIconId, kind: "image" } } : {}), menus, partials, popups };
+	const site: IrSite = { version: IR_VERSION, title: siteTitle, ...(business ? { business } : {}), ...(typeof options.blogdescription === "string" && options.blogdescription ? { tagline: options.blogdescription } : {}), ...(frontId ? { frontPage: "/" } : {}), ...(siteIconId ? { siteIcon: { wpId: siteIconId, kind: "image" } } : {}), menus, partials, popups, ...(ml ? { i18n: { plugin: ml.plan.plugin, defaultLang: ml.plan.defaultLang, urlMode: ml.plan.urlMode, supported: ml.plan.supported, languages: ml.plan.languages } } : {}) };
 	const siteValid = irSite.safeParse(site);
 	if (!siteValid.success) invalid.push(`site.json: ${siteValid.error.issues[0]?.message}`);
 	write(join(paths.ir, "site.json"), site);
@@ -1066,6 +1102,12 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			: {}),
 	});
 	check("content-types-handled", "Every post type, taxonomy in use and author with posts is migrated or decided", !inventory.some((r) => r.status === "undecided"), inventoryDetail(inventory));
+	// Languages (WPML / Polylang): URL mode supported, every entry has a language, one entry per language per group.
+	const mlDocs: MlDoc[] = results.map((r) => ({ kind: r.doc.kind, wpId: r.doc.source.wpId, type: r.doc.source.type, ...(r.doc.route ? { path: r.doc.route.path } : {}), published: r.published, ...(r.doc.i18n ? { lang: r.doc.i18n.lang, group: r.doc.i18n.group } : {}) }));
+	if (ml) {
+		checks.push(...multilingualChecks(ml.plan, mlDocs));
+		write(join(paths.ir, "i18n.json"), { ...ml.plan, groups: Object.fromEntries([...translationGroups(mlDocs.filter((d) => d.published))].filter(([, l]) => l.length > 1).map(([g, l]) => [g, l.map((d) => ({ lang: d.lang, path: d.path, type: d.type, wpId: d.wpId }))])) });
+	}
 	// Custom fields of migrated post types: every meta key is a mapped field, a decided one, or WordPress's own.
 	if (cpt.plan) check("cpt-fields", "Every custom field of a migrated post type is mapped or decided (overrides.ts contentTypes.<type>.fields)", cpt.unknownMeta.length === 0, cpt.unknownMeta.length ? `${cpt.unknownMeta.length} meta key(s) without a field definition (coverage report → Custom post types): ${cpt.unknownMeta.slice(0, 6).join(", ")}${cpt.unknownMeta.length > 6 ? ", …" : ""}` : `${cpt.plan.collections.map((c) => `${c.slug}: ${c.fields.length} field(s)`).join(", ")}`);
 	// Private and password-protected pages and posts: EmDash has no such status. Defaults: password → protect (the
@@ -1230,7 +1272,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const shortcodes = shortcodeSummary(results);
 	rmSync(join(paths.ir, "shortcodes.json"), { force: true });
 	if (shortcodes.used.length) write(join(paths.ir, "shortcodes.json"), shortcodes);
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...termSeoReport(termSeo, termSeoDumpMissing), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...mediaFoldersReport(folderPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...termSeoReport(termSeo, termSeoDumpMissing), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...mediaFoldersReport(folderPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode), ...(ml ? multilingualReport(ml.plan, mlDocs, [...mlSkipped.values()]) : [])]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }
@@ -1301,4 +1343,32 @@ function readFormText(dir: string): string[] {
 		}
 	}
 	return out;
+}
+
+/**
+ * The site's languages (WPML / Polylang): the exporter's probe and per-post language fields, the plugins' options and
+ * WPML's translations table from a database dump (raw/multilingual.json, import-options), the audit's plugin list,
+ * live paths and hreflang links. Undefined on a single-language site.
+ */
+export function languagePlan(paths: SitePaths, contentRaw: (type: string) => ExporterPost[]): (NonNullable<ReturnType<typeof buildPlan>> & { wpml: WpmlRow[] }) | undefined {
+	const exp = join(paths.raw, "exporter");
+	const probe = readJson<{ i18n?: MlRaw["probe"]; site?: { language?: string } }>(join(exp, "probe.json"));
+	const extra = readJson<MlRaw>(join(paths.raw, ML_FILE)) ?? {};
+	const raw: MlRaw = { ...extra, ...(probe?.i18n ? { probe: probe.i18n } : {}) };
+	const types = existsSync(join(exp, "content")) ? readdirSync(join(exp, "content")).filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, "")) : [];
+	const posts = types.flatMap((t) => contentRaw(t));
+	const plugins = (readJson<{ plugins?: { slug: string }[] }>(join(paths.snapshot, "fingerprint.json"))?.plugins ?? []).map((p) => p.slug);
+	const urls = readJson<{ path: string; wp?: { id: number } }[]>(join(paths.snapshot, "urls.json")) ?? [];
+	const pagesDir = join(paths.snapshot, "pages");
+	const snapshots = existsSync(pagesDir) ? readdirSync(pagesDir).filter((f) => f.endsWith(".json")).flatMap((f) => {
+		const s = readJson<{ url?: string; seo?: { hreflang?: { lang: string; href: string }[] } }>(join(pagesDir, f));
+		return s?.url && s.seo?.hreflang?.length ? [{ url: s.url, hreflang: s.seo.hreflang }] : [];
+	}) : [];
+	const names = new Map<string, string>();
+	for (const p of posts) {
+		const t = p.taxonomies?.language?.[0];
+		if (t?.slug && t.name && t.name !== t.slug) names.set(normCode(t.slug), t.name);
+	}
+	const built = buildPlan({ raw, posts, plugins, snapshots, pathById: new Map(urls.filter((u) => u.wp).map((u) => [u.wp?.id as number, u.path])), ...(probe?.site?.language ? { siteLanguage: probe.site.language } : {}), names });
+	return built ? { ...built, wpml: raw.wpml ?? [] } : undefined;
 }

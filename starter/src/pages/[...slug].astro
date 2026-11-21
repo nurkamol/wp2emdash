@@ -50,20 +50,20 @@ if (blog && route) {
 	const page = route.feed ? 1 : route.page;
 	if (route.kind === "index") {
 		const indexSlug = blog.index.replace(/^\/+|\/+$/g, "") || "home";
-		const [list, featured, indexPage, c] = await Promise.all([listPosts({ page, perPage }), page === 1 && !route.feed ? featuredPosts() : Promise.resolve([] as PostEntry[]), getEmDashEntry("pages", indexSlug), route.feed ? Promise.resolve(undefined) : loadChrome()]);
+		const [list, featured, indexPage, c] = await Promise.all([listPosts({ page, perPage }), page === 1 && !route.feed ? featuredPosts() : Promise.resolve([] as PostEntry[]), getEmDashEntry("pages", indexSlug), route.feed ? Promise.resolve(undefined) : loadChrome(Astro.url.pathname)]);
 		chrome = c;
 		const posts = [...featured, ...list.entries.filter((e) => !featured.some((f) => f.id === e.id))];
 		const pageTitle = blog.index === "/" ? undefined : (indexPage.entry?.data as { title?: string } | undefined)?.title;
 		listing = { heading: pageTitle ?? "Blog", posts, listing: blog.index, page, hasMore: list.hasMore, title: pageTitle ?? "Blog", feedTitle: "Feed", canonicalPath: Astro.url.pathname, ...(indexPage.entry && blog.index !== "/" ? { seo: getSeoMeta(indexPage.entry, { siteUrl: Astro.url.origin, path: Astro.url.pathname }) } : {}) };
 		cacheBlog(Astro.cache, [list.cacheHint, indexPage.cacheHint]);
 	} else if (route.kind === "term") {
-		const [term, list, c, termSeo] = await Promise.all([termOf(route.taxonomy, route.slug), listPosts({ page, perPage, where: { [route.taxonomy]: route.slug } }), route.feed ? Promise.resolve(undefined) : loadChrome(), readTermSeo(db, route.taxonomy, route.slug)]);
+		const [term, list, c, termSeo] = await Promise.all([termOf(route.taxonomy, route.slug), listPosts({ page, perPage, where: { [route.taxonomy]: route.slug } }), route.feed ? Promise.resolve(undefined) : loadChrome(Astro.url.pathname), readTermSeo(db, route.taxonomy, route.slug)]);
 		chrome = c;
 		const a = blog.archives.find((x) => x.taxonomy === route.taxonomy);
 		if (term) listing = { heading: term.label, intro: term.description, eyebrow: a?.labelSingular, posts: list.entries, listing: Astro.url.pathname.replace(/(?:page\/\d+|feed)\/?$/, ""), page, hasMore: list.hasMore, title: term.label, description: termSeo?.description ?? term.description, feedTitle: `${term.label} ${a?.labelSingular ?? ""} Feed`.replace(/\s+/g, " "), canonicalPath: Astro.url.pathname, ...(termSeo?.title ? { seoTitle: archiveTitle(termSeo.title, page) } : {}), ...(termSeo?.noindex ? { robots: "noindex, follow" } : {}) };
 		cacheBlog(Astro.cache, [list.cacheHint]);
 	} else {
-		const [byline, c] = await Promise.all([bylineOf(route.slug), route.feed ? Promise.resolve(undefined) : loadChrome()]);
+		const [byline, c] = await Promise.all([bylineOf(route.slug), route.feed ? Promise.resolve(undefined) : loadChrome(Astro.url.pathname)]);
 		chrome = c;
 		if (byline) {
 			const list = await listPosts({ page, perPage, where: { byline: byline.translationGroup ?? byline.id } });
@@ -109,12 +109,12 @@ if (croute) {
 	const listingPath = Astro.url.pathname.replace(/page\/\d+\/?$/, "");
 	if (croute.kind === "archive") {
 		const c = croute.collection;
-		const [list, ch] = await Promise.all([listEntries(c, { page: croute.page }), loadChrome()]);
+		const [list, ch] = await Promise.all([listEntries(c, { page: croute.page }), loadChrome(Astro.url.pathname)]);
 		chrome = ch;
 		archive = { heading: c.label, entries: list.entries, listing: listingPath, page: croute.page, hasMore: list.hasMore };
 		cacheCollections(Astro.cache, [c], [list.cacheHint]);
 	} else {
-		const [term, ch, termSeo] = await Promise.all([collectionTermOf(croute.taxonomy, croute.slug), loadChrome(), readTermSeo(db, croute.taxonomy, croute.slug)]);
+		const [term, ch, termSeo] = await Promise.all([collectionTermOf(croute.taxonomy, croute.slug), loadChrome(Astro.url.pathname), readTermSeo(db, croute.taxonomy, croute.slug)]);
 		chrome = ch;
 		if (term) {
 			const lists = await Promise.all(croute.collections.map((c) => listEntries(c, { page: croute.page, where: { [croute.taxonomy]: croute.slug } })));
@@ -132,7 +132,7 @@ if (croute) {
 }
 
 // ── A page, else a post, else an entry of a collection ───────────────────────────────────────────────────────
-const [{ entry: page, cacheHint }, loadedChrome] = listing || archive ? [{ entry: undefined, cacheHint: undefined }, chrome] : await Promise.all([getEmDashEntry("pages", slug), loadChrome()]);
+const [{ entry: page, cacheHint }, loadedChrome] = listing || archive ? [{ entry: undefined, cacheHint: undefined }, chrome] : await Promise.all([getEmDashEntry("pages", slug), loadChrome(Astro.url.pathname)]);
 chrome = loadedChrome ?? chrome;
 const postResult = !listing && !archive && !page && blog && slug !== "home" ? await getEmDashEntry("posts", slug) : undefined;
 const post = postResult?.entry as PostEntry & { edit: Record<string, any> } | undefined;
@@ -209,15 +209,15 @@ if (crumbCfg?.pages && page && slug !== "home") {
 			<AccessGate title={`Protected: ${data.title ?? ""}`} collection={page ? "pages" : "posts"} slug={slug} back={accessBack} state={Astro.url.searchParams.get("access")} />
 		</Base>
 	) : found ? (
-		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: found.collection.slug, id: data.id, slug: found.entry.id }}>
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: found.collection.slug, id: data.id, slug: found.entry.id, group: data.translation_group, lang: data.lang }}>
 			<Entry collection={found.collection} entry={found.entry} edit={found.entry.edit ?? {}} />
 		</Base>
 	) : post ? (
-		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || autoExcerpt(ptText(data.body), 30) || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "posts", id: data.id, slug: post.id }} sidebar breadcrumbs={trail} article={{ publishedTime: data.publishedAt ? new Date(data.publishedAt).toISOString() : null, modifiedTime: data.updatedAt ? new Date(data.updatedAt).toISOString() : null, author: byline?.displayName ?? null }}>
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || autoExcerpt(ptText(data.body), 30) || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "posts", id: data.id, slug: post.id, group: data.translation_group, lang: data.lang }} sidebar breadcrumbs={trail} article={{ publishedTime: data.publishedAt ? new Date(data.publishedAt).toISOString() : null, modifiedTime: data.updatedAt ? new Date(data.updatedAt).toISOString() : null, author: byline?.displayName ?? null }}>
 			<Single post={post} edit={post.edit ?? {}} older={older} newer={newer} related={related} />
 		</Base>
 	) : (
-		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "pages", id: data.id, slug: entry.id }} overHero={!!overHero} breadcrumbs={trail}>
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "pages", id: data.id, slug: entry.id, group: data.translation_group, lang: data.lang }} overHero={!!overHero} breadcrumbs={trail}>
 			{
 				blocks.length ? (
 					<div {...entry.edit.content}>{needsH1 && <h1 class="visually-hidden">{data.title}</h1>}<Sections value={blocks} leadImage /></div>

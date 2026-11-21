@@ -11,7 +11,8 @@ export interface LlmsEntry {
 
 const line = (s: string) => s.replace(/\s+/g, " ").trim();
 
-export function llmsTxt(site: { name: string; tagline?: string; description?: string }, pages: LlmsEntry[], posts: LlmsEntry[] = []): string {
+/** `languages`: a multilingual site's other languages (their home pages); the lists hold the default language only. */
+export function llmsTxt(site: { name: string; tagline?: string; description?: string }, pages: LlmsEntry[], posts: LlmsEntry[] = [], languages: LlmsEntry[] = []): string {
 	const out = [`# ${line(site.name)}`, ""];
 	const summary = line(site.description || site.tagline || "");
 	if (summary) out.push(`> ${summary}`, "");
@@ -23,6 +24,7 @@ export function llmsTxt(site: { name: string; tagline?: string; description?: st
 	};
 	list("Pages", pages);
 	list("Posts", posts);
+	list("Other languages", languages);
 	return `${out.join("\n").trimEnd()}\n`;
 }
 

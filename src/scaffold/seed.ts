@@ -9,6 +9,7 @@ import { blockKey, type MediaResolver, sectionToBlock } from "../targets/emdash/
 import type { BlogPlan } from "../transform/blog.js";
 import { type CptPlan, collectionFields } from "../transform/cpt.js";
 import { emdashMenuLabel, emdashMenuNames } from "../transform/menus.js";
+import { GROUP_FIELD, LANG_FIELD } from "../transform/multilingual.js";
 import { pageData, pageFields, parentsFirst } from "../transform/pages.js";
 import type { WidgetPlan } from "../transform/widgets.js";
 import type { IrReusableSection } from "../transform/sections.js";
@@ -270,7 +271,33 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 			...(i.collections ? cptSeedContent(i.collections, i.media, new Map(i.pages.map((p) => [`page:${p.source.wpId}`, routeToSlug(p.route?.path ?? p.source.slug)])), (p) => blocksOf(p, i.media)) : {}),
 		};
 	}
+	if (i.site.i18n) seedLanguages(seed, [...i.pages, ...(i.blog?.posts ?? []), ...(i.collections?.entries ?? [])]);
 	return seed;
+}
+
+/**
+ * Multilingual sites (src/transform/multilingual.ts): the `lang` and `translation_group` fields on every collection
+ * with language-tagged entries, and their values on the seeded entries (matched by slug: the entry's path).
+ */
+export function seedLanguages(seed: Record<string, unknown>, docs: IrPage[]): void {
+	const bySlug = new Map(docs.filter((d) => d.i18n && d.route).map((d) => [routeToSlug(d.route?.path ?? d.source.slug), d.i18n as NonNullable<IrPage["i18n"]>]));
+	const content = (seed.content ?? {}) as Record<string, { slug?: string; data?: Record<string, unknown> }[]>;
+	const tagged = new Set<string>();
+	for (const [collection, entries] of Object.entries(content)) {
+		for (const e of entries) {
+			const l = e.slug ? bySlug.get(e.slug) : undefined;
+			if (!l || !e.data) continue;
+			e.data[LANG_FIELD.slug] = l.lang;
+			e.data[GROUP_FIELD.slug] = l.group;
+			tagged.add(collection);
+		}
+	}
+	const routableTypes = new Set(docs.filter((d) => d.i18n).map((d) => (d.kind === "page" ? "pages" : d.kind === "post" ? "posts" : d.entry?.collection)).filter((c): c is string => !!c));
+	for (const c of seed.collections as { slug: string; fields: unknown[] }[]) {
+		if (!tagged.has(c.slug) && !routableTypes.has(c.slug)) continue;
+		const have = new Set((c.fields as { slug: string }[]).map((f) => f.slug));
+		c.fields = [...c.fields, ...[LANG_FIELD, GROUP_FIELD].filter((f) => !have.has(f.slug)).map((f) => ({ ...f }))]; // a copy: POSTS_COLLECTION's fields are shared
+	}
 }
 
 /** Seed collections of the custom post types, in an order where a reference's target comes before it. */

@@ -10,6 +10,8 @@
 import site from "../site.config.json";
 import { safeHref } from "../utils/links";
 import { readableFill } from "../utils/announcement";
+import LanguageSwitcher from "./LanguageSwitcher.astro";
+import type { SwitcherLink } from "../utils/i18n";
 
 interface Item {
 	label: string;
@@ -28,8 +30,12 @@ interface Props {
 	brand?: { logo?: LogoImg; logoOnTop?: LogoImg };
 	/** Settings → Social Links: the panel's social icons point at these profiles. */
 	socialHref?: (href: string) => string;
+	/** Multilingual sites: the language switcher's links (utils/i18n.ts); absent on single-language sites. */
+	languages?: SwitcherLink[];
+	/** The home page of the page's language (`/fr/`): the logo links there. */
+	home?: string;
 }
-const { primary, secondary, siteTitle, brand, socialHref } = Astro.props;
+const { primary, secondary, siteTitle, brand, socialHref, languages = [], home = "/" } = Astro.props;
 const h = site.header as typeof site.header & { layout?: string; inlineNav?: boolean; togglePosition?: string; toggleLabel?: string; logo?: string; logoOnTop?: string; logoImg?: LogoImg; logoOnTopImg?: LogoImg };
 /** The logo files as the performance package made them (content-hashed, WebP when smaller, intrinsic size). */
 type LogoImg = { src: string; width?: number; height?: number };
@@ -125,7 +131,7 @@ const ICONS: Record<string, string> = {
 				</button>
 			)
 		}
-		<a href="/" class="site-header__logo" aria-label={`${siteTitle} — home`}>
+		<a href={home} class="site-header__logo" aria-label={`${siteTitle} — home`}>
 			{logo ? <img {...logo} alt="" class="logo logo--default" decoding="async" /> : <span class="wordmark">{siteTitle}</span>}
 			{logoOnTop && <img {...logoOnTop} alt="" class="logo logo--top" decoding="async" />}
 		</a>
@@ -145,6 +151,7 @@ const ICONS: Record<string, string> = {
 			)
 		}
 		<div class="site-header__actions">
+			<LanguageSwitcher links={languages} />
 			{
 				searchHref && (
 					<a href={searchHref} class="header-link header-search" aria-label="Search">
@@ -291,6 +298,7 @@ const ICONS: Record<string, string> = {
 				</ul>
 			)
 		}
+		<LanguageSwitcher links={languages} variant="panel" />
 		{extras.credit && <p class="menu-panel__credit" style={`--i:${extras.lead.length + primary.length + 1}`}>© {new Date().getFullYear()} <a href="/">{siteTitle}</a></p>}
 	</nav>
 </div>
