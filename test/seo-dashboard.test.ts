@@ -73,6 +73,8 @@ describe("SEO dashboard", () => {
 		const altForm = tab(r, 2).find((b) => b.type === "form");
 		expect(altForm?.fields.map((f: { action_id: string }) => f.action_id)).toEqual([`alt:${ULID(2)}`]);
 		expect(tab(r, 3).some((b) => b.type === "section" && /not the live address/.test(b.text))).toBe(true);
+		// Cached for Site health's "What to improve" (KV `summary` = D1 row plugin:site-seo:summary): titles and counts.
+		expect(kv.get("summary")).toMatchObject({ v: 1, pages: 2, thin: { count: 0 }, noDescription: { count: 0 }, missingAlt: { count: 1, pages: ["About"] } });
 	});
 	it("saves image descriptions to the media library", async () => {
 		const r = await plugin.routes.admin.handler(ctx({ type: "form_submit", action_id: "save-alt", values: { [`alt:${ULID(2)}`]: " Team photo ", "alt:bogus": "x" } }));

@@ -26,7 +26,7 @@ import type { HealthOptions } from "../index.js";
 import { HEALTH_PLUGIN } from "../meta.js";
 import type { LinkJob } from "../checks/links.js";
 import { renderReportHtml, type ReportData } from "../report.js";
-import { adminUrl, alertRecipients, emailReport, type HealthEnv, makeReport, type RunDeps, runChecks, settingsOf, storeReport } from "../run.js";
+import { adminUrl, alertRecipients, currentImprovements, emailReport, type HealthEnv, makeReport, reportFormsTrend, type RunDeps, runChecks, settingsOf, storeReport } from "../run.js";
 import { TICK_SCHEDULE, TICK_TASK } from "../schedule.js";
 import { parseRewarmSetting, REWARM_INTERVALS, REWARM_KEYS, type RewarmLast } from "../cache.js";
 import { type Cwv, type DayRow, type Incident, KEYS, type Kv, type LinksResult, readState, type Settings, type Today } from "../store.js";
@@ -114,6 +114,10 @@ function deps(ctx: Ctx, env: WorkerEnv, o: HealthOptions): RunDeps | undefined {
 async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Partial<PageData> = {}): Promise<PageData> {
 	const kv = ctx.kv;
 	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance, csp, security] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance), kv.get<CspStore>(KEYS.csp), kv.get<SecurityFacts>(KEYS.security)]);
+	// "What to improve": the same list the monthly report carries, from what is stored now (never fails the page).
+	const improve = await reportFormsTrend(kv)
+		.then((forms) => currentImprovements({ kv, options: o, env }, forms ? { forms } : {}))
+		.catch(() => undefined);
 	const ready = mailReady(env as MailEnv, ctx.email);
 	const cache = o.rewarm
 		? await (async () => {
@@ -147,6 +151,7 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 		cspBuild: o.cspReports !== false,
 		security,
 		redirects: typeof ctx.redirects?.create === "function",
+		...(improve ? { improve } : {}),
 		...extra,
 	};
 }
@@ -396,6 +401,8 @@ export function createPlugin(options: HealthOptions) {
 						const ok = await emailReport(d, data, true);
 						return { blocks: reportView(data, true), toast: ok ? { message: "Report emailed.", type: "success" } : { message: "Not emailed: email is not available right now (see Settings).", type: "error" } };
 					}
+					// "What to improve" rows that are fixed on one of Site health's own tabs.
+					if (i.type === "block_action" && act === "improve-tab" && (i.value === "missing" || i.value === "speed")) return { blocks: await show(TABS[i.value]) };
 					const tab = act === "back" ? TABS.reports : TABS.overview;
 					return { blocks: await show(tab) };
 				},

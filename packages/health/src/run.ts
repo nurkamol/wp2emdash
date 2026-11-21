@@ -27,6 +27,9 @@ import { answered, type Fetcher, probe } from "./probe.js";
 import { type Redirected, type RedirectsAccess, redirectSources, withoutRedirected } from "./redirects.js";
 import { buildReport, type ReportData, reportMail } from "./report.js";
 import { type ReportSources, reportSources } from "./sources.js";
+import { parseSeoSummary, readSeoSummary, type SeoSummary } from "@wp2emdash/seo/summary";
+import { type Improvement, improvements } from "./improve.js";
+import type { NotFoundSummary } from "./checks/notfound.js";
 import { EXTERNAL_SAMPLE, externalDue, LINK_BUDGET, LINK_CONCURRENCY, LOCK_MS, MANUAL_EVERY, planRun, reportDue } from "./schedule.js";
 import { CHECK_IDS, type CheckId, type CheckState, type Cwv, type DayRow, type HealthState, type Incident, KEYS, type Kv, type LinkLedger, type LinksResult, MAX_REPORTS, pruneIncidents, readState, rollDay, type Settings, type Today, upsertDay } from "./store.js";
 import { dayOf, median, monthOf, previousMonth } from "./util.js";
@@ -358,8 +361,41 @@ export function mergeIncidents(list: Incident[], opened: Incident[], closed: Inc
 // ── Monthly report ──────────────────────────────────────────────────────────────────────────────────────────
 
 export async function makeReport(d: RunDeps, month: string, sources?: ReportSources): Promise<ReportData> {
-	const s = sources ?? (await reportSources(d, month));
-	return buildReport({ month, site: { name: d.options.siteName, url: d.options.productionUrl }, history: (await d.kv.get<DayRow[]>(KEYS.history)) ?? [], incidents: (await d.kv.get<Incident[]>(KEYS.incidents)) ?? [], cwv: await d.kv.get<Cwv>(KEYS.cwv), ledger: (await d.kv.get<LinkLedger>(KEYS.ledger)) ?? {}, ...(d.options.cspReports !== false ? { csp: cspMonth(readCspStore(await d.kv.get(KEYS.csp)), month) } : {}), ...s, now: d.now });
+	const { seoSummary, ...s } = sources ?? (await reportSources(d, month));
+	// The report's SEO analysis, kept for the admin's "What to improve" until the SEO suite writes a newer one.
+	if (seoSummary) await d.kv.set(KEYS.seoSummary, seoSummary);
+	const before = await d.kv.get<ReportData>(KEYS.report(previousMonth(month)));
+	const forms = s.forms && "total" in s.forms ? { total: s.forms.total, ...(before?.forms ? { previous: before.forms.total } : {}) } : undefined;
+	const improve = await currentImprovements(d, { ...(seoSummary ? { seo: seoSummary } : {}), ...(forms ? { forms } : {}) });
+	return buildReport({ month, site: { name: d.options.siteName, url: d.options.productionUrl }, history: (await d.kv.get<DayRow[]>(KEYS.history)) ?? [], incidents: (await d.kv.get<Incident[]>(KEYS.incidents)) ?? [], cwv: await d.kv.get<Cwv>(KEYS.cwv), ledger: (await d.kv.get<LinkLedger>(KEYS.ledger)) ?? {}, ...(d.options.cspReports !== false ? { csp: cspMonth(readCspStore(await d.kv.get(KEYS.csp)), month) } : {}), ...s, improve, now: d.now });
+}
+
+// ── What to improve ─────────────────────────────────────────────────────────────────────────────────────────
+
+/** The newest SEO summary: this run's, else the SEO suite's own (written when its dashboard opens) or the last report's. */
+export async function latestSeoSummary(d: Pick<RunDeps, "kv" | "env">, fresh?: SeoSummary): Promise<SeoSummary | undefined> {
+	if (fresh) return fresh;
+	const [own, kept] = await Promise.all([readSeoSummary(d.env.DB), d.kv.get<unknown>(KEYS.seoSummary)]);
+	return [own ?? undefined, parseSeoSummary(kept)].filter((x): x is SeoSummary => !!x).sort((a, b) => (a.at < b.at ? 1 : -1))[0];
+}
+
+/**
+ * "What to improve" from what the checks and the other plugins keep (improve.ts): a few KV reads and at most two D1
+ * reads, no request. Plugins this site does not run (HealthOptions seo / media / backups / formsOutbox) are skipped.
+ */
+export async function currentImprovements(d: Pick<RunDeps, "kv" | "options" | "env">, o: { seo?: SeoSummary; forms?: { total: number; previous?: number } } = {}): Promise<Improvement[]> {
+	const opt = d.options;
+	const [state, notFound, cwv, media, seo] = await Promise.all([readState(d.kv), d.kv.get<NotFoundSummary>(KEYS.notFound), d.kv.get<Cwv>(KEYS.cwv), opt.media ? readMediaSummary(d.env.DB) : undefined, opt.seo ? latestSeoSummary(d, o.seo) : undefined]);
+	return improvements({ ...(opt.backups && state.checks.backups ? { backups: state.checks.backups } : {}), media: media ?? null, seo: seo ?? null, notFound, cwv, ...(opt.formsOutbox && o.forms ? { forms: o.forms } : {}) });
+}
+
+/** Form message counts of the last stored report and of the month before it (counts only), for the admin's list. */
+export async function reportFormsTrend(kv: Kv): Promise<{ total: number; previous?: number } | undefined> {
+	const last = ((await kv.get<{ month: string }[]>(KEYS.reports)) ?? [])[0];
+	const r = last ? await kv.get<ReportData>(KEYS.report(last.month)) : null;
+	if (!r?.forms) return undefined;
+	const before = await kv.get<ReportData>(KEYS.report(previousMonth(r.month)));
+	return { total: r.forms.total, ...(before?.forms ? { previous: before.forms.total } : {}) };
 }
 
 export async function storeReport(kv: Kv, data: ReportData): Promise<void> {

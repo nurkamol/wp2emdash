@@ -84,6 +84,11 @@ Facts and sources: [docs/spikes/analytics-findings.md](../../docs/spikes/analyti
   (indexable, canonical on the production domain, structured data). On staging or workers.dev, blocking search engines
   is expected and shown as a note, not an error.
 - **Dashboard widget:** average score, pages under 80, images to describe.
+- **Cached summary** (0.5, `@wp2emdash/seo/summary`): opening the dashboard or the widget stores a small summary of
+  the analysis in KV `summary` (D1 row `plugin:site-seo:summary`): pages and average score, pages that need more text,
+  pages without a meta description, pages missing their focus keyword, pictures without a description — counts and up
+  to 10 page titles each. Written only when it changed or is 6 hours old. Site health reads it for **What to improve
+  this month** (`readSeoSummary`), so it never reruns the analysis.
 
 ## Google Search Console (dashboard tab "Google")
 

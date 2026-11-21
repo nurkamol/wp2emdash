@@ -1,6 +1,6 @@
 {
   "name": "@wp2emdash/health",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Site health and the monthly report for EmDash on Cloudflare Workers: scheduled uptime, indexability, form, broken-link, mail-DNS, certificate, speed and analytics checks, email alerts and a branded monthly report (admins only)",
   "license": "MIT",
   "private": true,
@@ -17,7 +17,7 @@
   "peerDependencies": {
     "emdash": ">=1.5 <2",
     "@wp2emdash/forms": ">=1.6",
-    "@wp2emdash/seo": ">=0.2"
+    "@wp2emdash/seo": ">=0.5"
   },
   "engines": { "node": ">=24" }
 }

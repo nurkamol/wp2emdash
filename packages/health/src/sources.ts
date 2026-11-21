@@ -6,12 +6,16 @@
  */
 import { fetchVisits, VisitsError } from "@wp2emdash/seo/analytics/visits";
 import { analyseItem, type Item, mediaIds, mediaInfo, type SeoCtx } from "@wp2emdash/seo/plugin/collect";
+import { missingAltImages, type SeoSummary, seoSummaryOf } from "@wp2emdash/seo/summary";
 import { monthCounts } from "./checks/forms.js";
 import type { ReportInputs } from "./report.js";
 import type { RunDeps } from "./run.js";
 import { monthRange } from "./util.js";
 
-export type ReportSources = Pick<ReportInputs, "visits" | "forms" | "content" | "seo">;
+export type ReportSources = Pick<ReportInputs, "visits" | "forms" | "content" | "seo"> & {
+	/** The SEO suite's page summary of this run, for "What to improve"; absent without the SEO suite. */
+	seoSummary?: SeoSummary;
+};
 
 const MAX_ITEMS = 500;
 
@@ -71,16 +75,19 @@ export async function reportSources(d: RunDeps, month: string): Promise<ReportSo
 	const content = { items: published.map(({ i }) => ({ title: String(i.data.title ?? i.slug ?? i.id).slice(0, 120), publishedAt: (i as Item & { publishedAt?: string | null }).publishedAt ?? null, ...((i as Item & { updatedAt?: string }).updatedAt ? { updatedAt: (i as Item & { updatedAt?: string }).updatedAt } : {}) })) };
 	// SEO score: the SEO suite's analysis of every published page (alt text from the media library, focus keywords).
 	let seo: ReportSources["seo"];
+	let seoSummary: SeoSummary | undefined;
 	if (o.seo && published.length) {
 		try {
 			const ctx = { media: d.media } as unknown as SeoCtx;
 			const media = await mediaInfo(ctx, mediaIds(published.map((x) => x.i.data.content)));
 			const kw = await focusKeywords(env.DB);
-			const scores = published.map(({ c, i }) => analyseItem({ productionUrl: o.productionUrl, titleSeparator: o.seo?.titleSeparator ?? "-", ...(o.seo?.ogCards ? { ogCards: true } : {}) }, o.siteName, i, items.filter((x) => x.c === c).map((x) => x.i), media, kw.get(`${c}:${i.id}`)).score);
-			seo = { average: Math.round(scores.reduce((n, s) => n + s, 0) / scores.length), pages: scores.length };
+			const analysed = published.map(({ c, i }) => ({ title: String(i.data.title ?? i.slug ?? i.id), seo: i.seo ?? null, ids: mediaIds(i.data.content), analysis: analyseItem({ productionUrl: o.productionUrl, titleSeparator: o.seo?.titleSeparator ?? "-", ...(o.seo?.ogCards ? { ogCards: true } : {}) }, o.siteName, i, items.filter((x) => x.c === c).map((x) => x.i), media, kw.get(`${c}:${i.id}`)) }));
+			seo = { average: Math.round(analysed.reduce((n, s) => n + s.analysis.score, 0) / analysed.length), pages: analysed.length };
+			// The same analysis, summarised for "What to improve" (no second pass).
+			seoSummary = seoSummaryOf(analysed, missingAltImages(analysed, media), d.now);
 		} catch {
 			seo = { missing: "The SEO score could not be calculated this month." };
 		}
 	}
-	return { visits, forms, content, ...(seo ? { seo } : {}) };
+	return { visits, forms, content, ...(seo ? { seo } : {}), ...(seoSummary ? { seoSummary } : {}) };
 }

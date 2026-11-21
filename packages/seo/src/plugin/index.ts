@@ -20,6 +20,7 @@ import type { Analysis, Check } from "../analyze.js";
 import { SEO_PLUGIN, type SeoPanelOptions } from "../index.js";
 import { siteChecks } from "../site-checks.js";
 import { allItems, analyseItem, keywordKey, mediaIds, mediaInfo, type SeoCtx, siteReport } from "./collect.js";
+import { missingAltImages, seoSummaryOf, storeSeoSummary } from "../summary.js";
 import { DASHBOARD_PAGE, dashboard, type GoogleData, type GoogleState, type IndexNowState, type TabKey, WIDGET, widget } from "./dashboard.js";
 import { analyticsTab, overviewAnalytics, panelVisits, VISITS_WIDGET, visitsTab, visitsWidget, type VisitsState } from "../analytics/views.js";
 import { viewsOfPath } from "../analytics/visits.js";
@@ -179,10 +180,10 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 						}
 					}
 					const report = await siteReport(ctx, o, collections);
-					const missingAlt = [...report.usage.entries()]
-						// Pictures only (videos and files have no alt text), and only those the library knows.
-						.filter(([id]) => report.media.get(id)?.mimeType?.startsWith("image/") && !report.media.get(id)?.alt?.trim())
-						.map(([id, used]) => ({ id, filename: report.media.get(id)?.filename ?? id, ...(report.media.get(id)?.url ? { url: report.media.get(id)?.url } : {}), pages: [...new Set(used.map((p) => p.title))] }));
+					// Pictures only (videos and files have no alt text), and only those the library knows.
+					const missingAlt = missingAltImages(report.pages.map((p) => ({ title: p.title, ids: mediaIds(p.item.data.content) })), report.media);
+					// Cached for Site health's "What to improve" list (one KV read; a write only when it changed or is 6 hours old).
+					await storeSeoSummary(ctx.kv, seoSummaryOf(report.pages.map((p) => ({ title: p.title, analysis: p.analysis, seo: p.item.seo ?? null })), missingAlt));
 					if (ctx.ui?.surface === "dashboard-widget") return { blocks: widget(report.pages, missingAlt.length) };
 					const origin = ctx.request && URL.canParse(ctx.request.url) ? new URL(ctx.request.url).origin : o.productionUrl;
 					const paths = report.pages.map((p) => (p.item.slug && p.item.slug !== "home" && p.item.slug !== "index" ? `/${p.item.slug}/` : "/"));

@@ -6,6 +6,10 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **What to improve this month** (`@wp2emdash/health` 0.4.0): the monthly report email (HTML and plain text) opens with at most six plain-language to-dos, most important first, each with the pages, addresses or pictures it concerns (three named, the rest counted) and a link to the admin page that fixes it; the Site health **Overview** shows the same list (Site health's own items open the Missing pages or Speed tab). Sources, all already stored: backups failing, broken / undescribed / oversized pictures (Media Assistant), slow real-visitor speed (CrUX), missing addresses without a redirect (404 log), form messages down by half (monthly counts only, no message read), thin pages, missing meta descriptions and focus keywords (SEO suite). Plugins a site does not run are skipped; nothing to do is one positive line. Stored reports from before show no section.
+- **SEO summary for other plugins** (`@wp2emdash/seo` 0.5.0, `@wp2emdash/seo/summary`): the SEO dashboard and widget cache a small summary of their page analysis in KV `summary` (D1 `plugin:site-seo:summary`; counts and page titles; written only when changed or 6 hours old). Site health 0.4.0 needs `@wp2emdash/seo` ≥ 0.5.
+
 ## [1.4.0] — 2026-11-22
 
 ### Added
