@@ -7,6 +7,12 @@
  * renders (cached pages never reach it; saving the switch purges them): an isolate that trusted an older read could
  * re-cache the public page for the whole page lifetime right after the purge.
  *
+ * Optional schedule (`startAt` / `endAt`, UTC): the holding page shows while now is inside [startAt, endAt), even with
+ * the switch off; the switch still forces it on. `maintenanceActive` decides, everywhere the switch used to. Pages a
+ * visitor gets from the cache never reach this code, so Site health's 5-minute cron purges the cache once when a start
+ * or end passes (packages/health/src/maintenance.ts, which keeps a copy of `maintenanceActive`, as does
+ * utils/rewarm.ts; test/coming-soon-schedule.test.ts keeps them in step): switching takes up to 5 minutes.
+ *
  * No imports here: this file must load in Node (kit tests) and in the Worker (starter).
  */
 export const MAINTENANCE_OPTION = "plugin:site-health:maintenance";
@@ -19,6 +25,10 @@ export interface MaintenanceState {
 	message?: string;
 	/** When the site is expected back (ISO): sets Retry-After. */
 	until?: string;
+	/** Scheduled start (ISO). Empty with an end time: from now. */
+	startAt?: string;
+	/** Scheduled end (ISO): the holding page stops; also Retry-After and "Back at" on the holding page. */
+	endAt?: string;
 	at?: string;
 	/** The preview link's key (Site health → Settings); absent: no link. */
 	previewKey?: string;
@@ -42,19 +52,34 @@ function sameKey(a: string, b: string): boolean {
  * While the mode is on: "link" when the address carries the current key (set the cookie, drop the parameter),
  * "cookie" when the browser already holds it, else null (the holding page).
  */
-export function previewAccess(s: MaintenanceState, param: string | null | undefined, cookie: string | undefined): "link" | "cookie" | null {
-	if (!s.on || !s.previewKey) return null;
+export function previewAccess(s: MaintenanceState, param: string | null | undefined, cookie: string | undefined, now = Date.now()): "link" | "cookie" | null {
+	if (!maintenanceActive(s, now) || !s.previewKey) return null;
 	if (param && sameKey(param, s.previewKey)) return "link";
 	if (cookie && sameKey(cookie, s.previewKey)) return "cookie";
 	return null;
+}
+
+const isTime = (v: unknown): v is string => typeof v === "string" && v !== "" && !Number.isNaN(Date.parse(v));
+
+/** The holding page shows: the switch is on, or `now` is inside [startAt, endAt) (either end may be open). */
+export function maintenanceActive(s: Pick<MaintenanceState, "on" | "startAt" | "endAt"> | null | undefined, now = Date.now()): boolean {
+	if (!s || typeof s !== "object") return false;
+	if (s.on === true) return true;
+	const start = isTime(s.startAt) ? Date.parse(s.startAt) : Number.NaN;
+	const end = isTime(s.endAt) ? Date.parse(s.endAt) : Number.NaN;
+	if (Number.isNaN(start) && Number.isNaN(end)) return false;
+	return (Number.isNaN(start) || now >= start) && (Number.isNaN(end) || now < end);
 }
 
 /** The stored row's value (JSON) → the state; anything unreadable is "off". */
 export function parseMaintenance(value: unknown): MaintenanceState {
 	try {
 		const v = (typeof value === "string" ? JSON.parse(value) : value) as Partial<MaintenanceState> | null;
-		if (!v || v.on !== true) return { on: false };
-		return { on: true, ...(typeof v.heading === "string" && v.heading.trim() ? { heading: v.heading.trim().slice(0, 120) } : {}), ...(typeof v.message === "string" && v.message.trim() ? { message: v.message.trim().slice(0, 1000) } : {}), ...(typeof v.until === "string" && !Number.isNaN(Date.parse(v.until)) ? { until: v.until } : {}), ...(typeof v.at === "string" ? { at: v.at } : {}), ...(typeof v.previewKey === "string" && KEY.test(v.previewKey) ? { previewKey: v.previewKey } : {}) };
+		if (!v || typeof v !== "object") return { on: false };
+		const s: MaintenanceState = { on: v.on === true, ...(isTime(v.startAt) ? { startAt: v.startAt } : {}), ...(isTime(v.endAt) ? { endAt: v.endAt } : {}) };
+		// Switched off and nothing scheduled: nothing else matters.
+		if (!s.on && !s.startAt && !s.endAt) return { on: false };
+		return { ...s, ...(typeof v.heading === "string" && v.heading.trim() ? { heading: v.heading.trim().slice(0, 120) } : {}), ...(typeof v.message === "string" && v.message.trim() ? { message: v.message.trim().slice(0, 1000) } : {}), ...(isTime(v.until) ? { until: v.until } : {}), ...(typeof v.at === "string" ? { at: v.at } : {}), ...(typeof v.previewKey === "string" && KEY.test(v.previewKey) ? { previewKey: v.previewKey } : {}) };
 	} catch {
 		return { on: false };
 	}
@@ -65,17 +90,25 @@ export function maintenanceBypass(path: string): boolean {
 	return path.startsWith("/_emdash") || path === "/_image" || path.startsWith("/_consent/") || path.startsWith("/api/") || path.startsWith("/_astro/") || /\.[a-z0-9]{2,5}$/i.test(path);
 }
 
-/** Retry-After in seconds: until the announced time (at least 5 minutes, at most a day), else an hour. */
+/** When the site is expected back: the scheduled end, else "Expected back" — the first one still ahead of `now`. */
+export function backAt(s: MaintenanceState, now = Date.now()): string | undefined {
+	return [s.endAt, s.until].find((t): t is string => isTime(t) && Date.parse(t) > now);
+}
+
+/** Retry-After in seconds: until the scheduled end or the announced time (at least 5 minutes, at most a day), else an hour. */
 export function retryAfter(s: MaintenanceState, now = Date.now()): number {
-	const t = s.until ? Date.parse(s.until) : Number.NaN;
-	if (Number.isNaN(t)) return 3600;
-	return Math.min(86_400, Math.max(300, Math.round((t - now) / 1000)));
+	const at = backAt(s, now);
+	if (!at) return 3600;
+	return Math.min(86_400, Math.max(300, Math.round((Date.parse(at) - now) / 1000)));
 }
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** The holding page: logo (or the site name), heading, message. Self-contained (inline styles only; the CSP allows inline styles, no scripts). */
-export function comingSoonHtml(s: MaintenanceState, brand: { siteName: string; logo?: string; lang?: string; accent?: string; background?: string; text?: string }): string {
+export function comingSoonHtml(s: MaintenanceState, brand: { siteName: string; logo?: string; lang?: string; accent?: string; background?: string; text?: string }, now = Date.now()): string {
+	// Plain text, no countdown: the CSP allows no inline script.
+	const at = backAt(s, now);
+	const back = at ? new Date(Date.parse(at)).toISOString() : undefined;
 	const heading = s.heading || "We'll be back soon";
 	const message = s.message || `${brand.siteName} is getting ready. Please check back shortly.`;
 	const color = (c: string | undefined, d: string) => (c && /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\))$/i.test(c) ? c : d);
@@ -95,6 +128,7 @@ main{max-width:34rem}
 .name{font-weight:700;font-size:1.4rem;margin:0 0 28px}
 h1{font-size:clamp(1.6rem,4vw,2.4rem);line-height:1.2;margin:0 0 16px}
 p.msg{font-size:1.1rem;line-height:1.6;margin:0;white-space:pre-line}
+p.back{font-size:1rem;margin:20px 0 0;opacity:.8}
 .bar{width:56px;height:4px;border-radius:2px;background:${color(brand.accent, "#2271b1")};margin:28px auto 0}
 </style>
 </head>
@@ -103,7 +137,7 @@ p.msg{font-size:1.1rem;line-height:1.6;margin:0;white-space:pre-line}
 ${logo}
 <h1>${esc(heading)}</h1>
 <p class="msg">${esc(message)}</p>
-<div class="bar" aria-hidden="true"></div>
+${back ? `<p class="back">Back at ${esc(`${back.slice(0, 10)} ${back.slice(11, 16)}`)} UTC</p>\n` : ""}<div class="bar" aria-hidden="true"></div>
 </main>
 </body>
 </html>

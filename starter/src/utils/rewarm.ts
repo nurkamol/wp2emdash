@@ -47,10 +47,22 @@ export function parseRewarmSetting(raw: unknown, defaultMinutes: number): Rewarm
 	return { on: o.on === true, everyMinutes: Number.isInteger(minutes) && minutes >= 5 ? minutes : fallback.everyMinutes };
 }
 
-function maintenanceOn(raw: unknown): boolean {
+/**
+ * Coming-soon mode is showing at `now`: the switch is on, or `now` is inside its schedule [startAt, endAt) (either end
+ * open). A copy of `maintenanceActive` in utils/maintenance.ts (no imports here); test/coming-soon-schedule.test.ts
+ * keeps them in step.
+ */
+export function maintenanceOn(raw: unknown, now: number): boolean {
 	try {
 		const v = typeof raw === "string" ? JSON.parse(raw) : raw;
-		return !!v && typeof v === "object" && (v as { on?: unknown }).on === true;
+		if (!v || typeof v !== "object") return false;
+		const o = v as { on?: unknown; startAt?: unknown; endAt?: unknown };
+		if (o.on === true) return true;
+		const t = (x: unknown) => (typeof x === "string" && x ? Date.parse(x) : Number.NaN);
+		const start = t(o.startAt);
+		const end = t(o.endAt);
+		if (Number.isNaN(start) && Number.isNaN(end)) return false;
+		return (Number.isNaN(start) || now >= start) && (Number.isNaN(end) || now < end);
 	} catch {
 		return false;
 	}
@@ -66,7 +78,7 @@ export type RewarmPlan = { run: false; reason: "off" | "not-due" | "coming-soon"
 
 /** What this cron tick does, from the stored rows (D1 values: JSON strings, or null when absent). */
 export function planRewarm(rows: { setting?: unknown; request?: unknown; maintenance?: unknown }, scheduledTime: number, defaultMinutes: number): RewarmPlan {
-	if (maintenanceOn(rows.maintenance)) return { run: false, reason: "coming-soon" };
+	if (maintenanceOn(rows.maintenance, scheduledTime)) return { run: false, reason: "coming-soon" };
 	if (rows.request !== undefined && rows.request !== null) return { run: true, trigger: "manual" };
 	const s = parseRewarmSetting(rows.setting ?? null, defaultMinutes);
 	if (!s.on) return { run: false, reason: "off" };

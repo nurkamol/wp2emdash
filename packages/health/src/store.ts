@@ -166,6 +166,10 @@ export const KEYS = {
 	notFound: "notfound",
 	/** Coming-soon mode (the starter's middleware reads this row: `plugin:site-health:maintenance`). */
 	maintenance: "maintenance",
+	/** The coming-soon state the cron last purged the page cache for (scheduled start / end, maintenance.ts). */
+	maintenanceApplied: "maintenance:applied",
+	/** Missing addresses redirected from the Missing pages tab: path → target and when (left out of the list). */
+	redirected: "notfound:redirected",
 	report: (month: string) => `report:${month}`,
 	download: (token: string) => `dl:${token}`,
 } as const;

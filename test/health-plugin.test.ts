@@ -56,7 +56,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("Site health plugin", () => {
 	it("is a native plugin descriptor with a page, a widget, a cron hook and admin-only routes", () => {
 		expect(healthPlugin(OPTIONS)).toMatchObject({ id: "site-health", format: "native", entrypoint: "@wp2emdash/health/plugin" });
-		expect(plugin.capabilities).toEqual(["content:read", "media:read", "email:send"]);
+		expect(plugin.capabilities).toEqual(["content:read", "media:read", "email:send", "redirects:write"]);
 		expect(plugin.admin.pages[0]).toMatchObject({ path: "/health", icon: "heartbeat" });
 		expect(plugin.admin.widgets[0]?.id).toBe("site-health");
 		expect(plugin.routes.admin?.permission).toBe("plugins:manage");
