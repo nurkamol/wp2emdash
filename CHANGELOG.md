@@ -6,6 +6,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Media sitemap** (`/sitemap/media.xml`, closes #14): every generated site's sitemap index now also lists a media sitemap with every picture shown inside a page's sections (hero backgrounds, image and text, columns, cards, galleries, logos, team photos…), a post's body and an entry's image fields, using Google's image sitemap extension (`<image:image>`, the site's own address only, deduped, at most 1,000 per page), and the video sections using the video extension (`<video:video>`: an uploaded file as `content_loc` with its poster as thumbnail; a YouTube link as `player_loc` with YouTube's thumbnail; a Vimeo link when it has a poster). Same entries as the other sitemaps (published, indexable, not behind a password). EmDash 1.5's own sitemaps keep listing one SEO image per entry and no videos. Route-cached and purged with the pages. Background videos (decoration) and videos without a thumbnail are left out. Verify's `sitemap` gate lists each page once and requests a sample of the listed pictures and video files; the SEO panel and Site health count each sitemap address once.
+
 ## [1.0.0] — 2026-11-21
 
 First public release. The full pipeline (init → audit → extract → transform → scaffold → load → verify → cutover) with

@@ -87,7 +87,26 @@ crumbs), pages and posts render a visible trail and the BreadcrumbList uses the 
 Audit now fetches `/wp2emdash-404-check/` (snapshot/not-found.html when it answers 404/410); transform keeps the content
 area minus chrome and stock theme sentences, and only a customised page becomes the site part `not-found`.
 
+## Media sitemap (issue #14)
+
+Read in the installed emdash 1.5.0 (`src/astro/routes/sitemap.xml.ts`, `sitemap-[collection].xml.ts`,
+`api/handlers/seo.ts`, `seo/media-url.ts`, `media/normalize.ts`):
+
+- `/sitemap.xml` and `/sitemap-{collection}.xml` are routes EmDash injects; there is no hook or option to add entries
+  or images to them. Each `<url>` carries at most one `<image:image>`: the entry's SEO image (`_emdash_seo.seo_image`,
+  resolved by `buildSeoImageUrl`). No video extension anywhere.
+- Image and file field values (top level, repeaters and `blocks` fields) are normalised on save: `meta.storageKey`,
+  `mimeType`, dimensions filled from the local provider (`normalizeFieldValues` → `normalizeMediaValue`); local values
+  have `src` stripped. Files are served by storage key; a bare id 404s (M7 finding), so the kit never lists one.
+- The kit adds `/sitemap/media.xml` (starter `pages/sitemap/media.xml.ts`, pure builder `utils/media-sitemap.ts`) and the
+  middleware appends it to EmDash's index (as `/sitemap/archives.xml`). Google accepts image/video tags in a separate
+  sitemap that repeats page URLs. Its `<loc>`s are page URLs; `<image:loc>` / `<video:*_loc>` never match the warm-up's
+  and verify's `<loc>…</loc>` pattern (tested). Route rule `/sitemap/media.xml` (tags `pages` + posts/collections).
+
 ## Not exercised yet
+
+- The media sitemap on a deployed site and in Search Console (unit-tested builder; the route was not rendered in a
+  running EmDash in this change).
 
 - A real classic-theme WordPress (sidebars/widgets/menu-items REST with an application password).
 - Load's widget, menu and search steps against a running EmDash (remote or local dev server); the starter pages in a

@@ -48,7 +48,8 @@ export async function siteChecks(origin: string, productionUrl: string, publishe
 		let locs = sitemapLocs(sitemap.text);
 		if (/<sitemapindex/i.test(sitemap.text)) {
 			const children = await Promise.all(locs.slice(0, 20).map((u) => get(new URL(u).pathname)));
-			locs = children.flatMap((c) => sitemapLocs(c.text));
+			// The media sitemap lists pages again (with their pictures and videos): each address once.
+			locs = [...new Set(children.flatMap((c) => sitemapLocs(c.text)))];
 		}
 		const paths = new Set(locs.map((u) => (URL.canParse(u) ? new URL(u).pathname : u)));
 		const missing = publishedPaths.filter((p) => !paths.has(p));

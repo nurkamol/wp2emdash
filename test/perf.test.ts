@@ -26,12 +26,14 @@ describe("route caching config", () => {
 
 	it("has one rule per public page plus the sitemaps and image variants, tagged with EmDash collection names", () => {
 		const rules = routeRules(perf(), ["/", "/about-us/", "services/physical-therapy", "/about-us"]);
-		expect(Object.keys(rules)).toEqual(["/", "/about-us", "/services/physical-therapy", "/sitemap.xml", "/llms.txt", "/sitemap-[collection].xml", "/_image"]);
+		expect(Object.keys(rules)).toEqual(["/", "/about-us", "/services/physical-therapy", "/sitemap.xml", "/llms.txt", "/sitemap-[collection].xml", "/sitemap/media.xml", "/_image"]);
 		expect(rules["/"]).toEqual({ maxAge: 604800, swr: 86400, tags: ["pages", "site_parts", "popups"] });
 		// A blog or collections site: pages also carry those tags (footer widgets such as Recent posts show them).
 		expect(routeRules(perf(), ["/"], ["posts", "team"])["/"]?.tags).toEqual(["pages", "site_parts", "popups", "posts", "team"]);
 		expect(rules["/sitemap.xml"]?.maxAge).toBe(3600);
 		expect(rules["/sitemap.xml"]?.tags).toEqual(["pages"]);
+		// The media sitemap lists pictures in posts and collection entries too: purged with them.
+		expect(routeRules(perf(), ["/"], ["posts", "team"])["/sitemap/media.xml"]).toEqual({ maxAge: 3600, swr: 86400, tags: ["pages", "posts", "team"] });
 		expect(rules["/_image"]).toEqual({ maxAge: 86400, swr: 604800, tags: ["emdash:media"] });
 	});
 

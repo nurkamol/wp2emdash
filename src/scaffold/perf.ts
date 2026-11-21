@@ -49,6 +49,8 @@ export function routeRules(perf: PerfConfig, pagePaths: string[], contentTags: s
 	// /llms.txt lists the pages and newest posts: it lives and is purged like them (settings: the site name and tagline).
 	rules["/llms.txt"] = { maxAge: perf.pageMaxAge, swr: perf.swr, tags: ["pages", ...contentTags, "emdash:settings"] };
 	rules["/sitemap-[collection].xml"] = { maxAge: perf.maxAge, swr: perf.swr, tags: ["pages"] };
+	// The media sitemap (pictures and videos inside sections of pages, posts and collection entries).
+	rules["/sitemap/media.xml"] = { maxAge: perf.maxAge, swr: perf.swr, tags: ["pages", ...contentTags] };
 	// Transformed images (query = width/format): EmDash 1.5 does not purge them when an image is replaced in place,
 	// so they live a day; a deploy (new Worker version) starts a fresh cache.
 	if (perf.responsiveImages) rules["/_image"] = { maxAge: 86400, swr: 604800, tags: ["emdash:media"] };
