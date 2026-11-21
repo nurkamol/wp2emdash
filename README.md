@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/nurkamol/wp2emdash?color=F6821F"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-F6821F"></a>
   <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
   <img alt="Tests: 1213 passing" src="https://img.shields.io/badge/tests-1213%20passing-1F9D6B">
 </p>
