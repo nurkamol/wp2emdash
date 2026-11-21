@@ -48,7 +48,7 @@ function view(a: Analysis, keyword: string, source: "saved" | "draft"): Block[] 
 		{
 			type: "form",
 			block_id: "keyword",
-			fields: [{ type: "text_input", action_id: "keyword", label: "Focus keyword (what people search for to find this page)", placeholder: "e.g. reformer pilates Example City", ...(keyword ? { initial_value: keyword } : {}) }],
+			fields: [{ type: "text_input", action_id: "keyword", label: "Focus keyword (what people search for to find this page)", placeholder: "e.g. yoga classes in austin", ...(keyword ? { initial_value: keyword } : {}) }],
 			submit: { label: "Save keyword", action_id: "keyword" },
 		},
 		{ type: "actions", elements: [{ type: "button", action_id: "check-draft", label: "Check my unsaved changes", style: "secondary" }] },
