@@ -1,0 +1,60 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-2]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Latest news",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Follow us for updates.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "core/latest-posts: lists posts, but the site has none — dropped",
+      "path": "blocks[1]",
+      "tag": "core/latest-posts"
+    }
+  ]
+}

@@ -22,7 +22,7 @@ const MEDIA_EXT = "jpe?g|png|gif|webp|avif|svg|ico|bmp|tiff?|mp4|webm|ogv|ogg|mo
 const URL_RE = new RegExp(`(?:https?:)?//[^\\s"'<>()\\[\\]{}|\\\\^\`]+?\\.(?:${MEDIA_EXT})(?=[\\s"'<>()\\[\\]?#,;|&]|$)|/(?:wp-content/uploads|storage)/[^\\s"'<>()\\[\\]{}|\\\\^\`]+?\\.(?:${MEDIA_EXT})(?=[\\s"'<>()\\[\\]?#,;|&]|$)`, "gi");
 
 /** More document types, only under the uploads folder (elsewhere `.txt`/`.csv` links are rarely files of this site). */
-const DOC_EXT = "odt|ods|odp|rtf|csv|txt|rar|7z|epub|pps|ppsx|dotx|gz|tar|key|numbers|pages";
+const DOC_EXT = "odt|ods|odp|rtf|csv|txt|rar|7z|epub|pps|ppsx|dotx|gz|tar|key|numbers|pages|aac|flac|oga|opus";
 const DOC_RE = new RegExp(`(?:(?:https?:)?//[^\\s"'<>()\\[\\]{}|\\\\^\`/]+)?/(?:wp-content/uploads|storage)/[^\\s"'<>()\\[\\]{}|\\\\^\`]+?\\.(?:${DOC_EXT})(?=[\\s"'<>()\\[\\]?#,;|&]|$)`, "gi");
 
 const SHORTCODE_RE = /\[([a-z][a-z0-9_-]*)((?:\s+[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s\]]+))*)\s*\/?\]/gi;

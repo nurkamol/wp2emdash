@@ -26,7 +26,13 @@ const reusable = (id: number) => (id === 99 ? `<!-- wp:paragraph --><p>Shared no
 
 const adapters = {
 	wpbakery: (src: string) => adaptWpbakery(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0 }),
-	gutenberg: (src: string) => adaptGutenberg(src, { kind: "page", keys: new Keys("t"), popupFor, postCount: 0, reusable, postId: 10 }),
+	// Gutenberg fixtures: post_content, optionally after a `<!-- fixture {"postCount":n} -->` line (what transform knows).
+	gutenberg: (src: string) => {
+		const head = /^<!-- fixture (\{.*?\}) -->\n?/.exec(src);
+		const f = JSON.parse(head?.[1] ?? "{}") as { postCount?: number };
+		const terms: Record<string, string> = { "category:7": "news", "category:9": "studio-life" };
+		return adaptGutenberg(head ? src.slice(head[0].length) : src, { kind: "page", keys: new Keys("t"), popupFor, postCount: f.postCount ?? 0, reusable, postId: 10, termSlug: (tax, id) => terms[`${tax}:${id}`] });
+	},
 	// Bricks fixtures: { elements, templates?: { [id]: elements }, options?: { bricks_* }, kind?, title?, postCount?,
 	// permalinks?: { [postId]: path }, popups?: { [templateId]: slug }, content?: post_content, menus?: { [menuId]: items } } — the post meta, the
 	// bricks_template posts, the Bricks options (palette, global classes, theme styles, components, breakpoints), the

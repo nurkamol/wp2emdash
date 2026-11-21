@@ -11,17 +11,20 @@ interface Props {
 	level?: "h2" | "h3";
 	/** Load the image eagerly (first card on the page). */
 	eager?: boolean;
+	/** Parts a latest-posts section chose (default: everything, with the categories). */
+	show?: { image: boolean; date: boolean; author: boolean; excerpt: boolean };
 }
-const { post, level = "h2", eager } = Astro.props;
+const { post, level = "h2", eager, show } = Astro.props;
 const d = post.data;
 const href = postHref(post);
-const excerpt = (typeof d.excerpt === "string" && d.excerpt.trim()) || autoExcerpt(ptText(d.body));
+const excerpt = show && !show.excerpt ? "" : (typeof d.excerpt === "string" && d.excerpt.trim()) || autoExcerpt(ptText(d.body));
+const image = show ? show.image && d.featured_image : d.featured_image;
 const Title = level;
 ---
 
 <article class:list={["post-card", { "is-featured": d.featured === true }]}>
 	{
-		d.featured_image && (
+		image && (
 			<a href={href} class="post-card__media" tabindex="-1" aria-hidden="true">
 				<Image image={d.featured_image} class="post-card__img" sizes="(max-width: 700px) 100vw, 33vw" loading={eager ? "eager" : "lazy"} />
 			</a>
@@ -29,7 +32,7 @@ const Title = level;
 	}
 	<div class="post-card__body">
 		<Title class="post-card__title"><a href={href}>{d.title}</a></Title>
-		<PostMeta post={post} />
+		{show ? (show.date || show.author) && <PostMeta post={post} showDate={show.date} showAuthor={show.author} showCategories={false} /> : <PostMeta post={post} />}
 		{excerpt && <p class="post-card__excerpt">{excerpt}</p>}
 	</div>
 </article>

@@ -5,9 +5,9 @@
 	"summary": {
 		"areas": 110,
 		"inScope": 103,
-		"done": 84,
+		"done": 85,
 		"superseded": 6,
-		"partial": 13,
+		"partial": 12,
 		"missing": 0,
 		"outOfScope": 7
 	},
@@ -326,12 +326,12 @@
 			"feature": "Gutenberg core blocks",
 			"emdash": "Converter supports core audio/file/table/embed/…",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "src/adapters/gutenberg/index.ts: 30 core blocks; no `core/file`, `core/audio`; dynamic blocks (latest-posts, query, categories, archives) → `dynamic` error",
-			"gap": "Add file/audio handlers (S). Query/latest-posts need a `posts_list` section (with the blog work).",
-			"effort": "M",
-			"risk": "low",
-			"priority": "P1",
+			"status": "done",
+			"kit": "src/adapters/gutenberg/index.ts: 34 core blocks. `core/file` → a link to the file + its download button (both point at the upload, so load moves it into the media library and rewrites them, gate `documents`; attachment-page links and the PDF preview reported); `core/audio` → new `audio` section (file through the media import like a video, caption, autoplay/loop; starter Audio.astro draws EmDash's `<audio>` player); `core/latest-posts` and `core/query` (post type `post`) → new `posts_list` section (count ≤ 50, category filter by slug, image/date/author/excerpt from the block's settings or its post template, columns; starter PostsList.astro lists published posts at render time, refreshed by the `posts` cache tag); ordering, offset, author/tag/search filters, pagination and other post-template blocks are reported, a site without posts drops the list (info), other post types and a site without a blog are `unmapped` errors; fixtures + goldens `gutenberg/file-audio`, `gutenberg/posts-list`, `gutenberg/posts-list-no-posts`",
+			"gap": "Other dynamic blocks (categories, archives, tag cloud, calendar, RSS) still → `dynamic` error; `core/table` stays legacy_html. Not yet run on a real site with these blocks. Bricks/Elementor/Divi post grids could reuse `posts_list` (not mapped yet).",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "2/2"
 		},
 		{
@@ -1772,7 +1772,7 @@
 				"gutenberg-libs"
 			],
 			"effort": "M",
-			"notes": ""
+			"notes": "Core file/audio and latest-posts/query loop (`audio`, `posts_list` sections) done 2026-11-21."
 		},
 		{
 			"rank": 21,

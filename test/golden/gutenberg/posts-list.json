@@ -1,0 +1,168 @@
+{
+  "sections": [
+    {
+      "type": "posts_list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[1-1]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "From the journal",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "count": 3,
+        "categories": [
+          "news"
+        ],
+        "showExcerpt": true,
+        "showDate": true,
+        "showImage": true,
+        "showAuthor": false,
+        "columns": 3
+      }
+    },
+    {
+      "type": "posts_list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[2-2]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "h3",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Studio life",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "count": 6,
+        "categories": [
+          "studio-life"
+        ],
+        "showExcerpt": false,
+        "showDate": false,
+        "showImage": true,
+        "showAuthor": true,
+        "columns": 2
+      }
+    },
+    {
+      "type": "posts_list",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[4-4]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "count": 50,
+        "categories": [],
+        "showExcerpt": true,
+        "showDate": false,
+        "showImage": false,
+        "showAuthor": false
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "core/latest-posts: excerptLength=20, featuredImageSizeSlug=\"medium\" not carried (the list uses the site's post cards)",
+      "path": "blocks[1]",
+      "tag": "core/latest-posts"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "core/latest-posts: category #44 not found in the extract — left out of the filter",
+      "path": "blocks[1]",
+      "tag": "core/latest-posts"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "core/query: filtered by post_tag (only category filters are kept)",
+      "path": "blocks[2]",
+      "tag": "core/query"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "core/query: the post template's core/post-terms not shown (each post shows its picture, title, date, author and excerpt as chosen)",
+      "path": "blocks[2]",
+      "tag": "core/query"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "core/query: page numbers not rebuilt — the list shows the newest posts; the posts page has numbered pages",
+      "path": "blocks[2]",
+      "tag": "core/query"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "core/query: its no-results text is replaced by the list's own",
+      "path": "blocks[2]",
+      "tag": "core/query"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "core/query: lists \"service\" entries — only blog posts have a list section",
+      "path": "blocks[3]",
+      "carriesContent": true,
+      "tag": "core/query"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "core/latest-posts: order title asc (the list is newest first); only author #2 (the list shows every author); full post text (the list shows the excerpt)",
+      "path": "blocks[4]",
+      "tag": "core/latest-posts"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "core/latest-posts: 80 posts asked for, the list shows at most 50",
+      "path": "blocks[4]",
+      "tag": "core/latest-posts"
+    }
+  ]
+}

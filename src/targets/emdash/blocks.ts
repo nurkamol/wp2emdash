@@ -309,6 +309,10 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 			return base("tabs", { ...head, tabs: s.fields.tabs.map((t) => ({ label: t.label, body: ptToMd(t.body) || "—" })) });
 		case "video":
 			return base("video", { ...head, video: s.fields.video ? media(s.fields.video) : undefined, embed_url: s.fields.embedUrl, poster: s.fields.poster ? media(s.fields.poster) : undefined, caption: s.fields.caption });
+		case "audio":
+			return base("audio", { ...head, audio: media(s.fields.audio), caption: s.fields.caption, ...(s.fields.autoplay ? { autoplay: true } : {}), ...(s.fields.loop ? { loop: true } : {}) });
+		case "posts_list":
+			return base("posts_list", { ...head, count: s.fields.count, categories: s.fields.categories.join(", ") || undefined, show_excerpt: s.fields.showExcerpt, show_date: s.fields.showDate, show_image: s.fields.showImage, show_author: s.fields.showAuthor, ...(s.fields.columns ? { columns: s.fields.columns } : {}) });
 		case "form":
 			return base("form", { ...head, intro: pt(s.fields.intro), form_id: `${s.fields.formRef.provider}-${s.fields.formRef.id}`, aside: pt(s.fields.aside), ...(s.fields.stacked ? { stacked: true } : {}), ...(s.fields.formWidth ? { form_width: s.fields.formWidth } : {}), ...(s.fields.formGap ? { form_gap: s.fields.formGap } : {}) });
 		case "map":
