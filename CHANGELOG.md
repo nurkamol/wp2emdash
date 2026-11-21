@@ -6,8 +6,10 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-11-22
+
 ### Added
-- **Tracking loads after the page has drawn** (SEO & Analytics → Analytics, switch on by default): Google tag / Tag Manager, Meta, Clarity, Hotjar and Cloudflare scripts download after the page's load event and an idle moment (at most 2 s), or at the visitor's first scroll, tap or key. Calls are queued meanwhile (page views and events kept). Takes ~300 KB of Google scripts out of the first view and the Lighthouse LCP estimate. Off: the old immediate loading.
+- **Tracking loads after the page has drawn** (`@wp2emdash/seo` 0.4.1; SEO & Analytics → Analytics, switch on by default): Google tag / Tag Manager, Meta, Clarity, Hotjar and Cloudflare scripts download after the page's load event and an idle moment (at most 2 s), or at the visitor's first scroll, tap or key. Calls are queued meanwhile (page views and events kept). Takes ~300 KB of Google scripts out of the first view and the Lighthouse LCP estimate. Off: the old immediate loading.
 - **Footer business details switch** (`@wp2emdash/seo` 0.4.1): admins show or hide the footer's business name, address, phone and hours on SEO & Analytics → Site checks, without a rebuild. Stored in the SEO plugin's KV (`plugin:site-seo:business`), read with the page chrome, saving purges the cached pages. Never saved or unreadable: the block shows. Only on sites built with the block.
 
 ### Changed
@@ -15,6 +17,7 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - Self-hosted fonts must cover every family the site uses: scaffold compares the download with the Google Fonts link and, when a family is missing (seen intermittently: a build had only the display font), warns, keeps the Google link and saves Google's answer to `reports/scaffold/google-fonts-answer.css`. A face without a woff2 file fails self-hosting instead of being skipped. The log names the self-hosted families.
 - Google Fonts never lose a family to a failed request: only Google's 400 means "not on Google Fonts"; a network error or 5xx is retried twice, then the whole font link is kept (warned). A font file that cannot be downloaded fails self-hosting (Google link kept) instead of leaving that font out. A transient failure had dropped a site's body font from a production build.
 - Opening hours group consecutive days: "Mo,Tu,We,Th,Fr" reads "Mon–Fri", all seven days "Every day" (English; other languages "Mon–Sun").
+- Test fixtures: dummy Telegram and Google API key values are split in the source so secret scanners do not flag them (they were never real credentials).
 
 ## [1.3.0] — 2026-11-22
 
