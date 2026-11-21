@@ -73,5 +73,5 @@ copy was reset to the new history. A local-only planning branch was not pushed.
 ## 6. After publishing
 
 - [ ] Check the Pages site live, the README renders with the logo in light and dark mode.
-- [ ] Open the first issues for known gaps from `docs/parity/wp-to-emdash.md` (labelled `good first issue` where
+- [x] Open the first issues for known gaps from `docs/parity/wp-to-emdash.md` (labelled `good first issue` where
       suitable).
