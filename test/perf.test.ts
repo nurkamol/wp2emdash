@@ -202,7 +202,8 @@ describe("brand files", () => {
 		// The layout's brand (Settings → General, site.config as fallback: utils/settings.ts) wins; site.config otherwise.
 		expect(h).toContain("const logo = brand ? brand.logo : (h.logoImg ?? (h.logo ? { src: h.logo } : undefined));");
 		expect(h).toContain('<img {...logo} alt="" class="logo logo--default" decoding="async" />');
-		expect(h).toContain('<img {...logo} alt="" loading="lazy" decoding="async" />');
+		// The menu panel shows the same logo file the header already loaded: not lazy (audits flag lazy images near the top).
+		expect(h).toContain('<img {...logo} alt="" decoding="async" />');
 		const base = starter("layouts/Base.astro");
 		expect(base).toContain("{brand.icons.map((i) => <link rel={i.rel} href={i.href} type={i.type || undefined} sizes={i.sizes} />)}");
 		expect(base).toContain("logo: header.logoImg ?? { src: header.logo as string }");
@@ -262,7 +263,7 @@ describe("starter: route cache, CSP, announcement schedule, background video", (
 
 	it("paints the background picture first and attaches the video only after load, idle, on wide screens", () => {
 		const s = starter("components/Section.astro");
-		expect(s).toContain('{v.bg_image && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" priority={type === "hero" || v._lead === true} />}');
+		expect(s).toContain('{v.bg_image && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" priority={type === "hero" || v._lead === true} fetchpriority={type === "hero" || v._lead === true ? "high" : undefined} />}');
 		const video = /<video [^>]*\/>/.exec(s)?.[0] ?? "";
 		expect(video).toContain('preload="none"');
 		expect(video).toContain("data-src={videoSrc}");

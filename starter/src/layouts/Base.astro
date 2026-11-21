@@ -173,6 +173,8 @@ const typekitHref = (site.fonts as { typekitHref?: string }).typekitHref;
 		    consent tool) is known before anything else starts. */}
 		<Consent />
 		{/* RSS autodiscovery (blog sites): the site feed, then this page's own (an archive's). */}
+		{/* The page map for AI assistants (pages/llms.txt.ts), named so crawlers and audits find it from any page. */}
+		<link rel="alternate" type="text/markdown" href="/llms.txt" title="llms.txt" />
 		{[...blogFeed, ...extraFeeds].map((f) => <link rel="alternate" type="application/rss+xml" title={`${siteTitle} » ${f.title}`} href={f.href} />)}
 		{/* Site widgets before analytics: a consent tool starts first (both scripts are deferred, run in order). */}
 		<SiteWidgets />

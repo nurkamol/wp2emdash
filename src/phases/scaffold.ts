@@ -11,6 +11,7 @@ import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
 import { backupsOptions } from "../scaffold/backups.js";
 import { healthOptions, mailBaselineFrom } from "../scaffold/health.js";
+import { ardManifest } from "../../starter/src/utils/ard.js";
 import { CSP_REPORT_PATH } from "../../starter/src/utils/csp-report.js";
 import { mediaNeedsAi, mediaOptions } from "../scaffold/media.js";
 import { changeRequestsOptions } from "../scaffold/change-requests.js";
@@ -516,6 +517,10 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	for (const f of existsSync(join(project, "public")) ? readdirSync(join(project, "public")) : []) if (/^[0-9a-f]{32}\.txt$/.test(f) && f !== `${indexNowKey}.txt`) rmSync(join(project, "public", f));
 	if (config.seo.panel) writeFileSync(join(project, "public", `${indexNowKey}.txt`), indexNowKey);
 	else rmSync(join(project, "public", `${indexNowKey}.txt`), { force: true });
+	// Agentic Resource Discovery manifest (starter/src/utils/ard.ts): a static file, so agents and Lighthouse's
+	// "Agentic Browsing" check get it from the asset layer at once instead of a rendered 404.
+	mkdirSync(join(project, "public", ".well-known"), { recursive: true });
+	writeFileSync(join(project, "public", ".well-known", "ard.json"), `${JSON.stringify(ardManifest({ name: config.name, productionUrl: siteConfig.productionUrl }), null, "\t")}\n`);
 	// Term archives the site serves (blog and collection taxonomies): the SEO plugin finds an archive's stored SEO by its address.
 	const archiveBases = [...(blogPlan?.taxonomies ?? []), ...(cptPlan?.taxonomies ?? [])].map((t) => ({ taxonomy: t.name, base: t.base })).filter((t, i, all) => all.findIndex((x) => x.taxonomy === t.taxonomy) === i);
 	const seoPanel = config.seo.panel ? { productionUrl: siteConfig.productionUrl, titleSeparator: /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-", collections: [...(blogPlan ? ["pages", "posts"] : ["pages"]), ...(cptPlan?.collections ?? []).filter((c) => c.routable).map((c) => c.slug)], ...(og ? { ogCards: true } : {}), ...(archiveBases.length ? { archives: archiveBases } : {}), indexNow: { key: indexNowKey, live: !!readJson<CloudflareResources>(join(paths.root, "cloudflare.json"))?.production?.live }, ...(config.analytics !== false ? { analytics: analyticsOptions({ seed: analytics, ...(cfCreds.accountId ? { accountId: cfCreds.accountId } : {}), ...(rum ? { rum } : {}), stateFile: paths.state, ...(Object.keys(verification).length ? { verification } : {}) }) } : {}) } : undefined;

@@ -39,7 +39,7 @@ const style = [minH ? `--section-min-h:${minH}` : "", padTopT ? `--pad-top-t:${p
 	{
 		(v.bg_image || v.bg_video) && (
 			<div class="section__bg" aria-hidden="true" data-motion={v.bg_motion === "parallax" ? "parallax" : undefined}>
-				{v.bg_image && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" priority={type === "hero" || v._lead === true} />}
+				{v.bg_image && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" priority={type === "hero" || v._lead === true} fetchpriority={type === "hero" || v._lead === true ? "high" : undefined} />}
 				{/* Background video: the picture above is the first paint (LCP) and stays for phones, data saver and reduced
 				   motion; scripts/site.ts attaches the file (data-src) once the page has loaded and the browser is idle.
 				   data-always: no picture to fall back on, so the video is attached everywhere. */}
