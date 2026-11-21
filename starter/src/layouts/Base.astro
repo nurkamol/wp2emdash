@@ -7,6 +7,7 @@ import Announcement from "../components/Announcement.astro";
 import Sections from "../components/Sections.astro";
 import Popups from "../components/Popups.astro";
 import StructuredData from "../components/StructuredData.astro";
+import BusinessInfo from "../components/BusinessInfo.astro";
 import Analytics from "../components/Analytics.astro";
 import Consent from "../components/Consent.astro";
 import SiteWidgets from "../components/SiteWidgets.astro";
@@ -233,6 +234,8 @@ const typekitHref = (site.fonts as { typekitHref?: string }).typekitHref;
 					</nav>
 				)
 			}
+			{/* Name, address, phone, hours (kit.config business.footer; scaffold leaves it out when the footer already shows them). */}
+			<BusinessInfo />
 			{siteCredit && <p class="site-credit container">{siteCredit.text} <a href={siteCredit.url}>{siteCredit.name}</a></p>}
 		</footer>
 		<Popups popups={popups.entries as any} />

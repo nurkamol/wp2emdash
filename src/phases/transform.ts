@@ -20,7 +20,7 @@ import { loadOverrides } from "../config/overrides.js";
 import { currentYear } from "../transform/year.js";
 import type { GateCheck } from "../core/state.js";
 import { Keys } from "../ir/portable-text.js";
-import { businessFromJsonLd } from "../transform/business.js";
+import { applyBusinessOverride, businessFromJsonLd } from "../transform/business.js";
 import { completeMarianaEmbeds, marianaTenant } from "../transform/embeds.js";
 import { collectSnippets, completeProviderLoaders, providerLoaders, settleLoaders } from "../transform/snippets.js";
 import { consentReport, planConsent } from "../transform/consent.js";
@@ -870,7 +870,8 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const siteIconId = typeof options.site_icon === "number" && options.site_icon > 0 ? options.site_icon : undefined;
 	// The business from the live home page's structured data (Rank Math/Yoast LocalBusiness/Organization).
 	const homeSnap = existsSync(pagesDir) ? readdirSync(pagesDir).map((f) => readJson<{ url?: string; seo?: { jsonLd?: unknown[] } }>(join(pagesDir, f))).find((x) => { try { return !!x?.url && new URL(x.url).pathname === "/"; } catch { return false; } }) : undefined;
-	const business = businessFromJsonLd(homeSnap?.seo?.jsonLd ?? []);
+	// Owner corrections (overrides.ts business) on top: the JSON-LD and the footer contact block both read this.
+	const business = applyBusinessOverride(businessFromJsonLd(homeSnap?.seo?.jsonLd ?? []), overrides.business, siteTitle);
 	const site: IrSite = { version: IR_VERSION, title: siteTitle, ...(business ? { business } : {}), ...(typeof options.blogdescription === "string" && options.blogdescription ? { tagline: options.blogdescription } : {}), ...(frontId ? { frontPage: "/" } : {}), ...(siteIconId ? { siteIcon: { wpId: siteIconId, kind: "image" } } : {}), menus, partials, popups };
 	const siteValid = irSite.safeParse(site);
 	if (!siteValid.success) invalid.push(`site.json: ${siteValid.error.issues[0]?.message}`);

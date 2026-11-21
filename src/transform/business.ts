@@ -3,6 +3,7 @@
  * the LocalBusiness/Organization node, its Place (geo, map) merged in. Only schema.org business fields are kept;
  * images are not (the migrated brand logo is used), and nothing is invented when the source has no such node.
  */
+import type { Overrides } from "../config/overrides.js";
 import type { IrSite } from "../ir/schema.js";
 
 type Node = Record<string, unknown>;
@@ -40,4 +41,16 @@ export function businessFromJsonLd(blocks: unknown[]): IrSite["business"] {
 		...(hours.length ? { openingHours: hours } : {}),
 		...(sameAs.length ? { sameAs } : {}),
 	};
+}
+
+/** overrides.ts `business` on the carried business: address fields merge, the others replace, "" removes a field. */
+export function applyBusinessOverride(business: IrSite["business"], override: Overrides["business"], siteName: string): IrSite["business"] {
+	if (!override) return business;
+	const { reason: _r, address, ...fields } = override;
+	const drop = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== "" && v !== undefined && !(Array.isArray(v) && !v.length)));
+	const merged = drop({ ...(business ?? {}), ...fields });
+	const addr = drop({ ...business?.address, ...address });
+	if (Object.keys(addr).length) merged.address = addr;
+	else delete merged.address;
+	return { ...merged, type: (merged.type as string | undefined) ?? "LocalBusiness", name: (merged.name as string | undefined) ?? siteName } as NonNullable<IrSite["business"]>;
 }

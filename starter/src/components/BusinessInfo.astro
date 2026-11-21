@@ -1,0 +1,37 @@
+---
+/**
+ * The business's name, address, phone and opening hours as footer text (local SEO wants them visible, not only in
+ * JSON-LD). Same source as StructuredData.astro (site.config structuredData.business), so text and JSON-LD agree.
+ * Rendered only when scaffold set site.config `businessFooter` (kit.config business.footer, and the migrated footer
+ * does not already show the address or phone: src/scaffold/business.ts). Owner corrections: overrides.ts `business`.
+ */
+import site from "../site.config.json";
+import { addressLines, type Business, hasContact, mapHref, openingHoursLines, showsHours, telHref } from "../utils/business";
+
+const sc = site as { businessFooter?: boolean; lang?: string; structuredData?: { business?: Business } };
+const b = sc.businessFooter ? sc.structuredData?.business : undefined;
+const show = hasContact(b);
+const lines = show ? addressLines(b.address) : [];
+const map = show && lines.length ? mapHref(b) : undefined;
+const tel = show ? telHref(b.telephone) : undefined;
+const email = show && b.email && /^[^\s@]+@[^\s@]+$/.test(b.email) ? b.email : undefined;
+const hours = show && showsHours(b) ? openingHoursLines(b.openingHours, sc.lang ?? "en") : [];
+---
+
+{
+	show && (
+		<div class="business-info container">
+			<address class="business-info__nap">
+				<strong class="business-info__name">{b.name}</strong>
+				{lines.length > 0 && (map ? <a href={map} target="_blank" rel="noopener" class="business-info__address">{lines.map((l, n) => <>{n > 0 && <br />}{l}</>)}</a> : <span class="business-info__address">{lines.map((l, n) => <>{n > 0 && <br />}{l}</>)}</span>)}
+				{tel && <a href={tel} class="business-info__phone">{b.telephone}</a>}
+				{email && <a href={`mailto:${email}`} class="business-info__email">{email}</a>}
+			</address>
+			{hours.length > 0 && (
+				<ul class="business-info__hours" role="list" aria-label="Opening hours">
+					{hours.map((h) => <li>{h}</li>)}
+				</ul>
+			)}
+		</div>
+	)
+}

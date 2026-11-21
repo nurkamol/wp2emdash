@@ -850,6 +850,13 @@ body.over-hero { padding-top: var(--announce-h, 0px); }
 .footer-menu { padding-block: 1rem 1.5rem; }
 .footer-menu ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0; padding: 0; }
 .footer-menu a { color: inherit; }
+/* Footer contact block (components/BusinessInfo.astro): name, address, phone and hours in the footer's own colours. */
+.business-info { display: flex; flex-wrap: wrap; gap: 0.75rem 2.5rem; padding-block: 1.25rem; font-size: 0.875rem; line-height: 1.55; }
+.business-info__nap { display: flex; flex-direction: column; gap: 0.2rem; font-style: normal; }
+.business-info__name { font-weight: 600; }
+.business-info a { color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+.business-info a:hover, .business-info a:focus-visible { text-decoration: underline; text-underline-offset: 0.15em; }
+.business-info__hours { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; align-content: start; }
 .widget + .widget { margin-top: 1.75rem; }
 .widget__title { font-family: var(--font-display); font-size: 1.1em; margin: 0 0 0.6rem; }
 .widget ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.4rem; }
