@@ -53,25 +53,25 @@ copy was reset to the new history. A local-only planning branch was not pushed.
 ## 4. Quality gates
 
 - [x] `pnpm test && pnpm typecheck` green on a fresh clone with `pnpm install --frozen-lockfile`.
-- [ ] CI workflow green on the public repository (runs on pull requests from forks without secrets).
+- [x] CI workflow green on the public repository (runs on pull requests from forks without secrets).
 - [x] `pnpm wp2emdash --help` and every command in the README run.
 - [x] Generated client projects build: scaffold a fixture site and run `astro check` + `astro build`.
 
 ## 5. GitHub settings
 
-- [ ] Visibility: public.
-- [ ] Private vulnerability reporting: Settings → Advanced Security (or "Code security") → Private vulnerability
+- [x] Visibility: public.
+- [x] Private vulnerability reporting: Settings → Advanced Security (or "Code security") → Private vulnerability
       reporting → Enable, or `gh api -X PUT repos/nurkamol/wp2emdash/private-vulnerability-reporting`. Only possible
       once the repository is public; `SECURITY.md` links to it.
-- [ ] Pages: Settings → Pages → Source "GitHub Actions"; the `Pages` workflow publishes `site/`.
+- [x] Pages: Settings → Pages → Source "GitHub Actions"; the `Pages` workflow publishes `site/`.
 - [x] Description, website (Pages URL), topics: `wordpress`, `migration`, `emdash`, `cloudflare-workers`, `astro`,
       `cms`.
-- [ ] Branch protection on `main`: PRs required, CI required, no force-push (after the history rewrite).
+- [x] Branch protection on `main`: PRs required, CI required, no force-push (after the history rewrite).
 - [ ] Dependabot (actions + npm) and secret scanning / push protection on.
 - [ ] Social preview image (the logo on a 1280×640 card).
 
 ## 6. After publishing
 
-- [ ] Check the Pages site live, the README renders with the logo in light and dark mode.
+- [x] Check the Pages site live, the README renders with the logo in light and dark mode.
 - [x] Open the first issues for known gaps from `docs/parity/wp-to-emdash.md` (labelled `good first issue` where
       suitable).
