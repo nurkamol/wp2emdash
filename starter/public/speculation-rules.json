@@ -1,0 +1,111 @@
+{
+	"prefetch": [
+		{
+			"source": "document",
+			"eagerness": "moderate",
+			"where": {
+				"and": [
+					{
+						"href_matches": {
+							"pathname": "/*"
+						}
+					},
+					{
+						"not": {
+							"href_matches": {
+								"pathname": "/_emdash{/*}?"
+							}
+						}
+					},
+					{
+						"not": {
+							"href_matches": {
+								"pathname": "/_image{/*}?"
+							}
+						}
+					},
+					{
+						"not": {
+							"href_matches": {
+								"pathname": "/_astro{/*}?"
+							}
+						}
+					},
+					{
+						"not": {
+							"href_matches": {
+								"pathname": "/api{/*}?"
+							}
+						}
+					},
+					{
+						"not": {
+							"href_matches": {
+								"pathname": "/wp-content{/*}?"
+							}
+						}
+					},
+					{
+						"not": {
+							"href_matches": {
+								"pathname": "/wp-admin{/*}?"
+							}
+						}
+					},
+					{
+						"not": {
+							"href_matches": {
+								"pathname": "/wp-login{/*}?"
+							}
+						}
+					},
+					{
+						"not": {
+							"href_matches": {
+								"pathname": "/feed{/*}?"
+							}
+						}
+					},
+					{
+						"not": {
+							"href_matches": {
+								"pathname": "*/feed{/}?"
+							}
+						}
+					},
+					{
+						"not": {
+							"and": [
+								{
+									"href_matches": {
+										"pathname": "*.([A-Za-z0-9]{1,5})"
+									}
+								},
+								{
+									"not": {
+										"href_matches": {
+											"pathname": "*.([hH][tT][mM][lL]?)"
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"not": {
+							"href_matches": {
+								"pathname": "*",
+								"search": "((?:.*&)?(?:_preview|_edit|q|s))=*"
+							}
+						}
+					},
+					{
+						"not": {
+							"selector_matches": "[target=\"_blank\"], [download], [data-prefetch=\"false\"]"
+						}
+					}
+				]
+			}
+		}
+	]
+}
