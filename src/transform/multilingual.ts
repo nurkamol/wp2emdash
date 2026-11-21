@@ -179,11 +179,14 @@ export function matchCode(value: string, codes: string[]): string | undefined {
 	return same.length === 1 ? same[0] : undefined;
 }
 
-/** Canonical codes for a set of locales: the primary subtag unless two locales share it (`pt-br`, `pt-pt`). */
+/**
+ * Canonical codes for a set of locales: the primary subtag (`fr`, `fr-FR` → `fr`), unless two regional variants of it
+ * are both in use (`pt-br`, `pt-pt` stay apart).
+ */
 export function codesFor(locales: string[]): Map<string, string> {
 	const norm = [...new Set(locales.map(normCode).filter(Boolean))];
 	const out = new Map<string, string>();
-	for (const l of norm) out.set(l, norm.filter((x) => primary(x) === primary(l)).length > 1 ? l : primary(l));
+	for (const l of norm) out.set(l, l.includes("-") && norm.filter((x) => x.includes("-") && primary(x) === primary(l)).length > 1 ? l : primary(l));
 	return out;
 }
 
@@ -310,6 +313,26 @@ export function menuLanguage(menu: { id?: number; locations: string[]; locale?: 
 	});
 	const top = mostCommon(langs.filter((l) => l !== plan.defaultLang));
 	return top && langs.filter((l) => l === top).length > langs.length / 2 ? top : plan.defaultLang;
+}
+
+/**
+ * Roles for translated menus that carry no theme location (WPML assigns locations per language, the export shows the
+ * default language's): the role of the default-language menu in the same WPML translation group, else — when the
+ * language has a single such menu and the default language has a primary menu — "primary". `role: other` otherwise
+ * (still migrated under its own name, listed in the menus report).
+ */
+export function inheritMenuRoles<T extends { id?: number; role: string; lang?: string; wpLocations: string[] }>(menus: T[], wpml: WpmlRow[] = []): T[] {
+	const trid = (id?: number) => wpml.find((r) => r.element_type === "tax_nav_menu" && String(r.element_id) === String(id))?.trid;
+	const defaults = menus.filter((m) => !m.lang);
+	return menus.map((m) => {
+		if (!m.lang || m.role !== "other" || m.wpLocations.length) return m;
+		const t = trid(m.id);
+		const twin = t != null ? defaults.find((d) => trid(d.id) != null && String(trid(d.id)) === String(t) && d.role !== "other") : undefined;
+		if (twin) return { ...m, role: twin.role };
+		const siblings = menus.filter((x) => x.lang === m.lang && x.role === "other" && !x.wpLocations.length);
+		if (siblings.length === 1 && defaults.some((d) => d.role === "primary") && !menus.some((x) => x.lang === m.lang && x.role === "primary")) return { ...m, role: "primary" };
+		return m;
+	});
 }
 
 /** Menu locations without Polylang's language suffix (`primary___fr` → `primary`). */

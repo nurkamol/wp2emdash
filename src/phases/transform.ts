@@ -55,7 +55,7 @@ import type { BricksBox, RootVariables, ScreenshotResult } from "../audit/browse
 import type { ExporterPost, MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
 import type { SitePaths } from "../core/paths.js";
-import { baseLocations, buildPlan, localizeRoute, menuLanguage, ML_FILE, type MlDoc, type MlRaw, multilingualChecks, multilingualReport, normCode, TEMPLATE_TYPES, translationGroups, type WpmlRow } from "../transform/multilingual.js";
+import { baseLocations, buildPlan, inheritMenuRoles, localizeRoute, menuLanguage, ML_FILE, type MlDoc, type MlRaw, multilingualChecks, multilingualReport, normCode, TEMPLATE_TYPES, translationGroups, type WpmlRow } from "../transform/multilingual.js";
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_]+/g, "-");
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
@@ -843,11 +843,12 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	// Multilingual: each menu's language (a non-default language's menu is named `<role>-<lang>`; Polylang's
 	// `primary___fr` locations count as `primary`).
 	const menuLang = (m: MenuRaw) => (ml ? menuLanguage({ ...(m.id !== undefined ? { id: m.id } : {}), locations: m.locations, ...(typeof (m as { locale?: unknown }).locale === "string" ? { locale: (m as { locale?: string }).locale as string } : {}), items: m.items }, ml.plan, ml.wpml, siteHosts) : undefined);
-	const menus: IrSite["menus"] = menusRaw.map((m) => {
+	const menusBuilt = menusRaw.map((m) => {
 		const lang = menuLang(m);
 		const locations = ml ? baseLocations(m.locations) : m.locations;
-		return { name: m.name, role: menuRole(locations), wpLocations: m.locations, items: menuTree(m), ...(lang && ml && lang !== ml.plan.defaultLang ? { lang } : {}) };
+		return { ...(m.id !== undefined ? { id: m.id } : {}), name: m.name, role: menuRole(locations), wpLocations: m.locations, items: menuTree(m), ...(lang && ml && lang !== ml.plan.defaultLang ? { lang } : {}) };
 	});
+	const menus: IrSite["menus"] = (ml ? inheritMenuRoles(menusBuilt, ml.wpml) : menusBuilt).map(({ id: _id, ...m }) => m);
 	// Bricks has no menu locations: the site header template says which menu is the main one (a nav-menu element, or
 	// a nav-nested element with its own links), and its buttons are the header's calls to action (secondary menu).
 	const headerTpl = bricksParts.header && bricksTemplates.get(bricksParts.header.id);
