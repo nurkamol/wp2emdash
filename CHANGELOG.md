@@ -6,16 +6,16 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+## [1.2.1] — 2026-11-22
+
 ### Added
 - **ARD manifest** (`/.well-known/ard.json`, `starter/src/utils/ard.ts`): scaffold writes a static Agentic Resource Discovery manifest listing `/llms.txt` and `/sitemap.xml`, served by the asset layer. Lighthouse 13.6's **Agentic Browsing** check failed `ard-schema` because the rendered 404 for that path can exceed its 2-second fetch; now 4/4 (the llms.txt entry's `text/markdown` type is a low note, scored 0.9 = passed). Findings: `docs/spikes/agentic-browsing-findings.md`.
 - `<link rel="alternate" type="text/markdown" href="/llms.txt">` on every page, so crawlers and audits find the AI page map.
+- **Page preloading status** (Site health → Speed, `@wp2emdash/health` 0.3.1): a "Page preloading" line says whether hovered, focused or first-touched links load before the click (the kit's existing `performance.prefetch`, default on) and what it skips. Status only, no switch: scaffold passes `prefetch: false` to the plugin when the kit turned it off.
 
 ### Changed
 - The first section's background picture (hero or lead) gets `fetchpriority="high"` as well as eager loading (LCP).
 - The menu panel's logo (the same file the header already loaded) is no longer `loading="lazy"`.
-
-### Added (health)
-- **Page preloading status** (Site health → Speed, `@wp2emdash/health` 0.3.1): a "Page preloading" line says whether hovered, focused or first-touched links load before the click (the kit's existing `performance.prefetch`, default on) and what it skips. Status only, no switch: scaffold passes `prefetch: false` to the plugin when the kit turned it off.
 
 ## [1.2.0] — 2026-11-21
 
