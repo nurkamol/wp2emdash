@@ -10,6 +10,10 @@
  * Analytics (plugin/analytics.ts, analytics/*): tracking codes, conversion events and consent mode in the dashboard's
  * Analytics tab (changes: admins only; every save purges the cached pages), Cloudflare Web Analytics visits in the
  * Visits tab, the Visits dashboard widget (admins) and the editor panel (this page's views).
+ *
+ * Sharing text and archive SEO (social.ts, plugin/social.ts): per-entry Open Graph / Twitter text (panel → "Social
+ * sharing") and per-term archive SEO (dashboard tab "Archives"), carried from Yoast / Rank Math by the kit's load
+ * (`seo-import` route) and printed by the `page:metadata` hook, which runs before the sharing-card plugin (priority 50).
  */
 import { definePlugin } from "emdash";
 import type { Analysis, Check } from "../analyze.js";
@@ -19,10 +23,12 @@ import { allItems, analyseItem, keywordKey, mediaIds, mediaInfo, type SeoCtx, si
 import { DASHBOARD_PAGE, dashboard, type GoogleData, type GoogleState, type IndexNowState, type TabKey, WIDGET, widget } from "./dashboard.js";
 import { analyticsTab, overviewAnalytics, panelVisits, VISITS_WIDGET, visitsTab, visitsWidget, type VisitsState } from "../analytics/views.js";
 import { viewsOfPath } from "../analytics/visits.js";
-import type { StoredAnalytics } from "../analytics/store.js";
+import { purgePages, type StoredAnalytics } from "../analytics/store.js";
 import { ADMIN_ROLE, analyticsAction, loadAnalytics, type Toast, visitsState, workerBits } from "./analytics.js";
 import { dateRange, GoogleError, parseServiceAccount, pickProperty, SearchConsole } from "../google.js";
 import { type IndexNowResult, submitIndexNow } from "../indexnow.js";
+import { importSocial, parseSocial, parseTermSeo, socialKey, socialTags, termFromPath, termKey, termTags } from "../social.js";
+import { archivesState, archivesTab, saveSocial, socialPanel, termAction } from "./social.js";
 
 type Block = Record<string, unknown>;
 
@@ -62,8 +68,28 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 	const collections = o.collections?.length ? o.collections : ["pages"];
 	return definePlugin({
 		...SEO_PLUGIN,
-		capabilities: ["content:read", "media:read", "media:metadata:write", "admin.editor-draft:read"],
+		capabilities: ["content:read", "media:read", "media:metadata:write", "admin.editor-draft:read", "taxonomies:read"],
 		hooks: {
+			// Sharing text of the entry, or SEO of the term archive, from KV (one row by primary key). Before the sharing-card
+			// plugin (@wp2emdash/og, default priority 100): plugin tags are first-wins, so a custom image beats the card.
+			"page:metadata": {
+				priority: 50,
+				handler: async (event, raw) => {
+					const ctx = raw as unknown as { kv: SeoCtx["kv"] };
+					const page = event.page as { url: string; path?: string; siteUrl?: string; content?: { collection: string; id: string } };
+					const base = page.siteUrl && URL.canParse(page.siteUrl) ? page.siteUrl : page.url;
+					const origin = URL.canParse(base) ? new URL(base).origin : undefined;
+					if (page.content) {
+						const s = parseSocial(await ctx.kv.get(socialKey(page.content.collection, page.content.id)));
+						if (!s) return null;
+						return socialTags(s, { ...(origin ? { origin } : {}), ...(s.ogImage ? { ogImageMeta: await imageMeta(s.ogImage) } : {}) });
+					}
+					const t = page.path && o.archives?.length ? termFromPath(page.path, o.archives) : undefined;
+					const ts = t ? parseTermSeo(await ctx.kv.get(termKey(t.taxonomy, t.slug))) : undefined;
+					if (!ts) return null;
+					return termTags(ts, { ...(origin ? { origin } : {}), ...(ts.ogImage ? { ogImageMeta: await imageMeta(ts.ogImage) } : {}) });
+				},
+			},
 			// IndexNow on publish (only once the domain serves this site; before go-live it serves the old one).
 			"content:afterPublish": async (event, raw) => {
 				const ctx = raw as unknown as SeoCtx;
@@ -82,6 +108,19 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 			editorPanels: [{ id: "seo", title: "SEO", route: "panel", collections, order: 10, draft: { read: { fields: ["title", "content"] } } }],
 		},
 		routes: {
+			// Sharing text and archive SEO carried from WordPress, written by the kit's load (admins / admin-scope token).
+			"seo-import": {
+				methods: ["POST"],
+				request: { body: "json", maxBytes: 4 * 1024 * 1024 },
+				handler: async (raw) => {
+					const ctx = raw as unknown as SeoCtx & { user?: { role: number } };
+					if ((ctx.user?.role ?? 0) < ADMIN_ROLE) return { error: "admins only" };
+					const r = await importSocial(ctx.kv, ctx.input);
+					const purge = r.entries.written || r.terms.written ? await purgePages((await workerBits()).cache) : "no-cache";
+					ctx.log?.info("seo import", { entries: r.entries.written, terms: r.terms.written, kept: r.entries.kept + r.terms.kept, purge });
+					return { plugin: SEO_PLUGIN.id, version: SEO_PLUGIN.version, ...r };
+				},
+			},
 			// SEO dashboard page and dashboard widget (editors and admins).
 			admin: {
 				permission: "content:edit_any",
@@ -93,6 +132,14 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 					if (ctx.ui?.surface === "dashboard-widget" && i.page === `widget:${VISITS_WIDGET}`) {
 						if (!o.analytics || (ctx.user?.role ?? 0) < ADMIN_ROLE) return { blocks: [] };
 						return { blocks: visitsWidget(await visitsState(ctx, o, await workerBits(), fetchFn), host, DASHBOARD_PAGE) };
+					}
+					// Archive SEO actions: the edit form replaces the dashboard.
+					const archives = o.archives ?? [];
+					let archiveToast: Toast | undefined;
+					if ((i.action_id ?? "").startsWith("term-")) {
+						const r = await termAction(ctx, await archivesState(ctx, archives), i, (await workerBits()).cache);
+						if ("view" in r) return { blocks: r.view, ...(r.toast ? { toast: r.toast } : {}) };
+						archiveToast = r.toast;
 					}
 					// Analytics actions first: the add / edit forms replace the dashboard.
 					let analytics: StoredAnalytics | undefined = o.analytics ? await loadAnalytics(ctx, o) : undefined;
@@ -132,7 +179,7 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 					const fetcher = (self ? (input: RequestInfo | URL, init?: RequestInit) => self.fetch(new Request(String(input), init)) : fetch) as typeof fetch;
 					const site = await siteChecks(origin, o.productionUrl, paths, fetcher).catch((e: Error) => [{ id: "site", label: "Site checks", status: "warn" as const, detail: `Could not run: ${e.message}` }]);
 					// Google Search Console and IndexNow actions.
-					let toast: { message: string; type: "success" | "error" | "info" } | undefined = altSaved ? { message: `${altSaved} image description${altSaved === 1 ? "" : "s"} saved.`, type: "success" } : anToast;
+					let toast: { message: string; type: "success" | "error" | "info" } | undefined = altSaved ? { message: `${altSaved} image description${altSaved === 1 ? "" : "s"} saved.`, type: "success" } : (anToast ?? archiveToast);
 					let google: GoogleState;
 					const act = i.action_id ?? "";
 					if (act.startsWith("gsc-")) {
@@ -157,8 +204,9 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 							? { overview: overviewAnalytics(visits, analytics), visits: visitsTab(visits, host), tab: analyticsTab({ enabled: true, stored: analytics, options: o.analytics, productionUrl: o.productionUrl, admin: (ctx.user?.role ?? 0) >= ADMIN_ROLE, ...(anErrors ? { errors: anErrors } : {}) }) }
 							: undefined;
 					const tabFor: Record<string, TabKey> = { "save-alt": "images", refresh: "site", "indexnow-all": "indexnow", "visits-refresh": "visits" };
+					const archivesBlocks = archives.length ? archivesTab(await archivesState(ctx, archives)) : undefined;
 					return {
-						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}), google, ...(indexNow ? { indexNow } : {}), productionUrl: o.productionUrl, ...(an ? { analytics: an } : {}) }, act.startsWith("gsc-") ? "google" : act.startsWith("an-") ? "analytics" : (tabFor[act] ?? "overview")),
+						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}), google, ...(indexNow ? { indexNow } : {}), productionUrl: o.productionUrl, ...(an ? { analytics: an } : {}), ...(archivesBlocks ? { archives: archivesBlocks } : {}) }, act.startsWith("gsc-") ? "google" : act.startsWith("an-") ? "analytics" : act.startsWith("term-") ? "archives" : (tabFor[act] ?? "overview")),
 						...(toast ? { toast } : {}),
 					};
 				},
@@ -172,7 +220,14 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 					const i = (ctx.input ?? {}) as { type?: string; action_id?: string; values?: Record<string, unknown>; draft?: { fields?: Record<string, unknown> } };
 					const kvKey = keywordKey(entry.collection, entry.id);
 					let keyword = (await ctx.kv.get<string>(kvKey)) ?? "";
-					let toast: { message: string; type: "success" } | undefined;
+					let toast: { message: string; type: "success" | "error" | "info" } | undefined;
+					const socialK = socialKey(entry.collection, entry.id);
+					let social = parseSocial(await ctx.kv.get(socialK));
+					if (i.type === "form_submit" && i.action_id === "social") {
+						const r = await saveSocial(ctx, entry, i.values, (await workerBits()).cache);
+						social = r.stored;
+						toast = r.toast;
+					}
 					if (i.type === "form_submit" && i.action_id === "keyword") {
 						keyword = typeof i.values?.keyword === "string" ? i.values.keyword.trim().slice(0, 80) : "";
 						await ctx.kv.set(kvKey, keyword);
@@ -192,11 +247,21 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 						const slug = typeof saved.slug === "string" ? saved.slug : null;
 						if (vs?.kind === "data") traffic = panelVisits(viewsOfPath(vs.visits, new URL(pageUrl(o, slug)).pathname));
 					}
-					return { blocks: [...traffic, ...view(a, keyword, source)], ...(toast ? { toast } : {}) };
+					const fallback = { ...(saved.seo?.title || saved.data.title ? { title: String(saved.seo?.title || saved.data.title) } : {}), ...(saved.seo?.description ? { description: saved.seo.description } : {}) };
+					return { blocks: [...traffic, ...view(a, keyword, source), ...socialPanel(social, fallback)], ...(toast ? { toast } : {}) };
 				},
 			},
 		},
 	});
+}
+
+/** Size and type of a media-library image (EmDash's media table), so link previews lay it out right. */
+async function imageMeta(u: string): Promise<{ width?: number; height?: number; type?: string }> {
+	const key = /\/_emdash\/api\/media\/file\/([^/?#]+)$/.exec(u)?.[1];
+	if (!key) return {};
+	const { env } = (await import("cloudflare:workers")) as unknown as { env: { DB?: { prepare(q: string): { bind(...v: unknown[]): { first<T>(): Promise<T | null> } } } } };
+	const row = env.DB ? await env.DB.prepare("SELECT width, height, mime_type FROM media WHERE storage_key = ? LIMIT 1").bind(decodeURIComponent(key)).first<{ width: number | null; height: number | null; mime_type: string | null }>().catch(() => null) : null;
+	return { ...(row?.width ? { width: row.width } : {}), ...(row?.height ? { height: row.height } : {}), ...(row?.mime_type?.startsWith("image/") ? { type: row.mime_type } : {}) };
 }
 
 const pageUrl = (o: SeoPanelOptions, slug: string | null) => `${o.productionUrl.replace(/\/$/, "")}${slug && slug !== "home" && slug !== "index" ? `/${slug}/` : "/"}`;

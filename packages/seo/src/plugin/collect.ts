@@ -13,11 +13,12 @@ export interface Kv {
 	get<T>(k: string): Promise<T | null>;
 	set(k: string, v: unknown): Promise<void>;
 	delete?(k: string): Promise<boolean>;
+	list?(prefix?: string): Promise<{ key: string; value: unknown }[]>;
 }
 export interface SeoCtx {
 	input: unknown;
 	request?: Request;
-	user?: { role: number };
+	user?: { role: number; name?: string | null; email?: string };
 	ui?: { surface?: string; entry?: { collection: string; id: string } };
 	kv: Kv;
 	content?: { get(c: string, id: string): Promise<Item | null>; list(c: string, o?: { limit?: number; cursor?: string }): Promise<{ items: Item[]; cursor?: string; hasMore?: boolean }> };

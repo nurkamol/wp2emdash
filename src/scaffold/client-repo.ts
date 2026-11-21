@@ -531,6 +531,13 @@ hidden from search, and the sharing image. Enter a **focus keyword** (what peopl
 to check it is in the title, description, main heading, first paragraph and address. **Check my unsaved changes**
 checks the page before you save; changes to the SEO fields themselves show after saving. A good score helps, but
 rankings also depend on content quality, links from other sites and the Google Business Profile.
+
+**Social sharing** (in the same SEO panel): the title, description and picture a link to the page shows on Facebook,
+LinkedIn, X and in messengers, when they should differ from the SEO title and description. Leave them empty to use
+those. Text the old site had here was carried over.
+
+**Archives** (tab "Archives"): the search title, description and sharing text of category, tag and other archive
+pages, and whether search engines should list them. Archives without their own use the term's name and description.
 ` : ""}${healthGuide(i.health, i.productionUrl)}${consentGuide(i.consent)}${backupsGuide(i.backups)}${mediaGuide(i.media)}${changeRequestsGuide(i.changeRequests)}${motionGuide(i.motion)}`);
 
 	const formRows = i.forms.map((f) => `| ${f.title} (\`${f.id}\`) | ${f.fields.join(", ") || "—"} | ${f.withheld.length ? f.withheld.join(", ") : "—"} |`).join("\n");

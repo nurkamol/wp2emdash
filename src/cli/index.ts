@@ -287,6 +287,7 @@ program
 		console.log(`${pc.green("✔")} ${r.file}: ${r.found.join(", ") || "nothing found"}`);
 		if (r.missing.length) console.log(pc.dim(`not in the dump: ${r.missing.join(", ")}`));
 		if (r.dropped.length) console.log(pc.yellow(`left out (look like credentials): ${r.dropped.join(", ")}`));
+		if (r.termSeo) console.log(`${pc.green("✔")} Rank Math term SEO for ${r.termSeo} term(s) → raw/seo-termmeta.json`);
 	});
 
 program

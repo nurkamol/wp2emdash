@@ -182,6 +182,10 @@ export class EmDashApi {
 	async importComments(comments: unknown[]): Promise<{ results: ({ id: string; outcome: "created" } | { id: string; outcome: "exists"; status: string } | { id: string; outcome: "rejected"; reason: string })[]; created: number; error?: string }> {
 		return this.request("POST", "/plugins/wp2emdash-comments/import", { comments });
 	}
+	/** Sharing text and archive SEO into the SEO plugin's stores (@wp2emdash/seo `seo-import`; admins / admin scope). */
+	async seoImport(payload: { entries: unknown[]; terms: unknown[] }): Promise<{ error?: string; entries?: { written: number; kept: number; rejected: number }; terms?: { written: number; kept: number; rejected: number } }> {
+		return this.request("POST", "/plugins/site-seo/seo-import", payload);
+	}
 	/** EmDash's bulk moderation (at most 100 ids): approve also purges the cached pages of the entries. */
 	async moderateComments(ids: string[], action: "approve" | "spam" | "trash"): Promise<number> {
 		return (await this.request<{ affected: number }>("POST", "/admin/comments/bulk", { ids, action })).affected;

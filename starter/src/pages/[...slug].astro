@@ -9,6 +9,8 @@ import { hasHeading } from "../utils/outline";
  * collection's archive (and `/page/N/`), its term archives, and every entry at its WordPress address (after pages and posts).
  * A page or post with an access password (migrated from WordPress's password protection) shows the password page until
  * the visitor gives it (utils/access.ts): never cached, never indexed.
+ * Category, tag and collection term archives use the SEO title, description and noindex the SEO plugin keeps for the term
+ * (carried from Yoast / Rank Math, edited in Plugins → SEO → Archives; @wp2emdash/seo/social), else the term's own.
  */
 import { env } from "cloudflare:workers";
 import AccessGate from "../components/AccessGate.astro";
@@ -29,6 +31,7 @@ import { collectionRoute } from "../utils/collections";
 import { cacheCollections, type CollectionEntry, collectionsConfig, findEntry, listEntries, termOf as collectionTermOf } from "../utils/collections-data";
 import Comments from "../components/comments/Comments.astro";
 import { ancestorSlugs, type BreadcrumbsConfig, type Crumb, pageTrail, postTrail } from "../utils/breadcrumbs";
+import { archiveTitle, type D1Like, readTermSeo } from "@wp2emdash/seo/social";
 
 const raw = Astro.params.slug ? decodeSlug(Astro.params.slug) : "home";
 const slug = raw || "home";
@@ -38,7 +41,9 @@ const blog = blogConfig;
 const route = blog ? blogRoute(Astro.params.slug ? Astro.url.pathname : "/", blog) : undefined;
 
 // ── Blog listings and feeds ──────────────────────────────────────────────────────────────────────────────────
-let listing: { heading: string; intro?: string | null; eyebrow?: string; posts: PostEntry[]; listing: string; page: number; hasMore: boolean; title: string; description?: string | null; feedTitle: string; avatar?: { src: string; alt: string }; seo?: ReturnType<typeof getSeoMeta>; canonicalPath: string } | undefined;
+let listing: { heading: string; intro?: string | null; eyebrow?: string; posts: PostEntry[]; listing: string; page: number; hasMore: boolean; title: string; description?: string | null; feedTitle: string; avatar?: { src: string; alt: string }; seo?: ReturnType<typeof getSeoMeta>; canonicalPath: string; seoTitle?: string; robots?: string } | undefined;
+/** The SEO plugin's per-term store (one options row by primary key, only on an uncached render). */
+const db = (env as { DB?: D1Like }).DB;
 let chrome: Awaited<ReturnType<typeof loadChrome>> | undefined;
 if (blog && route) {
 	const perPage = route.feed ? blog.feed.items : blog.perPage;
@@ -52,10 +57,10 @@ if (blog && route) {
 		listing = { heading: pageTitle ?? "Blog", posts, listing: blog.index, page, hasMore: list.hasMore, title: pageTitle ?? "Blog", feedTitle: "Feed", canonicalPath: Astro.url.pathname, ...(indexPage.entry && blog.index !== "/" ? { seo: getSeoMeta(indexPage.entry, { siteUrl: Astro.url.origin, path: Astro.url.pathname }) } : {}) };
 		cacheBlog(Astro.cache, [list.cacheHint, indexPage.cacheHint]);
 	} else if (route.kind === "term") {
-		const [term, list, c] = await Promise.all([termOf(route.taxonomy, route.slug), listPosts({ page, perPage, where: { [route.taxonomy]: route.slug } }), route.feed ? Promise.resolve(undefined) : loadChrome()]);
+		const [term, list, c, termSeo] = await Promise.all([termOf(route.taxonomy, route.slug), listPosts({ page, perPage, where: { [route.taxonomy]: route.slug } }), route.feed ? Promise.resolve(undefined) : loadChrome(), readTermSeo(db, route.taxonomy, route.slug)]);
 		chrome = c;
 		const a = blog.archives.find((x) => x.taxonomy === route.taxonomy);
-		if (term) listing = { heading: term.label, intro: term.description, eyebrow: a?.labelSingular, posts: list.entries, listing: Astro.url.pathname.replace(/(?:page\/\d+|feed)\/?$/, ""), page, hasMore: list.hasMore, title: term.label, description: term.description, feedTitle: `${term.label} ${a?.labelSingular ?? ""} Feed`.replace(/\s+/g, " "), canonicalPath: Astro.url.pathname };
+		if (term) listing = { heading: term.label, intro: term.description, eyebrow: a?.labelSingular, posts: list.entries, listing: Astro.url.pathname.replace(/(?:page\/\d+|feed)\/?$/, ""), page, hasMore: list.hasMore, title: term.label, description: termSeo?.description ?? term.description, feedTitle: `${term.label} ${a?.labelSingular ?? ""} Feed`.replace(/\s+/g, " "), canonicalPath: Astro.url.pathname, ...(termSeo?.title ? { seoTitle: archiveTitle(termSeo.title, page) } : {}), ...(termSeo?.noindex ? { robots: "noindex, follow" } : {}) };
 		cacheBlog(Astro.cache, [list.cacheHint]);
 	} else {
 		const [byline, c] = await Promise.all([bylineOf(route.slug), route.feed ? Promise.resolve(undefined) : loadChrome()]);
@@ -98,7 +103,7 @@ if (blog && route) {
 }
 
 // ── Collections (custom post types): archives and term archives ────────────────────────────────────────────────
-let archive: { heading: string; intro?: string | null; eyebrow?: string; entries: CollectionEntry[]; listing: string; page: number; hasMore: boolean; description?: string | null } | undefined;
+let archive: { heading: string; intro?: string | null; eyebrow?: string; entries: CollectionEntry[]; listing: string; page: number; hasMore: boolean; description?: string | null; seoTitle?: string; robots?: string } | undefined;
 const croute = !listing && collectionsConfig.length && Astro.params.slug ? collectionRoute(Astro.url.pathname, collectionsConfig) : undefined;
 if (croute) {
 	const listingPath = Astro.url.pathname.replace(/page\/\d+\/?$/, "");
@@ -109,11 +114,11 @@ if (croute) {
 		archive = { heading: c.label, entries: list.entries, listing: listingPath, page: croute.page, hasMore: list.hasMore };
 		cacheCollections(Astro.cache, [c], [list.cacheHint]);
 	} else {
-		const [term, ch] = await Promise.all([collectionTermOf(croute.taxonomy, croute.slug), loadChrome()]);
+		const [term, ch, termSeo] = await Promise.all([collectionTermOf(croute.taxonomy, croute.slug), loadChrome(), readTermSeo(db, croute.taxonomy, croute.slug)]);
 		chrome = ch;
 		if (term) {
 			const lists = await Promise.all(croute.collections.map((c) => listEntries(c, { page: croute.page, where: { [croute.taxonomy]: croute.slug } })));
-			archive = { heading: term.label, intro: term.description, description: term.description, eyebrow: croute.label, entries: lists.flatMap((l) => l.entries), listing: listingPath, page: croute.page, hasMore: lists.some((l) => l.hasMore) };
+			archive = { heading: term.label, intro: term.description, description: termSeo?.description ?? term.description, eyebrow: croute.label, entries: lists.flatMap((l) => l.entries), listing: listingPath, page: croute.page, hasMore: lists.some((l) => l.hasMore), ...(termSeo?.title ? { seoTitle: archiveTitle(termSeo.title, croute.page) } : {}), ...(termSeo?.noindex ? { robots: "noindex, follow" } : {}) };
 			cacheCollections(Astro.cache, croute.collections, lists.map((l) => l.cacheHint));
 		}
 	}
@@ -192,11 +197,11 @@ if (crumbCfg?.pages && page && slug !== "home") {
 
 {
 	listing ? (
-		<Base chrome={chrome} title={seo?.title ?? (listing.page > 1 ? `${listing.title} – Page ${listing.page}` : listing.title)} pageTitle={listing.title} description={seo?.description ?? listing.description} canonical={`${site.productionUrl.replace(/\/$/, "")}${listing.canonicalPath}`} sidebar feeds={route?.kind === "index" ? [] : [{ title: listing.feedTitle, href: feedHref(listing.listing, style) }]}>
+		<Base chrome={chrome} title={listing.seoTitle ?? seo?.title ?? (listing.page > 1 ? `${listing.title} – Page ${listing.page}` : listing.title)} pageTitle={listing.title} description={seo?.description ?? listing.description} robots={listing.robots} canonical={`${site.productionUrl.replace(/\/$/, "")}${listing.canonicalPath}`} sidebar feeds={route?.kind === "index" ? [] : [{ title: listing.feedTitle, href: feedHref(listing.listing, style) }]}>
 			<Listing heading={listing.heading} intro={listing.intro} eyebrow={listing.eyebrow} posts={listing.posts} listing={listing.listing} page={listing.page} hasMore={listing.hasMore} avatar={listing.avatar} />
 		</Base>
 	) : archive ? (
-		<Base chrome={chrome} title={archive.page > 1 ? `${archive.heading} – Page ${archive.page}` : archive.heading} pageTitle={archive.heading} description={archive.description} canonical={`${site.productionUrl.replace(/\/$/, "")}${Astro.url.pathname}`}>
+		<Base chrome={chrome} title={archive.seoTitle ?? (archive.page > 1 ? `${archive.heading} – Page ${archive.page}` : archive.heading)} pageTitle={archive.heading} description={archive.description} robots={archive.robots} canonical={`${site.productionUrl.replace(/\/$/, "")}${Astro.url.pathname}`}>
 			<Archive heading={archive.heading} intro={archive.intro} eyebrow={archive.eyebrow} entries={archive.entries} listing={archive.listing} page={archive.page} hasMore={archive.hasMore} />
 		</Base>
 	) : locked ? (

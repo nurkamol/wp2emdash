@@ -1,7 +1,7 @@
 /**
  * Term meta (src/transform/term-meta.ts): term descriptions reach EmDash's term `description` (seed, load create, and
- * load filling an empty one on an existing term); Yoast per-term SEO values are counted, not carried (EmDash 1.5 terms
- * have no SEO fields). Blog plan from the blog golden (synthetic fixture test/fixtures/blog/site.json).
+ * load filling an empty one on an existing term); Yoast per-term SEO values are carried into the SEO plugin's archive
+ * store (EmDash 1.5 terms have no SEO fields). Blog plan from the blog golden (synthetic fixture test/fixtures/blog/site.json).
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { SEO_OPTIONS } from "../src/commands/import-options.js";
 import { buildSeed } from "../src/scaffold/seed.js";
 import type { BlogPlan } from "../src/transform/blog.js";
-import { termDescriptionUpdate, termSeoReport, yoastTermSeo } from "../src/transform/term-meta.js";
+import { termDescriptionUpdate, termSeoPlan, termSeoReport } from "../src/transform/term-meta.js";
 
 const plan = JSON.parse(readFileSync(join(import.meta.dirname, "golden", "blog", "blog.json"), "utf8")) as BlogPlan;
 
@@ -36,22 +36,24 @@ describe("term SEO (Yoast wpseo_taxonomy_meta)", () => {
 		post_tag: { 12: { wpseo_title: "Reformer" } },
 		bad: "not an object",
 	};
-	const descriptions: Record<string, string> = { "category:7": "What is new", "category:8": "" };
+	const taxonomies = plan.taxonomies.map((t) => ({ name: t.name, wpName: t.wpName, base: t.base, terms: t.terms }));
 
-	it("import-options reads it from a database dump; counted per taxonomy, with descriptions that differ", () => {
+	it("import-options reads it from a database dump; carried for migrated terms, the rest counted (test/term-seo.test.ts has the full path)", () => {
 		expect(SEO_OPTIONS).toContain("wpseo_taxonomy_meta");
-		const counts = yoastTermSeo(option, (t, id) => descriptions[`${t}:${id}`]);
-		expect(counts).toEqual({ byTaxonomy: { category: { terms: 2, title: 1, description: 2 }, post_tag: { terms: 1, title: 1, description: 0 } }, differs: 1 });
-		expect(yoastTermSeo(undefined)).toBeUndefined();
-		expect(yoastTermSeo({ category: { 1: { wpseo_focuskw: "x" } } })).toBeUndefined();
+		const p = termSeoPlan({ yoast: option, taxonomies, siteName: "Example Journal" });
+		expect(p.terms.map((t) => [t.path, t.title ?? null, t.description ?? null])).toEqual([
+			["/category/news/", "News from the studio", "What is new"],
+			["/category/workshops/", null, "Weekend workshops and intensives"],
+		]);
+		expect(p.notCarried).toEqual([{ wpTaxonomy: "post_tag", terms: 1, why: "taxonomy not migrated (no archive on the new site)" }]);
+		expect(termSeoPlan({ yoast: undefined, taxonomies, siteName: "x" }).terms).toEqual([]);
 	});
 
-	it("the report says the values are not carried (counts only)", () => {
-		const md = termSeoReport(yoastTermSeo(option, (t, id) => descriptions[`${t}:${id}`])).join("\n");
-		expect(md).toMatch(/## Term SEO \(Yoast\)/);
-		expect(md).toMatch(/\*\*not carried\*\*/);
-		expect(md).toMatch(/\| `category` \| 2 \| 1 \| 2 \|/);
-		expect(md).toMatch(/1 SEO description\(s\) differ/);
+	it("the report says the values are carried (counts only, no text)", () => {
+		const md = termSeoReport(termSeoPlan({ yoast: option, taxonomies, siteName: "Example Journal" })).join("\n");
+		expect(md).toMatch(/## Term SEO/);
+		expect(md).toMatch(/\*\*Carried\*\*/);
+		expect(md).toMatch(/\| `category` \| 2 \| 1 \| 2 \| 0 \| 0 \| 0 \|/);
 		expect(md).not.toMatch(/Weekend workshops/);
 		expect(termSeoReport(undefined)).toEqual([]);
 	});

@@ -98,10 +98,23 @@ export const overridesSchema = z.object({
 	 */
 	/**
 	 * SEO text the owner rewrote on purpose (e.g. after an SEO audit): old path → new title and/or meta description, with
-	 * the reason. Transform writes it onto the page; verify accepts it as decided instead of "not identical".
+	 * the reason. Transform writes it onto the page; verify accepts it as decided instead of "not identical". The same
+	 * entry may set the social sharing text (Open Graph / Twitter title and description, kept by the SEO plugin), and the
+	 * path may be a category, tag or other term archive (`/category/news/`): it then sets that archive's SEO text.
 	 */
 	seo: z
-		.record(z.string().regex(/^\//, "a path starting with /"), z.object({ title: z.string().min(1).max(120).optional(), description: z.string().min(1).max(320).optional(), reason: z.string().min(3, "give the owner's reason") }))
+		.record(
+			z.string().regex(/^\//, "a path starting with /"),
+			z.object({
+				title: z.string().min(1).max(120).optional(),
+				description: z.string().min(1).max(320).optional(),
+				ogTitle: z.string().min(1).max(200).optional(),
+				ogDescription: z.string().min(1).max(500).optional(),
+				twitterTitle: z.string().min(1).max(200).optional(),
+				twitterDescription: z.string().min(1).max(500).optional(),
+				reason: z.string().min(3, "give the owner's reason"),
+			}),
+		)
 		.default({}),
 	gone: z.record(z.string().regex(/^\//, "a path starting with /"), z.string().min(3, "give the owner's reason")).default({}),
 	/**

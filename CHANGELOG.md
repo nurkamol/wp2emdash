@@ -6,6 +6,14 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Sharing text per page** (`@wp2emdash/seo` 0.3, parity row `og-twitter`, #13): the Open Graph / Twitter title, description and image editors set in Yoast (`_yoast_wpseo_opengraph-*`, `_yoast_wpseo_twitter-*`) or Rank Math (`rank_math_facebook_*`, `rank_math_twitter_*` when not reusing the Facebook values) are carried: transform → IR `seo.social` (variables resolved) → load → the SEO plugin's per-entry store (`plugin:site-seo:social:<collection>:<id>`, new admin route `seo-import`) → its `page:metadata` hook (priority 50, before the sharing-card plugin). Only set fields are printed; Twitter falls back to Open Graph, then to EmDash's SEO title, description and image (or the sharing card). The Open Graph image stays the entry's EmDash SEO image. Editors change it in the page editor's SEO panel → Social sharing; an edited value is never overwritten by a rerun of load. New load check `seo-social`.
+- **Archive SEO** (`@wp2emdash/seo` 0.3, parity row `term-meta`, #10): per-term SEO title, meta description, noindex and sharing text of category, tag and collection term archives, from Yoast's `wpseo_taxonomy_meta` and Rank Math's term meta (rows of `<prefix>termmeta`, now read from a database dump by `import-options` / `import-dump` into `raw/seo-termmeta.json`), variables resolved (`%%term_title%%`, `%term%`, separator from `wpseo_titles` / Rank Math) → `ir/term-seo.json` → the SEO plugin's per-term store (`plugin:site-seo:term:<taxonomy>:<slug>`). The starter's archives print its title, description and noindex; the plugin adds the head tags. New dashboard tab Plugins → SEO → Archives to edit them. Coverage report section "Term SEO" lists what is carried and what is not (taxonomies without archives; an SEO plugin without a dump).
+- Owner overrides (`overrides.ts seo`): a path may also set `ogTitle`, `ogDescription`, `twitterTitle`, `twitterDescription`, and may be a term archive path (`/category/news/`) to set that archive's SEO text.
+
+### Changed
+- Entry SEO fallbacks (no audited live page) resolve Yoast `%%…%%` variables and use the old site's separator instead of "-". Scaffold passes the site's term archive bases to the SEO plugin (`archives`); the plugin declares `taxonomies:read`. Synthetic fixtures + goldens (`test/fixtures/term-seo`, `test/golden/term-seo`); not yet run on a real site (`docs/spikes/seo-social-findings.md`).
+
 ## [1.0.0] — 2026-11-21
 
 First public release. The full pipeline (init → audit → extract → transform → scaffold → load → verify → cutover) with

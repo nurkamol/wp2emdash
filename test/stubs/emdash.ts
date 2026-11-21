@@ -9,6 +9,9 @@ export interface KvStub {
 }
 interface PageContext {
 	url: string;
+	path?: string;
+	siteUrl?: string;
+	content?: { collection: string; id: string; slug?: string | null };
 	title: string | null;
 	pageTitle?: string | null;
 	image?: string | null;
@@ -39,7 +42,8 @@ interface PluginDefinition {
 	capabilities?: string[];
 	routes?: Record<string, Route>;
 	hooks?: {
-		"page:metadata"?: (event: { page: PageContext }, ctx: { kv: KvStub }) => Promise<Contribution[] | null>;
+		/** A handler, or { priority, handler } (EmDash HookConfig: lower priority runs first, default 100). */
+		"page:metadata"?: ((event: { page: PageContext }, ctx: { kv: KvStub }) => Promise<Contribution[] | null>) | { priority?: number; timeout?: number; handler: (event: { page: PageContext }, ctx: { kv: KvStub }) => Promise<Contribution[] | null> };
 		"content:afterPublish"?: (event: { content: Record<string, unknown>; collection: string }, ctx: { kv: KvStub }) => Promise<void>;
 		"plugin:install"?: (event: unknown, ctx: unknown) => Promise<void>;
 		"plugin:activate"?: (event: unknown, ctx: unknown) => Promise<void>;

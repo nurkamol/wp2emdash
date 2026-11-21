@@ -1,7 +1,7 @@
 {
   "name": "@wp2emdash/seo",
-  "version": "0.2.1",
-  "description": "SEO & Analytics for EmDash: editor SEO panel, dashboard, Search Console, IndexNow, tracking codes managed by ID, conversion events, consent mode and Cloudflare Web Analytics visits",
+  "version": "0.3.0",
+  "description": "SEO & Analytics for EmDash: editor SEO panel, dashboard, Search Console, IndexNow, tracking codes managed by ID, conversion events, consent mode, Cloudflare Web Analytics visits, sharing text per page and archive SEO",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -9,6 +9,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./analyze": "./src/analyze.ts",
+    "./social": "./src/social.ts",
     "./site-checks": "./src/site-checks.ts",
     "./plugin/collect": "./src/plugin/collect.ts",
     "./plugin": "./src/plugin/index.ts",

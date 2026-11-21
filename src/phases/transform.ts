@@ -38,7 +38,8 @@ import { type BlogByline, blogIndexPath, type BlogPlan, blogReport, blogTaxonomi
 import { applyMeasuredPadding } from "../transform/measured.js";
 import { pageAttributes, pageAttributesReport, showsFeaturedImage } from "../transform/pages.js";
 import { planSections, sectionsReport } from "../transform/sections.js";
-import { termSeoReport, yoastTermSeo } from "../transform/term-meta.js";
+import { SEO_TERMMETA_FILE, termSeoPlan, termSeoReport } from "../transform/term-meta.js";
+import { entrySocial, resolveSeoVars, seoSeparator } from "../transform/social-seo.js";
 import { inviteCounts, planInvites, usersDir, usersReport, type WpUser, WP_USERS_FILE, writeInvites } from "../transform/users.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
 import { shortcodeSummary, shortcodesReport } from "../transform/shortcodes.js";
@@ -251,10 +252,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		}
 	}
 	const siteTitle = String(options.blogname ?? config.name);
+	// SEO plugin options from a database dump (import-options), else the Exporter's options: separator, term SEO.
+	const seoOptions = { ...options, ...readJson<Record<string, unknown>>(join(paths.raw, "seo-options.json")) };
+	const seoSep = seoSeparator({ rankMathTitles: seoOptions["rank-math-options-titles"], yoastTitles: seoOptions.wpseo_titles });
 	const seoOf = (p: ExporterPost): IrPage["seo"] => {
 		const live = snapPages.get(p.id)?.seo;
 		const rm = p.rankmath ?? p.yoast ?? {};
-		const vars = (s: string | undefined) => s?.replace(/%sep%/g, "-").replace(/%sitename%/g, siteTitle).replace(/%title%/g, p.title).replace(/\s+/g, " ").trim();
+		// Yoast %%title%% / Rank Math %title% variables (only where the live page did not show the result).
+		const vars = (s: string | undefined) => resolveSeoVars(s, { siteName: siteTitle, sep: seoSep, title: p.title, ...(typeof options.blogdescription === "string" ? { tagline: options.blogdescription } : {}), ...(p.excerpt ? { excerpt: p.excerpt } : {}) });
 		const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 		const title = str(live?.title) ?? vars(rm.title);
 		const description = str(live?.description) ?? vars(rm.description);
@@ -262,7 +267,11 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const robots = str(live?.robots) ?? str(rm.robots);
 		const og = (live?.og ?? {}) as Record<string, string>;
 		const jsonLd = Array.isArray(live?.jsonLdTypes) ? (live?.jsonLdTypes as string[]) : [];
-		return { ...(title ? { title } : {}), ...(description ? { description } : {}), ...(canonical ? { canonical } : {}), ...(robots ? { robots } : {}), ...(og.image || og["og:image"] ? { ogImage: og.image ?? og["og:image"] } : {}), jsonLdTypes: jsonLd };
+		// Custom sharing text from Yoast / Rank Math post meta (src/transform/social-seo.ts). Its image becomes the page's
+		// SEO image when the live page showed none; load stores the rest in the SEO plugin.
+		const social = entrySocial(p, vars);
+		const ogImage = og.image ?? og["og:image"] ?? social?.ogImage;
+		return { ...(title ? { title } : {}), ...(description ? { description } : {}), ...(canonical ? { canonical } : {}), ...(robots ? { robots } : {}), ...(ogImage ? { ogImage } : {}), jsonLdTypes: jsonLd, ...(social ? { social } : {}) };
 	};
 
 	// ── Adapt every document ─────────────────────────────────────────────────
@@ -381,7 +390,11 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const emit = (doc: IrPage, file: string, published: boolean) => {
 		// SEO text the owner rewrote on purpose (overrides.ts seo): onto the page, so load writes it and a rerun keeps it.
 		const seoOv = doc.route?.path ? overrides.seo[seoNorm(doc.route.path)] ?? overrides.seo[doc.route.path] : undefined;
-		if (seoOv) doc = { ...doc, seo: { ...doc.seo, ...(seoOv.title ? { title: seoOv.title } : {}), ...(seoOv.description ? { description: seoOv.description } : {}) } };
+		if (seoOv) {
+			const socialOv = Object.fromEntries((["ogTitle", "ogDescription", "twitterTitle", "twitterDescription"] as const).filter((k) => seoOv[k]).map((k) => [k, seoOv[k] as string]));
+			const social = Object.keys(socialOv).length ? { ...(doc.seo.social ?? {}), ...socialOv, source: "override" as const } : doc.seo.social;
+			doc = { ...doc, seo: { ...doc.seo, ...(seoOv.title ? { title: seoOv.title } : {}), ...(seoOv.description ? { description: seoOv.description } : {}), ...(social ? { social } : {}) } };
+		}
 		const v = irPage.safeParse(doc);
 		if (!v.success) invalid.push(`${file}: ${v.error.issues.slice(0, 3).map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`);
 		write(join(paths.ir, file), v.success ? v.data : doc);
@@ -1165,9 +1178,15 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const sectionsPlan = planSections(content("wp_block"), { mediaIdForUrl, reusable: (id) => reusable.get(id) });
 	if (sectionsPlan.sections.length || sectionsPlan.skipped.length) write(join(paths.ir, "sections.json"), sectionsPlan);
 
-	// ── Term SEO (Yoast wpseo_taxonomy_meta from a database dump): counted, not carried (EmDash terms have no SEO fields) ──
-	const termDescriptions = new Map((readJson<{ name: string; terms?: { id: number; description?: string }[] }[]>(join(exp, "taxonomies.json")) ?? []).flatMap((t) => (t.terms ?? []).map((x) => [`${t.name}:${x.id}`, x.description ?? ""] as const)));
-	const termSeo = yoastTermSeo(readJson<Record<string, unknown>>(join(paths.raw, "seo-options.json"))?.wpseo_taxonomy_meta ?? options.wpseo_taxonomy_meta, (tax, id) => termDescriptions.get(`${tax}:${id}`));
+	// ── Term SEO (Yoast wpseo_taxonomy_meta, Rank Math term meta, both from a database dump; owner overrides by archive
+	// path) → ir/term-seo.json, stored by load in the SEO plugin's archive store (src/transform/term-meta.ts) ─────────
+	const archivedTaxonomies = [...(blogPlan?.taxonomies ?? []), ...(cpt.plan?.taxonomies ?? [])].filter((t, i, all) => all.findIndex((x) => x.name === t.name) === i);
+	const rankMathTermMetaRaw = readJson<{ rankMath?: Record<string, Record<string, unknown>> }>(join(paths.raw, SEO_TERMMETA_FILE))?.rankMath;
+	const termSeo = termSeoPlan({ yoast: seoOptions.wpseo_taxonomy_meta, ...(rankMathTermMetaRaw ? { rankMath: rankMathTermMetaRaw } : {}), taxonomies: archivedTaxonomies, siteName: siteTitle, sep: seoSep, ...(typeof options.blogdescription === "string" ? { tagline: options.blogdescription } : {}), overrides: overrides.seo });
+	rmSync(join(paths.ir, "term-seo.json"), { force: true });
+	if (termSeo.terms.length) write(join(paths.ir, "term-seo.json"), termSeo);
+	const seoPluginSlugs = (readJson<{ plugins?: { slug: string }[] }>(join(paths.snapshot, "fingerprint.json"))?.plugins ?? []).map((p) => p.slug).join(" ");
+	const termSeoDumpMissing = archivedTaxonomies.length && !rankMathTermMetaRaw && !seoOptions.wpseo_taxonomy_meta ? (/rank-?math/i.test(seoPluginSlugs) ? "Rank Math" : /yoast|wordpress-seo/i.test(seoPluginSlugs) ? "Yoast SEO" : undefined) : undefined;
 
 	// ── Users → team invite list (names and e-mails only under sites/<slug>/users/; ir/users.json holds counts) ──────
 	const wpUsers = readJson<WpUser[]>(join(usersDir(paths.root), WP_USERS_FILE));
@@ -1205,7 +1224,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const shortcodes = shortcodeSummary(results);
 	rmSync(join(paths.ir, "shortcodes.json"), { force: true });
 	if (shortcodes.used.length) write(join(paths.ir, "shortcodes.json"), shortcodes);
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...termSeoReport(termSeo), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...mediaFoldersReport(folderPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...termSeoReport(termSeo, termSeoDumpMissing), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...mediaFoldersReport(folderPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

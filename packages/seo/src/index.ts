@@ -3,11 +3,12 @@
  * result and social previews, an on-page checklist with a score, focus keyword, the page's visits), the SEO & Analytics
  * dashboard (scores, images, site checks, Search Console, IndexNow), and Analytics: tracking codes managed by ID
  * (Google, Meta, Clarity, Hotjar, Cloudflare), conversion events and consent mode as switches, and Cloudflare Web
- * Analytics visits. Safe to import from astro.config: it only builds the plugin descriptor. Worker-side modules:
+ * Analytics visits; sharing text per page and SEO of category/tag archives (carried from Yoast and Rank Math). Safe to import from astro.config: it only builds the plugin descriptor. Worker-side modules:
  * `/plugin` (EmDash loads it) and `/analytics/*` (the starter reads trackers, CSP hosts and events from them).
  */
 import type { LegacyAnalytics } from "./analytics/trackers.js";
 import { SEO_PLUGIN } from "./meta.js";
+import type { ArchiveBase } from "./social.js";
 
 export { SEO_PLUGIN };
 
@@ -39,6 +40,11 @@ export interface SeoPanelOptions {
 	indexNow?: { key: string; live: boolean };
 	/** Analytics in the suite; absent when the site carries no analytics at all (kit.config `analytics: false`). */
 	analytics?: AnalyticsOptions;
+	/**
+	 * Term archives the site serves (blog categories/tags, collection taxonomies): EmDash taxonomy name and archive base.
+	 * The `page:metadata` hook finds an archive's term from its address; the Archives tab lists their terms.
+	 */
+	archives?: ArchiveBase[];
 }
 
 export function seoPlugin(options: SeoPanelOptions) {

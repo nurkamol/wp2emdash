@@ -4,7 +4,7 @@ import type { PageReport } from "./collect.js";
 
 type Block = Record<string, unknown>;
 export const DASHBOARD_PAGE = "/seo";
-export type TabKey = "overview" | "visits" | "analytics" | "pages" | "images" | "site" | "google" | "indexnow";
+export type TabKey = "overview" | "visits" | "analytics" | "pages" | "images" | "archives" | "site" | "google" | "indexnow";
 export const WIDGET = "seo-overview";
 const ICON: Record<Check["status"], string> = { good: "✓", warn: "!", bad: "✗", info: "i" };
 const avg = (pages: PageReport[]) => (pages.length ? Math.round(pages.reduce((s, p) => s + p.analysis.score, 0) / pages.length) : 0);
@@ -20,6 +20,8 @@ export interface DashboardData {
 	productionUrl: string;
 	/** Analytics in the suite (absent when the site carries no analytics): blocks for the tabs and the overview line. */
 	analytics?: { overview: Block[]; visits: Block[]; tab: Block[] };
+	/** Archive SEO (category, tag and collection term archives): plugin/social.ts. Absent on sites without archives. */
+	archives?: Block[];
 }
 
 function overview(d: DashboardData): Block[] {
@@ -138,6 +140,7 @@ export function dashboard(d: DashboardData, tab: TabKey = "overview"): Block[] {
 		...(a ? [{ key: "visits" as const, label: "Visits", blocks: a.visits }, { key: "analytics" as const, label: "Analytics", blocks: a.tab }] : []),
 		{ key: "pages", label: `Pages (${d.pages.length})`, blocks: pagesTab(d) },
 		{ key: "images", label: `Images${d.missingAlt.length ? ` (${d.missingAlt.length})` : ""}`, blocks: imagesTab(d) },
+		...(d.archives ? [{ key: "archives" as const, label: "Archives", blocks: d.archives }] : []),
 		{ key: "site", label: "Site checks", blocks: siteTab(d) },
 		{ key: "google", label: d.google.connected ? "Google" : "Google (connect)", blocks: googleTab(d.google, d.productionUrl) },
 		...(d.indexNow ? [{ key: "indexnow" as const, label: "IndexNow", blocks: indexNowTab(d.indexNow) }] : []),

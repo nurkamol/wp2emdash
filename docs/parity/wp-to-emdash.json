@@ -5,9 +5,9 @@
 	"summary": {
 		"areas": 110,
 		"inScope": 103,
-		"done": 83,
+		"done": 85,
 		"superseded": 6,
-		"partial": 14,
+		"partial": 12,
 		"missing": 0,
 		"outOfScope": 7
 	},
@@ -466,12 +466,12 @@
 			"feature": "Term descriptions, term SEO (Yoast/Rank Math)",
 			"emdash": "Term `description` (create/update); no term SEO fields",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "Descriptions → term `description` at creation (blog, CPT) and filled on existing terms without one (load; never replaces an editor's); shown under the archive heading and as its meta description. Yoast `wpseo_taxonomy_meta` (database dump via import-options) counted per taxonomy in the coverage report (src/transform/term-meta.ts)",
-			"gap": "Term SEO titles/descriptions are not carried: EmDash 1.5 terms have no SEO fields and the kit's SEO plugin has no per-term store; Rank Math term meta is not served by the Exporter or REST. Needs a per-term store if archives must keep custom SEO text.",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P2",
+			"status": "done",
+			"kit": "Descriptions → term `description` at creation (blog, CPT) and filled on existing terms without one (load; never replaces an editor's). Term SEO (src/transform/term-meta.ts): Yoast `wpseo_taxonomy_meta` and Rank Math term meta (`rank_math_title/description/robots/facebook_*/twitter_*` rows of `<prefix>termmeta`), both from a database dump via import-options / import-dump, variables resolved (`%%term_title%%`, `%term%`), owner override by archive path (overrides.ts `seo`) → `ir/term-seo.json` → load → the SEO plugin's per-term store (`term:<taxonomy>:<slug>`, route `seo-import`, an editor's value kept); starter archives print its title, description and noindex; `page:metadata` adds description, robots and sharing tags; editable in Plugins → SEO → Archives (@wp2emdash/seo 0.3); terms of taxonomies without archives counted in the coverage report",
+			"gap": "Rank Math term meta needs a database dump (the Exporter and REST do not serve it); without one the coverage report says term SEO is not carried. Archives without a per-term title still use the term name, not the SEO plugin's archive title template. Not yet loaded into a live EmDash.",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": "0/2"
 		},
 		{
@@ -1110,12 +1110,12 @@
 			"feature": "Custom OG / Twitter title, description, image",
 			"emdash": "Only `seo_image`; no separate OG/Twitter text fields",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "og:image carried (load `ogRef`); sharing cards (packages/og)",
-			"gap": "Custom OG/Twitter text: per-entry store in the SEO plugin + `page:metadata`.",
-			"effort": "S",
-			"risk": "low",
-			"priority": "P2",
+			"status": "done",
+			"kit": "Yoast `_yoast_wpseo_opengraph-*` / `_yoast_wpseo_twitter-*` and Rank Math `rank_math_facebook_*` / `rank_math_twitter_*` post meta (Twitter only when `rank_math_twitter_use_facebook` is off), variables resolved, owner override (overrides.ts `seo`: ogTitle, ogDescription, twitterTitle, twitterDescription) → IR `seo.social` (src/transform/social-seo.ts) → load: the OG image as the entry's SEO image (`ogRef`), the text and a differing Twitter image in the SEO plugin's per-entry store (`social:<collection>:<id>`, route `seo-import`, an editor's value kept) → `page:metadata` (priority 50, before the sharing-card plugin): only set fields, Twitter falls back to Open Graph, then EmDash's SEO title/description/image or the sharing card; editable in the editor's SEO panel → Social sharing (@wp2emdash/seo 0.3)",
+			"gap": "Image fields in the panel take an address (Block Kit 1.5 renders no media picker). Not yet loaded into a live EmDash.",
+			"effort": "",
+			"risk": "",
+			"priority": "",
 			"sitesUsed": ""
 		},
 		{
@@ -1834,7 +1834,7 @@
 				"form-entries"
 			],
 			"effort": "M",
-			"notes": "Done 2026-11-21 (docs/spikes/p2-batch-findings.md) except term SEO (no per-term store in EmDash 1.5) and parent renames moving children."
+			"notes": "Done 2026-11-21 (docs/spikes/p2-batch-findings.md) except parent renames moving children; term SEO followed in @wp2emdash/seo 0.3 (per-term store in the SEO plugin)."
 		},
 		{
 			"rank": 26,
@@ -1852,7 +1852,6 @@
 		"page-template",
 		"post-formats",
 		"global-parts",
-		"term-meta",
 		"caption-title",
 		"video-audio",
 		"media-folders",
@@ -1860,7 +1859,6 @@
 		"popups",
 		"social",
 		"redirects",
-		"og-twitter",
 		"jsonld",
 		"sitemaps",
 		"kml",

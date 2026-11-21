@@ -1,0 +1,18 @@
+{
+	"$comment": "Synthetic SEO plugin post meta merged into test/fixtures/blog/site.json posts by test/term-seo.test.ts. No real site data.",
+	"10": {
+		"_yoast_wpseo_opengraph-title": "Hello from the journal",
+		"_yoast_wpseo_opengraph-description": "%%title%% %%sep%% our first post",
+		"_yoast_wpseo_twitter-title": "Hello, X",
+		"_yoast_wpseo_twitter-image": "https://blog.example.test/wp-content/uploads/2024/06/team.jpg",
+		"_yoast_wpseo_focuskw": "journal"
+	},
+	"11": {
+		"rank_math_facebook_title": "Classic notes",
+		"rank_math_facebook_description": [
+			"Notes for every class"
+		],
+		"rank_math_twitter_use_facebook": "on",
+		"rank_math_twitter_title": "ignored: Twitter uses the Facebook values"
+	}
+}
