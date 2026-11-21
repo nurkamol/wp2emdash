@@ -135,7 +135,7 @@
 		},
 		{
 			"id": "languages-assigned",
-			"label": "Every migrated page, post and entry has its language",
+			"label": "Every migrated page and post has its language",
 			"ok": true,
 			"detail": "fr 4, en 3"
 		},

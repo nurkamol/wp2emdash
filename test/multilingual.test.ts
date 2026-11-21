@@ -293,6 +293,8 @@ describe("language gates", () => {
 		const unsupported = multilingualChecks(dirPlan({ supported: false, urlMode: "query", problems: ["language in the query string"] }), [doc({})]);
 		expect(unsupported.find((c) => c.id === "languages-url-mode")).toMatchObject({ ok: false, detail: expect.stringContaining("query string") });
 		expect(unsupported.some((c) => c.id === "languages-routes")).toBe(false);
+		// An entry of a post type the plugin does not translate has no language: reported, not a gate failure.
+		expect(multilingualChecks(dirPlan(), [doc({}), doc({ kind: "entry", type: "team", wpId: 9, path: "/team/ana/", lang: undefined, group: "team-9" })]).find((c) => c.id === "languages-assigned")?.ok).toBe(true);
 	});
 });
 

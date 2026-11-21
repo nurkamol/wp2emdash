@@ -359,13 +359,15 @@ export function translationGroups(docs: MlDoc[]): Map<string, MlDoc[]> {
 /** The transform gates of a multilingual site. */
 export function multilingualChecks(plan: MlPlan, docs: MlDoc[]): GateCheck[] {
 	const routable = docs.filter((d) => d.path && ["page", "post", "entry"].includes(d.kind));
-	const missing = routable.filter((d) => !d.lang);
+	// Pages and posts always have a language when the plugin is active (missing = a data gap); custom post types the
+	// plugin does not translate have none: listed in the report, shown as the default language.
+	const missing = routable.filter((d) => !d.lang && d.kind !== "entry");
 	const dupes = [...translationGroups(routable)].filter(([, list]) => new Set(list.map((d) => d.lang)).size < list.length);
 	const misplaced = plan.urlMode === "directory" && plan.supported ? routable.filter((d) => d.published && d.lang && langOfPath(d.path as string, plan) !== d.lang) : [];
 	const counts = plan.languages.map((l) => `${l.code} ${routable.filter((d) => d.lang === l.code).length}`).join(", ");
 	return [
 		{ id: "languages-url-mode", label: "Language URLs kept as they are (a directory per language, or no language in the URL)", ok: plan.supported, detail: plan.supported ? `${plan.plugin}: ${plan.urlMode === "directory" ? `directories ${plan.languages.filter((l) => l.prefix).map((l) => `/${l.prefix}/`).join(" ")}` : "no language in the URL"}, default ${plan.defaultLang} unprefixed (from ${plan.modeSource})` : `${plan.plugin}: ${plan.problems.join("; ")}` },
-		{ id: "languages-assigned", label: "Every migrated page, post and entry has its language", ok: missing.length === 0, detail: missing.length ? `no language: ${missing.slice(0, 8).map((d) => `${d.type}#${d.wpId} ${d.path}`).join(", ")}${missing.length > 8 ? ", …" : ""}` : counts },
+		{ id: "languages-assigned", label: "Every migrated page and post has its language", ok: missing.length === 0, detail: missing.length ? `no language: ${missing.slice(0, 8).map((d) => `${d.type}#${d.wpId} ${d.path}`).join(", ")}${missing.length > 8 ? ", …" : ""}` : counts },
 		{ id: "languages-groups", label: "Each translation group holds one entry per language", ok: dupes.length === 0, detail: dupes.length ? dupes.slice(0, 6).map(([g, list]) => `${g}: ${list.map((d) => `${d.lang ?? "?"} ${d.path}`).join(", ")}`).join("; ") : `${[...translationGroups(routable)].filter(([, l]) => l.length > 1).length} translated groups` },
 		...(plan.urlMode === "directory" && plan.supported ? [{ id: "languages-routes", label: "Every published translation keeps its language directory", ok: misplaced.length === 0, ...(misplaced.length ? { detail: misplaced.slice(0, 8).map((d) => `${d.path} is ${d.lang}`).join(", ") } : {}) }] : []),
 	];
@@ -383,7 +385,7 @@ export function multilingualReport(plan: MlPlan, docs: MlDoc[], notMigrated: str
 	const untranslated = groups.filter(([, list]) => list.length === 1 && list[0]?.lang === plan.defaultLang).length;
 	L.push("", `${groups.filter(([, l]) => l.length > 1).length} translation group(s); ${untranslated} default-language entr${untranslated === 1 ? "y" : "ies"} without a translation (the switcher links to the language's home page there).`);
 	const missing = routable.filter((d) => !d.lang);
-	if (missing.length) L.push("", "**Without a language** (gate `languages-assigned`):", "", ...missing.map((d) => `- ${d.type}#${d.wpId} ${d.path}`));
+	if (missing.length) L.push("", "**Without a language** (pages are gated by `languages-assigned`; entries of a post type the plugin does not translate are shown as the default language):", "", ...missing.map((d) => `- ${d.type}#${d.wpId} ${d.path}`));
 	if (notMigrated.length) L.push("", "**Not migrated** (listed so nothing is lost silently; decide in overrides.ts / decisions.md):", "", ...notMigrated.map((n) => `- ${n}`));
 	L.push("", "Not carried by design: string translations (WPML String Translation, Polylang strings: theme and widget texts) and per-language taxonomy term links (terms of every language are migrated as their own terms, unlinked).");
 	return L;

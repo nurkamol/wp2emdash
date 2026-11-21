@@ -585,12 +585,12 @@ captures). Client guide: editor guide "Motion". Facts: docs/spikes/motion-findin
 | **Forms** | Per form, choose: keep third-party embed, or rebuild as `form` section posting to a Worker endpoint with Turnstile, server-side validation, rate limit, email delivery and optional D1 storage. **Email providers** (pluggable, HTTP APIs, chosen per site): **Brevo (default)**, Resend, SendGrid, Postmark, Mailgun, Amazon SES, Google Workspace (Gmail API with a service account and domain-wide delegation), Microsoft 365 (Graph `sendMail`), Cloudflare Email Routing `send_email` (verified recipients only). Raw SMTP is not used from Workers. **Health/PHI data never goes into Worker/D1/email; it stays with the approved provider.** |
 | **Booking & third-party** | Keep existing providers; links/embeds tested in verify. One provider registry (`starter/src/utils/providers.ts`, kit import `src/providers/registry.ts`): per provider id → name, detection pattern, category (booking, video, map, reviews, forms, newsletter, audio, social, chat, consent, tracker), hosts for script/frame/connect (+ style/font/img/media extras) and, for site widgets, the ID format and where the ID sits in the official snippet. Adapters (embed detection), `section_embed`'s provider list, the starter's embed allowlist and the CSP all read it; `test/providers.test.ts` checks every provider's sample is detected and every URL it loads is covered by its hosts. |
 | **Site-wide snippets** | `src/transform/snippets.ts`, run in transform: every `<script>/<noscript>/<iframe>/<link>/<meta>` in `<head>` or at body level of the saved pages, plus active Header Footer Code Manager snippets (`raw/code-snippets.json`), deduplicated → `ir/site-snippets.json` and the coverage report. Kinds: tracker (SEO & Analytics), verification (Settings → SEO), page-meta (starter/SEO plugin), provider-loader (with the embed sections; a section without its own loader gets the site-wide src-only script), widget (site widget by provider + ID: `siteWidgets` in kit.config / site.config.json, `components/SiteWidgets.astro` + `public/scripts/site-widgets.js`, CSP from the registry, production only), wordpress (not needed, listed), unknown (never auto-carried). Gate check `site-snippets` fails while any item needs a decision; decisions live in `overrides.ts` → `snippets`. |
-| **SEO** | Yoast/Rank Math fields via exporter; JSON-LD regenerated (Organization/LocalBusiness/MedicalBusiness, BreadcrumbList, FAQPage from `faq`, Article for posts); sitemap + robots generated; OG images; hreflang if multilingual. |
+| **SEO** | Yoast/Rank Math fields via exporter; JSON-LD regenerated (Organization/LocalBusiness/MedicalBusiness, BreadcrumbList, FAQPage from `faq`, Article for posts); sitemap + robots generated; OG images; hreflang alternates on multilingual sites (§8b). |
 | **Analytics & consent** | GA4/GTM/pixels carried over once; header/footer scripts from theme options reviewed one by one; consent banner if the source had one or jurisdiction requires it. |
 | **Blog** | Posts, categories, tags, authors/bylines, featured images, pagination, RSS feed (built 2026-11-20). Comments: imported since 2026-11-21 (approved, threaded one level, settings per collection, starter list + form; `docs/spikes/comments-findings.md`), or left out by decision (`overrides.ts comments`). |
 | **Search** | Starter search page `/search/?q=` (built 2026-11-21): EmDash FTS5 over posts, collections and page titles plus a scan of the pages' section text (EmDash 1.5 refuses a searchable blocks field); WordPress `?s=` and `/search/<terms>/` 301 there; results uncached; a header search link when the old header had one. |
 | **After launch** | Site health lists EmDash's 404 log weekly with suggested redirects (Missing pages); coming-soon mode (503 holding page, admins bypass) is an admin switch, never set by the migration. |
-| **i18n** | WPML/Polylang detected in audit; v1 flags it as out of scope, v2 maps to EmDash i18n. |
+| **i18n** | WPML and Polylang sites are migrated (built 2026-11-22): every language at its WordPress address, `lang` + `translation_group` on each entry, hreflang, language switcher, per-language menus — §8b. |
 | **Accessibility** | WCAG 2.2 AA target; axe in verify; fixed issues from the source site noted as improvements, not regressions. |
 | **Security** | Admin passkeys/MFA, least-privilege users, secrets only in Wrangler secrets/`.env`, app password + migration key revoked after import, staging behind Access/noindex, no backups in public storage. |
 | **Editor handoff** | Generated editor guide: list of section types with screenshots, how to add/edit pages, menus, media, SEO fields; admin accounts invited, not shared — from the invite checklist the kit builds from the WordPress users (roles mapped; names and e-mails only in `sites/<slug>/users/`), by the owner in the admin or with `wp2emdash invite <slug> --send`. The go-live checklist has the owner export past form entries from WordPress before it is retired. |
@@ -627,9 +627,34 @@ Docs are generated from real data where possible (config schema → `configurati
 
 ---
 
+## 8b. Multilingual sites (WPML, Polylang; built 2026-11-22, not yet run on a real multilingual site)
+
+Decision and evidence: `docs/spikes/multilingual-findings.md`. EmDash 1.5 has native i18n (row per locale), but its
+hreflang/sitemap paths ignore the kit's path-as-slug routing, a prefixed default locale breaks its admin, and turning
+it on makes every list, term and byline per-locale. The kit therefore keeps its model and adds two fields.
+
+| Step | What happens |
+|---|---|
+| audit | WPML / Polylang are `migrate-data` plugins (no longer out of scope); the live pages' hreflang links are snapshotted as before. |
+| extract | The EmDash Exporter's `locale` / `translation_group` per entry and probe `i18n`; Polylang's `language` / `post_translations` taxonomies; gate `languages` (every published entry has a language). `import-dump` / `import-options` add `icl_sitepress_settings`, `polylang` (secrets dropped) and WPML's `icl_translations` → `raw/multilingual.json`. |
+| transform | `src/transform/multilingual.ts`: languages (code, URL directory, live hreflang value, native label), default language, URL mode (plugin options → live hreflang → audited paths). Every page, post and entry gets `i18n { lang, group }`; its route is its WordPress path (a translation the audit missed gets its language directory; the front page's translations are `/<lang>/`). Translated menus become `<role>-<lang>` (Polylang `primary___fr`, WPML menu groups, else link majority); `#pll_switcher` items are replaced by the switcher. Translated site chrome (global sections, builder templates, popups) is listed, only the default language's migrates. Gates `languages-url-mode`, `languages-assigned`, `languages-groups`, `languages-routes`; `ir/i18n.json`; coverage report → Languages. |
+| scaffold / load | `lang` and `translation_group` fields on every routable collection (seed and load); `site.config.json → i18n`. |
+| starter | `utils/i18n.ts` (pure, held to the kit's copy by tests): `<html lang>` and `og:locale` per language, hreflang alternates (self, each published translation, `x-default` on the default language) on the production address, `LanguageSwitcher.astro` in the header and the menu panel (translation, else the language's home), menus `primary-<lang>` with fallback, blog listings and `llms.txt` in the default language (llms.txt links the other languages' homes). EmDash's Astro `i18n` stays off. |
+| verify | `languages-urls`: every published translation answers 200 at its address (audited or not); `hreflang`: the live page's alternates kept (as paths) and every pair reciprocal. The existing `urls`, `sitemap` and `urls-accounted` gates cover every language. |
+
+Supported URL modes: a directory per non-default language with the default unprefixed, and Polylang's "language
+from the content" (no language in the URL). A prefixed default language, subdomains, separate domains and `?lang=`
+turn `languages-url-mode` red: the owner decides (redirects, per-host routing) before anything is loaded.
+
+Not carried, listed in the report: string translations (WPML String Translation, Polylang strings), per-language term
+links (each language's terms migrate as their own terms), per-language blog archives and feeds, language-aware
+previous/next and related posts.
+
+---
+
 ## 9. Out of scope for v1 (detected and reported, migration stops for a decision)
 
-WooCommerce/shop, membership/LMS/paywalls, multisite, WPML/Polylang, user accounts/front-end login, custom plugins with business logic (→ later via `wordpress-plugin-to-emdash`), Bricks pages (adapter in v2, built against a real client site).
+WooCommerce/shop, membership/LMS/paywalls, multisite, user accounts/front-end login, custom plugins with business logic (→ later via `wordpress-plugin-to-emdash`), Bricks pages (adapter in v2, built against a real client site).
 
 ---
 

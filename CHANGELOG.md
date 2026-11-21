@@ -6,6 +6,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Multilingual sites (WPML, Polylang)**, no longer out of scope: every language keeps its WordPress address; entries carry `lang` and `translation_group` (from the EmDash Exporter's locale and translation group, Polylang's language taxonomies, or WPML's `icl_translations` from a database dump); the starter prints `<html lang>`, hreflang alternates with `x-default`, a language switcher (header and menu panel) and per-language menus (`primary-fr`). Language directories with an unprefixed default, and Polylang's no-language-in-URL mode, are migrated; a prefixed default, subdomains, domains and `?lang=` stop at the new `languages-url-mode` gate. New gates: extract `languages`; transform `languages-url-mode`, `languages-assigned`, `languages-groups`, `languages-routes`; verify `languages-urls`, `hreflang` (parity with the live page, reciprocal). Coverage report → Languages lists translated site chrome and other things not carried. EmDash's native i18n stays off for now; why: `docs/spikes/multilingual-findings.md`.
+
 ## [1.4.0] — 2026-11-22
 
 ### Added
