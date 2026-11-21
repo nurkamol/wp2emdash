@@ -232,6 +232,8 @@ export const kitConfigSchema = z.object({
 	 *   counts against the account's Images transformations — 5,000 unique/month free; a failed transform falls back to
 	 *   the original file). false = original files only.
 	 * - warmup: deploy scripts request every sitemap URL once after `wrangler deploy`.
+	 * - rewarmMinutes: once the site is live on its domain, the Worker's cron requests every sitemap page this often,
+	 *   so pages an edit purged render once there instead of for the next visitor. 0 = off; at least 5 (the cron's step).
 	 * - smartPlacement: Workers Smart Placement (off: not shown to help this stack, see the findings).
 	 */
 	performance: z
@@ -242,6 +244,7 @@ export const kitConfigSchema = z.object({
 			swr: z.number().int().nonnegative().default(86400),
 			responsiveImages: z.boolean().default(true),
 			warmup: z.boolean().default(true),
+			rewarmMinutes: z.number().int().refine((n) => n === 0 || n >= 5, "0 (off) or at least 5").default(15),
 			/** Preload a page when a visitor hovers over, focuses or touches its link (site pages only; not on data saver). */
 			prefetch: z.boolean().default(true),
 			smartPlacement: z.boolean().default(false),

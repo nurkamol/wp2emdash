@@ -21,7 +21,7 @@ afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 describe("route caching config", () => {
 	it("is on by default: pages for 7 days (purged on every edit), the rest for an hour, a day of stale-while-revalidate", () => {
-		expect(perf()).toEqual({ routeCache: true, pageMaxAge: 604800, maxAge: 3600, swr: 86400, responsiveImages: true, warmup: true, prefetch: true, smartPlacement: false, phoneVideo: false });
+		expect(perf()).toEqual({ routeCache: true, pageMaxAge: 604800, maxAge: 3600, swr: 86400, responsiveImages: true, warmup: true, rewarmMinutes: 15, prefetch: true, smartPlacement: false, phoneVideo: false });
 	});
 
 	it("has one rule per public page plus the sitemaps and image variants, tagged with EmDash collection names", () => {

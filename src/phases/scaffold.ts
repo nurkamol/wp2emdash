@@ -20,7 +20,7 @@ import { credentialsFor } from "../commands/provision.js";
 import { carriedWidgets } from "../scaffold/widgets.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import type { MenuCapture } from "../audit/interactions.js";
 import type { BricksHeaderLook, BricksLayout } from "../adapters/bricks/layout.js";
 import type { KitConfig } from "../config/schema.js";
@@ -35,7 +35,8 @@ import { applySensitivePolicy, applyUploadPolicy, fluentFormToDefinition, type F
 import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type DesignCapture, fluid, type HeaderCapture, headerTokens, panelExtras, stackBreakpoint } from "../scaffold/generate.js";
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
 import { astroSessions, sessionsBucketBinding, sessionStore } from "../scaffold/sessions.js";
-import { astroPerf, brandHashes, imageHosts, type PerfConfig, perfSite, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
+import { lintInlineScripts } from "../scaffold/csp-lint.js";
+import { astroPerf, brandHashes, imageHosts, type PerfConfig, perfSite, rewarmSiteConfig, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { customStylesheet } from "../transform/custom-css.js";
 import type { WpUrlRules } from "../transform/wp-urls.js";
@@ -589,7 +590,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	}
 	// Performance package (src/scaffold/perf.ts): route-cache defaults, hashed brand files with sizes, favicons.
 	const perf = await perfSite(join(project, "public"), config.performance, brand, siteConfig.header.logoHeight);
-	Object.assign(siteConfig, perf.site, { header: { ...siteConfig.header, ...perf.header } }, brandHashes(join(project, "public"), brand));
+	Object.assign(siteConfig, perf.site, rewarmSiteConfig(config.performance, { live: !!cfNow?.production?.live, url: siteConfig.productionUrl }), { header: { ...siteConfig.header, ...perf.header } }, brandHashes(join(project, "public"), brand));
 	// WordPress addresses with no page here (feeds, search, archives, attachment pages, query forms): transform's rule
 	// set (ir/wp-urls.json), applied by the middleware; verify judges every audited URL with the same rules.
 	const wpUrlPlan = readJson<{ rules: WpUrlRules }>(join(ir, "wp-urls.json"));
@@ -858,6 +859,13 @@ ${sess.options}${ap.options}	integrations: [
 		seedDetail = r.errors.length ? r.errors.slice(0, 5).join("; ") : `valid${r.warnings.length ? `, ${r.warnings.length} warnings` : ""}`;
 	} catch {}
 	check("seed-valid", "seed.json passes EmDash's validator", val.code === 0, seedDetail);
+
+	// Scripts the public CSP would block (src/scaffold/csp-lint.ts): caught here, not on the live site.
+	const astroSources = (function walk(d: string): string[] {
+		return readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : e.name.endsWith(".astro") ? [join(d, e.name)] : []));
+	})(join(project, "src")).map((p) => ({ path: relative(project, p), text: readFileSync(p, "utf8") }));
+	const cspProblems = lintInlineScripts(astroSources, existsSync(join(project, "astro.config.mjs")) ? readFileSync(join(project, "astro.config.mjs"), "utf8") : "");
+	check("csp-inline", "No inline script the Content-Security-Policy would block", cspProblems.length === 0, cspProblems.slice(0, 4).join(" | ") || `${astroSources.length} components checked`);
 
 	if (!opts.build) return checks;
 	// Type-check the project as its CI does (pnpm check), so starter type errors fail here, not on the client's repo.

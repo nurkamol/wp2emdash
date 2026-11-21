@@ -196,3 +196,18 @@ cached, or evicted by Cloudflare) still renders once — preloading moves that r
   files, `/_emdash`, `/api`, `/_image`, `/wp-content`, feeds, previews, searches, `target=_blank`, `download`, data saver
   and 2G; at most 20 per page. `<link rel=prefetch>` where supported, else a low-priority `fetch` (Safari), which still
   renders an uncached page at the edge before the click.
+
+## Re-warm after edits, inline-script lint (2026-11-21)
+
+- **Why:** measured on the live single-environment site, pages an edit had purged stayed `MISS` (1.7–2.0 s TTFB) until
+  a visitor rendered them, while untouched pages were `HIT` (0.25 s). The deploy warm-up does not run after edits.
+- **Re-warm** (`performance.rewarmMinutes`, default 15; 0 off): once `production.live`, the Worker's existing 5-minute
+  cron (`starter/src/worker.ts`) requests every sitemap page (max 120 per run, 4 at a time) from the live origin on the
+  tick that starts each window. A cached page is a hit (the Worker does not run); a purged one renders once there. Never
+  on workers.dev (a Worker cannot fetch its own workers.dev address). Cloudflare documents same-zone fetches to a Custom
+  Domain as succeeding subrequests; a Worker fetching **its own** Custom Domain is not documented — confirm on the first
+  live deploy (`wrangler tail`: `rewarm: N pages, R rendered, F failed`; then a purged page answers `HIT` unvisited).
+- **Inline-script lint** (scaffold gate `csp-inline`, `src/scaffold/csp-lint.ts`): the public CSP allows inline scripts
+  only by hash, and an inline script reached the live site once (a component script under 4 KB that Astro inlined),
+  caught only by verify after the deploy. The lint fails scaffold when `assetsInlineLimit` is not 0, or a component has
+  `<script is:inline>` code, `define:vars`, `set:html` not from `scripts/inline/`, or an `on*=` handler.

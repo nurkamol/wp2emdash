@@ -103,6 +103,15 @@ export function perfSiteConfig(perf: PerfConfig): { routeCache?: { maxAge: numbe
 }
 
 /**
+ * Re-warm from the Worker's cron (starter/src/utils/rewarm.ts): only once the site is live on its own domain (a
+ * workers.dev Worker cannot request its own address) and with the route cache on.
+ */
+export function rewarmSiteConfig(perf: PerfConfig, production: { live: boolean; url?: string }): { rewarm?: { origin: string; everyMinutes: number } } {
+	if (!perf.routeCache || !perf.rewarmMinutes || !production.live || !production.url || !URL.canParse(production.url)) return {};
+	return { rewarm: { origin: new URL(production.url).origin, everyMinutes: perf.rewarmMinutes } };
+}
+
+/**
  * Deploy scripts with the warm-up appended: every script that runs `wrangler deploy` then requests the sitemap URLs
  * of the address it deployed to (staging scripts → the staging address, the others → production). A script whose
  * address is not known yet is left as it is.
