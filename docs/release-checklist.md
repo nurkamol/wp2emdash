@@ -29,7 +29,7 @@ copy was reset to the new history. A local-only planning branch was not pushed.
 ## 2. Repository files
 
 - [x] `LICENSE` (MIT, Nurkamol Vokhidov) — matches `package.json`.
-- [ ] `README.md`: logo, badges (CI, license, Node version), one-paragraph pitch, quick start, docs index — no client
+- [x] `README.md`: logo, badges (CI, license, Node version), one-paragraph pitch, quick start, docs index — no client
       names, no internal-only instructions.
 - [x] `SECURITY.md`: how to report a vulnerability (private email or GitHub private advisories), supported versions.
 - [x] `CONTRIBUTING.md`: setup, `pnpm test && pnpm typecheck`, fixture + golden rule for adapters, no client data in
@@ -54,8 +54,8 @@ copy was reset to the new history. A local-only planning branch was not pushed.
 
 - [x] `pnpm test && pnpm typecheck` green on a fresh clone with `pnpm install --frozen-lockfile`.
 - [ ] CI workflow green on the public repository (runs on pull requests from forks without secrets).
-- [ ] `pnpm wp2emdash --help` and every command in the README run.
-- [ ] Generated client projects build: scaffold a fixture site and run `astro check` + `astro build`.
+- [x] `pnpm wp2emdash --help` and every command in the README run.
+- [x] Generated client projects build: scaffold a fixture site and run `astro check` + `astro build`.
 
 ## 5. GitHub settings
 
