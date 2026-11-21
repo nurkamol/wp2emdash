@@ -8,18 +8,23 @@ ticked. Nothing here is done automatically by the kit.
 Early commits contained a pilot site's workspace files and the pilot's name in a few documents and one commit message.
 No secrets were ever committed (checked: API keys, tokens, private keys — the only matches are synthetic test values).
 
-- [ ] Freeze: no open branches or worktrees with unmerged work (`git worktree list`, `git branch -a`).
-- [ ] Back up the private repository (a mirror clone kept outside GitHub).
-- [ ] Rewrite history with `git filter-repo`:
-  - [ ] remove every path under `sites/` except `sites/README.md`;
-  - [ ] remove the early pilot-named document under `docs/`;
-  - [ ] replace pilot names, domains, tracking IDs and account IDs in all historical file versions with neutral
+- [x] Freeze: no open branches or worktrees with unmerged work (`git worktree list`, `git branch -a`).
+- [x] Back up the private repository (a mirror clone kept outside GitHub).
+- [x] Rewrite history with `git filter-repo`:
+  - [x] remove every path under `sites/` except `sites/README.md`;
+  - [x] remove the early pilot-named document under `docs/`;
+  - [x] replace pilot names, domains, tracking IDs and account IDs in all historical file versions with neutral
         placeholders (`--replace-text` with a local, untracked expressions file);
-  - [ ] rewrite commit messages that name a client (`--message-callback`).
-- [ ] Verify on the rewritten history: `git log --all --name-only` lists no `sites/<slug>/` path; a `git grep` over
+  - [x] rewrite commit messages that name a client (`--message-callback`).
+- [x] Verify on the rewritten history: `git log --all --name-only` lists no `sites/<slug>/` path; a `git grep` over
       every commit finds no client name, domain, tracking ID or account ID; the secret scan is still clean.
-- [ ] Force-push all branches and tags; delete stale remote branches (agent/worktree branches).
-- [ ] Re-clone every working copy (old clones still hold the old history).
+- [x] Force-push all branches and tags; delete stale remote branches (agent/worktree branches).
+- [x] Re-clone every working copy (old clones still hold the old history).
+
+Done 2026-11-21 (owner approved): mirror backup kept outside GitHub; 282 commits rewritten with `git filter-repo`
+(paths + `--replace-text` / `--replace-message`, expressions kept with the backup, never in the repo); verified on a
+fresh clone of GitHub: no `sites/<slug>/` path, no client string in any commit or message. The maintainer's working
+copy was reset to the new history. A local-only planning branch was not pushed.
 
 ## 2. Repository files
 
