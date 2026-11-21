@@ -9,6 +9,8 @@
  * Route cache: a results page is never kept (every query differs); the empty form is cached like any page.
  */
 import { getEmDashCollection, getEmDashEntry, getSeoMeta, search } from "emdash";
+import { env } from "cloudflare:workers";
+import { searchTool, type WebMcpEnv } from "@wp2emdash/forms/webmcp";
 import Base from "../layouts/Base.astro";
 import Sections from "../components/Sections.astro";
 import site from "../site.config.json";
@@ -19,6 +21,8 @@ import { highlight, mergeHits, textOf, resultExcerpt, resultHref, SEARCH_MAX_PAG
 
 const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
 const { q, page } = searchParams(Astro.url);
+// WebMCP: search is a natural agent tool (GET, no side effects, so the agent may submit it itself).
+const tool = searchTool(env as WebMcpEnv);
 const [chrome, intro] = await Promise.all([loadChrome(), getEmDashEntry("pages", "search")]);
 
 type Result = { title: string; href: string; type: string; excerpt: string };
@@ -61,10 +65,10 @@ const status = !q ? "" : unavailable ? "Search is not available right now. Pleas
 	<section class="section space-normal site-search">
 		<div class="container">
 			<h1 class="heading heading--h1">{heading}</h1>
-			<form class="site-search__form" role="search" method="get" action={style === "never" ? "/search" : "/search/"}>
+			<form class="site-search__form" role="search" method="get" action={style === "never" ? "/search" : "/search/"} {...(tool ?? {})}>
 				<label for="site-search-q" class="site-search__label">Search this site</label>
 				<div class="site-search__row">
-					<input id="site-search-q" class="site-search__input" type="search" name="q" value={q} required maxlength="200" autocomplete="off" enterkeyhint="search" />
+					<input id="site-search-q" class="site-search__input" type="search" name="q" value={q} required maxlength="200" autocomplete="off" enterkeyhint="search" toolparamdescription={tool && "Words to search for"} />
 					<button class="btn btn--primary" type="submit">Search</button>
 				</div>
 			</form>

@@ -9,6 +9,7 @@ import CommentsScript from "./CommentsScript.astro";
  */
 import { getComments } from "emdash";
 import { env } from "cloudflare:workers";
+import { commentTool, HONEYPOT_DESCRIPTION, type WebMcpEnv } from "@wp2emdash/forms/webmcp";
 import site from "../../site.config.json";
 import { bodyParts, commentsEndpoint, commentsHeading, formOpen, showsComments } from "../../utils/comments";
 import { commentsConfig } from "../../utils/comments-data";
@@ -27,6 +28,8 @@ const shown = showsComments(commentsConfig, collection) && !!contentId;
 const { items, total } = shown ? await getComments({ collection, contentId, threaded: true }).catch(() => ({ items: [], total: 0 })) : { items: [], total: 0 };
 const form = shown && formOpen(commentsConfig, collection, closed, publishedAt);
 const siteKey = form ? (env as { TURNSTILE_SITE_KEY?: string }).TURNSTILE_SITE_KEY : undefined;
+// WebMCP: agents can fill the comment form in; the visitor still posts it (Turnstile unchanged). None on sensitive sites.
+const tool = form ? commentTool(env as WebMcpEnv, "Post comment") : undefined;
 const policy = (site as { consent?: { defaults?: { policy?: string } } }).consent?.defaults?.policy;
 const lang = (site as { lang?: string }).lang ?? "en";
 const fmt = new Intl.DateTimeFormat(lang, { year: "numeric", month: "long", day: "numeric" });
@@ -84,7 +87,7 @@ const list = items as C[];
 				)}
 				{form ? (
 					<>
-						<form class="form comments__form" data-comments-form data-endpoint={commentsEndpoint(collection, contentId)} aria-labelledby="comment-form-heading" novalidate hidden>
+						<form class="form comments__form" data-comments-form data-endpoint={commentsEndpoint(collection, contentId)} aria-labelledby="comment-form-heading" novalidate hidden {...(tool ?? {})}>
 							<h3 id="comment-form-heading" class="heading heading--h4 comments__form-heading">Leave a comment</h3>
 							<p class="comments__replying" data-replying hidden>
 								<span data-replying-text />
@@ -92,18 +95,18 @@ const list = items as C[];
 							</p>
 							<label class="field field--text field--half">
 								<span class="field__label">Name<span aria-hidden="true"> *</span></span>
-								<input type="text" name="authorName" required maxlength="100" autocomplete="name" />
+								<input type="text" name="authorName" required maxlength="100" autocomplete="name" toolparamdescription={tool && "Name shown with the comment"} />
 							</label>
 							<label class="field field--email field--half">
 								<span class="field__label">E-mail (not published)<span aria-hidden="true"> *</span></span>
-								<input type="email" name="authorEmail" required maxlength="254" autocomplete="email" />
+								<input type="email" name="authorEmail" required maxlength="254" autocomplete="email" toolparamdescription={tool && "E-mail address (not published)"} />
 							</label>
 							<label class="field field--textarea">
 								<span class="field__label">Comment<span aria-hidden="true"> *</span></span>
-								<textarea name="body" required maxlength="5000" rows="5" />
+								<textarea name="body" required maxlength="5000" rows="5" toolparamdescription={tool && "The comment"} />
 							</label>
 							<input type="hidden" name="parentId" value="" />
-							<input type="text" name="website_url" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true" />
+							<input type="text" name="website_url" tabindex="-1" autocomplete="off" class="visually-hidden" aria-hidden="true" toolparamdescription={tool && HONEYPOT_DESCRIPTION} />
 							<p class="form__notice">
 								Your name and comment are shown with the post; your e-mail address is not. Comments may be checked before they appear.
 								{policy && <> See the <a href={policy}>privacy policy</a>.</>}

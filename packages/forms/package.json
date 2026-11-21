@@ -18,7 +18,8 @@
     "./signature-pad": "./src/signature-pad.ts",
     "./logic": "./src/logic.ts",
     "./uploads": "./src/uploads.ts",
-    "./chat": "./src/chat.ts"
+    "./chat": "./src/chat.ts",
+    "./webmcp": "./src/webmcp.ts"
   },
   "files": ["src", "README.md"],
   "peerDependencies": {

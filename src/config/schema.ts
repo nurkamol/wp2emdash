@@ -435,6 +435,13 @@ export const kitConfigSchema = z.object({
 			 * live in its KV). On a sensitiveData site only "notification only" is possible. `false` removes it (FORM_CHAT="0").
 			 */
 			chat: z.boolean().default(true),
+			/**
+			 * WebMCP form annotations (@wp2emdash/forms webmcp.ts; docs/spikes/webmcp-findings.md): `toolname`,
+			 * `tooldescription` and `toolparamdescription` attributes so AI agents in Chrome can fill in the site's forms,
+			 * comment form and search. No JavaScript; the visitor still presses Submit (Turnstile unchanged). Forms of a
+			 * sensitiveData site are never exposed. `false` removes every annotation (FORM_WEBMCP="0").
+			 */
+			webmcp: z.boolean().default(true),
 			/** Production Turnstile site key (public). Staging uses Cloudflare's always-pass test key. */
 			turnstileSiteKey: z.string().optional(),
 			/**
