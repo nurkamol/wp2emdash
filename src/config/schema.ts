@@ -250,6 +250,10 @@ export const kitConfigSchema = z.object({
 			swr: z.number().int().nonnegative().default(86400),
 			responsiveImages: z.boolean().default(true),
 			warmup: z.boolean().default(true),
+			/** After every deploy, check the live site (pages, fonts, assets, hero) — src/scaffold/deploy-check.ts. */
+			deployCheck: z.boolean().default(true),
+			/** When the deploy check fails, roll the Worker back to the version live before (the deploy still fails). */
+			rollback: z.boolean().default(true),
 			rewarmMinutes: z.number().int().refine((n) => n === 0 || n >= 5, "0 (off) or at least 5").default(15),
 			/** Preload a page when a visitor hovers over, focuses or touches its link (site pages only; not on data saver). */
 			prefetch: z.boolean().default(true),

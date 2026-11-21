@@ -252,3 +252,23 @@ cached, or evicted by Cloudflare) still renders once — preloading moves that r
   (Safari, Firefox), so Chrome/Edge do not fetch twice. Signed-in editors in Chrome/Edge get no preloading (their pages
   bypass the cache anyway).
 - **Not yet checked live:** a Cloudflare deploy (`_headers` Content-Type on the real asset, a cached page's header).
+
+## Google Fonts dynamic addresses and the deploy check (2026-11-22)
+
+- **Root cause of a build without its body font:** fonts.googleapis.com/css2 answers the same request with one of two
+  stylesheets. Usually each face's `src` is `https://fonts.gstatic.com/s/<font>/<v>/<hash>.woff2`; in about one answer in
+  ten (4 of 40 requests measured, same URL and user agent) some families come as
+  `https://fonts.gstatic.com/l/font?kit=…&skey=…&v=…` with `format('woff2')` and no extension. The self-hosting step
+  matched only `….woff2)` and skipped the other faces silently, so the family was missing from fonts.css and the site
+  shipped with a fallback font. Both forms serve woff2 bytes (`wOF2` magic). Fix (src/scaffold/fonts.ts): take the URL
+  from `url(…) format('woff2')`, check the `wOF2` signature, fail (keep the Google link) on anything unreadable, and
+  scaffold refuses a self-hosted set that misses a family of the Google Fonts link (warns, keeps the link, saves
+  Google's answer to reports/scaffold/google-fonts-answer.css).
+- **Deploy check** (src/scaffold/deploy-check.ts → scripts/deploy-check.mjs, after the warm-up): sitemap pages answer,
+  `<title>`/`<main>`/footer present, home stylesheets and scripts load, the `fetchpriority=high` picture loads, and
+  every family in site.config `fonts.body`/`fonts.display` is an `@font-face` in the home page's CSS (or a Google Fonts
+  / Typekit link). On a failure: `wrangler deployments list --json` → the newest version other than the current one →
+  `wrangler rollback <id> -y -m …`, exit 1. Run in the project right after `wrangler deploy`, so Wrangler resolves the
+  same Worker (staging builds via .wrangler/deploy/config.json → dist/server/wrangler.json). Wrangler 4.163.0:
+  `rollback [version-id] -y -m <message>`. Measured on live sites: Priority Pilates 11 pages, M Wellness staging 10
+  pages, both pass; a booking-widget page (heading + script embed) counts as content.

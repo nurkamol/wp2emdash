@@ -84,7 +84,10 @@ export async function selfHostGoogleFonts(href: string, publicDir: string, want:
 	const preload: string[] = [];
 	let files = 0;
 	for (const [, subset, face] of blocks) {
-		const url = /url\((https:[^)]+\.woff2)\)/.exec(face as string)?.[1];
+		// The woff2 file: usually ".../s/<font>/<v>/<hash>.woff2", but Google also answers (about one request in ten,
+		// measured 2026-11-22) with a dynamic ".../l/font?kit=…&skey=…" address without the extension — still woff2
+		// (format('woff2')). Missing those once dropped a site's body font.
+		const url = (/url\((https:\/\/[^)\s]+)\)\s*format\(\s*['"]woff2['"]\s*\)/.exec(face as string)?.[1] ?? /url\((https:[^)]+\.woff2)\)/.exec(face as string)?.[1])?.replace(/&amp;/g, "&");
 		// Never skip a face silently (a build once shipped without its body font): an answer the kit cannot read fails
 		// self-hosting, and the caller keeps the Google Fonts link.
 		if (!url) throw new Error(`unexpected @font-face from Google Fonts (no woff2 file): ${(face as string).replace(/\s+/g, " ").slice(0, 160)}`);
@@ -93,6 +96,7 @@ export async function selfHostGoogleFonts(href: string, publicDir: string, want:
 		// silently missing one of its fonts is worse than one loading them from Google.
 		if (!font.ok) throw new Error(`font file ${url} answered HTTP ${font.status}`);
 		const bytes = Buffer.from(await font.arrayBuffer());
+		if (bytes.length < 4 || bytes.toString("latin1", 0, 4) !== "wOF2") throw new Error(`font file ${url} is not a woff2 font`);
 		const name = `${createHash("sha1").update(bytes).digest("hex").slice(0, 12)}.woff2`;
 		writeFileSync(join(dir, name), bytes);
 		files++;

@@ -8,7 +8,7 @@ import { fontCsp, TYPEKIT_CSP } from "../starter/src/utils/fonts.js";
 
 const face = (family: string, style: string, weight: number, file: string) => `@font-face {\n  font-family: '${family}';\n  font-style: ${style};\n  font-weight: ${weight};\n  font-display: swap;\n  src: url(https://fonts.gstatic.com/s/x/${file}.woff2) format('woff2');\n  unicode-range: U+0000-00FF;\n}`;
 const css = [`/* cyrillic */\n${face("Body Sans", "normal", 400, "cyr")}`, `/* latin */\n${face("Body Sans", "normal", 400, "b400")}`, `/* latin */\n${face("Body Sans", "italic", 400, "b400i")}`, `/* latin-ext */\n${face("Show Serif", "normal", 300, "s300x")}`, `/* latin */\n${face("Show Serif", "normal", 300, "s300")}`].join("\n");
-const fetcher = (async (url: string) => (url.includes("css2") ? new Response(css) : new Response(new Uint8Array(Buffer.from(url))))) as unknown as typeof fetch;
+const fetcher = (async (url: string) => (url.includes("css2") ? new Response(css) : new Response(new Uint8Array(Buffer.from(`wOF2${url}`))))) as unknown as typeof fetch;
 
 describe("self-hosted Google Fonts", () => {
 	it("keeps latin subsets, rewrites URLs to /fonts and preloads body regular + display heading weight", async () => {
@@ -92,5 +92,24 @@ describe("self-hosting must cover every family the site uses", () => {
 		const s = readFileSync(join(import.meta.dirname, "..", "src/phases/scaffold.ts"), "utf8");
 		expect(s).toContain("const missing = hosted ? missingFamilies(siteConfig.fonts.googleHref, hostedFamilies) : [];");
 		expect(s).toContain("fonts not self-hosted (Google Fonts kept): ${missing.join");
+	});
+});
+
+describe("Google's dynamic font addresses (/l/font?kit=…, no .woff2 extension)", () => {
+	it("are self-hosted like the usual ones, and a file that is not woff2 fails the step", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "fonts-"));
+		try {
+			const css = "/* latin */\n@font-face { font-family: 'Outfit'; font-weight: 400; src: url(https://fonts.gstatic.com/l/font?kit=abc&amp;skey=def&amp;v=v15) format('woff2'); }";
+			const seen: string[] = [];
+			const ok = (async (u: string) => (u.includes("css2") ? new Response(css) : (seen.push(u), new Response(new Uint8Array(Buffer.from("wOF2data")))))) as unknown as typeof fetch;
+			const r = await selfHostGoogleFonts("https://fonts.googleapis.com/css2?family=Outfit", dir, { body: "Outfit", display: "Outfit", displayWeight: 400 }, ok);
+			expect(r?.files).toBe(1);
+			expect(r?.css).toContain("font-family: 'Outfit'");
+			expect(seen).toEqual(["https://fonts.gstatic.com/l/font?kit=abc&skey=def&v=v15"]);
+			const html = (async (u: string) => (u.includes("css2") ? new Response(css) : new Response("<html>"))) as unknown as typeof fetch;
+			await expect(selfHostGoogleFonts("https://fonts.googleapis.com/css2?family=Outfit", dir, { body: "Outfit", display: "Outfit", displayWeight: 400 }, html)).rejects.toThrow(/not a woff2 font/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

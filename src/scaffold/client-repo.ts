@@ -399,6 +399,7 @@ Staging is marked \`noindex\` and uses Cloudflare's test bot-check keys, so form
 3. **Deploy** — \`wrangler deploy\`.
 4. **Check** — \`emdash migrate --check\` must report nothing pending.${i.routeCache ? `
 5. **Warm-up** — \`node scripts/warm.mjs <address>\` requests every page in the sitemap once (and the image sizes they use), so the first visitors after a deploy get cached pages. It never fails the deploy.` : ""}
+6. **Deploy check** — \`node scripts/deploy-check.mjs <address>\` then checks the live site like a visitor: every sitemap page answers, the site's fonts are in its stylesheets, stylesheets, scripts and the hero picture load, pages have their content and footer. If anything is broken it rolls the Worker back to the version that was live before (\`wrangler rollback\`) and the deploy fails — visitors keep the working site. \`DEPLOY_ROLLBACK=0\` skips the rollback for one run.
 
 Run them with the Cloudflare token in the environment (\`emdash migrate\` does not read \`.env\` files):
 
@@ -925,6 +926,7 @@ reviewed on a preview link first (below).
 3. **Deploy** — \`wrangler deploy\`.
 4. **Check** — \`emdash migrate --check\` must report nothing pending.${i.routeCache ? `
 5. **Warm-up** — \`node scripts/warm.mjs <address>\` requests every page in the sitemap once (and the image sizes they use), so the first visitors after a deploy get cached pages. It never fails the deploy.` : ""}
+6. **Deploy check** — \`node scripts/deploy-check.mjs <address>\` then checks the live site like a visitor: every sitemap page answers, the site's fonts are in its stylesheets, stylesheets, scripts and the hero picture load, pages have their content and footer. If anything is broken it rolls the Worker back to the version that was live before (\`wrangler rollback\`) and the deploy fails — visitors keep the working site. \`DEPLOY_ROLLBACK=0\` skips the rollback for one run.
 
 Run them with the Cloudflare token in the environment (\`emdash migrate\` does not read \`.env\` files):
 

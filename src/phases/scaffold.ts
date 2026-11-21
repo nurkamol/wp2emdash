@@ -39,6 +39,7 @@ import { applyStackBreakpoint, buildMotion, buildSiteConfig, buildTokens, type D
 import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.js";
 import { astroSessions, sessionsBucketBinding, sessionStore } from "../scaffold/sessions.js";
 import { lintInlineScripts } from "../scaffold/csp-lint.js";
+import { withDeployCheck } from "../scaffold/deploy-check.js";
 import { astroPerf, brandHashes, imageHosts, type PerfConfig, perfSite, rewarmSiteConfig, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
 import { BLOCK_TYPES } from "../starter/library.js";
 import { customStylesheet } from "../transform/custom-css.js";
@@ -712,6 +713,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// One environment (production) unless the site opted into staging (src/core/environments.ts).
 	const envs = siteEnvironments(config, cf as never);
 	reporter.emit({ type: "log", level: "info", message: envs.staging ? `environments: staging + production (staging: ${envs.why})` : "environments: production only (single environment; staging is opt-in: target.staging)" });
+	const deployUrls = { staging: cf.staging?.worker?.url, production: cf.production?.live ? siteConfig.productionUrl : (cf.production as { worker?: { url?: string } } | undefined)?.worker?.url };
 	write(join(project, "package.json"), {
 		name: `${config.slug}-site`,
 		version: "0.1.0",
@@ -723,7 +725,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		// The Cloudflare adapter flattens wrangler.jsonc at BUILD time: the environment is chosen with CLOUDFLARE_ENV during
 		// the build. EmDash core migrations run BEFORE the new build serves traffic; emdash migrate reads
 		// CLOUDFLARE_API_TOKEN/ACCOUNT_ID from the shell. Not named "deploy": that is a pnpm built-in command.
-		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...withWarmup(deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }), { staging: cf.staging?.worker?.url, production: cf.production?.live ? siteConfig.productionUrl : (cf.production as { worker?: { url?: string } } | undefined)?.worker?.url }, config.performance) },
+		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...withDeployCheck(withWarmup(deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }), deployUrls, config.performance), deployUrls, config.performance) },
 		dependencies: {
 			"@astrojs/cloudflare": STACK["@astrojs/cloudflare"],
 			"@astrojs/react": STACK["@astrojs/react"],

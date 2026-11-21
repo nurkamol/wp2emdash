@@ -12,6 +12,7 @@
  * - Long browser caching for content-hashed fonts and brand files (public/_headers).
  * - Brand files: content-hashed copies, the logo as WebP sized for the header, small favicons (PNG kept).
  */
+import { DEPLOY_CHECK_SCRIPT } from "./deploy-check.js";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
@@ -382,6 +383,11 @@ export function writePerfFiles(project: string, perf: PerfConfig): void {
 		mkdirSync(join(project, "scripts"), { recursive: true });
 		writeFileSync(warm, WARMUP_SCRIPT);
 	} else rmSync(warm, { force: true });
+	const check = join(project, "scripts", "deploy-check.mjs");
+	if (perf.deployCheck) {
+		mkdirSync(join(project, "scripts"), { recursive: true });
+		writeFileSync(check, DEPLOY_CHECK_SCRIPT);
+	} else rmSync(check, { force: true });
 	writeFileSync(join(project, "public", "_headers"), HEADERS_FILE);
 	if (existsSync(join(project, "scripts")) && readdirSync(join(project, "scripts")).length === 0) rmSync(join(project, "scripts"), { recursive: true });
 }

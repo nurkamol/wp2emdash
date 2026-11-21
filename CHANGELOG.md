@@ -6,6 +6,12 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Deploy check with automatic rollback** (`performance.deployCheck`, `performance.rollback`, both on): every deploy script runs `scripts/deploy-check.mjs` after the warm-up — sitemap pages answer, titles / main content / footer present, stylesheets, scripts and the hero picture load, every font the site uses is in its CSS. On a failure the Worker is rolled back to the version live before and the deploy fails. `DEPLOY_ROLLBACK=0` skips the rollback for one run.
+
+### Fixed
+- **Root cause of the dropped body font:** Google Fonts sometimes (≈1 answer in 10) serves a family from a dynamic `fonts.gstatic.com/l/font?kit=…` address without a `.woff2` extension; those faces were skipped. They are now self-hosted (woff2 signature checked). Findings: `docs/spikes/performance-findings.md`.
+
 ## [1.4.0] — 2026-11-22
 
 ### Added

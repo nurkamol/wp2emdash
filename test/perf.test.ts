@@ -21,7 +21,7 @@ afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 describe("route caching config", () => {
 	it("is on by default: pages for 7 days (purged on every edit), the rest for an hour, a day of stale-while-revalidate", () => {
-		expect(perf()).toEqual({ routeCache: true, pageMaxAge: 604800, maxAge: 3600, swr: 86400, responsiveImages: true, warmup: true, rewarmMinutes: 15, prefetch: true, smartPlacement: false, phoneVideo: false });
+		expect(perf()).toEqual({ routeCache: true, pageMaxAge: 604800, maxAge: 3600, swr: 86400, responsiveImages: true, warmup: true, deployCheck: true, rollback: true, rewarmMinutes: 15, prefetch: true, smartPlacement: false, phoneVideo: false });
 	});
 
 	it("has one rule per public page plus the sitemaps and image variants, tagged with EmDash collection names", () => {
@@ -123,7 +123,11 @@ describe("warm-up after deploy", () => {
 		writePerfFiles(project, perf());
 		expect(readFileSync(join(project, "scripts", "warm.mjs"), "utf8")).toBe(WARMUP_SCRIPT);
 		expect(readFileSync(join(project, "public", "_headers"), "utf8")).toBe(HEADERS_FILE);
+		expect(existsSync(join(project, "scripts", "deploy-check.mjs"))).toBe(true);
 		writePerfFiles(project, perf({ routeCache: false }));
+		expect(existsSync(join(project, "scripts", "warm.mjs"))).toBe(false);
+		expect(existsSync(join(project, "scripts", "deploy-check.mjs"))).toBe(true); // the deploy check does not need the route cache
+		writePerfFiles(project, perf({ routeCache: false, deployCheck: false }));
 		expect(existsSync(join(project, "scripts"))).toBe(false);
 	});
 });
