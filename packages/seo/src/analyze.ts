@@ -36,12 +36,16 @@ export interface AnalyzeInput {
 	/** Alt text from the media library, by media id. */
 	altOf?: (id: string) => string | undefined;
 	ogCards?: boolean;
+	/** Page or site language (BCP 47, e.g. "en-US"). Reading level runs only for English; unknown → guessed from the text. */
+	lang?: string;
 }
 export interface Analysis {
 	score: number;
 	checks: Check[];
 	serp: { title: string; titleCut: boolean; url: string; description: string; descriptionCut: boolean };
 	words: number;
+	/** Published-and-indexable candidate for the "Pages that need more text" list: under THIN_WORDS, not a short-by-nature page, not hidden. */
+	thin: boolean;
 }
 
 const TEXT_KEYS = new Set(["heading", "eyebrow", "intro", "text", "title", "question", "answer", "quote", "description", "summary", "caption", "body", "name", "role", "label", "value", "features"]);
@@ -89,6 +93,73 @@ export function extract(content: unknown): Extracted {
 const words = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w));
 const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 const norm = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
+
+/**
+ * Text length thresholds. Under 150 words a page meant to rank gives Google little to go on (audits call it thin
+ * content); under 300 it rarely ranks for competitive searches. Contact, legal, thank-you and similar pages are short
+ * by nature, so for them length is only noted, never scored.
+ */
+export const THIN_WORDS = 300;
+export const VERY_THIN_WORDS = 150;
+// Whole slug or its last segment ("legal/terms"), so "contact-lens-guide" still counts as a page meant to rank.
+const SHORT_BY_NATURE = /(^|\/)(contact|contact-us|privacy|privacy-policy|terms|terms-of-service|terms-and-conditions|legal|imprint|impressum|cookies|cookie-policy|disclaimer|accessibility|accessibility-statement|thank-you|thanks|confirmation|success|404|not-found|login|sitemap)\/?$/;
+export const isShortByNature = (slug: string | null) => !!slug && SHORT_BY_NATURE.test(slug.toLowerCase());
+
+/** Below this, word shares and reading level swing wildly on one sentence: we say so instead of judging. */
+const MIN_WORDS_REPETITION = 80;
+const MIN_WORDS_READING = 30;
+/** One meaningful word above this share of all words reads as keyword stuffing to audit tools. */
+const REPEAT_SHARE = 4;
+/** Flesch–Kincaid grade above which most visitors find the text hard (US grade 12 ≈ end of high school). */
+const MAX_GRADE = 12;
+
+// Small English stop-word list: enough to skip the glue words when looking for an overused word, and to guess English.
+const STOP = new Set("a about after all also an and any are as at be been but by can do does for from get has have he her his how i if in into is it its just more most my no not of on one or our out over she so than that the their them then there these they this to up us was we were what when which who will with you your".split(" "));
+
+/** Rough English syllable count (the usual vowel-group heuristic: good enough for a grade estimate). */
+export function syllables(word: string): number {
+	const w = word.toLowerCase().replace(/[^a-z]/g, "");
+	if (!w) return 0;
+	if (w.length <= 3) return 1;
+	const m = w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, "").replace(/^y/, "").match(/[aeiouy]{1,2}/g);
+	return Math.max(1, m?.length ?? 0);
+}
+
+/** Flesch–Kincaid grade of a set of text blocks (each block ends at least one sentence: labels and buttons have no full stop). */
+export function readingGrade(blocks: string[]): { grade: number; words: number; sentences: number } {
+	let ws = 0;
+	let ss = 0;
+	let syl = 0;
+	for (const b of blocks) {
+		const parts = b.split(/[.!?;:]+(?=\s|$)/).map((p) => words(p)).filter((p) => p.length);
+		ss += parts.length;
+		for (const p of parts) for (const w of p) (ws++, (syl += syllables(w)));
+	}
+	const grade = ws && ss ? 0.39 * (ws / ss) + 11.8 * (syl / ws) - 15.59 : 0;
+	return { grade: Math.max(0, Math.round(grade * 10) / 10), words: ws, sentences: ss };
+}
+
+/** True when the language tag is English, or (no tag) the text uses enough common English words. */
+export function looksEnglish(text: string, lang?: string): boolean {
+	if (lang?.trim()) return /^en\b/i.test(lang.trim());
+	const ws = words(text.toLowerCase());
+	if (ws.length < 10) return false;
+	return ws.filter((w) => STOP.has(w.replace(/[^\p{L}']/gu, ""))).length / ws.length >= 0.12;
+}
+
+/** The most frequent meaningful word (stop words, numbers and 1–2 letter words skipped) and its share of all words, in %. */
+export function topWord(ws: string[]): { word: string; count: number; share: number } | undefined {
+	const counts = new Map<string, number>();
+	for (const raw of ws) {
+		const w = norm(raw).replace(/[^\p{L}\p{N}'-]/gu, "").replace(/^['-]+|['-]+$/g, "");
+		if (w.length < 3 || STOP.has(w) || !/\p{L}/u.test(w)) continue;
+		counts.set(w, (counts.get(w) ?? 0) + 1);
+	}
+	let best: [string, number] | undefined;
+	for (const e of counts) if (!best || e[1] > best[1]) best = e;
+	return best && ws.length ? { word: best[0], count: best[1], share: (best[1] * 100) / ws.length } : undefined;
+}
+
 
 /**
  * The <title> the layout renders: the page title, plus " <sep> Site" unless it already names the site. An SEO title of
@@ -143,9 +214,32 @@ export function analyze(i: AnalyzeInput): Analysis {
 	}, 0);
 	add("heading-order", "Heading order", skips.length ? "warn" : "good", skips.length ? `Skips a level: ${skips.slice(0, 3).join(", ")}.` : "No skipped levels.");
 
-	// Length
+	// Length: home and service pages need text to rank; contact, legal and thank-you pages are short by nature (noted only).
 	const n = wordList.length;
-	add("length", "Text length", n >= 300 ? "good" : "warn", n >= 300 ? `${n} words.` : `${n} words: pages with under 300 words rarely rank for competitive searches (fine for contact or legal pages).`);
+	const shortOk = isShortByNature(i.slug);
+	if (n >= THIN_WORDS) add("length", "Text length", "good", `${n} words.`);
+	else if (shortOk) add("length", "Text length", "info", `${n} words: fine for this kind of page, which does not need to rank.`);
+	else if (n < VERY_THIN_WORDS) add("length", "Text length", "bad", `Only ${n} words: Google sees too little here to rank the page. Add at least ${THIN_WORDS - n} words: what you offer, who it is for, prices or what to expect, and common questions.`);
+	else add("length", "Text length", "warn", `${n} words: pages under ${THIN_WORDS} words rarely rank for competitive searches. Add a few paragraphs (e.g. a short FAQ) to reach ${THIN_WORDS}.`);
+
+	// Repetition: the focus keyword check covers its own words, so this looks at the most-used other word.
+	const kwWords = new Set(words(norm(i.focusKeyword ?? "")).map((w) => w.replace(/[^\p{L}\p{N}'-]/gu, "")));
+	if (n < MIN_WORDS_REPETITION) add("repetition", "Repeated words", "info", `Too little text to judge (${n} words). Once the page has more text, check that no word is overused.`);
+	else {
+		const top = topWord(wordList);
+		if (top && top.share > REPEAT_SHARE && !kwWords.has(top.word)) add("repetition", "Repeated words", "warn", `“${top.word}” is ${top.share.toFixed(1)}% of the text (${top.count} times): it can look like keyword stuffing. Use it less often, or swap some for other words people would search for.`);
+		else add("repetition", "Repeated words", "info", "No word is overused.");
+	}
+
+	// Reading level (English only): Flesch–Kincaid grade of the body text.
+	// Too little text to tell the language either: say so, unless the site is known not to be English.
+	const r = readingGrade(x.paragraphs);
+	if (r.words < MIN_WORDS_READING) {
+		if (!i.lang?.trim() || looksEnglish("", i.lang)) add("reading", "Easy to read", "info", "Too little text to judge.");
+	} else if (looksEnglish(allText, i.lang)) {
+		if (r.grade > MAX_GRADE) add("reading", "Easy to read", "warn", `Reading level: grade ${r.grade.toFixed(0)} (hard; most visitors read comfortably at grade 8–10). Use shorter sentences (under 20 words) and everyday words instead of long ones.`);
+		else add("reading", "Easy to read", "info", `Reading level: grade ${r.grade.toFixed(0)}${r.grade <= 9 ? " (easy to read)" : " (fine; shorter sentences make it easier still)"}.`);
+	}
 
 	// Images
 	const missingAlt = x.images.filter((im) => !im.alt?.trim() && !(im.id && i.altOf?.(im.id)?.trim()));
@@ -192,5 +286,6 @@ export function analyze(i: AnalyzeInput): Analysis {
 		checks,
 		serp: { title: cut(title, 60), titleCut: title.length > 60, url: `${host}${path === "/" ? "" : ` › ${path.replace(/^\/|\/$/g, "").split("/").join(" › ")}`}`, description: cut(description || x.paragraphs.join(" "), 160), descriptionCut: (description || x.paragraphs.join(" ")).length > 160 },
 		words: n,
+		thin: n < THIN_WORDS && !shortOk && !i.seo?.noIndex,
 	};
 }

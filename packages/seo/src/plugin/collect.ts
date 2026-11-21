@@ -91,6 +91,7 @@ export function analyseItem(o: SeoPanelOptions, siteName: string, item: Item, al
 		...(keyword ? { focusKeyword: keyword } : {}),
 		altOf: (id) => media.get(id)?.alt,
 		...(o.ogCards ? { ogCards: true } : {}),
+		...(o.lang ? { lang: o.lang } : {}),
 	});
 }
 

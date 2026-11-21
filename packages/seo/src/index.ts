@@ -45,6 +45,8 @@ export interface SeoPanelOptions {
 	 * The `page:metadata` hook finds an archive's term from its address; the Archives tab lists their terms.
 	 */
 	archives?: ArchiveBase[];
+	/** Site language (BCP 47, e.g. "en-US"): the reading-level check runs only for English. Unset: guessed from each page's text. */
+	lang?: string;
 }
 
 export function seoPlugin(options: SeoPanelOptions) {

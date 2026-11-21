@@ -74,6 +74,8 @@ Facts and sources: [docs/spikes/analytics-findings.md](../../docs/spikes/analyti
 
 - **Overview:** average score, pages checked, pages under 80, images without a description, a score bar per page and
   the most common issues with the pages they affect. The same checks as the page panel, so the numbers agree.
+  **Pages that need more text:** published, indexable pages under 300 words (short-by-nature pages left out), fewest
+  words first, with the words to add and an **Edit** link; hidden when there are none. Read from the same analysis.
 - **Pages:** every published page with its score, what to improve, its focus keyword and an **Open** link to the editor.
 - **Images:** every picture used on a page that has no description (alt text), with a field per image — **Save
   descriptions** writes them to the media library, so every page using the image gets it (capability
@@ -112,11 +114,23 @@ contributors who may edit the page:
 - **Google preview:** the address, the title as the layout renders it (page title + separator + site name) and the
   description, with "cut off" warnings at about 60 / 160 characters.
 - **Checks:** SEO title length; meta description present and 120–160 characters; no other page with the same title or
-  description; exactly one H1; no skipped heading levels; 300+ words; alt text on every image (in the field or the
+  description; exactly one H1; no skipped heading levels; text length (below); alt text on every image (in the field or the
   media library); links to other pages; a short lowercase address; not hidden from search; canonical pointing to the
   page itself; a sharing image (or generated cards, `@wp2emdash/og`).
 - **Focus keyword** per page (what people search for): checked in the title, description, H1, first 100 words and
   address, and how often it appears (about 0.5–3%).
+- **Content checks** (the same signals outside audit tools flag), each with one next step:
+  - **Text length:** under 150 words is a problem, under 300 a warning (`THIN_WORDS`, `VERY_THIN_WORDS`). Pages short
+    by nature — slug (or its last segment) `contact`, `privacy`, `terms`, `legal`, `thank-you`, `cookies`, `404`… — are
+    only noted, never scored.
+  - **Repeated words:** the most frequent word (small English stop-word list skipped) above 4% of all words is a
+    warning, as audits call it keyword stuffing. Under 80 words it says "too little text to judge"; a word of the focus
+    keyword is left to the keyword check.
+  - **Easy to read:** Flesch–Kincaid grade (vowel-group syllable estimate) of the body text; a warning above grade 12,
+    a note otherwise. English only: `seoPlugin({ lang })` when set, else guessed from common English words; under 30
+    words it is not judged.
+  - Only warnings and problems count toward the score; the "fine" results are notes, so existing scores move only for
+    pages that have one of these problems.
 - **Check my unsaved changes:** analyses the editor's current title and sections before saving.
 
 EmDash facts it relies on (1.5): `admin.editorPanels` with `draft.read` and the `admin.editor-draft:read` capability

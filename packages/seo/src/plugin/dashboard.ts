@@ -1,5 +1,5 @@
 /** SEO dashboard views (Block Kit): overview, pages, images, site checks; and the dashboard widget. */
-import type { Check } from "../analyze.js";
+import { type Check, THIN_WORDS } from "../analyze.js";
 import type { PageReport } from "./collect.js";
 
 type Block = Record<string, unknown>;
@@ -76,7 +76,33 @@ function overview(d: DashboardData): Block[] {
 			],
 			rows: top.map(([label, e]) => ({ issue: `${ICON[e.status]} ${label}`, count: e.pages.length, pages: e.pages.slice(0, 4).join(", ") + (e.pages.length > 4 ? "…" : "") })),
 		},
+		...thinPages(d),
 		{ type: "context", text: "Scores use the same checks as the SEO panel in the page editor. A good score helps, but rankings also depend on content quality, links from other sites and the Google Business Profile." },
+	];
+}
+
+/**
+ * Published, indexable pages under THIN_WORDS words (contact, legal and thank-you pages left out), fewest words first.
+ * Reads each page's existing analysis: no extra work.
+ */
+function thinPages(d: DashboardData): Block[] {
+	const thin = d.pages.filter((p) => p.analysis.thin).sort((a, b) => a.analysis.words - b.analysis.words);
+	if (!thin.length) return [];
+	return [
+		{ type: "header", text: `Pages that need more text (${thin.length})` },
+		{ type: "context", text: `Pages with under ${THIN_WORDS} words rarely rank in Google, and audit tools flag them as thin. Add what you offer, who it is for, what to expect and a few common questions. Contact, legal and thank-you pages are left out: they can stay short.` },
+		{
+			type: "table",
+			block_id: "thin",
+			page_action_id: "noop",
+			columns: [
+				{ key: "page", label: "Page" },
+				{ key: "words", label: "Words", format: "number" },
+				{ key: "need", label: "Words to add", format: "number" },
+				{ key: "open", label: "", format: "element" },
+			],
+			rows: thin.map((p) => ({ page: p.title, words: p.analysis.words, need: THIN_WORDS - p.analysis.words, open: { type: "link", label: "Edit", target: { kind: "content", collection: p.collection, id: p.item.id } } })),
+		},
 	];
 }
 

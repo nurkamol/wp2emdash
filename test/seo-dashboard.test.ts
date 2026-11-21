@@ -85,3 +85,24 @@ describe("SEO dashboard", () => {
 		expect(w.blocks[0]?.items.map((x: { label: string }) => x.label)).toEqual(["Average score", "Pages under 80", "Images to describe"]);
 	});
 });
+
+describe("SEO dashboard: pages that need more text", () => {
+	const text = (id: string, slug: string, words: number, noIndex = false) => ({ id, slug, status: "published", data: { title: slug, content: [{ _type: "section_hero", heading: slug, heading_level: "h1", body: [pt("normal", Array.from({ length: words }, (_, k) => `w${k}x`).join(" "))] }] }, seo: { title: null, description: "d".repeat(140), image: "/img.webp", canonical: null, noIndex } });
+	const items = [text("A", "services", 200), text("B", "home", 36), text("C", "contact", 20), text("D", "hidden", 50, true), text("E", "about", 400), { ...text("F", "draft", 10), status: "draft" }];
+	vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 404 })));
+	const plugin = createPlugin({ productionUrl: "https://a.example" }) as unknown as { routes: { admin: { handler: (c: unknown) => Promise<{ blocks: Record<string, any>[] }> } } };
+	const ctx = { input: { type: "page_load" }, request: new Request("https://stage.example/_emdash/api/plugins/site-seo/admin"), kv: { get: async () => null, set: async () => {} }, content: { get: async () => null, list: async () => ({ items, hasMore: false }) }, media: { get: async () => null }, site: { name: "Acme" } };
+	const overview = (r: { blocks: Record<string, any>[] }) => r.blocks.find((b) => b.type === "tab")?.panels[0].blocks as Record<string, any>[];
+	it("lists published, indexable pages under 300 words, fewest first, with a link to edit", async () => {
+		const o = overview(await plugin.routes.admin.handler(ctx));
+		expect(o.some((b) => b.type === "header" && b.text === "Pages that need more text (2)")).toBe(true);
+		const rows = o.find((b) => b.block_id === "thin")?.rows as { page: string; words: number; need: number; open: { target: unknown } }[];
+		// Words include the heading (the page's title here).
+		expect(rows.map((x) => [x.page, x.words, x.need])).toEqual([["home", 37, 263], ["services", 201, 99]]);
+		expect(rows[0]?.open.target).toEqual({ kind: "content", collection: "pages", id: "B" });
+	});
+	it("shows nothing when no page is thin", async () => {
+		const o = overview(await plugin.routes.admin.handler({ ...ctx, content: { ...ctx.content, list: async () => ({ items: [items[4]], hasMore: false }) } }));
+		expect(o.some((b) => b.block_id === "thin")).toBe(false);
+	});
+});

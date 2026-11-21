@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyze, extract, fullTitle } from "../packages/seo/src/analyze.js";
+import { analyze, extract, fullTitle, looksEnglish, readingGrade, syllables } from "../packages/seo/src/analyze.js";
 import { seoPlugin } from "../packages/seo/src/index.js";
 import { createPlugin } from "../packages/seo/src/plugin/index.js";
 
@@ -60,6 +60,79 @@ describe("SEO analysis", () => {
 		expect(by(a, "social")?.status).toBe("warn");
 		expect(by(analyze({ ...base, ogCards: true }), "social")?.status).toBe("good");
 		expect(analyze(base).score).toBeGreaterThan(0);
+	});
+});
+
+describe("SEO content checks: length, repetition, reading level", () => {
+	// n distinct words (no repeats), so only the words we add on purpose can dominate.
+	const filler = (n: number) => Array.from({ length: n }, (_, k) => `term${String.fromCharCode(97 + (k % 26))}${Math.floor(k / 26)}`).join(" ");
+	const page = (text: string, slug = "services", extra: Partial<Parameters<typeof analyze>[0]> = {}) => analyze({ ...base, slug, content: [{ _type: "section_hero", heading: "Services", heading_level: "h1", body: [pt("normal", text)] }], ...extra });
+
+	it("grades text length: bad under 150 words, warn under 300, good from 300", () => {
+		expect(by(page(filler(99)), "length")?.status).toBe("bad");
+		expect(by(page(filler(99)), "length")?.detail).toMatch(/^Only 100 words.*Add at least 200 words/);
+		expect(by(page(filler(199)), "length")?.status).toBe("warn");
+		expect(by(page(filler(299)), "length")?.status).toBe("good");
+		expect(page(filler(99)).thin).toBe(true);
+		expect(page(filler(299)).thin).toBe(false);
+	});
+	it("only notes length on pages that are short by nature, and leaves hidden pages off the thin list", () => {
+		for (const slug of ["contact", "privacy-policy", "thank-you", "legal/terms"]) {
+			const a = page(filler(20), slug);
+			expect([slug, by(a, "length")?.status, a.thin]).toEqual([slug, "info", false]);
+		}
+		expect(by(page(filler(20), "contact-lens-guide"), "length")?.status).toBe("bad");
+		expect(page(filler(20), "services", { seo: { noIndex: true } }).thin).toBe(false);
+	});
+	it("flags one overused word, but not on tiny pages or when it is the focus keyword", () => {
+		const stuffed = `${filler(89)} ${"pilates ".repeat(10)}`; // + the heading: 100 words
+		const a = page(stuffed);
+		expect(by(a, "repetition")?.status).toBe("warn");
+		expect(by(a, "repetition")?.detail).toMatch(/^“pilates” is 10\.0% of the text \(10 times\)/);
+		expect(by(page(`${filler(90)} ${"pilates ".repeat(3)}`), "repetition")?.status).toBe("info");
+		// The 37-word home page that an audit called keyword stuffing: too little text to judge.
+		const tiny = page(`${filler(31)} pilates pilates pilates`);
+		expect(by(tiny, "repetition")).toMatchObject({ status: "info", detail: expect.stringMatching(/^Too little text to judge \(35 words\)/) });
+		expect(by(page(stuffed, "services", { focusKeyword: "Pilates classes" }), "repetition")?.status).toBe("info");
+		// Stop words never count as overused.
+		expect(by(page(`${filler(80)} ${"the and of ".repeat(10)}`), "repetition")?.status).toBe("info");
+	});
+	it("estimates the Flesch–Kincaid grade on known sentences", () => {
+		expect(syllables("cat")).toBe(1);
+		expect(syllables("reformer")).toBe(3);
+		expect(syllables("rehabilitation")).toBe(6);
+		const easy = readingGrade(["The cat sat on the mat. We like our studio. You can book a class with us today."]);
+		expect(easy.sentences).toBe(3);
+		expect(easy.grade).toBeLessThan(4);
+		const hard = readingGrade(["Comprehensive individualized rehabilitation methodologies facilitate neuromuscular reeducation, proprioceptive enhancement and postural stabilization through evidence-based therapeutic interventions administered by credentialed practitioners."]);
+		expect(hard.grade).toBeGreaterThan(17);
+		// Text blocks without a full stop (labels, buttons) still end a sentence.
+		expect(readingGrade(["Book now", "Prices"]).sentences).toBe(2);
+	});
+	it("warns above grade 12 with plain advice, notes it otherwise", () => {
+		const hardText = Array.from({ length: 4 }, () => "Comprehensive individualized rehabilitation methodologies facilitate neuromuscular reeducation and postural stabilization for our clients with the support of credentialed practitioners.").join(" ");
+		const hard = by(page(hardText), "reading");
+		expect(hard?.status).toBe("warn");
+		expect(hard?.detail).toMatch(/grade \d+ \(hard.*shorter sentences/);
+		const easyText = Array.from({ length: 6 }, () => "You can book a class with us. We will help you feel strong. It is fun and easy.").join(" ");
+		expect(by(page(easyText), "reading")).toMatchObject({ status: "info", detail: expect.stringMatching(/easy to read/) });
+		expect(by(page("Book a class with us today."), "reading")?.detail).toBe("Too little text to judge.");
+	});
+	it("skips the reading level on non-English pages", () => {
+		const es = "Ofrecemos clases de pilates para todos los niveles en nuestro estudio. Reserve hoy su primera clase con nuestros instructores certificados y descubra la diferencia.";
+		expect(looksEnglish(es)).toBe(false);
+		expect(by(page(es.repeat(3)), "reading")).toBeUndefined();
+		const en = Array.from({ length: 6 }, () => "You can book a class with us. We will help you feel strong.").join(" ");
+		expect(looksEnglish(en)).toBe(true);
+		expect(by(page(en, "services", { lang: "de-DE" }), "reading")).toBeUndefined();
+		expect(by(page(en, "services", { lang: "en-GB" }), "reading")).toBeDefined();
+		expect(by(page("Hola.", "services", { lang: "es" }), "reading")).toBeUndefined();
+	});
+	it("only scores the new checks when they warn", () => {
+		const ok = page(filler(320));
+		expect(by(ok, "repetition")?.status).toBe("info");
+		const stuffed = page(`${filler(300)} ${"pilates ".repeat(20)}`);
+		expect(stuffed.score).toBeLessThan(ok.score);
 	});
 });
 
