@@ -205,8 +205,11 @@ cached, or evicted by Cloudflare) still renders once — preloading moves that r
   cron (`starter/src/worker.ts`) requests every sitemap page (max 120 per run, 4 at a time) from the live origin on the
   tick that starts each window. A cached page is a hit (the Worker does not run); a purged one renders once there. Never
   on workers.dev (a Worker cannot fetch its own workers.dev address). Cloudflare documents same-zone fetches to a Custom
-  Domain as succeeding subrequests; a Worker fetching **its own** Custom Domain is not documented — confirm on the first
-  live deploy (`wrangler tail`: `rewarm: N pages, R rendered, F failed`; then a purged page answers `HIT` unvisited).
+  Domain as succeeding subrequests; a Worker fetching **its own** Custom Domain is not documented. **Confirmed live
+  2026-11-21** (single-environment site on its Custom Domain, `wrangler tail`): the 10:45 UTC run logged
+  `rewarm: 11 pages, 8 rendered, 0 failed` (the cron's location had not been warmed by the deploy runner) and each
+  request reached the Worker with the `site-rewarm` user agent; the 11:00 run logged `11 pages, 0 rendered, 0 failed`
+  (every page a cache hit, the Worker not run). Self-fetch goes through the Workers cache and fills it.
 - **Inline-script lint** (scaffold gate `csp-inline`, `src/scaffold/csp-lint.ts`): the public CSP allows inline scripts
   only by hash, and an inline script reached the live site once (a component script under 4 KB that Astro inlined),
   caught only by verify after the deploy. The lint fails scaffold when `assetsInlineLimit` is not 0, or a component has
