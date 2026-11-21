@@ -77,6 +77,18 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   top pages and referrers (Cloudflare Web Analytics, `CF_ANALYTICS_TOKEN`), form message counts, pages published and
   updated, broken links found / fixed / open, average SEO score (the SEO suite's analysis). Kept 12 months under
   **Reports**; **Download** gives a print-friendly HTML file (print → Save as PDF) through a one-time link.
+- **What to improve this month** (0.4; `src/improve.ts`), at the top of the report and on the **Overview**: at most six
+  plain sentences, most important first, each with how many pages / addresses / pictures it concerns (three named),
+  and a link to the admin page that fixes it. Ranked: backups failing (Backups) → pictures that no longer exist
+  (Media) → slow real-visitor speed, poor before needs-improvement (Speed tab) → missing addresses asked for 3+ times
+  a week without a redirect (Missing pages tab) → form messages down by half or more from a month with 5+ (Form
+  messages; the two monthly **counts** only, no message is read) → pages with too little text, pages without a meta
+  description (SEO) → pictures without a description (Media, else SEO) → oversized pictures (Media) → focus keyword
+  missing (SEO). Built from what is already stored — no request, no analysis: this plugin's checks, the Media
+  Assistant's scan counts (`plugin:media-assistant:summary`) and the SEO suite's page summary
+  (`plugin:site-seo:summary`, written when its dashboard opens; the monthly report calculates and keeps its own,
+  the newer one wins). Plugins a site does not run (`seo`, `media`, `backups`, `formsOutbox` options) are skipped.
+  Nothing to do: one positive line. Reports made before 0.4 show no section.
 
 ## Register
 

@@ -132,6 +132,19 @@ for the other admin saves, so a page that linked there is rebuilt.
 - The holding page (503, `no-store`) is never cached, so at `endAt` nothing stale remains; the end purge only rebuilds
   pages that were cached before the start (harmless; the cache refill fills them again).
 
+## What to improve — reading other plugins' summaries (0.4, emdash 1.5.0)
+
+- Other plugins' KV is read as D1 `options` rows `plugin:<id>:<key>` (createKVAccess → OptionsRepository, same fact
+  as `@wp2emdash/seo/analytics/store.ts`): `plugin:media-assistant:summary` (already used by the Media check) and the
+  new `plugin:site-seo:summary` (`@wp2emdash/seo/summary`), one primary-key SELECT each. Both plugins run in the same
+  Worker and D1, so no capability is involved; a missing row means "not scanned / not analysed yet" and the items skip.
+- Links to other plugins' pages use `/_emdash/admin/plugins/<id><path>` (`resolvePluginLinkTarget`, see
+  chat-notifications-findings.md C2); in Block Kit they are `{ kind: "external", url }` (a `plugin-page` target is
+  validated against this plugin's own pages; change-requests-findings.md). Table cells take link and button
+  elements (analytics-findings.md), so Site health's own tabs open with an `improve-tab` button.
+- Form messages: only the outbox's per-day **counts** (`stat:` keys) feed the "fewer messages" item; message keys are
+  never opened (test plants a message and asserts its text is absent from the report, HTML and text).
+
 ## Privacy
 
 Stored, logged, emailed and shown: URLs/paths of the site, page titles, statuses, counts, times, hostnames of

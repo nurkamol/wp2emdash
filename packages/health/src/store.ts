@@ -175,6 +175,8 @@ export const KEYS = {
 	maintenanceApplied: "maintenance:applied",
 	/** Missing addresses redirected from the Missing pages tab: path → target and when (left out of the list). */
 	redirected: "notfound:redirected",
+	/** The SEO summary the last monthly report calculated (@wp2emdash/seo/summary), for "What to improve" (improve.ts). */
+	seoSummary: "improve:seo",
 	report: (month: string) => `report:${month}`,
 	download: (token: string) => `dl:${token}`,
 } as const;

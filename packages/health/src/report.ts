@@ -2,10 +2,12 @@
  * The monthly report: what happened on the site last month, in plain words — availability and incidents, speed and
  * real-visitor Core Web Vitals, visits, top pages and referrers (Cloudflare Web Analytics, when the read token is
  * set), how many form messages arrived (counts only), content published and updated, broken links found and fixed,
- * the average SEO score, and how often visitors' browsers reported content the security policy blocked. Built once on the 1st from what the checks stored (`buildReport`, pure), kept for 12
+ * the average SEO score, how often visitors' browsers reported content the security policy blocked, and "What to
+ * improve this month" (improve.ts: at most six plain to-dos with the admin page that fixes each). Built once on the 1st from what the checks stored (`buildReport`, pure), kept for 12
  * months, emailed as HTML with a plain-text part, shown in the admin and downloadable as a print-friendly page.
  * No personal data: no form contents, no names or addresses of visitors.
  */
+import { type Improvement, improveUrl, namesLine, NOTHING_TO_IMPROVE } from "./improve.js";
 import type { HealthBrand } from "./index.js";
 import type { Cwv, DayRow, Incident, LinkLedger } from "./store.js";
 import { type Rating, RATING_LABEL, rate, missingText } from "./checks/speed.js";
@@ -35,6 +37,8 @@ export interface ReportData {
 	seoNote?: string;
 	/** Reports of content the security policy blocked (visitors' browsers), that month; absent in older reports. */
 	csp?: { reports: number; sources: number };
+	/** "What to improve this month" (improve.ts), most important first; [] = nothing to do; absent in older reports. */
+	improve?: Improvement[];
 }
 
 export interface ReportInputs {
@@ -50,6 +54,7 @@ export interface ReportInputs {
 	content: { items: { title: string; publishedAt?: string | null; updatedAt?: string; createdAt?: string }[] };
 	seo?: { average: number; pages: number } | { missing: string };
 	csp?: { reports: number; sources: number };
+	improve?: Improvement[];
 	now: number;
 }
 
@@ -98,6 +103,7 @@ export function buildReport(i: ReportInputs): ReportData {
 		links: { found: ledger.filter((e) => inMonth(e.first, since, until)).length, fixed: ledger.filter((e) => inMonth(e.fixed, since, until)).length, open: ledger.filter((e) => !e.fixed).length },
 		...(i.seo && "average" in i.seo ? { seo: i.seo } : i.seo && "missing" in i.seo ? { seoNote: i.seo.missing } : {}),
 		...(i.csp ? { csp: i.csp } : {}),
+		...(i.improve ? { improve: i.improve } : {}),
 	};
 }
 
@@ -147,6 +153,19 @@ export function renderReportHtml(r: ReportData, brand: HealthBrand): string {
 	const up = r.uptime;
 	const parts: string[] = [];
 	parts.push(big([{ label: "Uptime", value: up.pct !== undefined ? `${up.pct}%` : "—" }, { label: "Visits", value: r.visits ? n(r.visits.visits) : "—" }, { label: "Form messages", value: r.forms ? n(r.forms.total) : "—" }, { label: "Pages published or updated", value: n(r.content.published + r.content.updated) }]));
+	if (r.improve) {
+		parts.push(h2("What to improve this month"));
+		parts.push(
+			r.improve.length
+				? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 8px">${r.improve
+						.map((x, k) => {
+							const where = namesLine(x);
+							return `<tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #eee;vertical-align:top;font-weight:700;color:${accent};width:18px">${k + 1}.</td><td style="padding:9px 0;border-bottom:1px solid #eee">${esc(x.text)}${where ? `<div style="font-size:13px;color:#667085;margin-top:2px">${esc(where)}</div>` : ""}<div style="margin-top:4px"><a href="${esc(improveUrl(r.site.url, x.link))}" style="color:${accent};font-weight:600">${esc(x.link.label)} →</a></div></td></tr>`;
+						})
+						.join("")}</table>`
+				: p(NOTHING_TO_IMPROVE, "color:#067647"),
+		);
+	}
 	parts.push(h2("Availability"));
 	parts.push(up.probes ? p(`The site was checked every 5 minutes (${n(up.probes)} checks) and answered ${up.pct}% of the time.${up.downMinutes ? ` It was unavailable for ${duration(up.downMinutes * 60_000)} in total.` : ""}`) : p("Availability was not measured this month."));
 	parts.push(up.incidents.length ? rows(up.incidents.map((i) => ({ label: `${i.title} — ${i.startedAt.slice(0, 10)} ${i.startedAt.slice(11, 16)} UTC`, value: i.minutes !== undefined ? duration(i.minutes * 60_000) : "still open" }))) : p("No outages or page errors.", "color:#067647"));
@@ -200,6 +219,7 @@ export function renderReportText(r: ReportData, brand: HealthBrand): string {
 		"",
 		headline(r),
 		"",
+		...(r.improve ? ["WHAT TO IMPROVE THIS MONTH", ...(r.improve.length ? r.improve.flatMap((x, k) => [`${k + 1}. ${x.text}`, ...(x.names ? [`   ${namesLine(x)}`] : []), `   ${x.link.label}: ${improveUrl(r.site.url, x.link)}`]) : [NOTHING_TO_IMPROVE]), ""] : []),
 		"AVAILABILITY",
 		up.probes ? `Checked every 5 minutes (${n(up.probes)} checks); answered ${up.pct}% of the time.${up.downMinutes ? ` Unavailable for ${duration(up.downMinutes * 60_000)} in total.` : ""}` : "Not measured this month.",
 		...(up.incidents.length ? up.incidents.map((i) => `- ${i.title}, ${i.startedAt.slice(0, 16).replace("T", " ")} UTC, ${i.minutes !== undefined ? duration(i.minutes * 60_000) : "still open"}`) : ["No outages or page errors."]),

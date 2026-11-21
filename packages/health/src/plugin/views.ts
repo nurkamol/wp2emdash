@@ -8,6 +8,7 @@ import { headerRows, type SecurityFacts } from "../checks/headers.js";
 import { blockedLabel, type CspStore, isScriptDirective, meaning } from "../csp.js";
 import { cspLine } from "../report.js";
 import type { NotFoundSummary } from "../checks/notfound.js";
+import { type Improvement, improveUrl, namesLine, NOTHING_TO_IMPROVE } from "../improve.js";
 import { maintenanceActive, type MaintenanceSetting, maintenanceUpcoming, scheduleText, utcText } from "../maintenance.js";
 import type { ReportData } from "../report.js";
 import { headline } from "../report.js";
@@ -86,8 +87,39 @@ export interface PageData {
 	redirects?: boolean;
 	/** "Create redirect" was asked for one address: the form for it (target prefilled with the suggestion). */
 	redirectForm?: { source: string; target?: string };
+	/** "What to improve this month" (improve.ts); absent: not shown. */
+	improve?: Improvement[];
 	/** The time the page describes (tests); default now. */
 	now?: number;
+}
+
+/**
+ * "What to improve this month" (Overview and a stored report): one row per to-do with the page that fixes it. Site
+ * health's own tabs open with a button (action `improve-tab`); another plugin's page is a link to its admin address.
+ */
+export function improveBlocks(list: Improvement[] | undefined, origin: string): Block[] {
+	if (!list) return [];
+	if (!list.length) return [{ type: "header", text: "What to improve this month" }, { type: "context", text: `✓ ${NOTHING_TO_IMPROVE}` }];
+	return [
+		{ type: "header", text: "What to improve this month" },
+		{
+			type: "table",
+			block_id: "improve",
+			page_action_id: "noop",
+			columns: [
+				{ key: "n", label: "" },
+				{ key: "todo", label: "To do" },
+				{ key: "where", label: "Where" },
+				{ key: "open", label: "", format: "element" },
+			],
+			rows: list.map((x, k) => ({
+				n: `${k + 1}.`,
+				todo: x.text,
+				where: x.names ? namesLine(x) : "—",
+				open: x.link.tab ? { type: "button", action_id: "improve-tab", label: x.link.label, value: x.link.tab } : { type: "link", label: x.link.label, target: { kind: "external", url: improveUrl(origin, x.link) } },
+			})),
+		},
+	];
 }
 
 /** The coming-soon banner text for the Overview and the widget: on now, scheduled, or nothing. */
@@ -129,6 +161,8 @@ function overview(d: PageData): Block[] {
 				{ label: "Checks needing attention", value: problems, ...(problems ? { trend: "down" } : {}) },
 			],
 		},
+		...improveBlocks(d.improve, d.siteOrigin ?? d.productionUrl),
+		...(d.improve ? [{ type: "header", text: "Checks" }] : []),
 		{
 			type: "table",
 			block_id: "checks",
@@ -551,6 +585,7 @@ export function reportView(r: ReportData, stored: boolean): Block[] {
 				...(r.csp ? [{ label: "Security", value: cspLine(r.csp) }] : []),
 			],
 		},
+		...improveBlocks(r.improve, r.site.url),
 		{
 			type: "actions",
 			elements: [
