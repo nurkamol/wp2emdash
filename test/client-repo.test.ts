@@ -54,6 +54,15 @@ describe("client repo files", () => {
 		expect(f["docs/forms-and-integrations.md"]).toContain("through Brevo");
 		expect(f["docs/editor-guide.md"]).toContain("| Hero | Page introduction |");
 	});
+	it("documents chat notifications when the outbox has them (notification only on sensitive sites)", () => {
+		const outbox = { days: 30, hold: false };
+		expect(clientRepoFiles(input({ outbox }))["docs/forms-and-integrations.md"]).not.toContain("Chat notifications");
+		const sensitive = clientRepoFiles(input({ outbox, formChat: true }))["docs/forms-and-integrations.md"] as string;
+		expect(sensitive).toContain("**Chat notifications.**");
+		expect(sensitive).toContain("**only that a message arrived**");
+		expect(sensitive).toContain("npx wrangler secret put TELEGRAM_BOT_TOKEN");
+		expect(clientRepoFiles(input({ outbox, formChat: true, sensitiveData: false }))["docs/forms-and-integrations.md"]).toContain("a **summary** (form, time, the sender's name");
+	});
 	it("rewrites marked files and leaves taken-over ones alone", () => {
 		const dir = mkdtempSync(join(tmpdir(), "client-repo-"));
 		const files = clientRepoFiles(input());

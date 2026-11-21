@@ -428,6 +428,13 @@ export const kitConfigSchema = z.object({
 				.or(z.literal(false))
 				.optional()
 				.transform((v) => (v === false ? undefined : v)),
+			/**
+			 * Chat notifications for new form messages (@wp2emdash/forms chat.ts: Telegram, Slack, a generic webhook) — on by
+			 * default: present in Form messages → Settings, but nothing is sent until an admin turns a channel on and its
+			 * Worker secret (TELEGRAM_BOT_TOKEN, SLACK_WEBHOOK_URL, CHAT_WEBHOOK_URL) exists. Needs the outbox (the settings
+			 * live in its KV). On a sensitiveData site only "notification only" is possible. `false` removes it (FORM_CHAT="0").
+			 */
+			chat: z.boolean().default(true),
 			/** Production Turnstile site key (public). Staging uses Cloudflare's always-pass test key. */
 			turnstileSiteKey: z.string().optional(),
 			/**

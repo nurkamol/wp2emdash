@@ -106,8 +106,11 @@ const TURNSTILE_TEST = { TURNSTILE_SITE_KEY: "1x00000000000000000000AA", TURNSTI
  * - staging (opt-in): never emails the client — only email.stagingTo, else every message stays held in the outbox;
  *   Cloudflare's always-pass Turnstile test keys (developers.cloudflare.com/turnstile/troubleshooting/testing).
  */
-export function workerVars(config: Pick<KitConfig, "email" | "forms">, o: { staging: boolean; productionHost: string }): { production: Record<string, string>; staging: Record<string, string> } {
-	const formVars: Record<string, string> = { ...outboxVars(config.forms.outbox), ...(config.forms.uploads && config.forms.uploads.days !== 30 ? { FORM_UPLOAD_DAYS: String(config.forms.uploads.days) } : {}), EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
+export function workerVars(config: Pick<KitConfig, "email" | "forms"> & { sensitiveData?: boolean }, o: { staging: boolean; productionHost: string }): { production: Record<string, string>; staging: Record<string, string> } {
+	// Chat notifications (@wp2emdash/forms chat.ts): FORM_CHAT="0" removes them; FORM_SENSITIVE="1" allows only
+	// "notification only" (nothing a visitor wrote leaves the site). The channel secrets are Wrangler secrets.
+	const chatVars: Record<string, string> = { ...(config.forms.chat === false ? { FORM_CHAT: "0" } : {}), ...(config.sensitiveData ? { FORM_SENSITIVE: "1" } : {}) };
+	const formVars: Record<string, string> = { ...outboxVars(config.forms.outbox), ...chatVars, ...(config.forms.uploads && config.forms.uploads.days !== 30 ? { FORM_UPLOAD_DAYS: String(config.forms.uploads.days) } : {}), EMAIL_PROVIDER: config.email.provider, ...(config.email.from ? { FORM_FROM: config.email.from } : {}), ...(config.email.to.length ? { FORM_TO: config.email.to.join(",") } : {}) };
 	const single = o.staging ? {} : { FORM_LIVE_HOST: o.productionHost.replace(/^www\./, ""), ...(config.email.stagingTo.length ? { FORM_TEST_TO: config.email.stagingTo.join(",") } : {}) };
 	const production = { ...formVars, ...single, ...(config.forms.turnstileSiteKey ? { TURNSTILE_SITE_KEY: config.forms.turnstileSiteKey } : {}) };
 	const stagingMail = config.email.stagingTo.length ? { FORM_TO: config.email.stagingTo.join(",") } : { FORM_TO: "", ...(config.forms.outbox ? { FORM_OUTBOX_HOLD: "1" } : {}) };
@@ -121,7 +124,7 @@ export function workerVars(config: Pick<KitConfig, "email" | "forms">, o: { stag
  * preview URL (docs/spikes/single-env-findings.md). Opt-in staging: `env.staging` with its own Worker, data and vars
  * (unchanged from before 2026-11-20).
  */
-export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms">; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; health?: boolean; backups?: boolean; media?: boolean; ai?: boolean; productionHost: string; perf?: PerfConfig; live?: boolean; keepWorkersDev?: boolean; sessions?: "r2" | "kv" }): string {
+export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms"> & { sensitiveData?: boolean }; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; health?: boolean; backups?: boolean; media?: boolean; ai?: boolean; productionHost: string; perf?: PerfConfig; live?: boolean; keepWorkersDev?: boolean; sessions?: "r2" | "kv" }): string {
 	const { config, workerName, cf } = o;
 	// SELF: the SEO dashboard and Site health request the site's own pages through the Worker itself; Backups restores
 	// through EmDash's own API as the admin who confirmed; Media replaces and moves files the same way.
@@ -759,7 +762,7 @@ ${sess.options}${ap.options}	integrations: [
 			// Backups (@wp2emdash/backups, admins only): nightly backups to R2, downloads, restore with a preview.
 			// Media (@wp2emdash/media, editors and admins): media health, optimize, alt text suggestions, media trash.
 			// Change requests (@wp2emdash/change-requests, editors and admins): ask the agency for changes, follow the status.${motionPanel ? "\n\t\t\t// Motion (@wp2emdash/motion, admins only): preloader, page transitions, entrances, extras — all off until switched on." : ""}${commentsImport ? "\n\t\t\t// WordPress comments import (@wp2emdash/comments, admins and admin API tokens): the load phase's import route." : ""}
-			plugins: [${[config.forms.outbox ? "formsPlugin()" : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : "", health ? `healthPlugin(${JSON.stringify(health)})` : "", consent ? `consentPlugin(${JSON.stringify(consent.options)})` : "", backups ? `backupsPlugin(${JSON.stringify(backups)})` : "", mediaAssistant ? `mediaPlugin(${JSON.stringify(mediaAssistant)})` : "", changeRequests ? `changeRequestsPlugin(${JSON.stringify(changeRequests)})` : "", motionPanel ? `motionPlugin(${JSON.stringify(motionPanel)})` : "", commentsImport ? "commentsPlugin()" : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
+			plugins: [${[config.forms.outbox ? `formsPlugin(${forms.length ? JSON.stringify({ forms: forms.map((f) => ({ id: f.id, title: f.title })) }) : ""})` : "", og ? `ogPlugin(${JSON.stringify(og)})` : "", seoPanel ? `seoPlugin(${JSON.stringify(seoPanel)})` : "", health ? `healthPlugin(${JSON.stringify(health)})` : "", consent ? `consentPlugin(${JSON.stringify(consent.options)})` : "", backups ? `backupsPlugin(${JSON.stringify(backups)})` : "", mediaAssistant ? `mediaPlugin(${JSON.stringify(mediaAssistant)})` : "", changeRequests ? `changeRequestsPlugin(${JSON.stringify(changeRequests)})` : "", motionPanel ? `motionPlugin(${JSON.stringify(motionPanel)})` : "", commentsImport ? "commentsPlugin()" : ""].filter(Boolean).join(", ")}],` : ""}${sandboxed.length ? `
 			// Only the reviewed plugins above: no installs from the public registry through the admin.
 			...(sandboxedHere.length ? { sandboxed: sandboxedHere, sandboxRunner: sandbox(), registry: false } : {}),` : ""}
 		}),
@@ -774,6 +777,7 @@ ${sess.options}${ap.options}	integrations: [
 	const sessionsDue = sessions.missing.filter((e) => cf[e]?.d1?.id);
 	if (sessionsDue.length) reporter.emit({ type: "log", level: "warn", message: `sign-in sessions stay on Workers KV (random admin logouts) until every environment has its sessions bucket: run ${sessionsDue.map((e) => `\`wp2emdash provision ${config.slug}${e === "staging" ? " staging" : ""}\``).join(" and ")}, then scaffold again (the switch signs everyone out once)` });
 	for (const e of builtEnvs) if (sessions.store === "kv" && cf[e]?.d1?.id && !cf[e]?.session?.id) reporter.emit({ type: "log", level: "warn", message: `${e}: no SESSION namespace recorded in cloudflare.json; run \`wp2emdash provision ${config.slug} ${e}\` so the first deploy does not auto-provision it` });
+	if (config.forms.outbox && config.forms.chat !== false && forms.length) reporter.emit({ type: "log", level: "info", message: `chat notifications available in Form messages → Settings (off until an admin turns a channel on${config.sensitiveData ? "; sensitiveData: notification only" : ""}); each channel needs its Worker secret: npx wrangler secret put TELEGRAM_BOT_TOKEN | SLACK_WEBHOOK_URL | CHAT_WEBHOOK_URL` });
 	if (!envs.staging && !config.forms.turnstileSiteKey && forms.length) reporter.emit({ type: "log", level: "warn", message: `single environment: production forms refuse messages until forms.turnstileSiteKey is set (one Turnstile widget for ${new URL(siteConfig.productionUrl).host} and the account's workers.dev subdomain) and its secret is put (wrangler secret put TURNSTILE_SECRET_KEY)` });
 	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, health: !!health, backups: !!backups, media: !!mediaAssistant, ai: mediaNeedsAi(mediaAssistant), productionHost: new URL(siteConfig.productionUrl).host, perf: config.performance, live: !!cf.production?.live, keepWorkersDev: config.target.keepWorkersDev, sessions: sessions.store }));
 	// Local dev: Turnstile's always-pass test keys so forms work under `astro dev` (kept if the developer edited the file).
@@ -810,6 +814,7 @@ ${sess.options}${ap.options}	integrations: [
 			email: { provider: config.email.provider, ...(config.email.from ? { from: config.email.from } : {}), to: config.email.to },
 			turnstileProduction: !!config.forms.turnstileSiteKey,
 			...(config.forms.outbox ? { outbox: { days: config.forms.outbox.days, hold: config.forms.outbox.hold, keepSent: config.forms.outbox.keepSent } } : {}),
+			...(config.forms.outbox && config.forms.chat !== false && forms.length ? { formChat: true } : {}),
 			...(hasAnalytics && analytics ? { analytics } : {}),
 			...(seoPanel?.analytics ? { analyticsAdmin: true } : {}),
 			...(og ? { ogCards: true } : {}),

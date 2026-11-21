@@ -16,7 +16,8 @@
  *
  * Keys: `msg:<received ISO>:<8 hex>` (message; a short summary rides in the key's metadata so lists need no reads),
  * `stat:<day>:<outcome>:<form>` (a count per day — no visitor data), `cfg:recipients` (the recipients an admin set on
- * the Form messages page; the endpoint reads it too), plus the admin page's own `act:` and `dl:` keys.
+ * the Form messages page; the endpoint reads it too), plus the admin page's own `act:` and `dl:` keys, and the chat
+ * notifications' `cfg:chat`, `cfg:chat-test`, `chat:` (retries) and `chatfail:` (counts) keys (chat.ts).
  */
 import { deliver, type Message, parseAddress } from "./deliver.js";
 import { emdashEmailAvailable, sendViaEmDash } from "./emdash-email.js";
@@ -154,11 +155,17 @@ async function store(env: OutboxEnv, key: string, q: Queued): Promise<void> {
 
 /** Store a new message from the form; `status` defaults to waiting (failed when an attempt already failed). */
 export async function enqueue(env: OutboxEnv, q: Omit<Queued, "at" | "attempts"> & { attempts?: number }): Promise<boolean> {
-	if (!env.FORM_OUTBOX) return false;
+	return !!(await enqueueKey(env, q));
+}
+
+/** enqueue, returning the stored message's key (chat notifications link to it); undefined without the outbox. */
+export async function enqueueKey(env: OutboxEnv, q: Omit<Queued, "at" | "attempts"> & { attempts?: number }): Promise<string | undefined> {
+	if (!env.FORM_OUTBOX) return undefined;
 	const at = new Date().toISOString();
 	const attempts = q.attempts ?? 0;
-	await store(env, `${PREFIX}${at}:${crypto.randomUUID().slice(0, 8)}`, { ...q, at, attempts, status: q.status ?? (attempts > 0 ? "failed" : "waiting"), source: "form" });
-	return true;
+	const key = `${PREFIX}${at}:${crypto.randomUUID().slice(0, 8)}`;
+	await store(env, key, { ...q, at, attempts, status: q.status ?? (attempts > 0 ? "failed" : "waiting"), source: "form" });
+	return key;
 }
 
 /** The record once the provider accepted it: emailed, when, to whom and the provider's id (if it gave one). */
