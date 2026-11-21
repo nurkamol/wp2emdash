@@ -37,7 +37,7 @@ copy was reset to the new history. A local-only planning branch was not pushed.
 - [x] `CODE_OF_CONDUCT.md` (Contributor Covenant).
 - [x] `.github/ISSUE_TEMPLATE/` (bug report with builder/WordPress/EmDash versions; adapter request) and a pull request
       template with the checklist from CONTRIBUTING.
-- [ ] `CHANGELOG.md` up to date; first public version tagged (e.g. `v1.0.0`).
+- [x] `CHANGELOG.md` up to date; first public version tagged (e.g. `v1.0.0`).
 - [x] `package.json`: `repository`, `homepage`, `bugs`, `author`, `keywords`, `engines`; `private` kept true unless
       publishing to npm is intended.
 
