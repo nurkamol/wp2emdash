@@ -6,6 +6,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Page preloading status** (Site health → Speed, `@wp2emdash/health` 0.3.1): a "Page preloading" line says whether hovered, focused or first-touched links load before the click (the kit's existing `performance.prefetch`, default on) and what it skips. Status only, no switch: scaffold passes `prefetch: false` to the plugin when the kit turned it off.
+
 ## [1.2.0] — 2026-11-21
 
 ### Added

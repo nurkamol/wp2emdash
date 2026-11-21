@@ -139,6 +139,7 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 		selfBinding: !!env.SELF,
 		productionUrl: o.productionUrl,
 		...(cache ? { cache } : {}),
+		prefetch: o.prefetch !== false,
 		siteOrigin: ctx.request?.url && URL.canParse(ctx.request.url) ? new URL(ctx.request.url).origin : o.productionUrl,
 		notFound,
 		maintenance,

@@ -74,6 +74,8 @@ export interface PageData {
 	siteOrigin?: string;
 	/** Page cache refill (Speed tab); absent when the route cache or the refill is off in the kit config. */
 	cache?: { available: boolean; defaultMinutes: number; setting: RewarmSetting; last: RewarmLast | null; requestedAt?: string };
+	/** Page preloading on hover / focus / first touch (HealthOptions.prefetch; absent: on). */
+	prefetch?: boolean;
 	/** CSP violation reports and the reporting switch (csp.ts). */
 	csp?: CspStore;
 	/** The build put the report endpoint into the public CSP (HealthOptions.cspReports). */
@@ -283,8 +285,23 @@ function speedTab(d: PageData): Block[] {
 	const rows = d.history.filter((r) => r.ttfb50 !== undefined).slice(-30);
 	if (rows.length) items.push({ type: "chart", config: { chart_type: "timeseries", style: "line", height: 220, x_axis_name: "Day", y_axis_name: "ms", series: [{ name: "Page build time (median)", data: rows.map((r) => [Date.parse(`${r.d}T12:00:00Z`), r.ttfb50 as number] as [number, number]) }] } });
 	items.push(...cacheSection(d));
+	items.push(...prefetchSection(d));
 	items.push({ type: "context", text: `Page build time${ttfb !== undefined ? ` today: ${ttfb} ms (median)` : ""} — how long the site takes to build the home page, measured inside Cloudflare every 5 minutes. Most visitors get a ready-made copy from the cache, which is faster; the developer's verify run measures that from outside.` });
 	return items;
+}
+
+/** Page preloading: a status line only (the kit config switches it; nothing for the owner to tune). */
+function prefetchSection(d: PageData): Block[] {
+	const on = d.prefetch !== false;
+	return [
+		{ type: "header", text: "Page preloading" },
+		{
+			type: "context",
+			text: on
+				? "On — when a visitor points at a link (mouse over it, keyboard focus, or the first touch on a phone), the page behind it starts loading, so the click feels instant. Only this site's own pages, at most 20 per visit, and never on data-saver or very slow connections. Pages ready in the cache cost nothing to preload; it does not count as a visit in analytics."
+				: "Off — links load when they are clicked. Your developer turned page preloading off for this site (kit setting performance.prefetch).",
+		},
+	];
 }
 
 const STATE_LABEL = { cached: "Ready (from the cache)", rendered: "Built now", failed: "Failed" } as const;

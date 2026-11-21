@@ -94,3 +94,14 @@ describe("Speed tab: page cache", () => {
 		expect(speed(base)).not.toContain("Page cache");
 	});
 });
+
+describe("Speed tab: page preloading", () => {
+	const base = { state: { checks: {}, jobs: {} }, today: null, history: [], incidents: [], links: null, cwv: null, reports: [], settings: {}, defaults: { alertsTo: [], reportTo: [] }, email: { ready: true, provider: "brevo" }, live: true, staging: false, secrets: { crux: false, zone: false, analytics: false }, selfBinding: true, productionUrl: "https://acme.example" } as unknown as PageData;
+	const speed = (d: PageData) => JSON.stringify((page(d, TABS.speed)[1] as { panels: { label: string; blocks: unknown[] }[] }).panels.find((p) => p.label === "Speed"));
+
+	it("says it is on by default, and off when the kit turned it off", () => {
+		expect(speed(base)).toContain("Page preloading");
+		expect(speed(base)).toContain("On — when a visitor points at a link");
+		expect(speed({ ...base, prefetch: false })).toContain("Off — links load when they are clicked");
+	});
+});

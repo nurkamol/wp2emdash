@@ -63,6 +63,7 @@ export function healthOptions(i: HealthInputs): HealthOptions | undefined {
 		...(h.cspReports === false ? { cspReports: false } : {}),
 		collections: ["pages"],
 		...(i.config.performance?.routeCache && i.config.performance.rewarmMinutes > 0 ? { rewarm: { everyMinutes: i.config.performance.rewarmMinutes, available: i.live } } : {}),
+		...(i.config.performance?.prefetch === false ? { prefetch: false } : {}),
 		...(i.config.forms.outbox ? { formsOutbox: true } : {}),
 		...(i.config.analytics !== false ? { analytics: { admin: !!i.seo, ...(i.analyticsSeed ? { seed: i.analyticsSeed } : {}), ...(i.zoneBeacon ? { zoneBeacon: true } : {}) } } : {}),
 		...(i.visits && (i.visits.accountId || i.visits.siteTag) ? { visits: i.visits } : {}),

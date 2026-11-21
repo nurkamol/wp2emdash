@@ -50,6 +50,11 @@ export interface HealthOptions {
 	 * interval and whether it can run here (the route cache is on and the site is live on its own domain).
 	 */
 	rewarm?: { everyMinutes: number; available: boolean };
+	/**
+	 * Page preloading (kit.config performance.prefetch, default on; starter/src/utils/prefetch.ts): links a visitor
+	 * points at start loading before the click. Shown as a status line on the Speed tab. false: the kit turned it off.
+	 */
+	prefetch?: boolean;
 	/** The site keeps a form outbox (Workers KV FORM_OUTBOX, @wp2emdash/forms). */
 	formsOutbox?: boolean;
 	/**

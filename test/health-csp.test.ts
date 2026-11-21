@@ -299,6 +299,9 @@ describe("starter and scaffold wiring", () => {
 		expect(config().health).toMatchObject({ cspReports: true });
 		expect(healthOptions({ config: config(), productionUrl: ORIGIN, live: true })?.cspReports).toBeUndefined();
 		expect(healthOptions({ config: config({ health: { cspReports: false } }), productionUrl: ORIGIN, live: true })?.cspReports).toBe(false);
+		// Page preloading status for the Speed tab: on by default (absent), false only when the kit turned it off.
+		expect(healthOptions({ config: config(), productionUrl: ORIGIN, live: true })?.prefetch).toBeUndefined();
+		expect(healthOptions({ config: config({ performance: { prefetch: false } }), productionUrl: ORIGIN, live: true })?.prefetch).toBe(false);
 		const scaffold = readFileSync(join(import.meta.dirname, "..", "src", "phases", "scaffold.ts"), "utf8");
 		expect(scaffold).toContain("if (health.cspReports !== false) (siteConfig as { cspReport?: string }).cspReport = CSP_REPORT_PATH;");
 	});
