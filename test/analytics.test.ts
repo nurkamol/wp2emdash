@@ -142,7 +142,7 @@ describe("runtime config and CSP host table", () => {
 		expect(list.map((t) => t.id)).toEqual(["a", "b", "c", "h", "u"]);
 		expect(list.find((t) => t.id === "u")?.enabled).toBe(false); // a stored "on" UA is forced off
 		const rc = runtimeConfig(list, { events: { lead: true, contact: false, booking: true, outbound: false }, consent: true });
-		expect(rc).toEqual({ google: ["G-ABC123DEF4"], gtm: [], meta: ["123456789012345"], hotjar: "3456789", events: ["lead", "booking"], consent: true });
+		expect(rc).toEqual({ google: ["G-ABC123DEF4"], gtm: [], meta: ["123456789012345"], hotjar: "3456789", events: ["lead", "booking"], consent: true, defer: true });
 		expect(typesOf(rc).sort()).toEqual(["ga4", "hotjar", "meta"]);
 		expect(runtimeConfig([]).events).toEqual(["lead", "contact", "booking"]);
 		expect(hasTrackers({ google: [], gtm: [], meta: [] })).toBe(false);
@@ -448,7 +448,7 @@ describe("SEO & Analytics plugin", () => {
 		expect(stored().consent).toBe(true);
 		expect(r.toast?.message).toMatch(/consent mode on/);
 		expect(purges).toHaveLength(1);
-		expect(switchesFrom({})).toEqual({ events: { lead: false, contact: false, booking: false, outbound: false }, consent: false });
+		expect(switchesFrom({})).toEqual({ events: { lead: false, contact: false, booking: false, outbound: false }, consent: false, defer: false });
 	});
 	it("a failed purge still saves, and says so honestly", async () => {
 		cache.purge = async () => ({ success: false, errors: [{ code: 429, message: "rate limited" }] });
@@ -576,5 +576,26 @@ describe("scaffold wiring, client docs and verify", () => {
 		expect(p).toContain("Microsoft Clarity (clarity.ms tag) never requested");
 		expect(p).toContain("Hotjar (hotjar script) never requested");
 		expect(runtimeAnalyticsProblem({ trackers: ["https://www.googletagmanager.com/gtag/js", "https://connect.facebook.net/en_US/fbevents.js", "https://www.clarity.ms/tag/abcd1234ef", "https://static.hotjar.com/c/hotjar-3456789.js"], csp: [] }, ids as NonNullable<typeof ids>)).toBe("");
+	});
+});
+
+describe("tracking loads after the page has drawn (Analytics switch, on by default)", () => {
+	it("is on unless an admin turned it off, and reaches the page config", async () => {
+		const { parseStored } = await import("../packages/seo/src/analytics/store.js");
+		const { runtimeConfig } = await import("../packages/seo/src/analytics/trackers.js");
+		const base = { trackers: [], events: {}, consent: false };
+		expect(parseStored(base)?.defer).toBe(true);
+		expect(parseStored({ ...base, defer: false })?.defer).toBe(false);
+		expect(runtimeConfig([]).defer).toBe(true);
+		expect(runtimeConfig([], { defer: false }).defer).toBeUndefined();
+		expect(readFileSync(join(import.meta.dirname, "..", "starter/src/utils/analytics.ts"), "utf8")).toContain("defer: stored.defer");
+	});
+	it("the admin form has the switch, and the loader holds scripts until load + idle or the first input", () => {
+		expect(readFileSync(join(import.meta.dirname, "..", "packages/seo/src/analytics/views.ts"), "utf8")).toContain('action_id: "defer", label: "Load tracking after the page has drawn"');
+		const js = readFileSync(join(import.meta.dirname, "..", "starter/public/scripts/site-analytics.js"), "utf8");
+		expect(js).toContain("const deferred = a.defer === true;");
+		expect(js).toContain('const add = (src, attrs = {}) => (released ? insert(src, attrs) : waiting.push([src, attrs]));');
+		expect(js).toContain('requestIdleCallback(release, { timeout: 2000 })');
+		expect(js).toContain('["pointerdown", "keydown", "scroll", "touchstart"]');
 	});
 });

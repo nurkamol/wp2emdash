@@ -30,7 +30,7 @@ export const workerBits = async (): Promise<WorkerBits> => {
 export async function loadAnalytics(ctx: Pick<SeoCtx, "kv">, o: SeoPanelOptions, now = new Date().toISOString()): Promise<StoredAnalytics> {
 	const stored = parseStored(await ctx.kv.get<unknown>(KV_KEY));
 	if (stored) return stored;
-	const seeded: StoredAnalytics = { version: 1, trackers: seedTrackers(o.analytics?.seed, now), events: { ...DEFAULT_EVENTS }, consent: false, updatedAt: now };
+	const seeded: StoredAnalytics = { version: 1, trackers: seedTrackers(o.analytics?.seed, now), events: { ...DEFAULT_EVENTS }, consent: false, defer: true, updatedAt: now };
 	await ctx.kv.set(KV_KEY, seeded);
 	return seeded;
 }
@@ -111,7 +111,7 @@ export async function analyticsAction(ctx: SeoCtx & { user?: { role: number; nam
 	}
 	if (act === "an-switches") {
 		const sw = switchesFrom(v);
-		return save({ ...stored, ...sw }, `Conversion events and consent mode saved${sw.consent ? " (consent mode on)" : ""}.`);
+		return save({ ...stored, ...sw }, `Switches saved (consent mode ${sw.consent ? "on" : "off"}; tracking loads ${sw.defer ? "after the page has drawn" : "at once"}).`);
 	}
 	return { stored };
 }

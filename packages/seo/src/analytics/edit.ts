@@ -44,6 +44,6 @@ export function removeTracker(list: Tracker[], id: string): Change {
 }
 
 /** The conversion-event and consent switches from their form (toggles: missing = off, as Block Kit sends them). */
-export function switchesFrom(values: Record<string, unknown>): { events: EventSettings; consent: boolean } {
-	return { events: Object.fromEntries(EVENT_KINDS.map((k) => [k, values[`event:${k}`] === true])) as EventSettings, consent: values.consent === true };
+export function switchesFrom(values: Record<string, unknown>): { events: EventSettings; consent: boolean; defer: boolean } {
+	return { events: Object.fromEntries(EVENT_KINDS.map((k) => [k, values[`event:${k}`] === true])) as EventSettings, consent: values.consent === true, defer: values.defer === true };
 }

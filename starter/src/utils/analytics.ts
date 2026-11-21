@@ -24,7 +24,7 @@ async function load(): Promise<RuntimeConfig> {
 	// undefined: never saved → the carried-over IDs; null: unreadable → nothing (never resurrect a removed tracker).
 	if (stored === undefined) return runtimeConfig(seed);
 	if (stored === null) return NONE;
-	return runtimeConfig(stored.trackers, { events: stored.events, consent: stored.consent });
+	return runtimeConfig(stored.trackers, { events: stored.events, consent: stored.consent, defer: stored.defer });
 }
 
 /** Trackers to load on this request: production domain only, never for editors, never in `astro dev`. */

@@ -86,6 +86,7 @@ export function analyticsTab(v: AnalyticsView): Block[] {
 					fields: [
 						...EVENT_KINDS.map((k) => ({ type: "toggle", action_id: `event:${k}`, label: EVENT_INFO[k].label, description: EVENT_INFO[k].sends, initial_value: s.events[k] })),
 						{ type: "toggle", action_id: "consent", label: "Consent mode", description: "Off by default. On: Google tags start with consent denied (cookieless) and Meta, Clarity and Hotjar wait until a third-party consent banner calls siteAnalytics.grantConsent(). Not needed with the built-in banner (Privacy & consent): the trackers follow the visitor's choice there by themselves.", initial_value: s.consent },
+						{ type: "toggle", action_id: "defer", label: "Load tracking after the page has drawn", description: "On (recommended): tracking scripts (Google, Meta, Clarity, Hotjar, Cloudflare) download once the page has shown and the browser is idle — at most about 2 seconds, sooner when the visitor scrolls, taps or types — so they do not slow the first view or the PageSpeed score. Page views and events are still recorded; only a visit shorter than that may go uncounted. Off: they start downloading straight away.", initial_value: s.defer },
 					],
 					submit: { label: "Save switches", action_id: "an-switches" },
 				}

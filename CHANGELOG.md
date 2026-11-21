@@ -7,6 +7,7 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 ## [Unreleased]
 
 ### Added
+- **Tracking loads after the page has drawn** (SEO & Analytics → Analytics, switch on by default): Google tag / Tag Manager, Meta, Clarity, Hotjar and Cloudflare scripts download after the page's load event and an idle moment (at most 2 s), or at the visitor's first scroll, tap or key. Calls are queued meanwhile (page views and events kept). Takes ~300 KB of Google scripts out of the first view and the Lighthouse LCP estimate. Off: the old immediate loading.
 - **Footer business details switch** (`@wp2emdash/seo` 0.4.1): admins show or hide the footer's business name, address, phone and hours on SEO & Analytics → Site checks, without a rebuild. Stored in the SEO plugin's KV (`plugin:site-seo:business`), read with the page chrome, saving purges the cached pages. Never saved or unreadable: the block shows. Only on sites built with the block.
 
 ### Changed

@@ -34,13 +34,34 @@
 	const events = new Set(list(a.events, /^(?:lead|contact|booking|outbound)$/));
 	const banner = a.banner === true;
 	const consentMode = a.consent === true || banner;
-	const add = (src, attrs = {}) => {
+	const insert = (src, attrs) => {
 		const s = document.createElement("script");
 		s.async = true;
 		s.src = src;
 		for (const [k, v] of Object.entries(attrs)) s.setAttribute(k, v);
 		document.head.appendChild(s);
 	};
+	// "defer": true (Analytics → "Load tracking after the page has drawn"): the services' scripts download once the page
+	// has loaded and the browser is idle (at most 2 s after load), or at the visitor's first scroll, tap or key —
+	// whichever comes first. Everything below still runs now: gtag/dataLayer, fbq, clarity and hj calls are queued by
+	// their stubs and sent when the script arrives, so page views and events are not lost.
+	const deferred = a.defer === true;
+	let released = !deferred;
+	const waiting = [];
+	const add = (src, attrs = {}) => (released ? insert(src, attrs) : waiting.push([src, attrs]));
+	if (deferred) {
+		const INPUT = ["pointerdown", "keydown", "scroll", "touchstart"];
+		const release = () => {
+			if (released) return;
+			released = true;
+			for (const t of INPUT) removeEventListener(t, release, true);
+			for (const [src, attrs] of waiting.splice(0)) insert(src, attrs);
+		};
+		for (const t of INPUT) addEventListener(t, release, { capture: true, passive: true, once: true });
+		const idle = () => (typeof requestIdleCallback === "function" ? requestIdleCallback(release, { timeout: 2000 }) : setTimeout(release, 200));
+		if (document.readyState === "complete") idle();
+		else addEventListener("load", idle, { once: true });
+	}
 	window.dataLayer = window.dataLayer || [];
 	if (google.length || (consentMode && gtm.length)) {
 		// gtag() must push the arguments object itself (Google's snippet does the same).

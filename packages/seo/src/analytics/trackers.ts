@@ -172,16 +172,18 @@ export interface RuntimeConfig {
 	events?: EventKind[];
 	/** Consent mode: Google starts with consent denied; Meta, Clarity and Hotjar wait for siteAnalytics.grantConsent(). */
 	consent?: true;
+	/** Tracking scripts download after the page has drawn (site-analytics.js); absent: at once. */
+	defer?: true;
 }
 
-export function runtimeConfig(trackers: Tracker[], o: { events?: EventSettings; consent?: boolean } = {}): RuntimeConfig {
+export function runtimeConfig(trackers: Tracker[], o: { events?: EventSettings; consent?: boolean; defer?: boolean } = {}): RuntimeConfig {
 	const on = trackers.filter((t) => t.enabled && !SPECS[t.type].retired && normalizeId(t.type, t.value).ok);
 	const of = (...types: TrackerType[]) => [...new Set(on.filter((t) => types.includes(t.type)).map((t) => t.value))];
 	const cloudflare = of("cloudflare")[0];
 	const clarity = of("clarity")[0];
 	const hotjar = of("hotjar")[0];
 	const events = EVENT_KINDS.filter((k) => (o.events ?? DEFAULT_EVENTS)[k]);
-	return { google: of("ga4", "google-tag", "google-ads"), gtm: of("gtm"), ...(cloudflare ? { cloudflare } : {}), meta: of("meta"), ...(clarity ? { clarity } : {}), ...(hotjar ? { hotjar } : {}), ...(events.length ? { events } : {}), ...(o.consent ? { consent: true as const } : {}) };
+	return { google: of("ga4", "google-tag", "google-ads"), gtm: of("gtm"), ...(cloudflare ? { cloudflare } : {}), meta: of("meta"), ...(clarity ? { clarity } : {}), ...(hotjar ? { hotjar } : {}), ...(events.length ? { events } : {}), ...(o.consent ? { consent: true as const } : {}), ...(o.defer !== false ? { defer: true as const } : {}) };
 }
 
 export const hasTrackers = (rc: RuntimeConfig): boolean => rc.google.length > 0 || rc.gtm.length > 0 || !!rc.cloudflare || rc.meta.length > 0 || !!rc.clarity || !!rc.hotjar;

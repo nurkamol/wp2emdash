@@ -25,6 +25,12 @@ export interface StoredAnalytics {
 	events: EventSettings;
 	/** Consent mode (off by default): Google starts denied; Meta, Clarity and Hotjar wait for consent. */
 	consent: boolean;
+	/**
+	 * Load tracking scripts after the page has drawn (default on): their download waits for the page's load event and an
+	 * idle moment (at most ~2 s), or the visitor's first scroll, tap or key. Calls made before that are queued, nothing
+	 * is lost; a visit shorter than that may go uncounted. Off: scripts start downloading at once (the old behaviour).
+	 */
+	defer: boolean;
 	updatedAt: string;
 	/** Who saved last (name or email of the admin); absent for the first-load prefill. */
 	updatedBy?: string;
@@ -35,7 +41,7 @@ export function parseStored(v: unknown): StoredAnalytics | undefined {
 	const trackers = parseTrackers(v);
 	if (!trackers || !v || typeof v !== "object") return undefined;
 	const o = v as Record<string, unknown>;
-	return { version: 1, trackers, events: parseEvents(o.events), consent: o.consent === true, updatedAt: typeof o.updatedAt === "string" ? o.updatedAt.slice(0, 40) : "", ...(typeof o.updatedBy === "string" ? { updatedBy: o.updatedBy.slice(0, 80) } : {}) };
+	return { version: 1, trackers, events: parseEvents(o.events), consent: o.consent === true, defer: o.defer !== false, updatedAt: typeof o.updatedAt === "string" ? o.updatedAt.slice(0, 40) : "", ...(typeof o.updatedBy === "string" ? { updatedBy: o.updatedBy.slice(0, 80) } : {}) };
 }
 
 export interface D1Like {
