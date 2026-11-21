@@ -5,9 +5,9 @@
 	"summary": {
 		"areas": 110,
 		"inScope": 103,
-		"done": 83,
+		"done": 84,
 		"superseded": 6,
-		"partial": 14,
+		"partial": 13,
 		"missing": 0,
 		"outOfScope": 7
 	},
@@ -1152,9 +1152,9 @@
 			"feature": "XML sitemaps",
 			"emdash": "`/sitemap.xml`, `/sitemap-{collection}.xml` (has_seo + routable; no taxonomy/author); `<image:image>` from each entry's SEO image",
 			"emdashConfidence": "src",
-			"status": "partial",
-			"kit": "Pages, posts and CPT collection sitemaps (slugs fixed in middleware); /sitemap/archives.xml (posts page, category/tag/author archives, CPT archives and term archives) joins the index; verify `sitemap` gate. Image entries: EmDash lists each entry's SEO image; load sets it from the og:image, else the featured image",
-			"gap": "One image per entry (EmDash 1.5); no video sitemap; images inside sections are not listed.",
+			"status": "done",
+			"kit": "Pages, posts and CPT collection sitemaps (slugs fixed in middleware); /sitemap/archives.xml (posts page, category/tag/author archives, CPT archives and term archives) joins the index; verify `sitemap` gate. Image entries: EmDash lists each entry's SEO image; load sets it from the og:image, else the featured image. Media sitemap /sitemap/media.xml (joins the index on every site, route-cached with the pages): every picture inside an entry's sections and body (`<image:image>`, own origin only, deduped, max 1,000 per page) and video sections (`<video:video>`: uploaded file → `content_loc` with the poster as thumbnail; YouTube → `player_loc` + YouTube thumbnail; Vimeo with a poster) (starter utils/media-sitemap.ts); verify `sitemap` also requests a sample of listed images and video files",
+			"gap": "Background videos are not listed (decoration). Uploaded videos and Vimeo links without a poster image are left out (Google requires a thumbnail). Not yet checked in Search Console on a live site.",
 			"effort": "S",
 			"risk": "low",
 			"priority": "P2",
@@ -1815,7 +1815,7 @@
 				"sitemaps"
 			],
 			"effort": "S",
-			"notes": "404 monitoring done 2026-11-21 (Site health → Missing pages). Image sitemap entries 2026-11-21 (each entry's SEO image, the featured image when there is no og:image)."
+			"notes": "404 monitoring done 2026-11-21 (Site health → Missing pages). Image sitemap entries 2026-11-21 (each entry's SEO image, the featured image when there is no og:image); media sitemap (pictures inside sections, video sections) 2026-11-21."
 		},
 		{
 			"rank": 25,

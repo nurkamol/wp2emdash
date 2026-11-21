@@ -153,7 +153,7 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 		let locs = sitemap.status === 200 ? sitemapLocs(sitemap.html ?? "") : [];
 		if (/<sitemapindex/i.test(sitemap.html ?? "")) {
 			const children = await Promise.all(sitemapPaths(locs, o.productionUrl, 3).map((p) => probe(d.self, `${origin}${p}`, { body: true })));
-			locs = children.flatMap((c) => (c.status === 200 ? sitemapLocs(c.html ?? "") : []));
+			locs = [...new Set(children.flatMap((c) => (c.status === 200 ? sitemapLocs(c.html ?? "") : [])))];
 		}
 		if (sitemap.status === 200) state.sitemap = { at, paths: sitemapPaths(locs, o.productionUrl) };
 		checks.indexability = indexabilityCheck(home.status === 200 ? homeIndexing(home, o.productionUrl) : undefined, parseSiteFiles(robots, sitemap.status, locs), home.status, at);

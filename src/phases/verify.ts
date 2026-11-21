@@ -438,6 +438,8 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		// Sitemap: every entry answers 200 at its own address (no redirects), every published page is listed.
 		const sitemapLocs: string[] = [];
 		const sitemapErrors: string[] = [];
+		const sitemapImages = new Set<string>();
+		const sitemapVideos = new Set<string>();
 		const readSitemap = async (url: string, depth = 0): Promise<void> => {
 			const res = await kitFetch(url, { redirect: "manual" });
 			if (res.status !== 200) {
@@ -448,13 +450,26 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			const xml = await res.text();
 			const locs = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => m[1] as string);
 			if (/<sitemapindex/.test(xml) && depth < 2) for (const l of locs) await readSitemap(new URL(new URL(l).pathname, base).href, depth + 1);
-			else sitemapLocs.push(...locs);
+			else {
+				// The media sitemap (/sitemap/media.xml) lists pages again with their pictures and videos: each page once.
+				for (const l of locs) if (!sitemapLocs.includes(l)) sitemapLocs.push(l);
+				for (const m of xml.matchAll(/<(image:loc|video:content_loc)>\s*([^<\s]+)\s*<\/\1>/g)) (m[1] === "image:loc" ? sitemapImages : sitemapVideos).add((m[2] as string).replace(/&amp;/g, "&"));
+			}
 		};
 		await readSitemap(`${base}/sitemap.xml`);
 		for (const loc of sitemapLocs.slice(0, 500)) {
 			const res = await kitFetch(new URL(new URL(loc).pathname, base).href, { redirect: "manual" });
 			await res.body?.cancel();
 			if (res.status !== 200) sitemapErrors.push(`${new URL(loc).pathname} HTTP ${res.status}`);
+		}
+		// Pictures and uploaded videos the sitemaps list (EmDash's SEO image per entry, the media sitemap's pictures inside
+		// sections): a sample of those on the site's own address answers 200.
+		const own = (u: string) => URL.canParse(u) && new URL(u).host === new URL(base).host;
+		for (const u of [...sitemapImages].filter(own).slice(0, 40).concat([...sitemapVideos].filter(own).slice(0, 10))) {
+			const url = new URL(u);
+			const res = await kitFetch(url.href, { redirect: "manual" });
+			await res.body?.cancel();
+			if (res.status !== 200) sitemapErrors.push(`${url.pathname} HTTP ${res.status} (listed media)`);
 		}
 		const listed = new Set(sitemapLocs.map((l) => new URL(l).pathname));
 		const unlisted = [...published].filter((r): r is string => !!r && r !== "/" && !listed.has(r)).concat(published.has("/") && !listed.has("/") ? ["/"] : []);
@@ -601,7 +616,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		const endpointFail = formEndpoints.filter((f) => f.status === 404 || f.status >= 500);
 		check("forms-submit", "Form endpoints accept submissions", endpointFail.length === 0, endpointFail.map((f) => `${f.endpoint} HTTP ${f.status}`).join("; ") || formEndpoints.map((f) => `${f.endpoint} ${f.status}`).join(", ") || "no forms");
 		check("security-headers", "Security headers set", missingHeaders.length === 0, missingHeaders.length ? `missing: ${missingHeaders.join(", ")}` : undefined);
-		check("sitemap", "Sitemap lists every published page at its own address (200, no redirects)", sitemapErrors.length === 0 && unlisted.length === 0 && sitemapLocs.length > 0, [...sitemapErrors.slice(0, 6), ...(unlisted.length ? [`not listed: ${unlisted.slice(0, 6).join(", ")}`] : [])].join("; ") || `${sitemapLocs.length} URLs`);
+		check("sitemap", "Sitemap lists every published page at its own address (200, no redirects)", sitemapErrors.length === 0 && unlisted.length === 0 && sitemapLocs.length > 0, [...sitemapErrors.slice(0, 6), ...(unlisted.length ? [`not listed: ${unlisted.slice(0, 6).join(", ")}`] : [])].join("; ") || `${sitemapLocs.length} URLs, ${sitemapImages.size} images, ${sitemapVideos.size} video files`);
 		const wpOpen = wpPaths.filter((w) => w.status !== 404 && w.status !== 410);
 		const expected = liveIds ?? (adminManaged ? undefined : { google: siteCfg.analytics?.google ?? [], ...(siteCfg.analytics?.gtm ? { gtm: siteCfg.analytics.gtm } : {}) });
 		if (live && expected && (carried.size || liveIds)) {
