@@ -64,7 +64,7 @@ copy was reset to the new history. A local-only planning branch was not pushed.
       reporting → Enable, or `gh api -X PUT repos/nurkamol/wp2emdash/private-vulnerability-reporting`. Only possible
       once the repository is public; `SECURITY.md` links to it.
 - [ ] Pages: Settings → Pages → Source "GitHub Actions"; the `Pages` workflow publishes `site/`.
-- [ ] Description, website (Pages URL), topics: `wordpress`, `migration`, `emdash`, `cloudflare-workers`, `astro`,
+- [x] Description, website (Pages URL), topics: `wordpress`, `migration`, `emdash`, `cloudflare-workers`, `astro`,
       `cms`.
 - [ ] Branch protection on `main`: PRs required, CI required, no force-push (after the history rewrite).
 - [ ] Dependabot (actions + npm) and secret scanning / push protection on.
