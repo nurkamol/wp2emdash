@@ -200,8 +200,10 @@ const healthGuide = (h: ClientRepoInput["health"], productionUrl: string) =>
 - **Incidents**: when the site or a page failed two checks in a row (5 minutes apart), and when it answered again.
 - **Broken links**: the link, its answer and the pages that link to it — fix it in the page editor.
 - **Missing pages**: the addresses visitors asked for this week that do not exist, most requested first, each with a
-  suggested page to send them to — add it under **Redirects** (old address → suggested page), or fix the link that
-  sent people there. Requests for WordPress login pages and similar bot probes are left out.
+  suggested page to send them to. **Create redirect** on a row sends visitors of that address to the suggested page
+  (or to another page of the site you pick) with a permanent redirect, added under **Redirects** where you can change
+  or delete it; or fix the link that sent people there. Requests for WordPress login pages and similar bot probes are
+  left out.
 - **Run checks now** re-checks everything except links (which continue in the background).
 
 **Coming-soon mode** (Site health → Settings): shows every visitor a holding page with your logo and a message of your
@@ -209,7 +211,9 @@ own instead of the site — for example while it is being rebuilt — and tells 
 site keeps its place in Google. You still see the site while you are signed in. To show the site to someone without an
 admin account (a colleague, a reviewer), send them the **preview link** on the same screen: it works in their browser
 for 7 days, and **New link** stops every link sent before. It takes up to a minute to switch; switch it off on the same
-screen.
+screen. To plan it ahead, fill in **Start at** and **End at** (UTC, for example \`2026-12-01 09:00\`): the holding page
+shows between those times even with the switch off, and says "Back at …" with the end time. A planned start or end
+takes up to 5 minutes to reach every page.
 
 **Page cache** (Site health → Speed): visitors get ready-made pages from Cloudflare's cache. Every edit clears them, and
 the site builds them again by itself every 15 minutes, so nobody waits. Choose how often (15, 30 or 60 minutes) or switch

@@ -8,6 +8,7 @@ import { headerRows, type SecurityFacts } from "../checks/headers.js";
 import { blockedLabel, type CspStore, isScriptDirective, meaning } from "../csp.js";
 import { cspLine } from "../report.js";
 import type { NotFoundSummary } from "../checks/notfound.js";
+import { maintenanceActive, type MaintenanceSetting, maintenanceUpcoming, scheduleText, utcText } from "../maintenance.js";
 import type { ReportData } from "../report.js";
 import { headline } from "../report.js";
 import { CHECK_IDS, CHECK_LABELS, type CheckId, type Cwv, type DayRow, type HealthState, type Incident, type LinksResult, type Settings, type Status, type Today } from "../store.js";
@@ -20,15 +21,7 @@ export const WIDGET = "site-health";
 export const TABS = { overview: 0, incidents: 1, links: 2, missing: 3, speed: 4, security: 5, reports: 6, settings: 7 } as const;
 
 /** Coming-soon mode as stored (KEYS.maintenance; the starter's middleware reads the same row). */
-export interface MaintenanceSetting {
-	on: boolean;
-	heading?: string;
-	message?: string;
-	until?: string;
-	at?: string;
-	/** Key of the preview link (`?preview=<key>`): people without an admin account see the site while the mode is on. */
-	previewKey?: string;
-}
+export type { MaintenanceSetting };
 
 export type Overall = "healthy" | "attention" | "down" | "unknown";
 
@@ -87,6 +80,21 @@ export interface PageData {
 	cspBuild?: boolean;
 	/** The home page's security headers, last read (checks/headers.ts). */
 	security?: SecurityFacts | null;
+	/** EmDash lets this plugin write redirects (`ctx.redirects.create`): the Missing pages tab offers "Create redirect". */
+	redirects?: boolean;
+	/** "Create redirect" was asked for one address: the form for it (target prefilled with the suggestion). */
+	redirectForm?: { source: string; target?: string };
+	/** The time the page describes (tests); default now. */
+	now?: number;
+}
+
+/** The coming-soon banner text for the Overview and the widget: on now, scheduled, or nothing. */
+export function comingSoonStatus(m: MaintenanceSetting | null | undefined, now: number): { state: "on" | "scheduled"; text: string } | undefined {
+	if (!m) return undefined;
+	const when = scheduleText(m);
+	if (maintenanceActive(m, now)) return { state: "on", text: m.on ? (m.endAt && Date.parse(m.endAt) > now ? `Switched on (the schedule ends ${utcText(m.endAt)}, but the switch keeps it on).` : "Switched on.") : `Scheduled ${when}.` };
+	if (maintenanceUpcoming(m, now)) return { state: "scheduled", text: `Coming-soon scheduled ${when}.` };
+	return undefined;
 }
 
 const uptimePct = (rows: { probes: number; fails: number }[]) => {
@@ -102,7 +110,12 @@ function overview(d: PageData): Block[] {
 	const problems = Object.values(d.state.checks).filter((c) => c?.status === "fail" || c?.status === "warn").length;
 	return [
 		{ type: "banner", ...OVERALL[o] },
-		...(d.maintenance?.on ? [{ type: "banner", title: "Coming-soon mode is on", description: "Visitors see the holding page (503, not indexed); anyone signed in sees the site. Uptime, search-engine, analytics and link checks are paused. Switch it off in Settings.", variant: "alert" }] : []),
+		...(() => {
+			const cs = comingSoonStatus(d.maintenance, d.now ?? Date.now());
+			if (cs?.state === "on") return [{ type: "banner", title: "Coming-soon mode is on", description: `${cs.text} Visitors see the holding page (503, not indexed); anyone signed in sees the site. Uptime, search-engine, analytics and link checks are paused. Switch it off or change the schedule in Settings.`, variant: "alert" }];
+			if (cs) return [{ type: "banner", title: "Coming-soon mode is scheduled", description: `${cs.text} Until then visitors see the site. Change it in Settings.`, variant: "default" }];
+			return [];
+		})(),
 		...(!d.selfBinding ? [{ type: "banner", title: "Checks cannot reach the site", description: "This Worker has no SELF service binding in wrangler.jsonc, so it cannot request its own pages. Ask your developer to rerun the kit's scaffold and deploy.", variant: "error" }] : []),
 		...(!d.live && !d.staging ? [{ type: "context", text: "The domain does not show this site yet (before go-live): the checks run, but no alert or report is emailed until the site is live." }] : []),
 		{
@@ -206,8 +219,14 @@ function missingTab(d: PageData): Block[] {
 			return "";
 		}
 	};
+	const can = d.redirects === true;
+	const action = (path: string, suggest?: string): Block =>
+		suggest
+			? { type: "menu", action_id: "redirect-menu", label: "Create redirect", style: "secondary", items: [{ label: `To ${suggest}`, value: `create:${path}` }, { label: "To another page…", value: `edit:${path}` }] }
+			: { type: "button", action_id: "redirect-edit", label: "Create redirect…", style: "secondary", value: path };
 	return [
-		{ type: "context", text: "Addresses visitors asked for that do not exist, seen in the last 7 days, most requested first (requests counted since the address first failed). Where a page of the site probably fits, it is suggested: add it in Redirects (source → suggested page), or fix the link on the page that sent people there." },
+		...(can && d.redirectForm ? redirectFormBlocks(d, d.redirectForm) : []),
+		{ type: "context", text: can ? "Addresses visitors asked for that do not exist, seen in the last 7 days, most requested first (requests counted since the address first failed). Where a page of the site probably fits, it is suggested. Create redirect adds a permanent (301) redirect to Redirects — to the suggested page, or to another page of the site — and the address leaves this list. Or fix the link on the page that sent people there." : "Addresses visitors asked for that do not exist, seen in the last 7 days, most requested first (requests counted since the address first failed). Where a page of the site probably fits, it is suggested: add it in Redirects (source → suggested page), or fix the link on the page that sent people there." },
 		{
 			type: "table",
 			block_id: "missing",
@@ -219,11 +238,36 @@ function missingTab(d: PageData): Block[] {
 				{ key: "last", label: "Last asked", format: "relative_time" },
 				{ key: "from", label: "Came from" },
 				{ key: "suggest", label: "Suggested redirect" },
+				...(can ? [{ key: "action", label: "", format: "element" }] : []),
 			],
-			rows: s.top.map((r) => ({ path: r.path, hits: r.hits, last: r.lastSeen, from: host(r.referrer) || "—", suggest: r.suggest ?? "—" })),
+			rows: s.top.map((r) => ({ path: r.path, hits: r.hits, last: r.lastSeen, from: host(r.referrer) || "—", suggest: r.suggest ?? "—", ...(can ? { action: action(r.path, r.suggest) } : {}) })),
 		},
 		{ type: "actions", elements: [{ type: "link", label: "Open Redirects", target: { kind: "external", url: "/_emdash/admin/redirects" }, appearance: "secondary" }] },
 		{ type: "context", text: `Read ${shortTime(s.at)}.${s.probes ? ` ${plural(s.probes, "bot probe")} (wp-login.php, .env and similar) left out: those addresses never existed here.` : ""}` },
+	];
+}
+
+/** Pages offered as redirect targets (the sitemap, at most this many; the text box takes any other page). */
+const TARGET_OPTIONS = 200;
+
+/** The "Create redirect" form for one missing address: the target from the site's pages, or typed. */
+function redirectFormBlocks(d: PageData, f: { source: string; target?: string }): Block[] {
+	const pages = [...new Set([...(f.target ? [f.target] : []), ...(d.state.sitemap?.paths ?? [])])].slice(0, TARGET_OPTIONS);
+	return [
+		{ type: "header", text: `Redirect ${f.source}` },
+		...(d.errors?.length ? [{ type: "banner", title: "Not created", description: d.errors.slice(0, 5).join(" "), variant: "error" }] : []),
+		{
+			type: "form",
+			block_id: "redirect",
+			fields: [
+				{ type: "text_input", action_id: "source", label: "Missing address (source)", initial_value: f.source },
+				...(pages.length ? [{ type: "select", action_id: "target", label: "Send visitors to (a page of this site)", options: pages.map((p) => ({ label: p, value: p })), initial_value: f.target ?? pages[0] }] : []),
+				{ type: "text_input", action_id: "targetOther", label: "Or another page of this site (a path like /about/, or its full https:// address; overrides the list)", placeholder: "/about/" },
+			],
+			submit: { label: "Create 301 redirect", action_id: "redirect-save" },
+		},
+		{ type: "actions", elements: [{ type: "button", action_id: "redirect-cancel", label: "Cancel", style: "secondary" }] },
+		{ type: "context", text: "The redirect goes to Redirects (group \"site-health\"), where it can be changed or deleted. Only pages of this site can be targets: EmDash's redirects do not send visitors to other websites." },
 	];
 }
 
@@ -368,6 +412,9 @@ function reportsTab(d: PageData): Block[] {
 	];
 }
 
+/** An ISO time as the form shows it: "2026-12-01 09:00". */
+const inputTime = (iso: string) => iso.slice(0, 16).replace("T", " ");
+
 /** The coming-soon preview link: for people without an admin account (the client, a reviewer). */
 function previewBlocks(d: PageData): Block[] {
 	const key = d.maintenance?.previewKey;
@@ -411,14 +458,22 @@ function settingsTab(d: PageData): Block[] {
 		{ type: "context", text: "At most one email per issue per day (for example one \"site down\" and one \"back up\"), and at most six alerts a day in total. Emails go through the same email service as the website's forms." },
 		{ type: "header", text: "Coming-soon mode" },
 		{ type: "context", text: "Shows visitors a holding page with your logo and message instead of the site (HTTP 503 with Retry-After, so search engines keep the site's listing and come back later). Anyone signed in to the admin still sees the site. Takes up to a minute to switch everywhere. The migration never switches it on." },
+		{ type: "context", text: "Schedule (optional, UTC): the holding page shows from \"Start at\" until \"End at\", even with the switch off; leave Start empty to begin now, or End empty to keep it on until you switch it off. The switch always forces it on. A scheduled start or end takes up to 5 minutes to reach every page. \"End at\" is also shown on the holding page as \"Back at …\"." },
+		...(() => {
+			const cs = comingSoonStatus(d.maintenance, d.now ?? Date.now());
+			const when = scheduleText(d.maintenance);
+			return [{ type: "fields", fields: [{ label: "Now", value: cs?.state === "on" ? "On: visitors see the holding page" : "Off: visitors see the site" }, { label: "Schedule", value: when ? `${when[0]?.toUpperCase()}${when.slice(1)}${cs?.state === "scheduled" ? " (not started yet)" : ""}` : "None" }] }];
+		})(),
 		{
 			type: "form",
 			block_id: "maintenance",
 			fields: [
-				{ type: "toggle", action_id: "on", label: "Show the coming-soon page to visitors", initial_value: d.maintenance?.on === true },
+				{ type: "toggle", action_id: "on", label: "Show the coming-soon page to visitors now", initial_value: d.maintenance?.on === true },
 				{ type: "text_input", action_id: "heading", label: "Heading", placeholder: "We'll be back soon", ...(d.maintenance?.heading ? { initial_value: d.maintenance.heading } : {}) },
 				{ type: "text_input", action_id: "message", label: "Message", placeholder: "The site is getting ready. Please check back shortly.", multiline: true, ...(d.maintenance?.message ? { initial_value: d.maintenance.message } : {}) },
-				{ type: "text_input", action_id: "until", label: "Expected back (optional, e.g. 2026-12-01 09:00 UTC)", placeholder: "YYYY-MM-DD HH:MM", ...(d.maintenance?.until ? { initial_value: d.maintenance.until.slice(0, 16).replace("T", " ") } : {}) },
+				{ type: "text_input", action_id: "startAt", label: "Start at (optional, UTC, e.g. 2026-12-01 09:00)", placeholder: "YYYY-MM-DD HH:MM", ...(d.maintenance?.startAt ? { initial_value: inputTime(d.maintenance.startAt) } : {}) },
+				{ type: "text_input", action_id: "endAt", label: "End at (optional, UTC)", placeholder: "YYYY-MM-DD HH:MM", ...(d.maintenance?.endAt ? { initial_value: inputTime(d.maintenance.endAt) } : {}) },
+				{ type: "text_input", action_id: "until", label: "Expected back (optional, without an end time; e.g. 2026-12-01 09:00 UTC)", placeholder: "YYYY-MM-DD HH:MM", ...(d.maintenance?.until ? { initial_value: inputTime(d.maintenance.until) } : {}) },
 			],
 			submit: { label: "Save coming-soon mode", action_id: "save-maintenance" },
 		},
@@ -494,14 +549,17 @@ export function reportView(r: ReportData, stored: boolean): Block[] {
 	];
 }
 
-export function widget(d: Pick<PageData, "state" | "today" | "incidents"> & Partial<Pick<PageData, "notFound" | "maintenance">>): Block[] {
+export function widget(d: Pick<PageData, "state" | "today" | "incidents"> & Partial<Pick<PageData, "notFound" | "maintenance" | "now">>): Block[] {
 	const o = overallOf(d.state);
 	const open = d.incidents.filter((i) => !i.endedAt).length;
 	const attention = CHECK_IDS.filter((id) => ["fail", "warn"].includes(d.state.checks[id]?.status ?? "")).map((id) => CHECK_LABELS[id]);
 	const missing = d.state.checks.notfound?.status === "warn" ? (d.notFound?.top.filter((r) => r.hits >= 3).length ?? 0) : 0;
 	return [
 		{ type: "banner", title: OVERALL[o].title, description: o === "attention" ? `Needs a look: ${attention.join(", ")}.` : OVERALL[o].description, variant: OVERALL[o].variant },
-		...(d.maintenance?.on ? [{ type: "context", text: "Coming-soon mode is on: visitors see the holding page." }] : []),
+		...(() => {
+			const cs = comingSoonStatus(d.maintenance, d.now ?? Date.now());
+			return cs ? [{ type: "context", text: cs.state === "on" ? `Coming-soon mode is on: visitors see the holding page. ${cs.text}` : cs.text }] : [];
+		})(),
 		...(missing ? [{ type: "context", text: `${plural(missing, "missing address", "missing addresses")} visitors keep asking for: see Site health → Missing pages for suggested redirects.` }] : []),
 		{ type: "stats", items: [{ label: "Uptime today", value: d.today ? uptimePct([d.today]) : "—" }, { label: "Open incidents", value: open }] },
 		{ type: "actions", elements: [{ type: "link", label: "Open Site health", target: { kind: "plugin-page", path: PAGE }, appearance: "secondary" }] },

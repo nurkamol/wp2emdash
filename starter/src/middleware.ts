@@ -16,7 +16,7 @@ import { typesOf } from "@wp2emdash/seo/analytics/trackers";
 import { pageAnalytics } from "./utils/analytics";
 import { REGION_PATH, regionResponse } from "./utils/consent";
 import { PREVIEW_PARAM as MOTION_PREVIEW } from "@wp2emdash/motion/settings";
-import { comingSoonHtml, MAINTENANCE_OPTION, MAINTENANCE_TTL_MS, maintenanceBypass, type MaintenanceState, parseMaintenance, PREVIEW_COOKIE, PREVIEW_DAYS, PREVIEW_PARAM, previewAccess, retryAfter } from "./utils/maintenance";
+import { comingSoonHtml, MAINTENANCE_OPTION, MAINTENANCE_TTL_MS, maintenanceActive, maintenanceBypass, type MaintenanceState, parseMaintenance, PREVIEW_COOKIE, PREVIEW_DAYS, PREVIEW_PARAM, previewAccess, retryAfter } from "./utils/maintenance";
 import announcementScript from "./scripts/inline/announcement.js?raw";
 import { commentPostTarget } from "./utils/comments";
 import { commentsConfig } from "./utils/comments-data";
@@ -205,10 +205,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		return redirect(`${PRODUCTION.origin}${u.pathname}${u.search}`, 301);
 	}
 	// Coming-soon mode (an admin's switch, never the migration's): visitors get the holding page with 503 + Retry-After
-	// and noindex; anyone signed in to the admin sees the site. Never kept in the route cache.
+	// and noindex; anyone signed in to the admin sees the site. Never kept in the route cache. On while the switch is on
+	// or now is inside the admin's schedule (start / end, UTC).
 	if (!maintenanceBypass(u.pathname) && !context.cookies.get("astro-session")) {
 		const m = await maintenanceState();
-		const preview = previewAccess(m, u.searchParams.get(PREVIEW_PARAM), context.cookies.get(PREVIEW_COOKIE)?.value);
+		const now = Date.now();
+		const preview = previewAccess(m, u.searchParams.get(PREVIEW_PARAM), context.cookies.get(PREVIEW_COOKIE)?.value, now);
 		if (preview === "link") {
 			// The preview link: remember it in this browser, then show the address without the key.
 			context.cookies.set(PREVIEW_COOKIE, m.previewKey as string, { path: "/", httpOnly: true, secure: u.protocol === "https:", sameSite: "lax", maxAge: PREVIEW_DAYS * 86_400 });
@@ -217,10 +219,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			if (context.cache?.enabled) context.cache.set(false);
 			return redirect(`${clean.pathname}${clean.search}`, 302);
 		}
-		if (m.on && !preview) {
+		if (maintenanceActive(m, now) && !preview) {
 			if (context.cache?.enabled) context.cache.set(false);
 			const header = site.header as { logo?: string };
-			return new Response(context.request.method === "HEAD" ? null : comingSoonHtml(m, { siteName: site.name, ...(header.logo ? { logo: header.logo } : {}), lang: site.lang }), { status: 503, headers: { "Content-Type": "text/html; charset=utf-8", "Retry-After": String(retryAfter(m)), "Cache-Control": "no-store", "X-Robots-Tag": "noindex", ...HEADERS } });
+			return new Response(context.request.method === "HEAD" ? null : comingSoonHtml(m, { siteName: site.name, ...(header.logo ? { logo: header.logo } : {}), lang: site.lang }, now), { status: 503, headers: { "Content-Type": "text/html; charset=utf-8", "Retry-After": String(retryAfter(m, now)), "Cache-Control": "no-store", "X-Robots-Tag": "noindex", ...HEADERS } });
 		}
 	}
 	// A WordPress address the owner's rule set says is gone (410), or an unknown ?p= id (404): the 404 page, that status.

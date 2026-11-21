@@ -34,6 +34,8 @@ import { monthOf, previousMonth } from "../util.js";
 import type { SecurityFacts } from "../checks/headers.js";
 import { createLimiter, CSP_MAX_BYTES, type CspStore, parseCspBody, readCspStore, recordViolations, siteOrigins, violationOf } from "../csp.js";
 import type { NotFoundSummary } from "../checks/notfound.js";
+import { applyMaintenanceSchedule, maintenanceActive, maintenanceUpcoming, scheduleText, utcText } from "../maintenance.js";
+import { addRedirected, checkRedirect, findRelated, REDIRECT_GROUP, type Redirected, type RedirectsAccess, samePath } from "../redirects.js";
 import { adminsOnly, type MaintenanceSetting, overallOf, PAGE, type PageData, page, reportView, TABS, WIDGET, widget } from "./views.js";
 
 const ADMIN_ROLE = 50;
@@ -67,6 +69,8 @@ interface Ctx {
 	email?: PluginEmail;
 	content?: RunDeps["content"];
 	media?: unknown;
+	/** EmDash's redirects (capability `redirects:write`; EmDash 1.5 `RedirectAccessWithWrite`). */
+	redirects?: RedirectsAccess;
 	log?: { info(m: string, d?: Record<string, unknown>): void; warn?(m: string, d?: Record<string, unknown>): void };
 }
 interface Interaction {
@@ -78,6 +82,8 @@ interface Interaction {
 
 // Bindings exist only in the Worker: imported per call, not at module level (astro.config loads the descriptor in Node).
 const workerEnv = async () => ((await import("cloudflare:workers")) as unknown as { env: WorkerEnv }).env;
+/** Purges every cached page (a cached page never reaches the middleware). Never throws. */
+const purgeAll = async () => purgePages(((await import("cloudflare:workers")) as unknown as { cache?: PurgeApi }).cache);
 
 /** The `tick` task, every 5 minutes; (re)scheduled when missing or changed. */
 export async function ensureCron(cron: CronAccess | undefined): Promise<void> {
@@ -99,6 +105,7 @@ function deps(ctx: Ctx, env: WorkerEnv, o: HealthOptions): RunDeps | undefined {
 		...(ctx.email ? { email: ctx.email } : {}),
 		...(ctx.content ? { content: ctx.content } : {}),
 		...(ctx.media ? { media: ctx.media } : {}),
+		...(ctx.redirects ? { redirects: ctx.redirects } : {}),
 		...(ctx.log ? { log: ctx.log } : {}),
 		now: Date.now(),
 	};
@@ -138,17 +145,37 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 		csp: readCspStore(csp),
 		cspBuild: o.cspReports !== false,
 		security,
+		redirects: typeof ctx.redirects?.create === "function",
 		...extra,
 	};
 }
 
-/** "2026-12-01 09:00" (UTC) or an ISO time → ISO; empty → undefined; anything else → an error. */
-export function parseUntil(v: unknown): { until?: string; error?: string } {
+/** "2026-12-01 09:00" (UTC) or an ISO time → ISO; empty → undefined; anything else → an error naming the field. */
+export function parseUntil(v: unknown, label = "Expected back"): { until?: string; error?: string } {
 	const s = typeof v === "string" ? v.trim() : "";
 	if (!s) return {};
 	const m = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2}))?(?::\d{2}(?:\.\d+)?)?(?:Z| ?UTC)?$/i.exec(s);
 	const t = m ? Date.parse(`${m[1]}T${m[2] ?? "00:00"}:00Z`) : Number.NaN;
-	return Number.isNaN(t) ? { error: "Expected back: write the date as YYYY-MM-DD HH:MM (UTC), or leave it empty." } : { until: new Date(t).toISOString() };
+	return Number.isNaN(t) ? { error: `${label}: write the date as YYYY-MM-DD HH:MM (UTC), or leave it empty.` } : { until: new Date(t).toISOString() };
+}
+
+/** The coming-soon form's times: each parsed, the end after the start and still ahead. Pure. */
+export function parseSchedule(values: { until?: unknown; startAt?: unknown; endAt?: unknown }, now: number): { until?: string; startAt?: string; endAt?: string; errors: string[] } {
+	const until = parseUntil(values.until);
+	const start = parseUntil(values.startAt, "Start at");
+	const end = parseUntil(values.endAt, "End at");
+	const errors = [until.error, start.error, end.error].filter((e): e is string => !!e);
+	if (!errors.length && start.until && end.until && Date.parse(end.until) <= Date.parse(start.until)) errors.push("End at must be later than Start at.");
+	if (!errors.length && end.until && Date.parse(end.until) <= now) errors.push("End at has passed: clear it, or pick a later time.");
+	return { ...(until.until ? { until: until.until } : {}), ...(start.until ? { startAt: start.until } : {}), ...(end.until ? { endAt: end.until } : {}), errors };
+}
+
+/** "/old/" from a menu or button value: `create:/old/`, `edit:/old/` or the path. */
+function valuePath(v: unknown): { kind: "create" | "edit"; path: string } | undefined {
+	if (typeof v !== "string" || v.length > 600) return undefined;
+	const m = /^(create|edit):(\/.*)$/.exec(v);
+	if (m) return { kind: m[1] as "create" | "edit", path: m[2] as string };
+	return v.startsWith("/") ? { kind: "edit", path: v } : undefined;
 }
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -173,6 +200,9 @@ export function createPlugin(options: HealthOptions) {
 	const o = options;
 	const tick = async (ctx: Ctx) => {
 		const env = await workerEnv();
+		// A scheduled coming-soon start or end passed since the last tick: purge the cached pages once (up to 5 minutes late).
+		const schedule = await applyMaintenanceSchedule(ctx.kv, Date.now(), purgeAll).catch(() => undefined);
+		if (schedule?.changed) ctx.log?.info("health coming-soon schedule applied", { active: schedule.active, purge: schedule.purge });
 		const d = deps(ctx, env, o);
 		if (!d) {
 			ctx.log?.warn?.("health: no SELF service binding; checks skipped");
@@ -183,7 +213,8 @@ export function createPlugin(options: HealthOptions) {
 	};
 	return definePlugin({
 		...HEALTH_PLUGIN,
-		capabilities: ["content:read", "media:read", "email:send"],
+		// redirects:write: "Create redirect" on the Missing pages tab (EmDash's own redirects, ctx.redirects).
+		capabilities: ["content:read", "media:read", "email:send", "redirects:write"],
 		hooks: {
 			"plugin:install": async (_event: unknown, ctx: unknown) => ensureCron((ctx as Ctx).cron),
 			"plugin:activate": async (_event: unknown, ctx: unknown) => ensureCron((ctx as Ctx).cron),
@@ -233,18 +264,26 @@ export function createPlugin(options: HealthOptions) {
 					}
 					if (i.type === "form_submit" && act === "save-maintenance") {
 						const v = i.values ?? {};
-						const until = parseUntil(v.until);
-						if (until.error) return { blocks: await show(TABS.settings, { errors: [until.error] }), toast: { message: "Not saved. See the errors.", type: "error" } };
+						const now = Date.now();
+						const times = parseSchedule(v, now);
+						if (times.errors.length) return { blocks: await show(TABS.settings, { errors: times.errors }), toast: { message: "Not saved. See the errors.", type: "error" } };
 						const text = (x: unknown, max: number) => (typeof x === "string" && x.trim() ? x.trim().slice(0, max) : undefined);
 						const heading = text(v.heading, 120);
 						const message = text(v.message, 1000);
 						const prev = await ctx.kv.get<MaintenanceSetting>(KEYS.maintenance);
-						const next: MaintenanceSetting = { on: v.on === true, ...(heading ? { heading } : {}), ...(message ? { message } : {}), ...(until.until ? { until: until.until } : {}), at: new Date().toISOString(), ...(prev?.previewKey ? { previewKey: prev.previewKey } : {}) };
+						const next: MaintenanceSetting = { on: v.on === true, ...(heading ? { heading } : {}), ...(message ? { message } : {}), ...(times.until ? { until: times.until } : {}), ...(times.startAt ? { startAt: times.startAt } : {}), ...(times.endAt ? { endAt: times.endAt } : {}), at: new Date(now).toISOString(), ...(prev?.previewKey ? { previewKey: prev.previewKey } : {}) };
 						await ctx.kv.set(KEYS.maintenance, next);
-						// Cached pages never reach the middleware: purge them, or visitors keep the public copy for the page lifetime.
-						const purged = await purgePages(((await import("cloudflare:workers")) as unknown as { cache?: PurgeApi }).cache);
-						ctx.log?.info("health coming-soon mode saved", { on: next.on, purge: purged });
-						return { blocks: await show(TABS.settings), toast: { message: next.on ? "Coming-soon mode is on: visitors see the holding page within a minute." : "Coming-soon mode is off: the site is public again within a minute.", type: "success" } };
+						// Cached pages never reach the middleware: when the holding page starts or stops now, purge them, or visitors
+						// keep the old copy for the page lifetime. A schedule's later start / end is the cron's (maintenance.ts).
+						const active = maintenanceActive(next, now);
+						const applied = await ctx.kv.get<{ active: boolean }>(KEYS.maintenanceApplied);
+						const was = applied ? applied.active : maintenanceActive(prev, now);
+						const purged = active !== was || (!applied && active) ? await purgeAll() : "unchanged";
+						await ctx.kv.set(KEYS.maintenanceApplied, { active, at: new Date(now).toISOString() });
+						ctx.log?.info("health coming-soon mode saved", { on: next.on, active, scheduled: !!(next.startAt || next.endAt), purge: purged });
+						const when = scheduleText(next);
+						const toast = active ? `Coming-soon mode is on: visitors see the holding page within a minute${!next.on && next.endAt ? ` until ${utcText(next.endAt)}` : ""}.` : maintenanceUpcoming(next, now) ? `Saved: coming-soon mode is scheduled ${when}. It switches within 5 minutes of each time.` : "Coming-soon mode is off: the site is public again within a minute.";
+						return { blocks: await show(TABS.settings), toast: { message: toast, type: "success" } };
 					}
 					if (i.type === "form_submit" && act === "save-cache" && o.rewarm) {
 						const v = i.values ?? {};
@@ -282,6 +321,48 @@ export function createPlugin(options: HealthOptions) {
 						ctx.log?.info("health coming-soon preview link replaced", { on: prev.on });
 						return { blocks: await show(TABS.settings), toast: { message: prev.previewKey ? "New preview link: the old one no longer works." : "Preview link created.", type: "success" } };
 					}
+					// ── Missing pages → Create redirect (EmDash's own redirects through ctx.redirects; validated first).
+					const createRedirect = async (source: unknown, target: unknown): Promise<{ blocks: unknown[]; toast: { message: string; type: string } }> => {
+						const formAgain = async (errors: string[]) => ({ blocks: await show(TABS.missing, { errors, redirectForm: { source: typeof source === "string" ? source.trim().slice(0, 500) : "", ...(typeof target === "string" && target.trim() ? { target: target.trim().slice(0, 500) } : {}) } }), toast: { message: "Redirect not created. See the errors.", type: "error" } });
+						const access = ctx.redirects;
+						if (typeof access?.create !== "function") return { blocks: await show(TABS.missing), toast: { message: "Site health cannot write redirects on this site: add it in Redirects.", type: "error" } };
+						const state = await readState(ctx.kv);
+						const hosts = [new URL(o.productionUrl).hostname, ...(ctx.request?.url && URL.canParse(ctx.request.url) ? [new URL(ctx.request.url).hostname] : [])];
+						const req = { source, target, sitePaths: state.sitemap?.paths ?? [], siteHosts: hosts, existing: [] };
+						let check = checkRedirect(req);
+						if (check.ok) check = checkRedirect({ ...req, existing: await findRelated(access, [check.source, check.destination]) });
+						if (!check.ok) return formAgain([check.error]);
+						try {
+							await access.create({ source: check.source, destination: check.destination, type: 301, groupName: REDIRECT_GROUP });
+						} catch (e) {
+							// The code only: EmDash's message names the addresses.
+							ctx.log?.warn?.("health redirect not created", { code: String((e as { code?: unknown }).code ?? "error") });
+							return formAgain([`EmDash did not store it: ${e instanceof Error ? e.message : "unknown error"}.`]);
+						}
+						const now = Date.now();
+						await ctx.kv.set(KEYS.redirected, addRedirected(await ctx.kv.get<Redirected>(KEYS.redirected), check.source, check.destination, now));
+						const summary = await ctx.kv.get<NotFoundSummary>(KEYS.notFound);
+						const { source: from, destination: to } = check;
+						const top = summary ? summary.top.filter((r) => !samePath(r.path, from)) : [];
+						if (summary) await ctx.kv.set(KEYS.notFound, { ...summary, top });
+						const purged = await purgeAll();
+						// Counts only: never the addresses.
+						ctx.log?.info("health redirect created", { stillListed: top.length, purge: purged });
+						return { blocks: await show(TABS.missing), toast: { message: `Redirect created: ${from} → ${to} (301). Change or delete it in Redirects.`, type: "success" } };
+					};
+					if (i.type === "block_action" && (act === "redirect-menu" || act === "redirect-edit")) {
+						const vp = valuePath(i.value);
+						if (!vp) return { blocks: await show(TABS.missing) };
+						const row = (await ctx.kv.get<NotFoundSummary>(KEYS.notFound))?.top.find((r) => r.path === vp.path);
+						if (vp.kind === "create" && row?.suggest) return createRedirect(vp.path, row.suggest);
+						return { blocks: await show(TABS.missing, { redirectForm: { source: vp.path, ...(row?.suggest ? { target: row.suggest } : {}) } }) };
+					}
+					if (i.type === "form_submit" && act === "redirect-save") {
+						const v = i.values ?? {};
+						const other = typeof v.targetOther === "string" ? v.targetOther.trim() : "";
+						return createRedirect(v.source, other || v.target);
+					}
+					if (i.type === "block_action" && act === "redirect-cancel") return { blocks: await show(TABS.missing) };
 					if (i.type === "block_action" && act === "test-email") {
 						const state = await readState(ctx.kv);
 						if (state.jobs.test && Date.now() - Date.parse(state.jobs.test) < TEST_EVERY) return { blocks: await show(TABS.settings), toast: { message: "A test email was sent less than 10 minutes ago.", type: "info" } };

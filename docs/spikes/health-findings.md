@@ -69,7 +69,7 @@ link step (≈ 30 subrequests), single-flight (KV `compareAndSet` lock, 4 min ex
 - **Block Kit 1.5** block types used: header, banner, stats, table (badge, relative_time, element), chart (timeseries),
   fields, form (text_input multiline, toggle), actions (button with confirm, link with plugin-page/external target),
   context, empty, tab. Plugin page icon names are Phosphor icons (`heartbeat`).
-- **Capabilities** (1.5 names): `content:read`, `media:read` (SEO score with library alt text), `email:send`
+- **Capabilities** (1.5 names): `content:read`, `media:read` (SEO score with library alt text), `redirects:write` (Create redirect, below), `email:send`
   (`ctx.email` exists only when an EmDash email provider is selected).
 - **Plugin KV** = D1 `options` rows `plugin:site-health:<key>`; `compareAndSet` / `getVersioned` exist (used for the
   lock). No expiry: download grants carry their own and are pruned when a new one is made.
@@ -90,6 +90,48 @@ link step (≈ 30 subrequests), single-flight (KV `compareAndSet` lock, 4 min ex
 - **Visits for a month**: the SEO suite's `rumPageloadEventsAdaptiveGroups` query now takes a `range` (calendar month;
   the day rows' limit grows with it). Same `CF_ANALYTICS_TOKEN`. Not run against the live API (as the 7-day query).
 
+## Redirects from Missing pages — the `redirects:write` capability (verified 2026-11-21, emdash 1.5.0 source)
+
+Three ways a plugin could write a redirect; the official one is a plugin capability:
+
+- **`capabilities: ["redirects:write"]` → `ctx.redirects`** (`plugins/context.ts` `createRedirectAccess(db, true)`,
+  `plugins/types.ts` `RedirectAccessWithWrite`; `redirects:read` is implied; both names are in
+  `plugins/manifest-schema.ts`). `create({ source, destination, type, enabled, groupName })` parses the input with the
+  same `createRedirectBody` schema as `POST /_emdash/api/redirects` and calls the same `handleRedirectCreate`
+  (`api/handlers/redirects.ts`): redirect write lock (`REDIRECT_BUSY`), source ≠ destination, pattern validation,
+  `CONFLICT` on an existing source, `wouldCreateLoop` on the enabled rules, then `publishRedirectChanges` (the
+  content-addressed redirect artifacts the redirect middleware reads, `redirects/artifacts.ts`). Errors throw
+  `RedirectAccessError` with `code` + `message` (the message names the source). `list({ limit ≤ 100, cursor, search })`
+  returns `{ items, cursor, hasMore }`; `search` is a LIKE on source **or** destination. The context is built per
+  plugin by `PluginContextFactory.createContext`, used for hooks (cron) and routes alike. **Chosen.**
+- **SELF + admin API with a token** (as the media plugin does): works, but needs an API token with
+  `redirects:manage` kept as a Worker secret — more moving parts for the same handler.
+- **Direct D1 insert into `_emdash_redirects`**: rejected. It would skip the write lock, the loop check and the
+  artifact publish (migrations 081/090/091), so the middleware could serve a stale rule set until a repair.
+
+Facts used: `source` and `destination` must be **site-relative paths** (`urlPath` in `api/schemas/redirects.ts`:
+starts with `/`, not `//`, no CR/LF, no `..` segment) — a redirect to another website cannot be stored, so Site
+health accepts a full `https://` address only on the site's own host (production host or the admin's address) and
+stores its path. The redirect middleware matches the request path exactly and then its other trailing-slash form
+(`astro/middleware/redirect.ts` `matchRedirect`), and keeps 404 responses out of the route cache; it logs 404s to
+`_emdash_404_log`, whose rows stay after a redirect is added — so the Missing pages read leaves out paths redirected
+from the tab (KV `notfound:redirected`, 8 days) and every non-pattern redirect source (`ctx.redirects.list`, ≤ 1,000).
+Purging the page cache after a redirect is not needed for the redirect itself (404s are not cached) but is done, as
+for the other admin saves, so a page that linked there is rebuilt.
+
+## Scheduled coming-soon — purge at the boundaries
+
+- The middleware evaluates `maintenanceActive(state, now)` on every rendered request (the row is read each time,
+  `MAINTENANCE_TTL_MS` 0), so an uncached page switches exactly at `startAt` / `endAt`. Cached pages never run the
+  Worker: Site health's cron tick (every 5 minutes) compares the active state with KV `maintenance:applied` and calls
+  `purgePages` once when it changed. Up to 5 minutes late; documented in Settings and the client guide.
+- Purging from the cron: `cache.purge` from `cloudflare:workers` outside a request is what EmDash's own Cloudflare
+  `scheduled()` handler does for the scheduled-publish sweep (`@emdash-cms/cloudflare` `src/worker.ts`
+  `invalidatePublishedTags` → the cache provider's `invalidate`), and plugin cron runs inside that handler
+  (`runScheduledTasks`). Not yet observed on a deployed Worker for this plugin.
+- The holding page (503, `no-store`) is never cached, so at `endAt` nothing stale remains; the end purge only rebuilds
+  pages that were cached before the start (harmless; the cache refill fills them again).
+
 ## Privacy
 
 Stored, logged, emailed and shown: URLs/paths of the site, page titles, statuses, counts, times, hostnames of
@@ -106,3 +148,6 @@ logs or emails after a full run. Settings logs carry recipient counts, never add
 - Email delivery of alerts and reports (mocked Brevo / `ctx.email`); how mail apps render the report (HTML is
   table-based with inline styles; golden file `test/golden/health-report.html`).
 - The admin page in a real browser session (Block Kit shapes follow the 1.5 types; the routes were unit-tested).
+- `ctx.redirects.create` from the admin route on a deployed site (source-read and unit-tested with a stand-in), and the
+  `menu` element inside a table cell (Block Kit 1.5 `TableColumn.format: "element"` allows button, link or menu).
+- The cron's boundary purge on a deployed Worker (see "Scheduled coming-soon").

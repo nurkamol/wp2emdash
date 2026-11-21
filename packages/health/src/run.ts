@@ -22,7 +22,9 @@ import { cspAlertEvents, type CspEntry, type CspStore, cspMonth, readCspStore, t
 import { applyProbes, countHome, pickPaths, uptimeCheck } from "./checks/uptime.js";
 import { type MailEnv, type PluginEmail, sendMail } from "./email.js";
 import type { HealthOptions } from "./index.js";
+import { maintenanceActive, type MaintenanceSetting } from "./maintenance.js";
 import { answered, type Fetcher, probe } from "./probe.js";
+import { type Redirected, type RedirectsAccess, redirectSources, withoutRedirected } from "./redirects.js";
 import { buildReport, type ReportData, reportMail } from "./report.js";
 import { type ReportSources, reportSources } from "./sources.js";
 import { EXTERNAL_SAMPLE, externalDue, LINK_BUDGET, LINK_CONCURRENCY, LOCK_MS, MANUAL_EVERY, planRun, reportDue } from "./schedule.js";
@@ -53,6 +55,8 @@ export interface RunDeps {
 	email?: PluginEmail;
 	content?: ContentLister;
 	media?: unknown;
+	/** EmDash's redirects (`ctx.redirects`, capability redirects:write): redirected addresses leave the Missing pages list. */
+	redirects?: RedirectsAccess;
 	log?: { info(m: string, d?: Record<string, unknown>): void; warn?(m: string, d?: Record<string, unknown>): void };
 	now: number;
 }
@@ -129,9 +133,10 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 	const plan = planRun(now, state, { host, linkJobActive: !!linkJob, reportDue: reportDue(now, reports.map((r) => r.month), lastMonth), manual: !!mode.manual });
 
 	// Coming-soon mode (Settings): visitors get the holding page (503) on purpose, so the checks that request the site
-	// pause instead of reporting the site down (no incidents, no alerts); the others run as usual.
-	const paused = (await kv.get<{ on?: boolean }>(KEYS.maintenance))?.on === true;
-	const pausedState = (): CheckState => ({ status: "off", summary: "Paused: coming-soon mode is on (visitors see the holding page). Switch it off in Settings.", at });
+	// pause instead of reporting the site down (no incidents, no alerts); the others run as usual. Same rule as the
+	// middleware: the switch, or now inside the schedule.
+	const paused = maintenanceActive(await kv.get<MaintenanceSetting>(KEYS.maintenance), now);
+	const pausedState = (): CheckState => ({ status: "off", summary: "Paused: coming-soon mode is on (visitors see the holding page). Switch it off or change its schedule in Settings.", at });
 
 	// ── Uptime (every run): home + one sitemap page (+ retries). The home page's HTML feeds the other light checks.
 	const { paths, cursor } = pickPaths(state.uptime, state.sitemap?.paths ?? []);
@@ -188,7 +193,11 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 	// ── Missing pages (hourly): EmDash's 404 log, the last 7 days, with redirect suggestions from the sitemap (one D1 read).
 	if (plan.light.includes("notfound")) {
 		const rows = await readNotFound(env.DB, iso(now - NOTFOUND_WINDOW));
-		const summary = rows ? summarizeNotFound(rows, state.sitemap?.paths ?? [], at) : undefined;
+		// An address that redirects now stays in EmDash's 404 log (last seen within the week): leave it out — the ones made
+		// on the Missing pages tab, and any redirect source in Redirects.
+		const redirected = Object.keys((await kv.get<Redirected>(KEYS.redirected)) ?? {});
+		const sources = d.redirects ? await redirectSources(d.redirects).catch(() => [] as string[]) : [];
+		const summary = rows ? summarizeNotFound(withoutRedirected({ at, top: rows, probes: 0 }, [...redirected, ...sources]).top, state.sitemap?.paths ?? [], at) : undefined;
 		if (summary) await kv.set(KEYS.notFound, summary);
 		checks.notfound = notFoundCheck(summary, at);
 		jobs.notfound = at;

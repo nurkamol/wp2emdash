@@ -16,13 +16,29 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   references; one D1 read, never an alert). Cadence and limits: `src/schedule.ts`.
 - **Missing pages** (hourly, one D1 read of EmDash's `_emdash_404_log`): the addresses asked for in the last 7 days,
   most requested first, each with a suggested redirect from the sitemap; bot probes (wp-login.php, .env…) counted, not
-  listed. Its own tab and a dashboard hint; never an alert.
+  listed. Its own tab and a dashboard hint; never an alert. **Create redirect** on a row (on by default; capability
+  `redirects:write`): one click to the suggested page, or a small form (the sitemap's pages, or a path / full https
+  address on this site) → a 301 in EmDash's own redirects (`ctx.redirects.create`, group `site-health`, editable in
+  Redirects). Validated first: the source is a path that is not a page of the site, the target a page in the
+  sitemap, not the same address, no redirect from the source yet, the target not redirected itself (EmDash checks loops
+  and duplicates again). EmDash stores site-relative destinations only, so another website cannot be a target. The row
+  leaves the list (KV key `notfound:redirected`, 8 days; the hourly read also leaves out every redirect source), the
+  cached pages are purged. Logs carry counts, never addresses.
 - **Coming-soon mode** (Settings tab): stored as the KV key `maintenance` (EmDash `options` row
   `plugin:site-health:maintenance`), which the kit's starter middleware reads to serve a branded 503 holding page
   (Retry-After, noindex, never cached) to visitors while signed-in people see the site. While it is on, uptime,
   search-engine, analytics and link checks pause. Never switched on by the migration. **Preview link**
   (`?preview=<key>`, 32 random URL-safe characters kept in the same row): people without an admin account see the site
   for 7 days in that browser (cookie `site-preview`, never cached); "New link" replaces the key and ends every old link.
+  **Schedule** (optional `startAt` / `endAt` in the same row, UTC, entered as `YYYY-MM-DD HH:MM`): the holding page
+  shows while now is inside [startAt, endAt) — either end may be empty — even with the switch off; the switch still
+  forces it on. `endAt` also sets Retry-After and a plain "Back at … UTC" line on the holding page (no script: the CSP
+  allows none). One rule decides everywhere (`maintenanceActive`: `src/maintenance.ts` here, the starter's
+  `utils/maintenance.ts` and `utils/rewarm.ts` keep copies, kept in step by `test/coming-soon-schedule.test.ts`): the
+  middleware, the preview link, the cache refill and the paused checks. Cached pages never reach the middleware, so the
+  5-minute cron tick compares the active state with the one it last applied (KV key `maintenance:applied`) and purges
+  the page cache once at each start and end: a scheduled switch takes up to 5 minutes. Saving the form purges at once
+  when it changes the state now. Overview, Settings and the dashboard widget show "Coming-soon scheduled …".
 - **Page cache refill** (Speed tab; kit.config `performance.rewarmMinutes`, option `rewarm`): on/off and every 15, 30 or
   60 minutes (KV key `rewarm`, absent = on at the kit's interval), the last run (KV key `rewarm:last`: pages checked,
   built again, failed, each page's state) and **Refresh all pages now** (purges the page cache and leaves `rewarm:request`;
