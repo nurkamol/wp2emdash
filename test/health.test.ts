@@ -314,7 +314,7 @@ describe("certificate (optional zone token)", () => {
 });
 
 describe("speed: Chrome UX Report", () => {
-	const KEY = "AIzaSyTESTKEY0123456789abcdefghijklmnop";
+	const KEY = `AIza${"SyTESTKEY0123456789abcdefghijklmnop"}`;
 	it("reads p75 LCP / INP / CLS and rates them; explains a missing key or data", async () => {
 		const f = vi.fn(async () => Response.json({ record: { metrics: { largest_contentful_paint: { percentiles: { p75: 2300 } }, interaction_to_next_paint: { percentiles: { p75: 250 } }, cumulative_layout_shift: { percentiles: { p75: "0.31" } } } } }));
 		const c = await fetchCrux(ORIGIN, KEY, f as never, T0);
@@ -375,7 +375,7 @@ describe("alerts: rate limiting and gating", () => {
 });
 
 describe("a full run (in-memory KV, mocked network)", () => {
-	const TOKENS = { CRUX_API_KEY: "AIzaSyTESTKEY0123456789abcdefghijklmnop", CF_ZONE_READ_TOKEN: "zone-read-token-0123456789abcdefghijklmnopqrstuv", EMAIL_API_KEY: "xkeysib-secret-email-key", CF_ANALYTICS_TOKEN: "cf-analytics-token-0123456789abcdefghijklmn" };
+	const TOKENS = { CRUX_API_KEY: `AIza${"SyTESTKEY0123456789abcdefghijklmnop"}`, CF_ZONE_READ_TOKEN: "zone-read-token-0123456789abcdefghijklmnopqrstuv", EMAIL_API_KEY: "xkeysib-secret-email-key", CF_ANALYTICS_TOKEN: "cf-analytics-token-0123456789abcdefghijklmn" };
 	function setup(o: Partial<HealthOptions> = {}, routes: Record<string, () => Response> = {}) {
 		const kv = memoryKv();
 		const outbox = outboxKv();

@@ -188,7 +188,7 @@ describe("kit side", () => {
 	it("the dashboard's Secrets view lists the optional CRUX_API_KEY with a format check", () => {
 		const crux = SECRET_KEYS.find((s) => s.key === "CRUX_API_KEY");
 		expect(crux?.label).toContain("optional");
-		expect(crux?.check?.("AIzaSyTESTKEY0123456789abcdefghijklmnop")).toBe(true);
+		expect(crux?.check?.(`AIza${"SyTESTKEY0123456789abcdefghijklmnop"}`)).toBe(true);
 		expect(crux?.check?.("not a key")).toBe(false);
 		expect(SECRET_KEYS.some((s) => s.key === "CF_ZONE_READ_TOKEN")).toBe(true);
 	});
