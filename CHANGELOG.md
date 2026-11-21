@@ -6,6 +6,12 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Weekly lab score** (Site health → Speed, `@wp2emdash/health` 0.4.0): every 7 days Google PageSpeed Insights tests the home page on mobile and desktop (performance, accessibility, best practices, SEO); the tab shows the latest scores, FCP / LCP / TBT / CLS / Speed Index, the LCP element, a chart and the last 8 tests with ▲ / ▼ changes, and a plain-words line on lab vs real-visitor data. 26 weeks kept in plugin KV (≤ 80 runs). **Run PageSpeed test now** (admins, at most every 10 minutes) is picked up by the next cron tick, since a Lighthouse run outlasts an admin request's `waitUntil`. Key: new optional Worker secret `PAGESPEED_API_KEY`, or `CRUX_API_KEY` with the PageSpeed Insights API enabled on the same Google Cloud project; without a key nothing is called (Google's anonymous quota answers 429) and the tab shows the setup steps. Alert when the mobile performance score drops by 15 points or more. Findings: `docs/spikes/health-findings.md`.
+
+### Changed
+- Site health's cron hook timeout is 150 s (was 25 s) to leave room for the weekly PageSpeed test after the checks; alert delivery is shared by the checks and the lab test. Dashboard Secrets / Environment views and the client repo's deployment docs list `PAGESPEED_API_KEY` as optional.
+
 ## [1.4.0] — 2026-11-22
 
 ### Added

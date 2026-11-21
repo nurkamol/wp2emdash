@@ -1,6 +1,6 @@
 /**
  * What the plugin keeps (EmDash plugin KV: one D1 `options` row per key, JSON). Compact by design: the current state of
- * each check, today's probe samples, one row per day for 90 days, the last 100 incidents (90 days), the last link
+ * each check, today's probe samples, one row per day for 90 days, 26 weeks of PageSpeed lab runs, the last 100 incidents (90 days), the last link
  * check, a ledger of broken links (400 days), the alert log (7 days) and 12 monthly reports. No personal data: URLs of
  * the site's own pages, numbers and dates only.
  */
@@ -175,6 +175,12 @@ export const KEYS = {
 	maintenanceApplied: "maintenance:applied",
 	/** Missing addresses redirected from the Missing pages tab: path → target and when (left out of the list). */
 	redirected: "notfound:redirected",
+	/** Weekly PageSpeed Insights lab runs, 26 weeks (checks/lab.ts). */
+	lab: "lab",
+	/** "Run PageSpeed test now": asked at / done at (the next cron tick runs it). */
+	labRequest: "lab:request",
+	/** Single flight for the PageSpeed test (separate from the checks' lock: it runs after them). */
+	labLock: "lab:lock",
 	report: (month: string) => `report:${month}`,
 	download: (token: string) => `dl:${token}`,
 } as const;

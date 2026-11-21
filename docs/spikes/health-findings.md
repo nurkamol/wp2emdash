@@ -132,6 +132,53 @@ for the other admin saves, so a page that linked there is rebuilt.
 - The holding page (503, `no-store`) is never cached, so at `endAt` nothing stale remains; the end purge only rebuilds
   pages that were cached before the start (harmless; the cache refill fills them again).
 
+## Weekly lab score — PageSpeed Insights v5 (2026-11-22)
+
+Sources: Google's reference (developers.google.com/speed/docs/insights/rest/v5/pagespeedapi/runpagespeed), Cloudflare's
+limits page (developers.cloudflare.com/workers/platform/limits), the installed EmDash 1.5.0 / @emdash-cms/cloudflare
+1.5.0 / @emdash-cms/blocks 1.5.0 source (read in the kit's `spikes/m0-site` node_modules, unchanged), and one live
+keyless call.
+
+- **Request**: `GET https://pagespeedonline.googleapis.com/pagespeedonline/v5/runPagespeed` (Google's documented host;
+  `www.googleapis.com/pagespeedonline/v5/…` is the older alias), empty body. Query: `url` (required), `strategy`
+  `MOBILE` | `DESKTOP` (default DESKTOP — so each strategy is its own call), `category` enum `PERFORMANCE`,
+  `ACCESSIBILITY`, `BEST_PRACTICES`, `SEO` (default: performance only; repeated parameter for several), `locale`,
+  `key`. The kit also sends Google's standard partial-response parameter `fields` (see below).
+- **Response** (documented fields used): `lighthouseResult.categories.{performance,accessibility,best-practices,seo}.score`
+  (the docs give no range and allow null; Lighthouse scores are 0–1, shown ×100 with bands 0–49 / 50–89 / 90–100),
+  `lighthouseResult.audits` (map of audit results), `lighthouseResult.runtimeError { code, message }` ("may make the
+  result unusable"), `lighthouseResult.finalUrl`, `analysisUTCTimestamp`, plus CrUX copies in `loadingExperience` /
+  `originLoadingExperience` (not used: the daily CrUX call already covers them). **Not in Google's PSI reference**
+  (Lighthouse's own result format): audit fields `numericValue` (ms for `first-contentful-paint`,
+  `largest-contentful-paint`, `total-blocking-time`, `speed-index`; unitless for `cumulative-layout-shift`) and the
+  `largest-contentful-paint-element` details — Lighthouse ≥ 10 nests a `table` with `node.snippet` / `nodeLabel` in a
+  `list`, older versions give the table directly; the parser accepts both.
+- **Errors** (verified live 2026-11-22, keyless call): HTTP 429 `{ error: { code: 429, message: "Quota exceeded for
+  quota metric 'Queries' and limit 'Queries per day' …", status: "RESOURCE_EXHAUSTED", details: [{ reason:
+  "RATE_LIMIT_EXCEEDED", metadata: { quota_limit_value: "0", quota_limit: "defaultPerDayPerProject" } }] } }` — the
+  anonymous quota is effectively zero, hence a key is required and nothing is called without one. Other mappings
+  (400 "API key not valid", 403 API not enabled, "Lighthouse returned error: CODE") follow Google's standard API
+  errors; kept as fixed reason codes, never Google's text.
+- **Key**: `PAGESPEED_API_KEY`, else `CRUX_API_KEY` — a Google Cloud API key belongs to a project and works for every
+  API enabled on that project (and allowed by the key's API restrictions), so one key can serve CrUX and PSI.
+- **Duration and Workers limits**: a Lighthouse run takes roughly 10–60 s. Cloudflare: HTTP requests have no hard
+  duration limit, but `waitUntil()` extends work only **30 s** after the response; **scheduled Workers get 15 minutes
+  of wall time**; waiting on fetch does not count as CPU time (CPU: Free 10 ms, Paid 30 s default / 5 min max);
+  subrequests 50 (Free) / 10,000 (Paid). EmDash 1.5: `@emdash-cms/cloudflare` `createScheduledHandler` wraps
+  `runScheduledTasks` in `ctx.waitUntil`; `CronExecutor.tick()` runs claimed tasks **sequentially** and
+  `invokeCronHook` → `executeWithTimeout` **races** the hook against its timeout without aborting it (stale `running`
+  tasks freed after 10 minutes). **Decision:** the test runs from the cron tick after the checks (own KV lock), mobile
+  and desktop in parallel with a 90 s `AbortSignal.timeout` each; the cron hook timeout is 150 s (checks ≤ 25 s + 90 s
+  + margin) so the scheduled event's `waitUntil` does not end while Google is still answering. "Run PageSpeed test now"
+  only stores a request (at most every 10 minutes); the next tick (≤ 5 minutes) runs it. Another plugin's cron task in
+  the same tick waits up to ~90 s longer once a week. Subrequests per tick: + 2 (+ 1 alert email at most).
+- **CPU**: the full PSI answer is about 0.5–2 MB of JSON; `fields=lighthouseResult(finalUrl,runtimeError,categories(…
+  (score)),audits(<5 metrics>(numericValue),largest-contentful-paint-element(details)))` trims it to a few KB (Google's
+  standard partial-response system parameter). If Google rejects the selection (400 naming the field), the call is
+  retried once without it.
+- **Block Kit 1.5**: `chart` with `chart_type: "timeseries"` takes several `series` (`[timestamp_ms, value][]`, optional
+  colour) — used for mobile vs desktop performance; `stats` items take `trend: up | down | neutral`.
+
 ## Privacy
 
 Stored, logged, emailed and shown: URLs/paths of the site, page titles, statuses, counts, times, hostnames of
@@ -145,6 +192,10 @@ logs or emails after a full run. Settings logs carry recipient counts, never add
 - Plugin cron on a deployed Worker (only local workerd); a service-binding request from a deployed scheduled event.
 - Whether a `SELF` request passes the Workers cache layer on Cloudflare (assumed not; only headers are recorded).
 - CrUX, certificate-pack and month-range GraphQL calls against the live APIs (mocked in tests).
+- A successful PageSpeed Insights call with a key (only the keyless 429 was observed): the `fields` selection syntax
+  with hyphenated names (retried without it on a 400), and the exact error texts for a refused key or a disabled API.
+- A 60-second PSI wait inside a deployed scheduled event (follows from the documented 15-minute wall time and EmDash's
+  non-aborting hook timeout; not observed).
 - Email delivery of alerts and reports (mocked Brevo / `ctx.email`); how mail apps render the report (HTML is
   table-based with inline styles; golden file `test/golden/health-report.html`).
 - The admin page in a real browser session (Block Kit shapes follow the 1.5 types; the routes were unit-tested).

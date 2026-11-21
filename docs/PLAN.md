@@ -478,7 +478,7 @@ drives through `runScheduledTasks` — no change to `src/worker.ts`. One tick = 
 tick, forms 15 min, robots/sitemap and analytics hourly) + at most one heavy job (links daily from 02–04 UTC and
 resumable, 12 requests a tick; report on the 1st from 08 UTC; mail DNS 05, certificate 06, CrUX 07). Requests to the
 site go through the `SELF` service binding (scaffold adds it whenever health or SEO is on); everything else goes only
-to cloudflare-dns.com (DoH), api.cloudflare.com, chromeuxreport.googleapis.com and — the weekly sampled external link
+to cloudflare-dns.com (DoH), api.cloudflare.com, chromeuxreport.googleapis.com, pagespeedonline.googleapis.com (weekly lab score) and — the weekly sampled external link
 check, `health.externalLinks: false` to stop it — HEAD requests to hosts the site links to. State in plugin KV
 (D1 options): current checks, today's probes, 90 daily rows, 100 incidents / 90 days, link ledger 400 days, 12
 reports. Alerts and the monthly report use the forms package's email path (provider API, or `ctx.email` for
@@ -486,7 +486,7 @@ reports. Alerts and the monthly report use the forms package's email path (provi
 scaffold, like IndexNow), alerts/report switchable in Settings, never on staging. Recipients: `health.alertsTo`
 (default `email.stagingTo`), `health.reportTo` (default `email.to`) + the alert recipients; footer `health.brand`
 ("Prepared by <agency>", empty by default). Branding: og colours from the tokens, the copied raster logo. Optional Worker secrets:
-`CRUX_API_KEY`, `CF_ZONE_READ_TOKEN` (dashboard Secrets/Environment list them as optional); visits in the report use
+`CRUX_API_KEY`, `PAGESPEED_API_KEY` (weekly PageSpeed lab score; falls back to `CRUX_API_KEY`), `CF_ZONE_READ_TOKEN` (dashboard Secrets/Environment list them as optional); visits in the report use
 `CF_ANALYTICS_TOKEN`. Verify: `health-plugin` (heartbeat route, or the `status` route with an admin-scoped token;
 live sites must have run within 30 minutes). Facts and limits: docs/spikes/health-findings.md. Since 2026-11-20 a
 ninth check, **Backups**, reads the backups plugin's heartbeat hourly (through `SELF`).

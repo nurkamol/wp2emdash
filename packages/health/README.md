@@ -39,6 +39,19 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   5-minute cron tick compares the active state with the one it last applied (KV key `maintenance:applied`) and purges
   the page cache once at each start and end: a scheduled switch takes up to 5 minutes. Saving the form purges at once
   when it changes the state now. Overview, Settings and the dashboard widget show "Coming-soon scheduled …".
+- **Lab score (PageSpeed)** (Speed tab, `src/checks/lab.ts`, `src/lab.ts`): every 7 days (from 09:00 UTC; a failed
+  attempt retries a day later) Google PageSpeed Insights v5 tests the production home page, **mobile and desktop**,
+  categories performance, accessibility, best practices and SEO. Stored per run (KV key `lab`, 26 weeks, at most 80
+  runs, ~25 KB): date, strategy, the four scores (0–100), FCP, LCP, TBT, CLS, Speed Index and the LCP element's HTML
+  (160 characters). The tab shows the latest scores and metrics, a chart of the performance scores, the last 8 tests
+  with ▲ / ▼ changes, a plain-words line on lab vs real-visitor data, and setup steps while no key is set. **Run
+  PageSpeed test now** (admins, at most every 10 minutes) only stores a request (KV `lab:request`); the next cron tick
+  runs it, because a Lighthouse run takes 10–60 s — longer than an admin request's `waitUntil` (30 s) allows, while a
+  scheduled event may wait up to 15 minutes. The test runs after the checks in the same tick (own lock `lab:lock`;
+  both calls in parallel, 90 s limit each; cron hook timeout 150 s). Key: `PAGESPEED_API_KEY`, else `CRUX_API_KEY`
+  (one Google Cloud key can have both APIs enabled). Without a key nothing is called: Google's anonymous quota is
+  effectively zero (HTTP 429). Production only (a staging Worker tests nothing); runs before go-live are kept, marked
+  "old site". Alert: mobile performance down 15 points or more from the previous run (issue `lab-drop`).
 - **Page cache refill** (Speed tab; kit.config `performance.rewarmMinutes`, option `rewarm`): on/off and every 15, 30 or
   60 minutes (KV key `rewarm`, absent = on at the kit's interval), the last run (KV key `rewarm:last`: pages checked,
   built again, failed, each page's state) and **Refresh all pages now** (purges the page cache and leaves `rewarm:request`;
@@ -70,7 +83,7 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   **Run checks now** (single flight, at most every 2 minutes), incidents, broken links, speed, reports, settings; a
   dashboard widget with the overall status.
 - **Alerts** by email: down / back up, page errors, new broken links, search engines kept out, form email failing, mail
-  DNS changed, certificate, analytics tags missing, security policy missing, a new blocked script (CSP report). One email per issue per day, at most six a day, only once the site is
+  DNS changed, certificate, analytics tags missing, security policy missing, a new blocked script (CSP report), the weekly PageSpeed mobile score dropping by 15+ points. One email per issue per day, at most six a day, only once the site is
   live (`live` option), never from a staging Worker, switchable on the page.
 - **Monthly report** on the 1st (from 08:00 UTC, catch-up until the 3rd): branded HTML email (logo, colours, footer) to
   the report recipients plus the alert recipients — availability and incidents, speed and Core Web Vitals, visits,
@@ -103,6 +116,7 @@ capability `email:send`). **Send a test email** on the Settings tab checks it.
 | Secret | For | Token / key |
 |---|---|---|
 | `CRUX_API_KEY` | Real-visitor Core Web Vitals | Google Cloud API key with the Chrome UX Report API enabled (free) |
+| `PAGESPEED_API_KEY` | Weekly lab score (PageSpeed) | Google Cloud API key with the PageSpeed Insights API enabled (free). Optional even for the lab score: `CRUX_API_KEY` is used when this is not set — enable the PageSpeed Insights API on that key's project |
 | `CF_ZONE_READ_TOKEN` | Certificate expiry | Cloudflare custom token: Zone → Zone → Read, Zone → SSL and Certificates → Read, this zone only |
 | `CF_ANALYTICS_TOKEN` | Visits in the report | The SEO suite's token (Account Analytics: Read) |
 
@@ -111,7 +125,7 @@ Without them the page says what is missing; nothing fails.
 ## Privacy and security
 
 No form contents and no personal data in state, logs, alerts or reports (counts, page paths and titles, times and
-statuses only). Requests leave the site only for Cloudflare (DNS over HTTPS, API), Google (CrUX) and — weekly, HEAD
+statuses only). Requests leave the site only for Cloudflare (DNS over HTTPS, API), Google (CrUX, PageSpeed Insights) and — weekly, HEAD
 only, `externalLinks: false` to stop it — hosts the site already links to. Tokens live only in Worker secrets and
 Authorization headers. Public routes: `report` (one-time token, two minutes), `heartbeat` (time of the last run, so
 the kit's verify can see the checks are alive) and `csp` (POST only, violation reports reduced as above, 204). Everything else is admins only (`plugins:manage`, role checked again).
