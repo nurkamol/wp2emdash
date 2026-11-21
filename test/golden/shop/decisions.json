@@ -1,0 +1,163 @@
+{
+	"storeApi": [
+		{
+			"id": "cart-checkout",
+			"label": "Cart and checkout",
+			"outcome": "not rebuilt: each product's Buy button is the product's external checkout link (field `buy_url`, filled in per product); /cart/ and /checkout/ answer 301 → the shop listing"
+		},
+		{
+			"id": "accounts",
+			"label": "Customer accounts (my-account, login, registration)",
+			"outcome": "not rebuilt: /my-account/ and its sub-pages answer 301 → the shop listing; customers and their addresses are never migrated"
+		},
+		{
+			"id": "orders",
+			"label": "Orders, refunds, customers, store statistics",
+			"outcome": "never migrated (customer data stays in WordPress; export it there before it is switched off)"
+		},
+		{
+			"id": "coupons",
+			"label": "Coupons",
+			"outcome": "not carried: apply discounts in the external checkout (Stripe Payment Links can take promotion codes)"
+		},
+		{
+			"id": "payments-tax-shipping",
+			"label": "Payment gateways, tax and shipping settings",
+			"outcome": "not carried: they belong to the checkout the Buy button goes to"
+		},
+		{
+			"id": "variable",
+			"label": "Variable products",
+			"count": 1,
+			"outcome": "shown with their price range (\"from\" the lowest price) and a table of their 2 variations (options, SKU, price, stock); the buyer picks the option at the checkout"
+		},
+		{
+			"id": "external",
+			"label": "External / affiliate products",
+			"count": 1,
+			"outcome": "kept as they are: the Buy button links to WordPress's product URL with its button text"
+		},
+		{
+			"id": "stock",
+			"label": "Stock tracking",
+			"count": 1,
+			"outcome": "stock levels are not shown or counted; each product keeps its availability (in stock / out of stock / on backorder) as an editable field, also in the structured data"
+		},
+		{
+			"id": "out-of-stock",
+			"label": "Out-of-stock or backorder products",
+			"count": 1,
+			"outcome": "migrated with their availability; the Buy button reads \"Out of stock\" and is not a link"
+		},
+		{
+			"id": "sales",
+			"label": "Products on sale",
+			"count": 2,
+			"outcome": "regular and sale price both shown (the sale price is an editable field: clear it to end the sale)"
+		},
+		{
+			"id": "reviews",
+			"label": "Product reviews and star ratings",
+			"count": 2,
+			"outcome": "not migrated as reviews: no star ratings or review structured data on the new site (reviews the Exporter returned as comments follow the comments decision)"
+		},
+		{
+			"id": "attributes",
+			"label": "Product attributes",
+			"count": 3,
+			"outcome": "shown on the product page as a list (name: values); attribute archives (/pa_color/…) are not rebuilt"
+		}
+	],
+	"exporter": [
+		{
+			"id": "cart-checkout",
+			"label": "Cart and checkout",
+			"outcome": "not rebuilt: each product's Buy button is a link to the contact form with the product's name prefilled; /cart/ and /checkout/ answer 301 → the shop listing"
+		},
+		{
+			"id": "accounts",
+			"label": "Customer accounts (my-account, login, registration)",
+			"outcome": "not rebuilt: /my-account/ and its sub-pages answer 301 → the shop listing; customers and their addresses are never migrated"
+		},
+		{
+			"id": "orders",
+			"label": "Orders, refunds, customers, store statistics",
+			"outcome": "never migrated (customer data stays in WordPress; export it there before it is switched off)"
+		},
+		{
+			"id": "coupons",
+			"label": "Coupons",
+			"outcome": "not carried: apply discounts in the external checkout (Stripe Payment Links can take promotion codes)"
+		},
+		{
+			"id": "payments-tax-shipping",
+			"label": "Payment gateways, tax and shipping settings",
+			"outcome": "not carried: they belong to the checkout the Buy button goes to"
+		},
+		{
+			"id": "variable",
+			"label": "Variable products",
+			"count": 1,
+			"outcome": "shown with their price range (\"from\" the lowest price) and a table of their 2 variations (options, SKU, price, stock); the buyer picks the option at the checkout"
+		},
+		{
+			"id": "external",
+			"label": "External / affiliate products",
+			"count": 1,
+			"outcome": "kept as they are: the Buy button links to WordPress's product URL with its button text"
+		},
+		{
+			"id": "bookings",
+			"label": "Bookings extension",
+			"outcome": "bookings (dates, availability, resources) are not rebuilt: link the Buy button to the booking system"
+		},
+		{
+			"id": "downloads",
+			"label": "Digital downloads",
+			"count": 1,
+			"outcome": "the files are not delivered by the new site: the external checkout must deliver them (the download files are not published on the site)"
+		},
+		{
+			"id": "virtual",
+			"label": "Virtual products (no shipping)",
+			"count": 1,
+			"outcome": "shown like any product"
+		},
+		{
+			"id": "stock",
+			"label": "Stock tracking",
+			"count": 1,
+			"outcome": "stock levels are not shown or counted; each product keeps its availability (in stock / out of stock / on backorder) as an editable field, also in the structured data"
+		},
+		{
+			"id": "out-of-stock",
+			"label": "Out-of-stock or backorder products",
+			"count": 1,
+			"outcome": "migrated with their availability; the Buy button reads \"Out of stock\" and is not a link"
+		},
+		{
+			"id": "sales",
+			"label": "Products on sale",
+			"count": 2,
+			"outcome": "regular and sale price both shown (the sale price is an editable field: clear it to end the sale)"
+		},
+		{
+			"id": "scheduled-sales",
+			"label": "Scheduled sales",
+			"count": 1,
+			"outcome": "sale dates are not carried (EmDash has no scheduled prices): a sale that was not running when the shop was read is left out, its price noted in the coverage report"
+		},
+		{
+			"id": "reviews",
+			"label": "Product reviews and star ratings",
+			"count": 2,
+			"outcome": "not migrated as reviews: no star ratings or review structured data on the new site (reviews the Exporter returned as comments follow the comments decision)"
+		},
+		{
+			"id": "attributes",
+			"label": "Product attributes",
+			"count": 3,
+			"outcome": "shown on the product page as a list (name: values); attribute archives (/pa_color/…) are not rebuilt"
+		}
+	]
+}

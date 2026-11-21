@@ -2,12 +2,15 @@
 /**
  * The archive of a collection migrated from a WordPress custom post type (its `has_archive` address), or a term archive
  * of one of its taxonomies: heading, intro, a card per entry (featured image, title, excerpt), numbered pages.
+ * Products (WooCommerce catalogue mode: `shop`) get product cards with their price instead.
  */
 import { Image } from "emdash/ui";
 import site from "../../site.config.json";
 import { pageHref } from "../../utils/blog";
 import { entryHref } from "../../utils/collections";
+import type { CollectionShop } from "../../utils/collections";
 import type { CollectionEntry } from "../../utils/collections-data";
+import ProductCard from "./ProductCard.astro";
 
 interface Props {
 	heading: string;
@@ -18,8 +21,10 @@ interface Props {
 	listing: string;
 	page: number;
 	hasMore: boolean;
+	/** The products collection's shop settings (the shop listing and product category listings). */
+	shop?: CollectionShop;
 }
-const { heading, intro, eyebrow, entries, listing, page, hasMore } = Astro.props;
+const { heading, intro, eyebrow, entries, listing, page, hasMore, shop } = Astro.props;
 const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
 ---
 
@@ -32,9 +37,10 @@ const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
 		</header>
 		{
 			entries.length ? (
-				<div class="archive__list">
+				<div class:list={["archive__list", { "archive__list--products": !!shop }]}>
 					{entries.map((e, i) => {
 						const href = entryHref(String(e.data.slug ?? e.id), style);
+						if (shop) return <ProductCard href={href} data={e.data} shop={shop} eager={i < 4} />;
 						return (
 							<article class="archive-card">
 								{e.data.featured_image && (
@@ -68,6 +74,7 @@ const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
 	.archive__header { margin-bottom: clamp(1.5rem, 4vw, 3rem); }
 	.archive__intro { margin-top: 0.5rem; max-width: 60ch; }
 	.archive__list { display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); }
+	.archive__list--products { grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); }
 	.archive-card { display: grid; gap: 0.75rem; align-content: start; }
 	.archive-card__media { display: block; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radius-media, 0); }
 	.archive-card__media :global(img) { width: 100%; height: 100%; object-fit: cover; }

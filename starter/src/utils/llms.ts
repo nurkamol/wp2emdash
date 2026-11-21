@@ -11,7 +11,7 @@ export interface LlmsEntry {
 
 const line = (s: string) => s.replace(/\s+/g, " ").trim();
 
-export function llmsTxt(site: { name: string; tagline?: string; description?: string }, pages: LlmsEntry[], posts: LlmsEntry[] = []): string {
+export function llmsTxt(site: { name: string; tagline?: string; description?: string }, pages: LlmsEntry[], posts: LlmsEntry[] = [], more: { heading: string; items: LlmsEntry[] }[] = []): string {
 	const out = [`# ${line(site.name)}`, ""];
 	const summary = line(site.description || site.tagline || "");
 	if (summary) out.push(`> ${summary}`, "");
@@ -23,6 +23,8 @@ export function llmsTxt(site: { name: string; tagline?: string; description?: st
 	};
 	list("Pages", pages);
 	list("Posts", posts);
+	// Further lists (a catalogue shop's products), after pages and posts.
+	for (const m of more) list(m.heading, m.items);
 	return `${out.join("\n").trimEnd()}\n`;
 }
 

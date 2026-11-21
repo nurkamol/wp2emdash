@@ -79,7 +79,7 @@ export interface ClientRepoInput {
 	/** Blog sites: the posts page, archive bases and feed (docs/writing-posts.md). */
 	blog?: { index: string; archives: { label: string; base: string }[]; authorBase?: string; feedFull: boolean };
 	/** Collections made from WordPress custom post types (docs/editing-custom-content.md). */
-	collections?: { label: string; labelSingular: string; slug: string; archive?: string; base?: string; fields: { label: string; type: string }[]; hierarchical: boolean; taxonomies: string[] }[];
+	collections?: { label: string; labelSingular: string; slug: string; archive?: string; base?: string; fields: { label: string; type: string }[]; hierarchical: boolean; taxonomies: string[]; shop?: { checkout: "external" | "stripe-payment-links" | "contact"; contactPath?: string } }[];
 	/** WordPress comments migrated or a comment form on (docs/moderating-comments.md): per collection, counts only. */
 	comments?: { collections: { slug: string; form: boolean; moderation: "all" | "first_time" | "none"; closedAfterDays: number; approved: number }[]; turnstile: boolean };
 	/** WordPress users to invite (src/transform/users.ts): counts per EmDash role only — names and emails never reach the repo. */
@@ -1194,6 +1194,17 @@ restores the whole database, comments included, if something goes badly wrong �
 }
 
 /** docs/editing-custom-content.md: one section per collection made from a WordPress custom post type. */
+/** The products collection (WooCommerce catalogue mode): what the Buy button does and what the shop no longer has. */
+function shopHelp(shop: { checkout: "external" | "stripe-payment-links" | "contact"; contactPath?: string }): string {
+	const buy =
+		shop.checkout === "contact"
+			? `The **Buy** button opens the contact form${shop.contactPath ? ` (\`${shop.contactPath}\`)` : ""} with the product's name already in the message. Products from another shop (external products) keep their own **Buy link**.`
+			: shop.checkout === "stripe-payment-links"
+				? "The **Buy** button goes to the product's **Buy link**: paste the product's Stripe Payment Link there (Stripe Dashboard → Payment Links → New; one link per product, or per option for products with options). **Buy button text** changes the label."
+				: "The **Buy** button goes to the product's **Buy link**: paste the address of the product in your checkout (your online store, booking or payment page). **Buy button text** changes the label.";
+	return `**Selling.** There is no cart or customer account on this site. ${buy} A product without a Buy link shows an **Enquire** button to the contact form when the site has one. **Availability** "Out of stock" turns the button off. **Sale price**: clear it to end a sale. Stock levels, coupons and orders live in the checkout, not here.`;
+}
+
 export function customContentGuide(cols: NonNullable<ClientRepoInput["collections"]>): string {
 	const parts = cols.map((c) => {
 		const rows = c.fields.map((f) => `| ${f.label} | ${FIELD_HELP[f.type] ?? f.type} |`).join("\n");
@@ -1204,7 +1215,7 @@ ${c.archive ? `Listed at \`${c.archive}\` (newest first${c.hierarchical ? "; ent
 | Field | What it holds |
 |---|---|
 | Title | the ${c.labelSingular.toLowerCase()}'s name or heading |
-${rows}`;
+${rows}${c.shop ? `\n\n${shopHelp(c.shop)}` : ""}`;
 	});
 	return `
 # Editing custom content

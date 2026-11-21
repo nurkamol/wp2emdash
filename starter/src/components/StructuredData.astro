@@ -3,7 +3,7 @@
  * Structured data that EmDash's head does not emit: the business (an Organization or LocalBusiness subtype, carried
  * over from the WordPress site's SEO plugin), this page's WebPage node and its breadcrumb. Node ids join EmDash's own
  * WebSite node (`<origin>/#website`) and the organization id EmDash refers to (`<origin>/#organization`).
- * FAQ sections add their own FAQPage.
+ * FAQ sections add their own FAQPage. Pages can add nodes of their own (`extra`: a product's Product + Offer).
  * The footer shows the same business as text (BusinessInfo.astro, utils/business.ts), so the two never disagree.
  */
 import site from "../site.config.json";
@@ -22,8 +22,10 @@ interface Props {
 	logo?: string;
 	/** The visible breadcrumb trail (utils/breadcrumbs.ts), when the page shows one: the BreadcrumbList follows it. */
 	trail?: Crumb[];
+	/** More nodes for the graph (utils/shop.ts productJsonLd). */
+	extra?: Record<string, unknown>[];
 }
-const { canonical, pageTitle, description, sameAs: sameAsProp, logo: logoProp, trail } = Astro.props;
+const { canonical, pageTitle, description, sameAs: sameAsProp, logo: logoProp, trail, extra = [] } = Astro.props;
 
 type Business = { type: string; name: string; description?: string; url?: string; email?: string; telephone?: string; priceRange?: string; address?: Record<string, string>; geo?: { latitude: string; longitude: string }; hasMap?: string; openingHours?: string[]; sameAs?: string[] };
 const sd = (site as { structuredData?: { business?: Business; pageTypes?: Record<string, string> } }).structuredData ?? {};
@@ -82,6 +84,7 @@ if (!isHome) {
 				],
 	});
 }
+graph.push(...extra);
 // JSON in a script element: "<" escaped so content can never close the tag.
 const json = JSON.stringify({ "@context": "https://schema.org", "@graph": graph }).replace(/</g, "\\u003c");
 ---

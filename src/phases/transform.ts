@@ -30,6 +30,7 @@ import { buildSettings, irSettings, settingsReport } from "../transform/settings
 import { contentInventory, HANDLED_TYPES, INTERNAL_TAXONOMIES, INTERNAL_TYPES, inventoryDetail, inventoryReport } from "../transform/content-types.js";
 import { type AnalyzeType, completeOptions, type ContentTypeDecision, type CptEntrySource, type CptPlan, cptReport, entryData, planCollections, proposal, type WpRestType } from "../transform/cpt.js";
 import { fieldGroups } from "../transform/cpt-sources.js";
+import { exporterFacts, extensionsOf, PRODUCT_TAXONOMIES, PRODUCT_TYPE, PRODUCTS_COLLECTION, type ProductPost, productFields, productMeta, type ShopFacts, shopDecisions, shopGate, shopReport, type WooPageRole, wooPageRole } from "../transform/shop.js";
 import { fieldsForType } from "../transform/cpt-fields.js";
 import { type CustomCss, customCssFromHtml, customCssReport, describeCss } from "../transform/custom-css.js";
 import { baseOf, buildWpUrlPlan, type WpUrlInput, wpUrlsReport } from "../transform/wp-urls.js";
@@ -424,7 +425,19 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		protectedDocs.push({ slug: p.slug || String(p.id), type: p.post_type, kind, as, hash: !!protectedRaw.get(`${p.post_type}:${p.id}`)?.hash });
 		return as === "skip" ? "skip" : { kind, as };
 	};
+	// WooCommerce catalogue mode (src/transform/shop.ts): the shop page is the products listing; cart, checkout and
+	// my-account are not rebuilt (their addresses 301 to the listing: wpUrls `shop`).
+	const wooPages = new Map<number, { role: WooPageRole; path: string }>();
+	if (config.shop) for (const p of pages) {
+		const role = wooPageRole(p, options);
+		if (role) wooPages.set(p.id, { role, path: routeOf(p) });
+	}
 	for (const p of pages) {
+		const woo = wooPages.get(p.id);
+		if (woo) {
+			notTransformed.push(woo.role === "shop" ? `page ${p.slug}: the WooCommerce shop page, rebuilt as the products listing at ${woo.path} (catalogue mode)` : `page ${p.slug}: WooCommerce ${woo.role === "myaccount" ? "my-account" : woo.role} page, not rebuilt in catalogue mode (${woo.path} answers 301 → the shop listing)`);
+			continue;
+		}
 		const access = accessOf(p);
 		if (access === "skip") {
 			notTransformed.push(`page ${p.slug}: ${p.status === "private" ? "private" : "password-protected"}, skipped by decision (overrides.ts protectedContent)`);
@@ -567,12 +580,57 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		: undefined;
 	if (blogPlan) write(join(paths.ir, "blog.json"), blogPlan);
 	// ── Custom post types: a collection per public type (or by decision), custom fields, entries ───────────────────────
+	// ── WooCommerce (src/transform/shop.ts): facts for the gate and report; catalogue mode's listing, checkout, currency ──
+	const products = content(PRODUCT_TYPE) as unknown as ProductPost[];
+	const fingerprintSlugs = (readJson<{ plugins?: { slug: string }[] }>(join(paths.snapshot, "fingerprint.json"))?.plugins ?? []).map((p) => p.slug);
+	const wooSite = products.length > 0 || fingerprintSlugs.includes("woocommerce");
+	const auditShop = readJson<{ facts?: ShopFacts }>(join(paths.snapshot, "shop.json"))?.facts;
+	const variationPosts = content("product_variation") as unknown as ProductPost[];
+	const shopFacts: ShopFacts | undefined = wooSite
+		? exporterFacts({
+				products,
+				variations: variationPosts,
+				...(existsSync(join(exp, "content", "shop_coupon.json")) ? { coupons: content("shop_coupon").length } : auditShop?.coupons !== undefined ? { coupons: auditShop.coupons } : {}),
+				...(() => {
+					const c = config.shop?.currency ?? (typeof options.woocommerce_currency === "string" && /^[A-Z]{3}$/.test(options.woocommerce_currency) ? options.woocommerce_currency : undefined) ?? auditShop?.currency;
+					return c ? { currency: c } : {};
+				})(),
+				plugins: extensionsOf(fingerprintSlugs),
+			})
+		: undefined;
+	const shop = config.shop && shopFacts
+		? (() => {
+				const byParent = new Map<number, ProductPost[]>();
+				for (const v of variationPosts) byParent.set(Number(v.parent), [...(byParent.get(Number(v.parent)) ?? []), v]);
+				const shopPage = [...wooPages.values()].find((w) => w.role === "shop");
+				const pubPagePaths = results.filter((r) => r.doc.kind === "page" && r.published && r.doc.route).map((r) => (r.doc.route as { path: string }).path);
+				const contactPath = config.shop?.contactPath ?? pubPagePaths.find((x) => /^\/contact(?:-us)?\/?$/.test(x));
+				const labels = new Map(wpTaxonomies.map((t) => [t.name, t.label_singular ?? t.label]));
+				return {
+					checkout: config.shop?.checkout ?? "external",
+					path: shopPage?.path ?? "/shop/",
+					currency: shopFacts.currency,
+					contactPath,
+					redirects: [...new Set([...[...wooPages.values()].filter((w) => w.role !== "shop").map((w) => w.path), "/cart/", "/checkout/", "/my-account/"])],
+					variationsOf: (id: number) => byParent.get(id) ?? [],
+					productContext: {
+						...(shopFacts.currency ? { currency: shopFacts.currency } : {}),
+						taxonomyLabel: (t: string) => labels.get(t),
+						termName: (t: string, slug: string) => wpTaxonomies.find((x) => x.name === t)?.terms?.find((x) => x.slug === slug)?.name,
+					},
+				};
+			})()
+		: undefined;
 	const cpt = buildCollections();
 	function buildCollections() {
 		const analyzeFull = readJson<{ post_types?: AnalyzeType[]; acf?: unknown }>(join(exp, "analyze.json")) ?? {};
 		const restTypes = readJson<Record<string, WpRestType>>(join(exp, "types.json")) ?? {};
 		const candidates = contentTypesOnDisk.filter((t) => t !== "page" && t !== "post" && !HANDLED_TYPES[t] && !INTERNAL_TYPES[t] && overrides.contentTypes[t]?.as !== "skip" && !asPages(t));
-		const decisions = Object.fromEntries(candidates.map((t) => [t, overrides.contentTypes[t]]));
+		const decisions: Record<string, ContentTypeDecision | undefined> = Object.fromEntries(candidates.map((t) => [t, overrides.contentTypes[t]]));
+		// Catalogue mode: WooCommerce products are the kit's `products` collection with its own fields (src/transform/shop.ts).
+		const shopOn = !!shop && candidates.includes(PRODUCT_TYPE);
+		const productFieldsDecided = (overrides.contentTypes[PRODUCT_TYPE] as { fields?: Record<string, never> } | undefined)?.fields;
+		if (shopOn) decisions[PRODUCT_TYPE] = { as: "collection", name: PRODUCTS_COLLECTION, reason: "WooCommerce catalogue mode (kit.config shop)", ...(productFieldsDecided ? { fields: productFieldsDecided } : {}) };
 		const proposals = Object.fromEntries(candidates.map((t) => [t, proposal(t, (analyzeFull.post_types ?? []).find((a) => a.name === t))]));
 		const empty = { plan: undefined, docs: [] as IrPage[], proposals, unknownMeta: [] as string[] };
 		if (!candidates.length) return empty;
@@ -603,7 +661,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			analyze: analyzeFull.post_types ?? [],
 			rest: restTypes,
 			groups,
-			decisions: decisions as Record<string, ContentTypeDecision | undefined>,
+			decisions,
 			taxonomies: wpTaxonomies,
 			termBases: Object.fromEntries(wpTaxonomies.map((t) => [t.name, termBases(t.name)])),
 			blogTaxonomies: taxName,
@@ -613,6 +671,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			perPage: Math.min(100, Math.max(1, Number(options.posts_per_page) || 10)),
 			firstSortOrder: blogOn ? 3 : 2,
 			builderOf: (p) => detectBuilder(p.content ?? "", p.meta),
+			...(shopOn && shop ? { builtin: { [PRODUCT_TYPE]: { fields: productFields(), archive: shop.path, taxonomies: (wp: string) => PRODUCT_TAXONOMIES.has(wp), shop: { checkout: shop.checkout, ...(shop.currency ? { currency: shop.currency } : {}), ...(shop.contactPath ? { contactPath: shop.contactPath } : {}) } } } } : {}),
 		});
 		if (!plan.collections.length) return empty;
 		const docs: IrPage[] = [];
@@ -620,7 +679,10 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		for (const col of plan.collections) {
 			const defs = new Map(fieldsForType(groups, col.type).fields.map((d) => [d.name, d]));
 			const built: { p: ExporterPost; doc: IrPage }[] = [];
-			for (const p of (entriesOf.get(col.type) ?? []).filter((e) => POST_STATUSES.has(e.status)) as unknown as ExporterPost[]) {
+			for (const source of (entriesOf.get(col.type) ?? []).filter((e) => POST_STATUSES.has(e.status)) as unknown as ExporterPost[]) {
+				// Products: WooCommerce's prices, gallery, attributes and variations as the collection's `woo:` fields.
+				const product = col.shop && shop ? productMeta(source as unknown as ProductPost, shop.variationsOf(source.id), shop.productContext) : undefined;
+				const p = product ? { ...source, meta: { ...source.meta, ...product.meta } } : source;
 				const builder = detectBuilder(p.content ?? "", p.meta);
 				const isBuilder = builder === "wpbakery" || builder === "bricks" || builder === "gutenberg" || builder === "divi";
 				const adapted = isBuilder ? adapt(p, "page") : undefined;
@@ -662,7 +724,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 					...(p.featured_image?.id && col.core.featuredImage ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}),
 					sections: adapted?.sections ?? [],
 					entry: { ...entry, body: (converted?.body ?? []) as IrEntry["body"] },
-					diagnostics: [...(adapted?.diagnostics ?? []), ...(converted?.diagnostics ?? []), ...diagnostics],
+					diagnostics: [...(adapted?.diagnostics ?? []), ...(converted?.diagnostics ?? []), ...diagnostics, ...(product?.notes ?? []).map((m) => ({ level: "warn" as const, code: "lossy" as const, message: m, path: "shop" }))],
 				};
 				built.push({ p, doc });
 			}
@@ -1059,7 +1121,11 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			? {
 					collections: {
 						types: Object.fromEntries((cpt.plan?.collections ?? []).map((c) => [c.type, `collection "${c.slug}" (${c.fields.length} custom field${c.fields.length === 1 ? "" : "s"}${c.archive ? `, archive at ${c.archive}` : ""}${c.routable ? "" : ", no addresses"}): coverage report → Custom post types`])),
-						taxonomies: Object.fromEntries((cpt.plan?.taxonomies ?? []).map((t) => [t.wpName, `taxonomy "${t.name}" of ${t.collections.join(", ")} (${t.terms.length} terms${t.hierarchical ? ", hierarchy kept" : ""}), archives at ${t.base}<slug>/`])),
+						taxonomies: Object.fromEntries([
+							...(cpt.plan?.taxonomies ?? []).map((t) => [t.wpName, `taxonomy "${t.name}" of ${t.collections.join(", ")} (${t.terms.length} terms${t.hierarchical ? ", hierarchy kept" : ""}), archives at ${t.base}<slug>/`]),
+							// Catalogue mode: product attributes are the products' attributes and variations fields, not archives.
+							...(cpt.plan?.collections.some((c) => c.shop) ? wpTaxonomies.filter((t) => t.name.startsWith("pa_")).map((t) => [t.name, `product attribute: shown in the ${PRODUCTS_COLLECTION} collection's attributes and variations fields (no attribute archives)`]) : []),
+						]),
 						proposals: cpt.proposals,
 					},
 				}
@@ -1150,7 +1216,20 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 				}
 			: {}),
 	});
+	// Catalogue mode: cart, checkout and my-account (and their sub-pages, `?add-to-cart=`) 301 to the products listing.
+	const shopListed = !!shop && !!cpt.plan?.collections.some((c) => c.shop);
+	if (shop && shopListed) wpUrlPlan.rules.shop = { paths: shop.redirects, to: shop.path };
 	write(join(paths.ir, "wp-urls.json"), wpUrlPlan);
+	rmSync(join(paths.ir, "shop.json"), { force: true });
+	if (shopFacts) {
+		const g = shopGate(shopFacts, config.shop);
+		check("shop", "WooCommerce: catalogue mode decided by the owner (kit.config shop) and nothing it cannot carry", g.ok, g.detail);
+		if (shop) {
+			const missing = [shop.currency ? "" : "the currency (set kit.config shop.currency: WooCommerce's currency option was not in the export)", shop.checkout === "contact" && !shop.contactPath ? "the contact page (set kit.config shop.contactPath: no published page at /contact/ or /contact-us/)" : "", shopListed || !shopFacts.products ? "" : "the products collection (overrides.ts contentTypes.product skips it, or no product was extracted)"].filter(Boolean);
+			check("shop-checkout", "Catalogue mode has what the product pages need (currency, Buy button target, listing)", missing.length === 0, missing.length ? `missing: ${missing.join("; ")}` : `${shop.path} lists ${shopFacts.products} product(s) in ${shop.currency}; Buy button: ${shop.checkout === "contact" ? `contact form at ${shop.contactPath}` : "each product's buy_url"}; ${shop.redirects.join(", ")} → 301 ${shop.path}`);
+		}
+		write(join(paths.ir, "shop.json"), { facts: shopFacts, decisions: shopDecisions(shopFacts, config.shop?.checkout), ...(shop ? { mode: "catalogue", checkout: shop.checkout, listing: shop.path, currency: shop.currency, ...(shop.contactPath ? { contactPath: shop.contactPath } : {}), redirects: shop.redirects } : {}) });
+	}
 	if (wpUrlPlan.feedPending) notTransformed.push("feeds: the site has published posts but no feed is generated yet; /feed/ redirects (coverage report → WordPress URLs)");
 
 	// ── Widget areas and site features (src/transform/widgets.ts, site-features.ts) ─────────────────────────
@@ -1230,7 +1309,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const shortcodes = shortcodeSummary(results);
 	rmSync(join(paths.ir, "shortcodes.json"), { force: true });
 	if (shortcodes.used.length) write(join(paths.ir, "shortcodes.json"), shortcodes);
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...termSeoReport(termSeo, termSeoDumpMissing), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...mediaFoldersReport(folderPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...(shopFacts ? ["", ...shopReport(shopFacts, config.shop, "## Shop (WooCommerce)")] : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...termSeoReport(termSeo, termSeoDumpMissing), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...mediaFoldersReport(folderPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode)]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

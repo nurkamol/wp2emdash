@@ -1,0 +1,401 @@
+{
+	"blue-mug.json": {
+		"version": 1,
+		"kind": "entry",
+		"source": {
+			"wpId": 501,
+			"type": "product",
+			"status": "publish",
+			"slug": "blue-mug",
+			"builder": "classic",
+			"modifiedGmt": "2024-04-01 10:00:00"
+		},
+		"route": {
+			"path": "/product/blue-mug/"
+		},
+		"title": "Blue Mug",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"featuredImage": {
+			"wpId": 601,
+			"kind": "image"
+		},
+		"sections": [],
+		"entry": {
+			"collection": "products",
+			"fields": {
+				"product_type": "simple",
+				"price": 24,
+				"currency": "EUR",
+				"sku": "MUG-BLUE",
+				"stock_status": "instock",
+				"short_description": [
+					{
+						"_type": "block",
+						"_key": "dx_short_description_3",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "dx_short_description_0",
+								"text": "Hand-thrown "
+							},
+							{
+								"_type": "span",
+								"_key": "dx_short_description_1",
+								"text": "stoneware",
+								"marks": [
+									"strong"
+								]
+							},
+							{
+								"_type": "span",
+								"_key": "dx_short_description_2",
+								"text": " mug."
+							}
+						]
+					}
+				],
+				"gallery": [
+					{
+						"image": {
+							"wpId": 602,
+							"kind": "image"
+						}
+					},
+					{
+						"image": {
+							"wpId": 603,
+							"kind": "image"
+						}
+					}
+				],
+				"attributes": [
+					{
+						"name": "Color",
+						"value": "Blue"
+					},
+					{
+						"name": "Material",
+						"value": "Stoneware, Clear glaze"
+					}
+				]
+			},
+			"references": {},
+			"body": [
+				{
+					"_type": "block",
+					"_key": "dx_b1",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "dx_b0",
+							"text": "A sturdy everyday mug."
+						}
+					]
+				},
+				{
+					"_type": "block",
+					"_key": "dx_b3",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "dx_b2",
+							"text": "Dishwasher safe."
+						}
+					]
+				}
+			],
+			"excerpt": "Hand-thrown stoneware mug.",
+			"publishedAt": "2024-03-01T10:00:00.000Z",
+			"modifiedAt": "2024-04-01T10:00:00.000Z",
+			"terms": {
+				"product_cat": [
+					"mugs"
+				],
+				"product_tag": [
+					"blue"
+				]
+			},
+			"bylines": []
+		},
+		"diagnostics": []
+	},
+	"green-bowl.json": {
+		"version": 1,
+		"kind": "entry",
+		"source": {
+			"wpId": 502,
+			"type": "product",
+			"status": "publish",
+			"slug": "green-bowl",
+			"builder": "classic",
+			"modifiedGmt": "2024-04-01 10:00:00"
+		},
+		"route": {
+			"path": "/product/green-bowl/"
+		},
+		"title": "Green Bowl",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"featuredImage": {
+			"wpId": 604,
+			"kind": "image"
+		},
+		"sections": [],
+		"entry": {
+			"collection": "products",
+			"fields": {
+				"product_type": "simple",
+				"price": 40,
+				"sale_price": 32,
+				"currency": "EUR",
+				"sku": "BOWL-GRN",
+				"stock_status": "outofstock"
+			},
+			"references": {},
+			"body": [
+				{
+					"_type": "block",
+					"_key": "dy_b1",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "dy_b0",
+							"text": "A wide serving bowl."
+						}
+					]
+				}
+			],
+			"publishedAt": "2024-03-01T10:00:00.000Z",
+			"modifiedAt": "2024-04-01T10:00:00.000Z",
+			"terms": {
+				"product_cat": [
+					"bowls"
+				]
+			},
+			"bylines": []
+		},
+		"diagnostics": []
+	},
+	"pottery-course.json": {
+		"version": 1,
+		"kind": "entry",
+		"source": {
+			"wpId": 505,
+			"type": "product",
+			"status": "publish",
+			"slug": "pottery-course",
+			"builder": "classic",
+			"modifiedGmt": "2024-04-01 10:00:00"
+		},
+		"route": {
+			"path": "/product/pottery-course/"
+		},
+		"title": "Pottery Course",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"sections": [],
+		"entry": {
+			"collection": "products",
+			"fields": {
+				"product_type": "external",
+				"price": 120,
+				"currency": "EUR",
+				"stock_status": "instock",
+				"buy_url": "https://courses.example.org/pottery",
+				"buy_label": "Book the course"
+			},
+			"references": {},
+			"body": [
+				{
+					"_type": "block",
+					"_key": "e1_b1",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "e1_b0",
+							"text": "Six evenings at the wheel."
+						}
+					]
+				}
+			],
+			"publishedAt": "2024-03-01T10:00:00.000Z",
+			"modifiedAt": "2024-04-01T10:00:00.000Z",
+			"terms": {
+				"product_cat": [
+					"courses"
+				]
+			},
+			"bylines": []
+		},
+		"diagnostics": [
+			{
+				"level": "warn",
+				"code": "lossy",
+				"message": "digital download: the files are not delivered by the new site (the external checkout must deliver them)",
+				"path": "shop"
+			}
+		]
+	},
+	"red-plate.json": {
+		"version": 1,
+		"kind": "entry",
+		"source": {
+			"wpId": 503,
+			"type": "product",
+			"status": "publish",
+			"slug": "red-plate",
+			"builder": "classic",
+			"modifiedGmt": "2024-04-01 10:00:00"
+		},
+		"route": {
+			"path": "/product/red-plate/"
+		},
+		"title": "Red Plate",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"sections": [],
+		"entry": {
+			"collection": "products",
+			"fields": {
+				"product_type": "simple",
+				"price": 30,
+				"currency": "EUR",
+				"stock_status": "instock"
+			},
+			"references": {},
+			"body": [
+				{
+					"_type": "block",
+					"_key": "dz_b1",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "dz_b0",
+							"text": "A dinner plate."
+						}
+					]
+				}
+			],
+			"publishedAt": "2024-03-01T10:00:00.000Z",
+			"modifiedAt": "2024-04-01T10:00:00.000Z",
+			"terms": {
+				"product_cat": [
+					"bowls"
+				]
+			},
+			"bylines": []
+		},
+		"diagnostics": [
+			{
+				"level": "warn",
+				"code": "lossy",
+				"message": "scheduled sale price 20 not carried (sale dates: EmDash has no scheduled prices)",
+				"path": "shop"
+			}
+		]
+	},
+	"tall-vase.json": {
+		"version": 1,
+		"kind": "entry",
+		"source": {
+			"wpId": 504,
+			"type": "product",
+			"status": "publish",
+			"slug": "tall-vase",
+			"builder": "classic",
+			"modifiedGmt": "2024-04-01 10:00:00"
+		},
+		"route": {
+			"path": "/product/tall-vase/"
+		},
+		"title": "Tall Vase",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"featuredImage": {
+			"wpId": 605,
+			"kind": "image"
+		},
+		"sections": [],
+		"entry": {
+			"collection": "products",
+			"fields": {
+				"product_type": "variable",
+				"price": 50,
+				"currency": "EUR",
+				"stock_status": "instock",
+				"short_description": [
+					{
+						"_type": "block",
+						"_key": "e0_short_description_1",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "e0_short_description_0",
+								"text": "Two sizes."
+							}
+						]
+					}
+				],
+				"attributes": [
+					{
+						"name": "Size",
+						"value": "Small, Large"
+					}
+				],
+				"variations": [
+					{
+						"name": "Size: Small",
+						"sku": "VASE-S",
+						"price": 50,
+						"stock_status": "instock"
+					},
+					{
+						"name": "Size: Large",
+						"sku": "VASE-L",
+						"price": 80,
+						"sale_price": 70,
+						"stock_status": "onbackorder"
+					}
+				]
+			},
+			"references": {},
+			"body": [
+				{
+					"_type": "block",
+					"_key": "e0_b1",
+					"style": "normal",
+					"children": [
+						{
+							"_type": "span",
+							"_key": "e0_b0",
+							"text": "Wheel-thrown vase in two sizes."
+						}
+					]
+				}
+			],
+			"excerpt": "Two sizes.",
+			"publishedAt": "2024-03-01T10:00:00.000Z",
+			"modifiedAt": "2024-04-01T10:00:00.000Z",
+			"terms": {
+				"product_cat": [
+					"vases"
+				]
+			},
+			"bylines": []
+		},
+		"diagnostics": []
+	}
+}

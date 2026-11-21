@@ -1,0 +1,979 @@
+{
+	"$comment": "Synthetic WooCommerce shop (no real data): six pages (home, contact, shop, cart, checkout, my-account), five products — simple (Blue Mug: gallery, taxonomy and custom attributes, stock tracking, reviews), on sale and out of stock (Green Bowl), a scheduled sale (Red Plate), variable with two variations (Tall Vase), external/affiliate with a downloadable flag (Pottery Course) — product categories/tags, attribute taxonomies, Exporter 1.2 shapes, the public Store API listing the audit reads.",
+	"options": {
+		"blogname": "Example Pottery",
+		"show_on_front": "page",
+		"page_on_front": 1,
+		"posts_per_page": 10,
+		"permalink_structure": "/%postname%/",
+		"woocommerce_shop_page_id": 3,
+		"woocommerce_currency": "EUR"
+	},
+	"pages": [
+		{
+			"id": 1,
+			"post_type": "page",
+			"status": "publish",
+			"slug": "home",
+			"title": "Home",
+			"content": "<!-- wp:paragraph --><p>Handmade pottery from a small studio.</p><!-- /wp:paragraph -->",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {},
+			"permalink": "https://shop.example.test/",
+			"comment_status": "closed"
+		},
+		{
+			"id": 2,
+			"post_type": "page",
+			"status": "publish",
+			"slug": "contact",
+			"title": "Contact",
+			"content": "<!-- wp:paragraph --><p>Write to us about any piece.</p><!-- /wp:paragraph -->",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {},
+			"permalink": "https://shop.example.test/contact/",
+			"comment_status": "closed"
+		},
+		{
+			"id": 3,
+			"post_type": "page",
+			"status": "publish",
+			"slug": "shop",
+			"title": "Shop",
+			"content": "",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {},
+			"permalink": "https://shop.example.test/shop/",
+			"comment_status": "closed"
+		},
+		{
+			"id": 4,
+			"post_type": "page",
+			"status": "publish",
+			"slug": "cart",
+			"title": "Cart",
+			"content": "[woocommerce_cart]",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {},
+			"permalink": "https://shop.example.test/cart/",
+			"comment_status": "closed"
+		},
+		{
+			"id": 5,
+			"post_type": "page",
+			"status": "publish",
+			"slug": "checkout",
+			"title": "Checkout",
+			"content": "<!-- wp:woocommerce/checkout /-->",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {},
+			"permalink": "https://shop.example.test/checkout/",
+			"comment_status": "closed"
+		},
+		{
+			"id": 6,
+			"post_type": "page",
+			"status": "publish",
+			"slug": "my-account",
+			"title": "My account",
+			"content": "[woocommerce_my_account]",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {},
+			"permalink": "https://shop.example.test/my-account/",
+			"comment_status": "closed"
+		}
+	],
+	"product": [
+		{
+			"id": 501,
+			"post_type": "product",
+			"status": "publish",
+			"slug": "blue-mug",
+			"title": "Blue Mug",
+			"content": "A sturdy everyday mug.\n\nDishwasher safe.",
+			"excerpt": "<p>Hand-thrown <strong>stoneware</strong> mug.</p>",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {
+				"product_cat": [
+					{
+						"id": 70,
+						"name": "Mugs",
+						"slug": "mugs"
+					}
+				],
+				"product_tag": [
+					{
+						"id": 75,
+						"name": "Blue",
+						"slug": "blue"
+					}
+				],
+				"product_type": [
+					{
+						"id": 80,
+						"name": "simple",
+						"slug": "simple"
+					}
+				],
+				"pa_color": [
+					{
+						"id": 90,
+						"name": "Blue",
+						"slug": "blue"
+					}
+				]
+			},
+			"meta": {
+				"_regular_price": "24",
+				"_price": "24",
+				"_sku": "MUG-BLUE",
+				"_stock_status": "instock",
+				"_manage_stock": "yes",
+				"_stock": "12",
+				"_product_image_gallery": "602,603",
+				"_thumbnail_id": "601",
+				"total_sales": "7",
+				"_wc_review_count": "2",
+				"_wc_average_rating": "4.50",
+				"_product_attributes": {
+					"pa_color": {
+						"name": "pa_color",
+						"value": "",
+						"position": 0,
+						"is_visible": 1,
+						"is_variation": 0,
+						"is_taxonomy": 1
+					},
+					"material": {
+						"name": "Material",
+						"value": "Stoneware | Clear glaze",
+						"position": 1,
+						"is_visible": 1,
+						"is_variation": 0,
+						"is_taxonomy": 0
+					}
+				}
+			},
+			"permalink": "https://shop.example.test/product/blue-mug/",
+			"comment_status": "closed",
+			"featured_image": {
+				"id": 601,
+				"url": "https://shop.example.test/wp-content/uploads/2024/03/img-601.jpg"
+			}
+		},
+		{
+			"id": 502,
+			"post_type": "product",
+			"status": "publish",
+			"slug": "green-bowl",
+			"title": "Green Bowl",
+			"content": "A wide serving bowl.",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {
+				"product_cat": [
+					{
+						"id": 71,
+						"name": "Bowls",
+						"slug": "bowls"
+					}
+				],
+				"product_type": [
+					{
+						"id": 80,
+						"name": "simple",
+						"slug": "simple"
+					}
+				]
+			},
+			"meta": {
+				"_regular_price": "40",
+				"_sale_price": "32",
+				"_price": "32",
+				"_sku": "BOWL-GRN",
+				"_stock_status": "outofstock",
+				"total_sales": "3"
+			},
+			"permalink": "https://shop.example.test/product/green-bowl/",
+			"comment_status": "closed",
+			"featured_image": {
+				"id": 604,
+				"url": "https://shop.example.test/wp-content/uploads/2024/03/img-604.jpg"
+			}
+		},
+		{
+			"id": 503,
+			"post_type": "product",
+			"status": "publish",
+			"slug": "red-plate",
+			"title": "Red Plate",
+			"content": "A dinner plate.",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {
+				"product_cat": [
+					{
+						"id": 71,
+						"name": "Bowls",
+						"slug": "bowls"
+					}
+				],
+				"product_type": [
+					{
+						"id": 80,
+						"name": "simple",
+						"slug": "simple"
+					}
+				]
+			},
+			"meta": {
+				"_regular_price": "30",
+				"_sale_price": "20",
+				"_price": "30",
+				"_sale_price_dates_from": "1893456000",
+				"_sale_price_dates_to": "1894060800",
+				"_stock_status": "instock",
+				"total_sales": "0"
+			},
+			"permalink": "https://shop.example.test/product/red-plate/",
+			"comment_status": "closed"
+		},
+		{
+			"id": 504,
+			"post_type": "product",
+			"status": "publish",
+			"slug": "tall-vase",
+			"title": "Tall Vase",
+			"content": "<p>Wheel-thrown vase in two sizes.</p>",
+			"excerpt": "<p>Two sizes.</p>",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {
+				"product_cat": [
+					{
+						"id": 72,
+						"name": "Vases",
+						"slug": "vases"
+					}
+				],
+				"product_type": [
+					{
+						"id": 81,
+						"name": "variable",
+						"slug": "variable"
+					}
+				],
+				"pa_size": [
+					{
+						"id": 91,
+						"name": "Small",
+						"slug": "small"
+					},
+					{
+						"id": 92,
+						"name": "Large",
+						"slug": "large"
+					}
+				]
+			},
+			"meta": {
+				"_price": "50",
+				"_stock_status": "instock",
+				"total_sales": "1",
+				"_product_attributes": {
+					"pa_size": {
+						"name": "pa_size",
+						"value": "",
+						"position": 0,
+						"is_visible": 1,
+						"is_variation": 1,
+						"is_taxonomy": 1
+					}
+				}
+			},
+			"permalink": "https://shop.example.test/product/tall-vase/",
+			"comment_status": "closed",
+			"featured_image": {
+				"id": 605,
+				"url": "https://shop.example.test/wp-content/uploads/2024/03/img-605.jpg"
+			}
+		},
+		{
+			"id": 505,
+			"post_type": "product",
+			"status": "publish",
+			"slug": "pottery-course",
+			"title": "Pottery Course",
+			"content": "Six evenings at the wheel.",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {
+				"product_cat": [
+					{
+						"id": 73,
+						"name": "Courses",
+						"slug": "courses"
+					}
+				],
+				"product_type": [
+					{
+						"id": 82,
+						"name": "external",
+						"slug": "external"
+					}
+				]
+			},
+			"meta": {
+				"_regular_price": "120",
+				"_price": "120",
+				"_product_url": "https://courses.example.org/pottery",
+				"_button_text": "Book the course",
+				"_virtual": "yes",
+				"_downloadable": "yes",
+				"_stock_status": "instock"
+			},
+			"permalink": "https://shop.example.test/product/pottery-course/",
+			"comment_status": "closed"
+		}
+	],
+	"product_variation": [
+		{
+			"id": 511,
+			"post_type": "product_variation",
+			"status": "publish",
+			"slug": "tall-vase-small",
+			"title": "Tall Vase - Small",
+			"content": "",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": 504,
+			"menu_order": 1,
+			"taxonomies": {},
+			"meta": {
+				"attribute_pa_size": "small",
+				"_regular_price": "50",
+				"_price": "50",
+				"_sku": "VASE-S",
+				"_stock_status": "instock"
+			},
+			"permalink": "https://shop.example.test/?p=511",
+			"comment_status": "closed"
+		},
+		{
+			"id": 512,
+			"post_type": "product_variation",
+			"status": "publish",
+			"slug": "tall-vase-large",
+			"title": "Tall Vase - Large",
+			"content": "",
+			"excerpt": "",
+			"date_gmt": "2024-03-01 10:00:00",
+			"modified_gmt": "2024-04-01 10:00:00",
+			"parent": 504,
+			"menu_order": 2,
+			"taxonomies": {},
+			"meta": {
+				"attribute_pa_size": "large",
+				"_regular_price": "80",
+				"_sale_price": "70",
+				"_price": "70",
+				"_sku": "VASE-L",
+				"_stock_status": "onbackorder"
+			},
+			"permalink": "https://shop.example.test/?p=512",
+			"comment_status": "closed"
+		}
+	],
+	"taxonomies": [
+		{
+			"name": "product_cat",
+			"label": "Product categories",
+			"label_singular": "Product category",
+			"hierarchical": true,
+			"post_types": [
+				"product"
+			],
+			"terms": [
+				{
+					"id": 70,
+					"name": "Mugs",
+					"slug": "mugs",
+					"description": "",
+					"parent": null,
+					"count": 1
+				},
+				{
+					"id": 71,
+					"name": "Bowls",
+					"slug": "bowls",
+					"description": "",
+					"parent": null,
+					"count": 1
+				},
+				{
+					"id": 72,
+					"name": "Vases",
+					"slug": "vases",
+					"description": "",
+					"parent": null,
+					"count": 1
+				},
+				{
+					"id": 73,
+					"name": "Courses",
+					"slug": "courses",
+					"description": "",
+					"parent": null,
+					"count": 1
+				}
+			]
+		},
+		{
+			"name": "product_tag",
+			"label": "Product tags",
+			"label_singular": "Product tag",
+			"hierarchical": false,
+			"post_types": [
+				"product"
+			],
+			"terms": [
+				{
+					"id": 75,
+					"name": "Blue",
+					"slug": "blue",
+					"description": "",
+					"parent": null,
+					"count": 1
+				}
+			]
+		},
+		{
+			"name": "product_type",
+			"label": "Product type",
+			"label_singular": "Product type",
+			"hierarchical": false,
+			"post_types": [
+				"product"
+			],
+			"terms": [
+				{
+					"id": 80,
+					"name": "simple",
+					"slug": "simple",
+					"description": "",
+					"parent": null,
+					"count": 1
+				},
+				{
+					"id": 81,
+					"name": "variable",
+					"slug": "variable",
+					"description": "",
+					"parent": null,
+					"count": 1
+				},
+				{
+					"id": 82,
+					"name": "external",
+					"slug": "external",
+					"description": "",
+					"parent": null,
+					"count": 1
+				}
+			]
+		},
+		{
+			"name": "pa_color",
+			"label": "Color",
+			"label_singular": "Color",
+			"hierarchical": false,
+			"post_types": [
+				"product"
+			],
+			"terms": [
+				{
+					"id": 90,
+					"name": "Blue",
+					"slug": "blue",
+					"description": "",
+					"parent": null,
+					"count": 1
+				}
+			]
+		},
+		{
+			"name": "pa_size",
+			"label": "Size",
+			"label_singular": "Size",
+			"hierarchical": false,
+			"post_types": [
+				"product"
+			],
+			"terms": [
+				{
+					"id": 91,
+					"name": "Small",
+					"slug": "small",
+					"description": "",
+					"parent": null,
+					"count": 1
+				},
+				{
+					"id": 92,
+					"name": "Large",
+					"slug": "large",
+					"description": "",
+					"parent": null,
+					"count": 1
+				}
+			]
+		}
+	],
+	"analyze": {
+		"post_types": [
+			{
+				"name": "page",
+				"label": "Pages",
+				"label_singular": "Page",
+				"total": 6,
+				"supports": {
+					"title": true,
+					"editor": true
+				},
+				"taxonomies": [],
+				"hierarchical": true,
+				"has_archive": false,
+				"custom_fields": []
+			},
+			{
+				"name": "product",
+				"label": "Products",
+				"label_singular": "Product",
+				"total": 5,
+				"supports": {
+					"title": true,
+					"editor": true,
+					"thumbnail": true,
+					"excerpt": true
+				},
+				"taxonomies": [
+					"product_type",
+					"product_visibility",
+					"product_cat",
+					"product_tag",
+					"pa_color",
+					"pa_size"
+				],
+				"hierarchical": false,
+				"has_archive": "shop",
+				"custom_fields": [
+					{
+						"key": "total_sales",
+						"count": 5,
+						"inferred_type": "number",
+						"sample": "7"
+					}
+				]
+			}
+		],
+		"authors": [],
+		"attachments": {
+			"count": 5,
+			"by_type": {
+				"image": 5
+			}
+		}
+	},
+	"types": {
+		"page": {
+			"slug": "page",
+			"name": "Pages",
+			"rest_base": "pages",
+			"hierarchical": true,
+			"has_archive": false,
+			"viewable": true
+		},
+		"product": {
+			"slug": "product",
+			"name": "Products",
+			"rest_base": "product",
+			"hierarchical": false,
+			"has_archive": "shop",
+			"viewable": true
+		}
+	},
+	"media": [
+		{
+			"id": 601,
+			"url": "https://shop.example.test/wp-content/uploads/2024/03/img-601.jpg",
+			"file": "2024/03/img-601.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 602,
+			"url": "https://shop.example.test/wp-content/uploads/2024/03/img-602.jpg",
+			"file": "2024/03/img-602.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 603,
+			"url": "https://shop.example.test/wp-content/uploads/2024/03/img-603.jpg",
+			"file": "2024/03/img-603.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 604,
+			"url": "https://shop.example.test/wp-content/uploads/2024/03/img-604.jpg",
+			"file": "2024/03/img-604.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 605,
+			"url": "https://shop.example.test/wp-content/uploads/2024/03/img-605.jpg",
+			"file": "2024/03/img-605.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		}
+	],
+	"urls": [
+		{
+			"url": "https://shop.example.test/",
+			"path": "/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 1,
+				"type": "page"
+			}
+		},
+		{
+			"url": "https://shop.example.test/contact/",
+			"path": "/contact/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 2,
+				"type": "page"
+			}
+		},
+		{
+			"url": "https://shop.example.test/shop/",
+			"path": "/shop/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 3,
+				"type": "page"
+			}
+		},
+		{
+			"url": "https://shop.example.test/cart/",
+			"path": "/cart/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 4,
+				"type": "page"
+			}
+		},
+		{
+			"url": "https://shop.example.test/checkout/",
+			"path": "/checkout/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 5,
+				"type": "page"
+			}
+		},
+		{
+			"url": "https://shop.example.test/my-account/",
+			"path": "/my-account/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 6,
+				"type": "page"
+			}
+		},
+		{
+			"url": "https://shop.example.test/product/blue-mug/",
+			"path": "/product/blue-mug/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 501,
+				"type": "product"
+			}
+		},
+		{
+			"url": "https://shop.example.test/product/green-bowl/",
+			"path": "/product/green-bowl/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 502,
+				"type": "product"
+			}
+		},
+		{
+			"url": "https://shop.example.test/product/red-plate/",
+			"path": "/product/red-plate/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 503,
+				"type": "product"
+			}
+		},
+		{
+			"url": "https://shop.example.test/product/tall-vase/",
+			"path": "/product/tall-vase/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 504,
+				"type": "product"
+			}
+		},
+		{
+			"url": "https://shop.example.test/product/pottery-course/",
+			"path": "/product/pottery-course/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 505,
+				"type": "product"
+			}
+		},
+		{
+			"url": "https://shop.example.test/product-category/mugs/",
+			"path": "/product-category/mugs/",
+			"status": 200,
+			"kind": "page"
+		}
+	],
+	"discovery": {
+		"items": [
+			{
+				"id": 501,
+				"type": "product",
+				"link": "https://shop.example.test/product/blue-mug/"
+			},
+			{
+				"id": 502,
+				"type": "product",
+				"link": "https://shop.example.test/product/green-bowl/"
+			},
+			{
+				"id": 503,
+				"type": "product",
+				"link": "https://shop.example.test/product/red-plate/"
+			},
+			{
+				"id": 504,
+				"type": "product",
+				"link": "https://shop.example.test/product/tall-vase/"
+			},
+			{
+				"id": 505,
+				"type": "product",
+				"link": "https://shop.example.test/product/pottery-course/"
+			}
+		],
+		"terms": [
+			{
+				"id": 70,
+				"taxonomy": "product_cat",
+				"slug": "mugs",
+				"link": "https://shop.example.test/product-category/mugs/",
+				"count": 1
+			},
+			{
+				"id": 71,
+				"taxonomy": "product_cat",
+				"slug": "bowls",
+				"link": "https://shop.example.test/product-category/bowls/",
+				"count": 1
+			},
+			{
+				"id": 72,
+				"taxonomy": "product_cat",
+				"slug": "vases",
+				"link": "https://shop.example.test/product-category/vases/",
+				"count": 1
+			},
+			{
+				"id": 73,
+				"taxonomy": "product_cat",
+				"slug": "courses",
+				"link": "https://shop.example.test/product-category/courses/",
+				"count": 1
+			},
+			{
+				"id": 75,
+				"taxonomy": "product_tag",
+				"slug": "blue",
+				"link": "https://shop.example.test/product-tag/blue/",
+				"count": 1
+			}
+		],
+		"authors": [],
+		"media": []
+	},
+	"fingerprint": {
+		"plugins": [
+			{
+				"slug": "woocommerce",
+				"name": "WooCommerce",
+				"evidence": [
+					"assets"
+				],
+				"action": "out-of-scope",
+				"replacement": ""
+			}
+		]
+	},
+	"storeApi": [
+		{
+			"id": 501,
+			"type": "simple",
+			"on_sale": false,
+			"is_in_stock": true,
+			"is_on_backorder": false,
+			"low_stock_remaining": null,
+			"review_count": 2,
+			"variations": [],
+			"attributes": [
+				{
+					"name": "Color",
+					"taxonomy": "pa_color"
+				},
+				{
+					"name": "Material",
+					"taxonomy": null
+				}
+			],
+			"prices": {
+				"currency_code": "EUR",
+				"price": "2400",
+				"regular_price": "2400",
+				"sale_price": "2400"
+			}
+		},
+		{
+			"id": 502,
+			"type": "simple",
+			"on_sale": true,
+			"is_in_stock": false,
+			"is_on_backorder": false,
+			"low_stock_remaining": null,
+			"review_count": 0,
+			"variations": [],
+			"attributes": [],
+			"prices": {
+				"currency_code": "EUR"
+			}
+		},
+		{
+			"id": 503,
+			"type": "simple",
+			"on_sale": false,
+			"is_in_stock": true,
+			"low_stock_remaining": 3,
+			"review_count": 0,
+			"variations": [],
+			"attributes": [],
+			"prices": {
+				"currency_code": "EUR"
+			}
+		},
+		{
+			"id": 504,
+			"type": "variable",
+			"on_sale": true,
+			"is_in_stock": true,
+			"low_stock_remaining": null,
+			"review_count": 0,
+			"variations": [
+				{
+					"id": 511
+				},
+				{
+					"id": 512
+				}
+			],
+			"attributes": [
+				{
+					"name": "Size",
+					"taxonomy": "pa_size"
+				}
+			],
+			"prices": {
+				"currency_code": "EUR"
+			}
+		},
+		{
+			"id": 505,
+			"type": "external",
+			"on_sale": false,
+			"is_in_stock": true,
+			"low_stock_remaining": null,
+			"review_count": 0,
+			"variations": [],
+			"attributes": [],
+			"prices": {
+				"currency_code": "EUR"
+			}
+		}
+	]
+}

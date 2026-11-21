@@ -852,7 +852,7 @@ ${sess.options}${ap.options}	integrations: [
 			...(motionPanel ? { motion: { siteEntrance: motionPanel.siteEntrance } } : {}),
 			sensitiveData: config.sensitiveData,
 			...(blogPlan ? { blog: { index: blogPlan.index, archives: blogPlan.taxonomies.map((t) => ({ label: t.label, base: t.base })), ...(blogPlan.bylines.length ? { authorBase: blogPlan.authorBase } : {}), feedFull: blogPlan.feed.full } } : {}),
-			...(cptPlan?.collections.length ? { collections: cptPlan.collections.map((c) => ({ label: c.label, labelSingular: c.labelSingular, slug: c.slug, ...(c.archive && c.routable ? { archive: c.archive } : {}), ...(c.base && c.routable ? { base: c.base } : {}), fields: c.fields.map((f) => ({ label: f.label, type: f.type })), hierarchical: c.hierarchical, taxonomies: c.taxonomies.map((t) => t.label) })) } : {}),
+			...(cptPlan?.collections.length ? { collections: cptPlan.collections.map((c) => ({ label: c.label, labelSingular: c.labelSingular, slug: c.slug, ...(c.archive && c.routable ? { archive: c.archive } : {}), ...(c.base && c.routable ? { base: c.base } : {}), fields: c.fields.map((f) => ({ label: f.label, type: f.type })), hierarchical: c.hierarchical, taxonomies: c.taxonomies.map((t) => t.label), ...(c.shop ? { shop: { checkout: c.shop.checkout, ...(c.shop.contactPath ? { contactPath: c.shop.contactPath } : {}) } } : {}) })) } : {}),
 			// Team invites: counts per role only (ir/users.json); names and addresses stay in sites/<slug>/users/.
 			...(() => {
 				const u = readJson<{ invite?: Record<string, number> }>(join(ir, "users.json"));

@@ -4,12 +4,12 @@
 	"emdashVersion": "1.5.0",
 	"summary": {
 		"areas": 110,
-		"inScope": 103,
+		"inScope": 104,
 		"done": 87,
 		"superseded": 6,
-		"partial": 10,
+		"partial": 11,
 		"missing": 0,
-		"outOfScope": 7
+		"outOfScope": 6
 	},
 	"rows": [
 		{
@@ -276,6 +276,20 @@
 			"effort": "",
 			"risk": "",
 			"priority": "",
+			"sitesUsed": "0/2"
+		},
+		{
+			"id": "woocommerce",
+			"area": "Content",
+			"feature": "WooCommerce / shops",
+			"emdash": "None (no commerce); products fit a collection",
+			"emdashConfidence": "src",
+			"status": "partial",
+			"kit": "Catalogue mode by owner decision (kit.config `shop`, PLAN §8b, docs/spikes/shop-findings.md): products → `products` collection (prices, sale, currency, SKU, availability, gallery, attributes, variations table, buy link) at `/product/<slug>/`, `/shop/` and category/tag listings, Product + Offer JSON-LD, sitemap, llms.txt, search; Buy button → external checkout / Stripe Payment Link / contact form with the product prefilled; cart, checkout, my-account → 301 `/shop/`; audit + transform gate `shop` lists every decision (coupons, reviews, stock, downloads, scheduled sales, bookings)",
+			"gap": "No cart or checkout on EmDash (needs a commerce platform: Shopify, Stripe Checkout, Snipcart); more than `shop.maxProducts` products, subscriptions and memberships stay out of scope. Not yet run on a real shop.",
+			"effort": "M",
+			"risk": "med",
+			"priority": "P2",
 			"sitesUsed": "0/2"
 		},
 		{
@@ -1483,20 +1497,6 @@
 			"sitesUsed": "0/2"
 		},
 		{
-			"id": "woocommerce",
-			"area": "Out of scope",
-			"feature": "WooCommerce / shops",
-			"emdash": "None (no commerce)",
-			"emdashConfidence": "none",
-			"status": "oos",
-			"kit": "Detected, migration stops for a decision (PLAN §9)",
-			"gap": "Needs a commerce platform (Shopify, Stripe Checkout, Snipcart); product catalogue could become a collection, checkout cannot.",
-			"effort": "",
-			"risk": "",
-			"priority": "OOS",
-			"sitesUsed": "0/2"
-		},
-		{
 			"id": "membership",
 			"area": "Out of scope",
 			"feature": "Memberships, LMS, paywalls, front-end accounts",
@@ -1851,6 +1851,7 @@
 		"page-hierarchy",
 		"page-template",
 		"post-formats",
+		"woocommerce",
 		"global-parts",
 		"caption-title",
 		"video-audio",
@@ -1877,11 +1878,6 @@
 			"id": "i18n",
 			"feature": "Multilingual (WPML, Polylang)",
 			"reason": "v2: one locale per WPML language, link by translation group, hreflang from EmDash."
-		},
-		{
-			"id": "woocommerce",
-			"feature": "WooCommerce / shops",
-			"reason": "Needs a commerce platform (Shopify, Stripe Checkout, Snipcart); product catalogue could become a collection, checkout cannot."
 		},
 		{
 			"id": "membership",
