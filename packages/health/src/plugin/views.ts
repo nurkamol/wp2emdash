@@ -4,6 +4,9 @@
 import { REWARM_INTERVALS, type RewarmLast, type RewarmSetting } from "../cache.js";
 import { MAX_RECIPIENTS } from "@wp2emdash/forms/outbox";
 import { missingText, RATING_LABEL, rate } from "../checks/speed.js";
+import { headerRows, type SecurityFacts } from "../checks/headers.js";
+import { blockedLabel, type CspStore, isScriptDirective, meaning } from "../csp.js";
+import { cspLine } from "../report.js";
 import type { NotFoundSummary } from "../checks/notfound.js";
 import type { ReportData } from "../report.js";
 import { headline } from "../report.js";
@@ -14,7 +17,7 @@ export type Block = Record<string, unknown>;
 
 export const PAGE = "/health";
 export const WIDGET = "site-health";
-export const TABS = { overview: 0, incidents: 1, links: 2, missing: 3, speed: 4, reports: 5, settings: 6 } as const;
+export const TABS = { overview: 0, incidents: 1, links: 2, missing: 3, speed: 4, security: 5, reports: 6, settings: 7 } as const;
 
 /** Coming-soon mode as stored (KEYS.maintenance; the starter's middleware reads the same row). */
 export interface MaintenanceSetting {
@@ -78,6 +81,12 @@ export interface PageData {
 	siteOrigin?: string;
 	/** Page cache refill (Speed tab); absent when the route cache or the refill is off in the kit config. */
 	cache?: { available: boolean; defaultMinutes: number; setting: RewarmSetting; last: RewarmLast | null; requestedAt?: string };
+	/** CSP violation reports and the reporting switch (csp.ts). */
+	csp?: CspStore;
+	/** The build put the report endpoint into the public CSP (HealthOptions.cspReports). */
+	cspBuild?: boolean;
+	/** The home page's security headers, last read (checks/headers.ts). */
+	security?: SecurityFacts | null;
 }
 
 const uptimePct = (rows: { probes: number; fails: number }[]) => {
@@ -121,7 +130,7 @@ function overview(d: PageData): Block[] {
 				return { check: CHECK_LABELS[id], status: BADGE[c?.status ?? "unknown"], summary: c ? [c.summary, ...(c.detail ?? [])].join(" ") : "Not checked yet.", at: c?.at ?? "", trend: trend(d.history, id) };
 			}),
 		},
-		{ type: "context", text: "✓ fine · ! needs a look · ✗ problem · · not checked. Uptime every 5 minutes, search engines, analytics and backups hourly, forms every 15 minutes, links, email DNS, certificate and real-visitor speed once a day (UTC)." },
+		{ type: "context", text: "✓ fine · ! needs a look · ✗ problem · · not checked. Uptime every 5 minutes, search engines, analytics, security headers and backups hourly, forms every 15 minutes, links, email DNS, certificate and real-visitor speed once a day (UTC)." },
 		{ type: "actions", elements: [{ type: "button", action_id: "run-now", label: "Run checks now", style: "primary" }] },
 		...(d.state.lastRunAt ? [{ type: "context", text: `Last run ${shortTime(d.state.lastRunAt)}.${d.linkJob ? ` A link check is running (${d.linkJob.done} of ${plural(d.linkJob.pages, "page")} read).` : ""}` }] : []),
 	];
@@ -279,6 +288,64 @@ function cacheSection(d: PageData): Block[] {
 	return out;
 }
 
+/** Security: what visitors' browsers reported as blocked by the CSP, the reporting switch, the security headers. */
+function securityTab(d: PageData): Block[] {
+	const c = d.csp ?? { v: 1 as const, items: [], months: {} };
+	const on = !c.off;
+	const scripts = c.items.filter((e) => isScriptDirective(e.directive)).length;
+	const month = new Date().toISOString().slice(0, 7);
+	const thisMonth = c.months[month] ?? 0;
+	const out: Block[] = [
+		{ type: "header", text: "Blocked by the security policy" },
+		{ type: "context", text: "The site tells browsers exactly which scripts, styles and embeds may load (its Content Security Policy), so code injected into a page cannot run. When a visitor's browser blocks something, it reports what was blocked and on which page — nothing about the visitor. A blocked script usually means something on that page does not work: send the list to your developer." },
+	];
+	if (d.cspBuild === false) out.push({ type: "banner", title: "Reports are not collected", description: "The site's configuration leaves the report address out of the security policy (kit.config health.cspReports: false). Your developer can switch it on and redeploy.", variant: "default" });
+	else if (!on) out.push({ type: "banner", title: "Reporting is off", description: "Browsers may still send reports, but they are not kept and nothing is emailed. Switch it on below.", variant: "alert" });
+	else if (scripts) out.push({ type: "banner", title: `${scripts === 1 ? "A script was" : `${scripts} scripts were`} blocked`, description: "Something on the pages listed below may not work for visitors. Ask your developer to allow the source or move the code into the site's own files.", variant: "error" });
+	out.push({
+		type: "table",
+		block_id: "csp",
+		page_action_id: "noop",
+		empty_text: on && d.cspBuild !== false ? "Nothing blocked: no visitor's browser reported a problem." : "No reports.",
+		columns: [
+			{ key: "what", label: "What happened" },
+			{ key: "kind", label: "Severity", format: "badge" },
+			{ key: "blocked", label: "Blocked source" },
+			{ key: "directive", label: "Rule" },
+			{ key: "pages", label: "Pages" },
+			{ key: "count", label: "Times" },
+			{ key: "last", label: "Last seen", format: "relative_time" },
+		],
+		rows: c.items.map((e) => ({ what: meaning(e), kind: isScriptDirective(e.directive) ? "Script" : "Other", blocked: blockedLabel(e.blocked), directive: e.directive, pages: e.pages.join(", "), count: e.count, last: e.last })),
+	});
+	out.push({ type: "context", text: `${thisMonth ? `${plural(thisMonth, "report")} this month.` : "No reports this month."} Up to 50 different sources are kept, newest first; each is emailed once, when it first appears (blocked scripts as a problem, anything else as a note). Browser extensions and signed-in editors are left out.` });
+	if (c.items.length) out.push({ type: "actions", elements: [{ type: "button", action_id: "csp-clear", label: "Clear the list", style: "secondary", confirm: { title: "Clear the list?", text: "Sources that are blocked again appear as new and are emailed once more.", confirm: "Clear", deny: "Cancel" } }] });
+	if (d.cspBuild !== false) out.push({ type: "form", block_id: "csp-settings", fields: [{ type: "toggle", action_id: "on", label: "Keep reports of blocked content and email new blocked scripts", initial_value: on }], submit: { label: "Save", action_id: "save-csp" } });
+	out.push({ type: "header", text: "Security headers" });
+	const f = d.security;
+	if (!f) out.push({ type: "context", text: "Read from the home page every hour; the first reading appears after the next check." });
+	else if (f.status !== 200) out.push({ type: "context", text: `Not read: the home page answered HTTP ${f.status || "—"} at the last check (${shortTime(f.at)}).` });
+	else
+		out.push(
+			{
+				type: "table",
+				block_id: "headers",
+				page_action_id: "noop",
+				columns: [
+					{ key: "label", label: "Protection" },
+					{ key: "status", label: "Status", format: "badge" },
+					{ key: "value", label: "Sent" },
+					{ key: "about", label: "What it does" },
+				],
+				rows: headerRows(f.headers, { reports: d.cspBuild !== false }).map((r) => ({ label: r.label, status: r.ok ? "OK" : "Attention", value: r.value, about: r.about })),
+			},
+			{ type: "context", text: `Read from the home page ${shortTime(f.at)}, as the site sends it (rules added in Cloudflare outside the site are not seen here).` },
+		);
+	const ssl = d.state.checks.ssl;
+	if (ssl) out.push({ type: "fields", fields: [{ label: "Security certificate", value: [ssl.summary, ...(ssl.detail ?? [])].join(" ") }] });
+	return out;
+}
+
 function reportsTab(d: PageData): Block[] {
 	return [
 		{ type: "context", text: `On the 1st of each month a report for the month before is emailed to ${d.settings.report === false ? "nobody (switched off in Settings)" : "the report recipients in Settings"} and kept here for 12 months. Download one to print it or save it as PDF (in the browser: Print → Save as PDF).` },
@@ -372,6 +439,7 @@ export function page(d: PageData, tab: number = TABS.overview): Block[] {
 	const open = d.incidents.filter((i) => !i.endedAt).length;
 	const broken = d.links?.broken.length ?? 0;
 	const missing = d.notFound?.top.length ?? 0;
+	const blocked = d.csp && !d.csp.off ? d.csp.items.filter((e) => isScriptDirective(e.directive)).length : 0;
 	return [
 		{ type: "header", text: "Site health" },
 		{
@@ -383,6 +451,7 @@ export function page(d: PageData, tab: number = TABS.overview): Block[] {
 				{ label: `Broken links${broken ? ` (${broken})` : ""}`, blocks: linksTab(d) },
 				{ label: `Missing pages${missing ? ` (${missing})` : ""}`, blocks: missingTab(d) },
 				{ label: "Speed", blocks: speedTab(d) },
+				{ label: `Security${blocked ? ` (${blocked})` : ""}`, blocks: securityTab(d) },
 				{ label: "Reports", blocks: reportsTab(d) },
 				{ label: "Settings", blocks: settingsTab(d) },
 			],
@@ -407,6 +476,7 @@ export function reportView(r: ReportData, stored: boolean): Block[] {
 				{ label: "Referrers", value: r.visits?.referrers.map((x) => `${x.host} (${x.views})`).join(", ") || "—" },
 				{ label: "Broken links", value: `${r.links.found} found, ${r.links.fixed} fixed, ${r.links.open} open` },
 				{ label: "Average SEO score", value: r.seo ? `${r.seo.average}/100 (${plural(r.seo.pages, "page")})` : (r.seoNote ?? "—") },
+				...(r.csp ? [{ label: "Security", value: cspLine(r.csp) }] : []),
 			],
 		},
 		{

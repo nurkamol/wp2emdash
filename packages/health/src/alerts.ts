@@ -1,6 +1,7 @@
 /**
  * Alerts: an email when the site goes down or comes back, when a page keeps failing, when new broken links are found,
- * and when search-engine access, form email, the mail DNS records, the certificate or the analytics tags start failing.
+ * when search-engine access, form email, the mail DNS records, the certificate, the analytics tags or the security
+ * policy start failing, and when visitors' browsers report a new kind of blocked script (csp.ts).
  *
  * Rate limit: at most ONE email per issue per day (an issue = what happened, e.g. "site down", "site back up", "new
  * broken links"), and at most MAX_PER_DAY alert emails a day in total; the Site health page always shows the current
@@ -44,7 +45,7 @@ export function pickAlerts(events: AlertEvent[], log: AlertLog, now: number, max
 }
 
 const FAILING: Status[] = ["fail"];
-const ALERT_CHECKS: CheckId[] = ["indexability", "forms", "dns", "ssl", "analytics"];
+const ALERT_CHECKS: CheckId[] = ["indexability", "forms", "dns", "ssl", "analytics", "security"];
 
 const CHECK_ADVICE: Partial<Record<CheckId, string>> = {
 	indexability: "Search engines are told not to index the site, or cannot read its sitemap. Pages can drop out of Google within days.",
@@ -52,6 +53,7 @@ const CHECK_ADVICE: Partial<Record<CheckId, string>> = {
 	dns: "The domain's email records changed since go-live. Email to and from the domain may stop working.",
 	ssl: "The domain's security certificate needs attention: browsers may show a warning.",
 	analytics: "The pages no longer carry a tracking code that is switched on, so visits may not be counted.",
+	security: "Without its security policy the site no longer blocks injected scripts. Ask your developer to redeploy the site.",
 };
 
 const CHECK_SUBJECT: Partial<Record<CheckId, string>> = {
@@ -60,6 +62,7 @@ const CHECK_SUBJECT: Partial<Record<CheckId, string>> = {
 	dns: "the domain's email records changed",
 	ssl: "the security certificate needs attention",
 	analytics: "a tracking code is missing from the pages",
+	security: "the security policy is missing from the pages",
 };
 
 /** Alert events from this run's changes. Pure. */

@@ -16,7 +16,7 @@ import { healthOptions, mailBaselineFrom } from "../src/scaffold/health.js";
 import { SECRET_KEYS } from "../src/ui/secrets.js";
 import { healthHeartbeat } from "../src/verify/health.js";
 import { env } from "./stubs/cloudflare-workers.js";
-import { memoryKv } from "./health-fixtures.js";
+import { memoryKv, SECURE_HEADERS } from "./health-fixtures.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -40,7 +40,7 @@ const selfFetch = vi.fn(async (req: Request) => {
 	const p = new URL(req.url).pathname;
 	if (p === "/sitemap.xml") return new Response(SITEMAP, { headers: { "content-type": "application/xml" } });
 	if (p === "/robots.txt") return new Response("User-agent: *\nAllow: /", { headers: { "content-type": "text/plain" } });
-	return new Response(`<html><head><link rel="canonical" href="${ORIGIN}/"></head><body><a href="/about/">a</a></body></html>`, { headers: { "content-type": "text/html" } });
+	return new Response(`<html><head><link rel="canonical" href="${ORIGIN}/"></head><body><a href="/about/">a</a></body></html>`, { headers: { "content-type": "text/html", ...SECURE_HEADERS } });
 });
 
 beforeEach(() => {
@@ -84,8 +84,8 @@ describe("Site health plugin", () => {
 		const overview = tab(r, "Overview");
 		expect(overview[0]).toMatchObject({ type: "banner", title: "Healthy" });
 		const table = overview.find((b) => b.block_id === "checks");
-		expect(table?.rows.map((x: B) => x.check)).toEqual(["Uptime", "Search engines", "Form messages", "Broken links", "Email DNS records", "Security certificate", "Speed", "Analytics tags", "Backups", "Media", "Missing pages (404)"]);
-		expect(tabs(r).map((p) => p.label)).toEqual(["Overview", "Incidents", "Broken links", "Missing pages", "Speed", "Reports", "Settings"]);
+		expect(table?.rows.map((x: B) => x.check)).toEqual(["Uptime", "Search engines", "Form messages", "Broken links", "Email DNS records", "Security certificate", "Speed", "Analytics tags", "Backups", "Media", "Missing pages (404)", "Security headers"]);
+		expect(tabs(r).map((p) => p.label)).toEqual(["Overview", "Incidents", "Broken links", "Missing pages", "Speed", "Security", "Reports", "Settings"]);
 		const w = await call({}, 50, { ui: { surface: "dashboard-widget" } });
 		expect(w.blocks[0]).toMatchObject({ type: "banner", title: "Healthy" });
 	});
@@ -146,7 +146,7 @@ describe("Site health plugin", () => {
 describe("kit side", () => {
 	const config = (extra: Record<string, unknown> = {}) => kitConfigSchema.parse({ slug: "acme", name: "Acme", source: { url: ORIGIN }, target: { productionUrl: ORIGIN }, email: { to: ["owner@acme.example"], stagingTo: ["team@agency.example"] }, ...extra });
 	it("kit.config: on by default, health: false turns it off, recipients default to email.to / stagingTo", () => {
-		expect(config().health).toEqual({ brand: "Prepared by PixelKraft", monthlyReport: true, externalLinks: true });
+		expect(config().health).toEqual({ brand: "Prepared by PixelKraft", monthlyReport: true, externalLinks: true, cspReports: true });
 		expect(config({ health: false }).health).toBe(false);
 		const o = healthOptions({ config: config(), productionUrl: ORIGIN, live: false, logo: "/brand/logo.png", colors: { accent: "#123456" } });
 		expect(o).toMatchObject({ alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "Prepared by PixelKraft", logo: `${ORIGIN}/brand/logo.png` }, live: false });

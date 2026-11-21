@@ -52,3 +52,6 @@ export function outboxKv() {
 		},
 	};
 }
+
+/** What the starter's middleware sends with every page (checks/headers.ts reads them from the home page). */
+export const SECURE_HEADERS = { "strict-transport-security": "max-age=31536000; includeSubDomains", "content-security-policy": "default-src 'self'; script-src 'self'; frame-ancestors 'self'; report-uri /_emdash/api/plugins/site-health/csp; report-to csp-endpoint", "x-content-type-options": "nosniff", "referrer-policy": "strict-origin-when-cross-origin", "permissions-policy": "camera=(), microphone=(), geolocation=()", "x-frame-options": "SAMEORIGIN" };

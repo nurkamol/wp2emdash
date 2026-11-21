@@ -16,7 +16,9 @@ import { formsCheck, readForms } from "./checks/forms.js";
 import { homeIndexing, indexabilityCheck, parseSiteFiles, sitemapLocs, sitemapPaths } from "./checks/indexability.js";
 import { linksCheck, type LinkJob, resultOf, startJob, stepJob, updateLedger } from "./checks/links.js";
 import { fetchCrux, speedCheck } from "./checks/speed.js";
+import { headersCheck, type SecurityFacts } from "./checks/headers.js";
 import { readCertificates, sslCheck } from "./checks/ssl.js";
+import { cspAlertEvents, type CspEntry, type CspStore, cspMonth, readCspStore, takeFresh } from "./csp.js";
 import { applyProbes, countHome, pickPaths, uptimeCheck } from "./checks/uptime.js";
 import { type MailEnv, type PluginEmail, sendMail } from "./email.js";
 import type { HealthOptions } from "./index.js";
@@ -193,6 +195,18 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 		ran.push("notfound");
 	}
 
+	// ── Security headers (hourly), from this run's home page (what the middleware sends visitors).
+	if (plan.light.includes("headers")) {
+		if (paused) checks.security = pausedState();
+		else if (home.status === 200) {
+			const facts: SecurityFacts = { at, status: home.status, headers: home.headers ?? {} };
+			await kv.set(KEYS.security, facts);
+			checks.security = headersCheck(facts, at, { reports: o.cspReports !== false });
+		} else checks.security = headersCheck({ at, status: home.status, headers: {} }, at, { reports: o.cspReports !== false });
+		jobs.headers = at;
+		ran.push("headers");
+	}
+
 	// ── Form outbox (every 15 minutes): counts and email status only.
 	if (plan.light.includes("forms")) {
 		const f = await readForms(env, { emdashEmail: !!d.email, now }).catch(() => undefined);
@@ -271,7 +285,7 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 	if (!checks.speed && today.ttfb.length) checks.speed = speedCheck(median(today.ttfb), await kv.get<Cwv>(KEYS.cwv), at);
 
 	// ── Alerts.
-	const events = alertEvents({ siteName: o.siteName, before, after: checks, opened: change.opened, closed: change.closed, freshLinks });
+	const events = [...alertEvents({ siteName: o.siteName, before, after: checks, opened: change.opened, closed: change.closed, freshLinks }), ...cspAlertEvents(await takeCspFresh(kv), o.siteName)];
 	const settings = await settingsOf(kv);
 	let alerts: RunResult["alerts"] = { sent: 0, held: 0 };
 	if (events.length) {
@@ -302,6 +316,28 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 	return { ran, alerts, state };
 }
 
+/**
+ * CSP violations not alerted yet (every tick, one KV read): their flag is cleared with compare-and-set BEFORE any
+ * email, so a violation never alerts twice; when a report arrived in between, they wait for the next tick. With the
+ * admin switch off nothing alerts. Before go-live or on staging the events are held like every other alert.
+ */
+export async function takeCspFresh(kv: Kv): Promise<CspEntry[]> {
+	if (kv.getVersioned && kv.compareAndSet) {
+		const cur = await kv.getVersioned<CspStore>(KEYS.csp);
+		if (!cur) return [];
+		const { fresh, store } = takeFresh(readCspStore(cur.value));
+		if (!fresh.length) return [];
+		const r = await kv.compareAndSet(KEYS.csp, cur.revision, store);
+		return r.applied && !store.off ? fresh : [];
+	}
+	const stored = await kv.get<CspStore>(KEYS.csp);
+	if (!stored) return [];
+	const { fresh, store } = takeFresh(readCspStore(stored));
+	if (!fresh.length) return [];
+	await kv.set(KEYS.csp, store);
+	return store.off ? [] : fresh;
+}
+
 /** Opens new incidents and closes ended ones (by id); keeps 90 days. Pure. */
 export function mergeIncidents(list: Incident[], opened: Incident[], closed: Incident[], now: number): Incident[] {
 	const ended = new Map(closed.map((c) => [c.id, c]));
@@ -314,7 +350,7 @@ export function mergeIncidents(list: Incident[], opened: Incident[], closed: Inc
 
 export async function makeReport(d: RunDeps, month: string, sources?: ReportSources): Promise<ReportData> {
 	const s = sources ?? (await reportSources(d, month));
-	return buildReport({ month, site: { name: d.options.siteName, url: d.options.productionUrl }, history: (await d.kv.get<DayRow[]>(KEYS.history)) ?? [], incidents: (await d.kv.get<Incident[]>(KEYS.incidents)) ?? [], cwv: await d.kv.get<Cwv>(KEYS.cwv), ledger: (await d.kv.get<LinkLedger>(KEYS.ledger)) ?? {}, ...s, now: d.now });
+	return buildReport({ month, site: { name: d.options.siteName, url: d.options.productionUrl }, history: (await d.kv.get<DayRow[]>(KEYS.history)) ?? [], incidents: (await d.kv.get<Incident[]>(KEYS.incidents)) ?? [], cwv: await d.kv.get<Cwv>(KEYS.cwv), ledger: (await d.kv.get<LinkLedger>(KEYS.ledger)) ?? {}, ...(d.options.cspReports !== false ? { csp: cspMonth(readCspStore(await d.kv.get(KEYS.csp)), month) } : {}), ...s, now: d.now });
 }
 
 export async function storeReport(kv: Kv, data: ReportData): Promise<void> {

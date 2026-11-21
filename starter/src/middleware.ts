@@ -20,6 +20,7 @@ import { comingSoonHtml, MAINTENANCE_OPTION, MAINTENANCE_TTL_MS, maintenanceBypa
 import announcementScript from "./scripts/inline/announcement.js?raw";
 import { commentPostTarget } from "./utils/comments";
 import { commentsConfig } from "./utils/comments-data";
+import { reportDirectives, reportingEndpoints } from "./utils/csp-report";
 
 /**
  * Content-Security-Policy. Scripts and frames: this site, Cloudflare Turnstile and the embed providers the
@@ -51,6 +52,11 @@ function inlineScriptHashes(): Promise<string> {
 	inlineHashes ??= Promise.all(INLINE_SCRIPTS.map(sha256)).then((h) => h.join(" "));
 	return inlineHashes;
 }
+/**
+ * Violation reports (Site health → Security): site.config.json `cspReport` names the plugin route; visitors' CSP gets
+ * report-uri + report-to (utils/csp-report.ts), editors' never. Baked in at build: no setting is read per request.
+ */
+const cspReport = (site as { cspReport?: string }).cspReport;
 function csp(editor: boolean, hashes: string, analytics: CspHosts): string {
 	const turnstile = "https://challenges.cloudflare.com";
 	return [
@@ -68,6 +74,7 @@ function csp(editor: boolean, hashes: string, analytics: CspHosts): string {
 		"form-action 'self'",
 		"frame-ancestors 'self'",
 		"upgrade-insecure-requests",
+		...reportDirectives(cspReport, editor),
 	].join("; ");
 }
 
@@ -289,6 +296,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const editor = isEditor(context.cookies, context.url);
 		const trackers = cspSources(typesOf(await pageAnalytics(context.locals, context.url, editor)));
 		headers.set("Content-Security-Policy", csp(editor, await inlineScriptHashes(), trackers).replace(/ {2,}/g, " ").replace(/ ;/g, ";"));
+		const endpoints = reportingEndpoints(context.url.origin, cspReport, editor);
+		if (endpoints) headers.set("Reporting-Endpoints", endpoints);
 	}
 	// Browsers always revalidate a page; the shared route cache keeps that fast, and EmDash purges only that cache.
 	if (html && !headers.has("cache-control")) headers.set("Cache-Control", "no-cache");

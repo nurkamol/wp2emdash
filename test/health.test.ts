@@ -19,7 +19,7 @@ import { acquireLock, emailBlocked, mergeIncidents, releaseLock, runChecks, type
 import { DAILY_HOUR, EXTERNAL_SAMPLE, LINK_BUDGET, linksHour, planRun, REPORT_HOUR, reportDue } from "../packages/health/src/schedule.js";
 import { emptyState, KEYS, rollDay, upsertDay } from "../packages/health/src/store.js";
 import { countMessage, enqueue } from "../packages/forms/src/outbox.js";
-import { memoryKv, outboxKv } from "./health-fixtures.js";
+import { memoryKv, outboxKv, SECURE_HEADERS } from "./health-fixtures.js";
 
 const HOST = "acme.example";
 const ORIGIN = `https://${HOST}`;
@@ -37,7 +37,7 @@ function site(routes: Record<string, () => Response>, calls: string[] = []) {
 		return r ? r() : new Response("not found", { status: 404 });
 	});
 }
-const page = (body = "", head = "") => () => new Response(html(body, head), { headers: { "content-type": "text/html; charset=utf-8" } });
+const page = (body = "", head = "") => () => new Response(html(body, head), { headers: { "content-type": "text/html; charset=utf-8", ...SECURE_HEADERS } });
 
 const OPTIONS: HealthOptions = { productionUrl: ORIGIN, siteName: "Acme", live: true, alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "Prepared by Example Agency" } };
 
@@ -47,11 +47,11 @@ describe("schedule: cron planning and stagger", () => {
 	const at = (h: number, m = 0, day = 20) => Date.UTC(2026, 10, day, h, m);
 	it("runs uptime every tick and the light jobs by interval", () => {
 		const fresh = planRun(at(1), { jobs: {} }, { host: HOST, linkJobActive: false, reportDue: false });
-		expect(fresh.light).toEqual(["uptime", "forms", "index", "analytics", "backups", "media", "notfound"]);
+		expect(fresh.light).toEqual(["uptime", "forms", "index", "analytics", "backups", "media", "notfound", "headers"]);
 		expect(fresh.heavy).toBeUndefined();
-		const later = planRun(at(1, 5), { jobs: { forms: new Date(at(1)).toISOString(), index: new Date(at(1)).toISOString(), analytics: new Date(at(1)).toISOString(), backups: new Date(at(1)).toISOString(), media: new Date(at(1)).toISOString(), notfound: new Date(at(1)).toISOString() } }, { host: HOST, linkJobActive: false, reportDue: false });
+		const later = planRun(at(1, 5), { jobs: { forms: new Date(at(1)).toISOString(), index: new Date(at(1)).toISOString(), analytics: new Date(at(1)).toISOString(), backups: new Date(at(1)).toISOString(), media: new Date(at(1)).toISOString(), notfound: new Date(at(1)).toISOString(), headers: new Date(at(1)).toISOString() } }, { host: HOST, linkJobActive: false, reportDue: false });
 		expect(later.light).toEqual(["uptime"]);
-		expect(planRun(at(1, 15), { jobs: { forms: new Date(at(1)).toISOString(), index: new Date(at(1)).toISOString(), analytics: new Date(at(1)).toISOString(), backups: new Date(at(1)).toISOString(), media: new Date(at(1)).toISOString(), notfound: new Date(at(1)).toISOString() } }, { host: HOST, linkJobActive: false, reportDue: false }).light).toEqual(["uptime", "forms"]);
+		expect(planRun(at(1, 15), { jobs: { forms: new Date(at(1)).toISOString(), index: new Date(at(1)).toISOString(), analytics: new Date(at(1)).toISOString(), backups: new Date(at(1)).toISOString(), media: new Date(at(1)).toISOString(), notfound: new Date(at(1)).toISOString(), headers: new Date(at(1)).toISOString() } }, { host: HOST, linkJobActive: false, reportDue: false }).light).toEqual(["uptime", "forms"]);
 	});
 	it("runs at most one heavy job per tick, staggered over the night", () => {
 		const h = linksHour(HOST);
@@ -83,7 +83,7 @@ describe("schedule: cron planning and stagger", () => {
 		expect(EXTERNAL_SAMPLE).toBeLessThanOrEqual(20);
 	});
 	it("manual runs do everything except a full link check", () => {
-		expect(planRun(T0, { jobs: {} }, { host: HOST, linkJobActive: false, reportDue: false, manual: true })).toMatchObject({ light: ["uptime", "forms", "index", "analytics", "backups", "media", "notfound"], startLinks: true });
+		expect(planRun(T0, { jobs: {} }, { host: HOST, linkJobActive: false, reportDue: false, manual: true })).toMatchObject({ light: ["uptime", "forms", "index", "analytics", "backups", "media", "notfound", "headers"], startLinks: true });
 	});
 });
 
@@ -398,7 +398,7 @@ describe("a full run (in-memory KV, mocked network)", () => {
 	it("runs the checks, records state and history, and stays healthy", async () => {
 		const s = setup();
 		const r = await runChecks(s.d(T0));
-		expect(r.ran).toEqual(["uptime", "index", "analytics", "backups", "media", "notfound", "forms"]);
+		expect(r.ran).toEqual(["uptime", "index", "analytics", "backups", "media", "notfound", "headers", "forms"]);
 		expect(r.state.checks.uptime?.status).toBe("ok");
 		expect(r.state.checks.indexability?.status).toBe("ok");
 		expect(r.state.sitemap?.paths).toEqual(["/", "/about/", "/contact/"]);

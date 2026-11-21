@@ -11,6 +11,9 @@
  *   "Download" created — once, within two minutes (a browser download cannot send EmDash's CSRF header).
  * - `heartbeat` route (public GET): when the checks last ran and the plugin version — nothing else — so the kit's
  *   verify can tell the checks are alive without an admin token.
+ * - `csp` route (public POST, raw 204): Content-Security-Policy violation reports from visitors' browsers (both the
+ *   legacy application/csp-report and the Reporting API's application/reports+json; body read as text, at most 8 KB).
+ *   Only directive, blocked origin, page path and counts are kept (csp.ts); the 5-minute tick alerts on new ones.
  * - `status` route (private JSON, admins / API tokens with the admin scope): overall status and each check's status.
  *
  * Logs carry counts and reasons, never addresses, form contents or tokens.
@@ -28,10 +31,14 @@ import { TICK_SCHEDULE, TICK_TASK } from "../schedule.js";
 import { parseRewarmSetting, REWARM_INTERVALS, REWARM_KEYS, type RewarmLast } from "../cache.js";
 import { type Cwv, type DayRow, type Incident, KEYS, type Kv, type LinksResult, readState, type Settings, type Today } from "../store.js";
 import { monthOf, previousMonth } from "../util.js";
+import type { SecurityFacts } from "../checks/headers.js";
+import { createLimiter, CSP_MAX_BYTES, type CspStore, parseCspBody, readCspStore, recordViolations, siteOrigins, violationOf } from "../csp.js";
 import type { NotFoundSummary } from "../checks/notfound.js";
 import { adminsOnly, type MaintenanceSetting, overallOf, PAGE, type PageData, page, reportView, TABS, WIDGET, widget } from "./views.js";
 
 const ADMIN_ROLE = 50;
+/** Per isolate: CSP reports processed per minute (csp.ts CSP_RATE). */
+const cspAllowed = createLimiter();
 
 /** 32 URL-safe random characters (the starter's middleware accepts 20–64 of [A-Za-z0-9_-]). */
 export function previewKey(): string {
@@ -99,7 +106,7 @@ function deps(ctx: Ctx, env: WorkerEnv, o: HealthOptions): RunDeps | undefined {
 
 async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Partial<PageData> = {}): Promise<PageData> {
 	const kv = ctx.kv;
-	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance)]);
+	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance, csp, security] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance), kv.get<CspStore>(KEYS.csp), kv.get<SecurityFacts>(KEYS.security)]);
 	const ready = mailReady(env as MailEnv, ctx.email);
 	const cache = o.rewarm
 		? await (async () => {
@@ -128,6 +135,9 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 		siteOrigin: ctx.request?.url && URL.canParse(ctx.request.url) ? new URL(ctx.request.url).origin : o.productionUrl,
 		notFound,
 		maintenance,
+		csp: readCspStore(csp),
+		cspBuild: o.cspReports !== false,
+		security,
 		...extra,
 	};
 }
@@ -252,6 +262,20 @@ export function createPlugin(options: HealthOptions) {
 						ctx.log?.info("health page cache refresh asked", { purge: purged });
 						return { blocks: await show(TABS.speed), toast: { message: "All pages cleared: they are built again within 5 minutes.", type: "success" } };
 					}
+					if (i.type === "form_submit" && act === "save-csp") {
+						const on = (i.values ?? {}).on !== false;
+						const cur = readCspStore(await ctx.kv.get(KEYS.csp));
+						const { off: _off, ...rest } = cur;
+						await ctx.kv.set(KEYS.csp, on ? rest : { ...rest, off: true });
+						ctx.log?.info("health csp reports saved", { on });
+						return { blocks: await show(TABS.security), toast: { message: on ? "Saved: blocked-content reports are kept and new blocked scripts are emailed." : "Saved: reports are no longer kept and nothing is emailed about them.", type: "success" } };
+					}
+					if (i.type === "block_action" && act === "csp-clear") {
+						const cur = readCspStore(await ctx.kv.get(KEYS.csp));
+						await ctx.kv.set(KEYS.csp, { ...cur, items: [] });
+						ctx.log?.info("health csp reports cleared", { entries: cur.items.length });
+						return { blocks: await show(TABS.security), toast: { message: "Cleared. A source that is blocked again appears here as new (and is emailed once).", type: "success" } };
+					}
 					if (i.type === "block_action" && act === "preview-new") {
 						const prev = (await ctx.kv.get<MaintenanceSetting>(KEYS.maintenance)) ?? { on: false };
 						await ctx.kv.set(KEYS.maintenance, { ...prev, previewKey: previewKey() });
@@ -307,6 +331,32 @@ export function createPlugin(options: HealthOptions) {
 					if (!data) return pluginResponse({ status: 410, headers: { "content-type": "text/plain; charset=utf-8" }, body: { kind: "text", value: "This download link has expired or was already used. Create a new one in the admin: Site health → Reports." } });
 					const slug = o.siteName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "site";
 					return pluginResponse({ status: 200, headers: { "content-type": "text/html; charset=utf-8", "content-disposition": `attachment; filename="${slug}-report-${data.month}.html"` }, body: { kind: "text", value: renderReportHtml(data, o.brand) } });
+				},
+			},
+			csp: {
+				public: true,
+				methods: ["POST"],
+				// Read as text whatever the content type (application/csp-report, application/reports+json); EmDash
+				// answers 413 above maxBytes before the handler runs (docs/spikes/csp-reports-findings.md).
+				request: { body: "text", maxBytes: CSP_MAX_BYTES },
+				response: "raw",
+				handler: async (raw: unknown) => {
+					const ctx = raw as Ctx;
+					const done = pluginResponse({ status: 204 });
+					try {
+						if (!cspAllowed(Date.now())) return done;
+						const req = ctx.request;
+						// A signed-in browser (editors get no report endpoint in their CSP; this catches stale pages).
+						if (/(?:^|;\s*)astro-session=/.test(req?.headers.get("cookie") ?? "")) return done;
+						const reports = parseCspBody(typeof ctx.input === "string" ? ctx.input : "", req?.headers.get("content-type") ?? "");
+						if (!reports.length) return done;
+						const origins = siteOrigins(req?.url, o.productionUrl);
+						const list = reports.flatMap((r) => violationOf(r, origins) ?? []);
+						if (list.length) await recordViolations(ctx.kv, list, Date.now());
+					} catch {
+						// A report is never worth an error page: drop it.
+					}
+					return done;
 				},
 			},
 			heartbeat: {

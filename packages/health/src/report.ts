@@ -2,7 +2,7 @@
  * The monthly report: what happened on the site last month, in plain words — availability and incidents, speed and
  * real-visitor Core Web Vitals, visits, top pages and referrers (Cloudflare Web Analytics, when the read token is
  * set), how many form messages arrived (counts only), content published and updated, broken links found and fixed,
- * and the average SEO score. Built once on the 1st from what the checks stored (`buildReport`, pure), kept for 12
+ * the average SEO score, and how often visitors' browsers reported content the security policy blocked. Built once on the 1st from what the checks stored (`buildReport`, pure), kept for 12
  * months, emailed as HTML with a plain-text part, shown in the admin and downloadable as a print-friendly page.
  * No personal data: no form contents, no names or addresses of visitors.
  */
@@ -33,6 +33,8 @@ export interface ReportData {
 	links: { found: number; fixed: number; open: number };
 	seo?: { average: number; pages: number };
 	seoNote?: string;
+	/** Reports of content the security policy blocked (visitors' browsers), that month; absent in older reports. */
+	csp?: { reports: number; sources: number };
 }
 
 export interface ReportInputs {
@@ -47,6 +49,7 @@ export interface ReportInputs {
 	forms?: { total: number; emailed: number; kept: number } | { missing: string };
 	content: { items: { title: string; publishedAt?: string | null; updatedAt?: string; createdAt?: string }[] };
 	seo?: { average: number; pages: number } | { missing: string };
+	csp?: { reports: number; sources: number };
 	now: number;
 }
 
@@ -94,7 +97,13 @@ export function buildReport(i: ReportInputs): ReportData {
 		},
 		links: { found: ledger.filter((e) => inMonth(e.first, since, until)).length, fixed: ledger.filter((e) => inMonth(e.fixed, since, until)).length, open: ledger.filter((e) => !e.fixed).length },
 		...(i.seo && "average" in i.seo ? { seo: i.seo } : i.seo && "missing" in i.seo ? { seoNote: i.seo.missing } : {}),
+		...(i.csp ? { csp: i.csp } : {}),
 	};
+}
+
+/** The security line of the report (one sentence). */
+export function cspLine(c: { reports: number; sources: number }): string {
+	return c.reports ? `Visitors' browsers reported ${plural(c.reports, "time")} that the site's security policy blocked something (${plural(c.sources, "different source")}); see Site health → Security.` : "No visitor's browser reported a blocked script or other blocked content.";
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -160,6 +169,10 @@ export function renderReportHtml(r: ReportData, brand: HealthBrand): string {
 	parts.push(h2("Links and search"));
 	parts.push(rows([{ label: "Broken links found this month", value: n(r.links.found) }, { label: "Broken links fixed this month", value: n(r.links.fixed) }, { label: "Broken links still open", value: n(r.links.open), ...(r.links.open ? { note: "see Site health", tone: "#b54708" } : {}) }, ...(r.seo ? [{ label: `Average SEO score (${plural(r.seo.pages, "page")})`, value: `${r.seo.average}/100` }] : [])]));
 	if (!r.seo && r.seoNote) parts.push(p(r.seoNote, "color:#667085;font-size:13px"));
+	if (r.csp) {
+		parts.push(h2("Security"));
+		parts.push(p(cspLine(r.csp), r.csp.reports ? "" : "color:#067647"));
+	}
 	const title = `${r.site.name} — website report, ${monthName(r.month)}`;
 	return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
@@ -208,6 +221,7 @@ export function renderReportText(r: ReportData, brand: HealthBrand): string {
 		"LINKS AND SEARCH",
 		`Broken links: ${r.links.found} found, ${r.links.fixed} fixed, ${r.links.open} still open.`,
 		...(r.seo ? [`Average SEO score: ${r.seo.average}/100 (${plural(r.seo.pages, "page")}).`] : []),
+		...(r.csp ? ["", "SECURITY", cspLine(r.csp)] : []),
 		...(brand.footer ? ["", brand.footer] : []),
 	];
 	return `${lines.join("\n")}\n`;

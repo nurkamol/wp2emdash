@@ -215,8 +215,16 @@ screen.
 the site builds them again by itself every 15 minutes, so nobody waits. Choose how often (15, 30 or 60 minutes) or switch
 it off there, see what the last refill found, and use **Refresh all pages now** after a big change.
 
+**Security** (Site health → Security): the site tells browsers exactly which scripts and embeds may load, so code
+injected into a page cannot run. When a visitor's browser blocks something anyway, it reports what was blocked and on
+which page (nothing about the visitor), and it is listed here in plain words — a blocked script usually means something
+on that page does not work, so pass the list to your developer; the first time a new script is blocked you also get an
+email. **Clear the list** starts over; the switch on the same tab stops collecting. Below it: the security protections
+the home page sends (checked every hour) and the certificate.
+
 **Emails.** When the site goes down and comes back, when new broken links appear, and when search-engine access, form
-email, the email DNS records, the certificate or the analytics tags start failing, an email goes to the alert
+email, the email DNS records, the certificate or the analytics tags start failing, and when a visitor's browser blocks a
+new script, an email goes to the alert
 recipients${h.alertsTo.length ? ` (by default ${h.alertsTo.join(", ")})` : ""} — at most one per issue per day. On the
 1st of each month a **report** for the month before goes to ${h.reportTo.length ? h.reportTo.join(", ") : "the report recipients"} (with a copy to the alert
 recipients): availability and outages, speed, visits and the most viewed pages, how many form messages arrived (the

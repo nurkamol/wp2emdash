@@ -60,6 +60,7 @@ export function healthOptions(i: HealthInputs): HealthOptions | undefined {
 		brand: { footer: h.brand, ...(logo ? { logo } : {}), ...(i.colors ? { colors: i.colors } : {}) },
 		...(h.monthlyReport ? {} : { monthlyReport: false }),
 		...(h.externalLinks ? {} : { externalLinks: false }),
+		...(h.cspReports === false ? { cspReports: false } : {}),
 		collections: ["pages"],
 		...(i.config.performance?.routeCache && i.config.performance.rewarmMinutes > 0 ? { rewarm: { everyMinutes: i.config.performance.rewarmMinutes, available: i.live } } : {}),
 		...(i.config.forms.outbox ? { formsOutbox: true } : {}),

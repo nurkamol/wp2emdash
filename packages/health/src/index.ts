@@ -65,6 +65,11 @@ export interface HealthOptions {
 	backups?: boolean;
 	/** The site runs @wp2emdash/media: the Media check reads its scan counts (alt text, oversized, broken). */
 	media?: boolean;
+	/**
+	 * The public CSP names the violation-report endpoint (kit.config health.cspReports, default on; baked into
+	 * site.config.json `cspReport` at scaffold). The admin switch on the Security tab only stops storing and alerts.
+	 */
+	cspReports?: boolean;
 	/** Mail DNS records at go-live (cutover/dns-before.json), as hashes: never the record values. */
 	mail?: MailBaseline;
 }

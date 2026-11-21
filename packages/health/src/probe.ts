@@ -4,6 +4,8 @@
  * the old origin would — docs/spikes/M7-findings.md), so the request is handed to the Worker directly with the
  * production URL, and the site renders exactly what visitors on the domain get.
  */
+import { SECURITY_HEADERS } from "./checks/headers.js";
+
 export type Fetcher = (input: string, init?: RequestInit) => Promise<Response>;
 
 export const USER_AGENT = "wp2emdash-health/0.1 (+site health check)";
@@ -26,6 +28,8 @@ export interface Probe {
 	/** Cloudflare-CDN-Cache-Control: the page asks the edge to keep it (route cache on). */
 	cdnCache?: string;
 	html?: string;
+	/** Security headers of the response (lower-case names, checks/headers.ts SECURITY_HEADERS), when present. */
+	headers?: Record<string, string>;
 }
 
 /** Whether a page answered: 2xx or 3xx within the time limit. */
@@ -47,6 +51,8 @@ export async function probe(fetcher: Fetcher, url: string, o: { method?: "GET" |
 		set("xRobotsTag", h("x-robots-tag"));
 		set("cacheStatus", h("cf-cache-status"));
 		set("cdnCache", h("cloudflare-cdn-cache-control"));
+		const security = Object.fromEntries(SECURITY_HEADERS.flatMap((k) => (res.headers.has(k) ? [[k, (res.headers.get(k) as string).slice(0, 4000)]] : [])));
+		if (Object.keys(security).length) out.headers = security;
 		if (o.body && res.status === 200 && /html|xml|text\/plain/i.test(out.contentType ?? "text/html")) {
 			const text = await res.text().catch(() => "");
 			out.html = text.length > MAX_HTML ? text.slice(0, MAX_HTML) : text;

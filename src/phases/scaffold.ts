@@ -11,6 +11,7 @@ import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
 import { backupsOptions } from "../scaffold/backups.js";
 import { healthOptions, mailBaselineFrom } from "../scaffold/health.js";
+import { CSP_REPORT_PATH } from "../../starter/src/utils/csp-report.js";
 import { mediaNeedsAi, mediaOptions } from "../scaffold/media.js";
 import { changeRequestsOptions } from "../scaffold/change-requests.js";
 import { consentScaffold } from "../scaffold/consent.js";
@@ -533,6 +534,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		cpSync(join(KIT_ROOT, "packages", "health"), join(project, "packages", "health"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
 		reporter.emit({ type: "log", level: "info", message: `site health on (@wp2emdash/health): alerts to ${health.alertsTo.length} address(es), monthly report to ${health.reportTo.length}${health.mail ? `, mail DNS baseline of ${health.mail.records.length} record(s)` : ", no mail DNS baseline yet (cutover preflight)"}${health.live ? "" : "; emails start once production.live is set"}` });
 		if (!health.alertsTo.length) reporter.emit({ type: "log", level: "warn", message: "site health: no alert recipients (set health.alertsTo or email.stagingTo in kit.config.ts); admins can add them on the page" });
+		// CSP violation reports (Site health → Security): the public CSP names the plugin's route (starter middleware).
+		if (health.cspReports !== false) (siteConfig as { cspReport?: string }).cspReport = CSP_REPORT_PATH;
 	}
 	// Privacy & Consent (@wp2emdash/consent, on by default; consent: false turns it off): always copied — the starter's
 	// middleware and Consent component import it; the plugin is registered and the banner configured only when on.

@@ -289,6 +289,12 @@ export const kitConfigSchema = z.object({
 				 * leave the site's own host and Cloudflare/Google). false = only the site's own links are checked.
 				 */
 				externalLinks: z.boolean().default(true),
+				/**
+				 * Visitors' browsers report what the site's Content-Security-Policy blocked (report-uri + report-to in the
+				 * public CSP, Site health → Security; new blocked scripts are emailed). Baked into the CSP at build; the
+				 * admin switch on the page only stops storing and alerts. false = the CSP names no report endpoint.
+				 */
+				cspReports: z.boolean().default(true),
 			}),
 		])
 		.prefault({}),
