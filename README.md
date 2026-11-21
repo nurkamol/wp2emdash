@@ -513,6 +513,25 @@ credit: { text: "Website by", name: "Your Studio", url: "https://your.studio" },
 credit: false,
 ```
 
+### Business details in the footer
+
+When the old site's structured data describes a business with an address or phone, the footer shows its name, address
+(linked to its map), phone (`tel:` link), email and opening hours as text — the same data as the JSON-LD, so the two
+never disagree. It is left out when the migrated footer already shows the street address or phone. Turn it off per site:
+
+```ts
+// sites/<slug>/kit.config.ts
+business: { footer: false },
+```
+
+The details are not editable in the admin. To correct them (new address, hours), set them in the site's overrides and
+rerun from transform (`transform → scaffold → load`); the JSON-LD and the footer both change:
+
+```ts
+// sites/<slug>/overrides.ts
+business: { telephone: "+1 555 010 0199", address: { streetAddress: "2 Oak Ave" }, openingHours: ["Mo-Fr 07:00-20:00"], reason: "Moved in 2026 (owner)" },
+```
+
 ## Environments
 
 **One Cloudflare environment per site by default: production**, deployed to its `workers.dev` address until go-live

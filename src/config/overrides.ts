@@ -154,6 +154,24 @@ export const overridesSchema = z.object({
 	 */
 	widgets: z.record(z.string(), z.enum(["html", "skip"])).default({}),
 	/**
+	 * Business details the owner corrected (name, address, phone, email, hours, map link). Transform applies them to the
+	 * business carried from the live site's structured data (address fields merge, the others replace; "" removes a
+	 * field), so the JSON-LD and the footer's contact block both change. With no carried business, `name` (else the
+	 * site name) and `type` (else LocalBusiness) start one.
+	 */
+	business: z
+		.object({
+			type: z.string().min(1).optional(),
+			name: z.string().optional(),
+			telephone: z.string().optional(),
+			email: z.string().optional(),
+			address: z.object({ streetAddress: z.string(), addressLocality: z.string(), addressRegion: z.string(), postalCode: z.string(), addressCountry: z.string() }).partial().optional(),
+			openingHours: z.array(z.string().min(1)).optional(),
+			hasMap: z.union([z.string().url(), z.literal("")]).optional(),
+			reason: z.string().min(3, "give the owner's reason"),
+		})
+		.optional(),
+	/**
 	 * Pages rebuilt from the live page's rendered HTML by the DOM fallback (a builder without an adapter; coverage report →
 	 * "Rebuilt from rendered HTML"): page slug → the owner's note that the rebuilt page was checked against the live one
 	 * (who, when, what was fixed). Until every such published page has one, the transform gate `dom-fallback-reviewed` fails.

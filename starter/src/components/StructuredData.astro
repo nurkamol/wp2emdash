@@ -4,9 +4,11 @@
  * over from the WordPress site's SEO plugin), this page's WebPage node and its breadcrumb. Node ids join EmDash's own
  * WebSite node (`<origin>/#website`) and the organization id EmDash refers to (`<origin>/#organization`).
  * FAQ sections add their own FAQPage.
+ * The footer shows the same business as text (BusinessInfo.astro, utils/business.ts), so the two never disagree.
  */
 import site from "../site.config.json";
 import { breadcrumbListItems, type Crumb } from "../utils/breadcrumbs";
+import { showsHours } from "../utils/business";
 
 interface Props {
 	/** Absolute canonical URL of this page. */
@@ -53,7 +55,7 @@ if (b) {
 		...(local && (b.geo || b.address) ? { location: { "@id": `${origin}/#place` } } : {}),
 		...(b.geo && local ? { geo: { "@type": "GeoCoordinates", ...b.geo } } : {}),
 		...(b.hasMap ? { hasMap: b.hasMap } : {}),
-		...(b.openingHours?.length && b.type !== "Organization" ? { openingHours: b.openingHours } : {}),
+		...(showsHours(b) ? { openingHours: b.openingHours } : {}),
 		...((sameAsProp ?? b.sameAs)?.length ? { sameAs: sameAsProp ?? b.sameAs } : {}),
 	});
 }

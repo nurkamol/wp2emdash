@@ -204,6 +204,12 @@ export const kitConfigSchema = z.object({
 		])
 		.optional(),
 
+	/**
+	 * The business's name, address, phone and opening hours as visible text in the footer (local SEO, E-E-A-T audits),
+	 * from the same business data as the structured data. On by default for a business with an address or phone; left out
+	 * when the migrated footer already shows the street address or phone. { footer: false } turns it off.
+	 */
+	business: z.object({ footer: z.boolean().default(true) }).default({ footer: true }),
 	/** Branded sharing cards (og:image) rendered in the Worker (@wp2emdash/og). On by default; { cards: false } turns them off. */
 	og: z.object({ cards: z.boolean().default(true) }).default({ cards: true }),
 	/**

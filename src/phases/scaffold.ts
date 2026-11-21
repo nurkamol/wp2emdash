@@ -6,6 +6,7 @@
  */
 import { spawn } from "node:child_process";
 import { footerCredit } from "../scaffold/credit.js";
+import { businessFooter } from "../scaffold/business.js";
 import { createHash, randomBytes } from "node:crypto";
 import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
@@ -494,6 +495,12 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const footerText = JSON.stringify((footerFile ? readJson<IrPage>(join(ir, footerFile)) : undefined)?.sections ?? []);
 	const credit = footerCredit(config.credit, footerText);
 	if (credit) (siteConfig as { credit?: unknown }).credit = credit;
+	// Business name, address, phone and hours in the footer (kit.config business.footer): not when the migrated footer
+	// or its widget areas already show the street address or phone.
+	const footerWidgetsText = JSON.stringify((widgetPlan?.areas ?? []).filter((a) => a.shown && a.placement === "footer").map((a) => a.widgets));
+	const contact = businessFooter(config.business.footer, site.business, `${footerText} ${footerWidgetsText}`);
+	if (contact.show) (siteConfig as { businessFooter?: boolean }).businessFooter = true;
+	else if (contact.why === "footer-has-it") reporter.emit({ type: "log", level: "info", message: "footer contact block left out: the migrated footer already shows the address or phone" });
 	// Background videos on phones too (owner choice per site; default: phones keep the picture).
 	if (config.performance.phoneVideo) (siteConfig as { phoneVideo?: boolean }).phoneVideo = true;
 	// Sharing cards (@wp2emdash/og, on by default): fonts as TTF, colours from the tokens, the logo; og: { cards: false } turns them off.
