@@ -41,7 +41,13 @@ describe("rewarm", () => {
 
 	it("requests every page of the child sitemaps and counts renders and failures", async () => {
 		const calls: string[] = [];
-		expect(await rewarm(ORIGIN, fake(calls))).toEqual({ pages: 3, rendered: 1, failed: 1 });
+		const r = await rewarm(ORIGIN, fake(calls));
+		expect(r).toMatchObject({ pages: 3, rendered: 1, failed: 1 });
+		expect(r.list).toEqual([
+			{ path: "/", status: 200, state: "cached" },
+			{ path: "/about/", status: 200, state: "rendered" },
+			{ path: "/gone/", status: 404, state: "failed" },
+		]);
 		expect(calls).toContain(`${ORIGIN}/about/`);
 	});
 
@@ -54,7 +60,7 @@ describe("rewarm", () => {
 	});
 
 	it("never throws when the site cannot be reached", async () => {
-		expect(await rewarm(ORIGIN, async () => Promise.reject(new Error("down")))).toEqual({ pages: 0, rendered: 0, failed: 0 });
+		expect(await rewarm(ORIGIN, async () => Promise.reject(new Error("down")))).toMatchObject({ pages: 0, rendered: 0, failed: 0, list: [] });
 	});
 });
 

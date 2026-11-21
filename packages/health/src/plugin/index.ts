@@ -25,14 +25,23 @@ import type { LinkJob } from "../checks/links.js";
 import { renderReportHtml, type ReportData } from "../report.js";
 import { adminUrl, alertRecipients, emailReport, type HealthEnv, makeReport, type RunDeps, runChecks, settingsOf, storeReport } from "../run.js";
 import { TICK_SCHEDULE, TICK_TASK } from "../schedule.js";
+import { parseRewarmSetting, REWARM_INTERVALS, REWARM_KEYS, type RewarmLast } from "../cache.js";
 import { type Cwv, type DayRow, type Incident, KEYS, type Kv, type LinksResult, readState, type Settings, type Today } from "../store.js";
 import { monthOf, previousMonth } from "../util.js";
 import type { NotFoundSummary } from "../checks/notfound.js";
 import { adminsOnly, type MaintenanceSetting, overallOf, PAGE, type PageData, page, reportView, TABS, WIDGET, widget } from "./views.js";
 
 const ADMIN_ROLE = 50;
+
+/** 32 URL-safe random characters (the starter's middleware accepts 20–64 of [A-Za-z0-9_-]). */
+export function previewKey(): string {
+	const b = crypto.getRandomValues(new Uint8Array(24));
+	return btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 const DOWNLOAD_MS = 2 * 60_000;
 const TEST_EVERY = 10 * 60_000;
+/** "Refresh all pages now" at most every 5 minutes (one purge, one refill per cron tick). */
+const REFRESH_EVERY = 5 * 60_000;
 
 interface WorkerEnv extends HealthEnv {
 	SELF?: { fetch(r: Request): Promise<Response> };
@@ -92,6 +101,12 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 	const kv = ctx.kv;
 	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance)]);
 	const ready = mailReady(env as MailEnv, ctx.email);
+	const cache = o.rewarm
+		? await (async () => {
+				const [setting, last, request] = await Promise.all([kv.get<unknown>(REWARM_KEYS.setting), kv.get<RewarmLast>(REWARM_KEYS.last), kv.get<{ at: string }>(REWARM_KEYS.request)]);
+				return { available: o.rewarm?.available ?? false, defaultMinutes: o.rewarm?.everyMinutes ?? 15, setting: parseRewarmSetting(setting ?? null, o.rewarm?.everyMinutes ?? 15), last: last ?? null, ...(request?.at ? { requestedAt: request.at } : {}) };
+			})()
+		: undefined;
 	return {
 		state,
 		today: today && today.d === new Date().toISOString().slice(0, 10) ? today : null,
@@ -109,6 +124,8 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 		secrets: { crux: !!env.CRUX_API_KEY?.trim(), zone: !!env.CF_ZONE_READ_TOKEN?.trim(), analytics: !!env.CF_ANALYTICS_TOKEN?.trim() },
 		selfBinding: !!env.SELF,
 		productionUrl: o.productionUrl,
+		...(cache ? { cache } : {}),
+		siteOrigin: ctx.request?.url && URL.canParse(ctx.request.url) ? new URL(ctx.request.url).origin : o.productionUrl,
 		notFound,
 		maintenance,
 		...extra,
@@ -211,12 +228,35 @@ export function createPlugin(options: HealthOptions) {
 						const text = (x: unknown, max: number) => (typeof x === "string" && x.trim() ? x.trim().slice(0, max) : undefined);
 						const heading = text(v.heading, 120);
 						const message = text(v.message, 1000);
-						const next: MaintenanceSetting = { on: v.on === true, ...(heading ? { heading } : {}), ...(message ? { message } : {}), ...(until.until ? { until: until.until } : {}), at: new Date().toISOString() };
+						const prev = await ctx.kv.get<MaintenanceSetting>(KEYS.maintenance);
+						const next: MaintenanceSetting = { on: v.on === true, ...(heading ? { heading } : {}), ...(message ? { message } : {}), ...(until.until ? { until: until.until } : {}), at: new Date().toISOString(), ...(prev?.previewKey ? { previewKey: prev.previewKey } : {}) };
 						await ctx.kv.set(KEYS.maintenance, next);
 						// Cached pages never reach the middleware: purge them, or visitors keep the public copy for the page lifetime.
 						const purged = await purgePages(((await import("cloudflare:workers")) as unknown as { cache?: PurgeApi }).cache);
 						ctx.log?.info("health coming-soon mode saved", { on: next.on, purge: purged });
 						return { blocks: await show(TABS.settings), toast: { message: next.on ? "Coming-soon mode is on: visitors see the holding page within a minute." : "Coming-soon mode is off: the site is public again within a minute.", type: "success" } };
+					}
+					if (i.type === "form_submit" && act === "save-cache" && o.rewarm) {
+						const v = i.values ?? {};
+						const minutes = Number(v.everyMinutes);
+						const next = { on: v.on === true, everyMinutes: (REWARM_INTERVALS as readonly number[]).includes(minutes) ? minutes : o.rewarm.everyMinutes, at: new Date().toISOString(), ...(ctx.user?.name ? { by: ctx.user.name } : {}) };
+						await ctx.kv.set(REWARM_KEYS.setting, next);
+						ctx.log?.info("health page cache refill saved", { on: next.on, everyMinutes: next.everyMinutes });
+						return { blocks: await show(TABS.speed), toast: { message: next.on ? `Saved: pages are refilled every ${next.everyMinutes} minutes.` : "Saved: refilling is off.", type: "success" } };
+					}
+					if (i.type === "block_action" && act === "cache-refresh" && o.rewarm) {
+						const asked = await ctx.kv.get<{ at: string }>(REWARM_KEYS.request);
+						if (asked?.at && Date.now() - Date.parse(asked.at) < REFRESH_EVERY) return { blocks: await show(TABS.speed), toast: { message: "A refresh is already on its way: pages are built again within 5 minutes.", type: "info" } };
+						const purged = await purgePages(((await import("cloudflare:workers")) as unknown as { cache?: PurgeApi }).cache);
+						await ctx.kv.set(REWARM_KEYS.request, { at: new Date().toISOString() });
+						ctx.log?.info("health page cache refresh asked", { purge: purged });
+						return { blocks: await show(TABS.speed), toast: { message: "All pages cleared: they are built again within 5 minutes.", type: "success" } };
+					}
+					if (i.type === "block_action" && act === "preview-new") {
+						const prev = (await ctx.kv.get<MaintenanceSetting>(KEYS.maintenance)) ?? { on: false };
+						await ctx.kv.set(KEYS.maintenance, { ...prev, previewKey: previewKey() });
+						ctx.log?.info("health coming-soon preview link replaced", { on: prev.on });
+						return { blocks: await show(TABS.settings), toast: { message: prev.previewKey ? "New preview link: the old one no longer works." : "Preview link created.", type: "success" } };
 					}
 					if (i.type === "block_action" && act === "test-email") {
 						const state = await readState(ctx.kv);

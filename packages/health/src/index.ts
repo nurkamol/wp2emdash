@@ -45,6 +45,11 @@ export interface HealthOptions {
 	externalLinks?: boolean;
 	/** Collections whose content changes the report counts (default ["pages"]). */
 	collections?: string[];
+	/**
+	 * Page cache refill (kit.config performance.rewarmMinutes; the Worker's cron does it, src/cache.ts): the default
+	 * interval and whether it can run here (the route cache is on and the site is live on its own domain).
+	 */
+	rewarm?: { everyMinutes: number; available: boolean };
 	/** The site keeps a form outbox (Workers KV FORM_OUTBOX, @wp2emdash/forms). */
 	formsOutbox?: boolean;
 	/**

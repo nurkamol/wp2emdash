@@ -206,8 +206,14 @@ const healthGuide = (h: ClientRepoInput["health"], productionUrl: string) =>
 
 **Coming-soon mode** (Site health → Settings): shows every visitor a holding page with your logo and a message of your
 own instead of the site — for example while it is being rebuilt — and tells search engines to come back later, so the
-site keeps its place in Google. You still see the site while you are signed in. It takes up to a minute to switch;
-switch it off on the same screen.
+site keeps its place in Google. You still see the site while you are signed in. To show the site to someone without an
+admin account (a colleague, a reviewer), send them the **preview link** on the same screen: it works in their browser
+for 7 days, and **New link** stops every link sent before. It takes up to a minute to switch; switch it off on the same
+screen.
+
+**Page cache** (Site health → Speed): visitors get ready-made pages from Cloudflare's cache. Every edit clears them, and
+the site builds them again by itself every 15 minutes, so nobody waits. Choose how often (15, 30 or 60 minutes) or switch
+it off there, see what the last refill found, and use **Refresh all pages now** after a big change.
 
 **Emails.** When the site goes down and comes back, when new broken links appear, and when search-engine access, form
 email, the email DNS records, the certificate or the analytics tags start failing, an email goes to the alert

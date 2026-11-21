@@ -1,6 +1,7 @@
 /**
  * Site health: Block Kit views (plain JSON, shapes from @emdash-cms/blocks 1.5). Admins only. Plain words; dates in UTC.
  */
+import { REWARM_INTERVALS, type RewarmLast, type RewarmSetting } from "../cache.js";
 import { MAX_RECIPIENTS } from "@wp2emdash/forms/outbox";
 import { missingText, RATING_LABEL, rate } from "../checks/speed.js";
 import type { NotFoundSummary } from "../checks/notfound.js";
@@ -22,6 +23,8 @@ export interface MaintenanceSetting {
 	message?: string;
 	until?: string;
 	at?: string;
+	/** Key of the preview link (`?preview=<key>`): people without an admin account see the site while the mode is on. */
+	previewKey?: string;
 }
 
 export type Overall = "healthy" | "attention" | "down" | "unknown";
@@ -71,6 +74,10 @@ export interface PageData {
 	/** The week's missing addresses (checks/notfound.ts). */
 	notFound?: NotFoundSummary | null;
 	maintenance?: MaintenanceSetting | null;
+	/** The address the admin is served from (the preview link points here). */
+	siteOrigin?: string;
+	/** Page cache refill (Speed tab); absent when the route cache or the refill is off in the kit config. */
+	cache?: { available: boolean; defaultMinutes: number; setting: RewarmSetting; last: RewarmLast | null; requestedAt?: string };
 }
 
 const uptimePct = (rows: { probes: number; fails: number }[]) => {
@@ -222,8 +229,54 @@ function speedTab(d: PageData): Block[] {
 	} else items.push({ type: "banner", title: "Real-visitor speed not available", description: missingText(c?.missing ?? (d.secrets.crux ? "not-enough-data" : "no-key")), variant: "default" });
 	const rows = d.history.filter((r) => r.ttfb50 !== undefined).slice(-30);
 	if (rows.length) items.push({ type: "chart", config: { chart_type: "timeseries", style: "line", height: 220, x_axis_name: "Day", y_axis_name: "ms", series: [{ name: "Page build time (median)", data: rows.map((r) => [Date.parse(`${r.d}T12:00:00Z`), r.ttfb50 as number] as [number, number]) }] } });
+	items.push(...cacheSection(d));
 	items.push({ type: "context", text: `Page build time${ttfb !== undefined ? ` today: ${ttfb} ms (median)` : ""} — how long the site takes to build the home page, measured inside Cloudflare every 5 minutes. Most visitors get a ready-made copy from the cache, which is faster; the developer's verify run measures that from outside.` });
 	return items;
+}
+
+const STATE_LABEL = { cached: "Ready (from the cache)", rendered: "Built now", failed: "Failed" } as const;
+
+/** Page cache refill: what the last run found, the switch and interval, and "Refresh all pages now". */
+function cacheSection(d: PageData): Block[] {
+	const c = d.cache;
+	if (!c) return [];
+	const out: Block[] = [{ type: "header", text: "Page cache" }];
+	if (!c.available) {
+		out.push({ type: "context", text: "Pages are kept ready in Cloudflare's cache. Refilling them after edits starts once the site is live on its own domain." });
+		return out;
+	}
+	out.push({
+		type: "context",
+		text: `Visitors get ready-made pages from Cloudflare's cache (about 0.25 s). Every edit clears them, and the next visitor would wait for the page to be built again (about 2 s). ${c.setting.on ? `Every ${c.setting.everyMinutes} minutes the site refills them itself, so visitors never wait.` : "Refilling is off: after an edit, the first visitor of each page waits for it to be built."} Pages still in the cache cost nothing to check.`,
+	});
+	const l = c.last;
+	if (l) {
+		out.push({ type: "stats", items: [{ label: "Last refill", value: shortTime(l.at), description: l.trigger === "manual" ? "asked for here" : "scheduled" }, { label: "Pages checked", value: l.pages }, { label: "Built again", value: l.rendered, description: "cleared by an edit" }, { label: "Failed", value: l.failed, trend: l.failed ? "down" : "neutral" }] });
+		if (l.list.length)
+			out.push({
+				type: "table",
+				block_id: "cache-pages",
+				page_action_id: "noop",
+				empty_text: "No pages.",
+				columns: [
+					{ key: "path", label: "Page" },
+					{ key: "state", label: "At the last refill" },
+				],
+				rows: [...l.list].sort((a, b) => (a.state === b.state ? a.path.localeCompare(b.path) : a.state === "failed" ? -1 : b.state === "failed" ? 1 : a.state === "rendered" ? -1 : 1)).map((p) => ({ path: p.path, state: p.state === "failed" ? `${STATE_LABEL.failed} (${p.status || "no answer"})` : STATE_LABEL[p.state] })),
+			});
+	} else out.push({ type: "context", text: "No refill has run yet: the first one runs within the next interval." });
+	if (c.requestedAt) out.push({ type: "banner", title: "Refresh asked for", description: `All pages were cleared ${shortTime(c.requestedAt)}; they are built again within 5 minutes.`, variant: "default" });
+	out.push({
+		type: "form",
+		block_id: "cache-settings",
+		fields: [
+			{ type: "toggle", action_id: "on", label: "Refill pages after edits", initial_value: c.setting.on },
+			{ type: "select", action_id: "everyMinutes", label: "How often", options: REWARM_INTERVALS.map((m) => ({ label: m === 60 ? "Every hour" : `Every ${m} minutes`, value: String(m) })), initial_value: String((REWARM_INTERVALS as readonly number[]).includes(c.setting.everyMinutes) ? c.setting.everyMinutes : c.defaultMinutes) },
+		],
+		submit: { label: "Save", action_id: "save-cache" },
+	});
+	out.push({ type: "actions", elements: [{ type: "button", action_id: "cache-refresh", label: "Refresh all pages now", style: "secondary", confirm: { title: "Refresh all pages?", text: "Clears every cached page and builds them again within 5 minutes. Visitors in between may wait a moment longer for a page.", confirm: "Refresh", deny: "Cancel" } }] });
+	return out;
 }
 
 function reportsTab(d: PageData): Block[] {
@@ -245,6 +298,17 @@ function reportsTab(d: PageData): Block[] {
 		},
 		{ type: "actions", elements: [{ type: "button", action_id: "report-prepare", label: "Prepare last month's report now", style: "secondary" }] },
 		{ type: "context", text: "Preparing a report does not email it. Reports contain numbers, page addresses and page titles only — never what anyone wrote in a form." },
+	];
+}
+
+/** The coming-soon preview link: for people without an admin account (the client, a reviewer). */
+function previewBlocks(d: PageData): Block[] {
+	const key = d.maintenance?.previewKey;
+	const url = key ? `${(d.siteOrigin ?? d.productionUrl).replace(/\/$/, "")}/?preview=${key}` : undefined;
+	return [
+		{ type: "context", text: "Preview link: send it to people without an admin account (the client, a reviewer) so they can see the site while coming-soon mode is on. Opening it keeps the site open in that browser for 7 days. \"New link\" stops every link sent before." },
+		...(url ? [{ type: "fields", fields: [{ label: "Preview link", value: url }] }] : []),
+		{ type: "actions", elements: [{ type: "button", action_id: "preview-new", label: url ? "New link (the old one stops working)" : "Create a preview link", style: "secondary", ...(url ? { confirm: { title: "Replace the preview link?", text: "Everyone using the current link sees the coming-soon page again.", confirm: "New link", deny: "Cancel" } } : {}) }] },
 	];
 }
 
@@ -291,6 +355,7 @@ function settingsTab(d: PageData): Block[] {
 			],
 			submit: { label: "Save coming-soon mode", action_id: "save-maintenance" },
 		},
+		...previewBlocks(d),
 		{ type: "header", text: "Optional extras (set by your developer)" },
 		{
 			type: "fields",

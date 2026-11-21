@@ -20,7 +20,14 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
 - **Coming-soon mode** (Settings tab): stored as the KV key `maintenance` (EmDash `options` row
   `plugin:site-health:maintenance`), which the kit's starter middleware reads to serve a branded 503 holding page
   (Retry-After, noindex, never cached) to visitors while signed-in people see the site. While it is on, uptime,
-  search-engine, analytics and link checks pause. Never switched on by the migration.
+  search-engine, analytics and link checks pause. Never switched on by the migration. **Preview link**
+  (`?preview=<key>`, 32 random URL-safe characters kept in the same row): people without an admin account see the site
+  for 7 days in that browser (cookie `site-preview`, never cached); "New link" replaces the key and ends every old link.
+- **Page cache refill** (Speed tab; kit.config `performance.rewarmMinutes`, option `rewarm`): on/off and every 15, 30 or
+  60 minutes (KV key `rewarm`, absent = on at the kit's interval), the last run (KV key `rewarm:last`: pages checked,
+  built again, failed, each page's state) and **Refresh all pages now** (purges the page cache and leaves `rewarm:request`;
+  at most every 5 minutes). The generated site's Worker cron does the refill (starter `src/utils/rewarm.ts`) and reads
+  these rows with D1; it never runs while coming-soon mode is on, and only once the site is live on its own domain.
 - **Plugins → Site health**: overall status (Healthy / Attention / Down), each check with its last run and 14-day trend,
   **Run checks now** (single flight, at most every 2 minutes), incidents, broken links, speed, reports, settings; a
   dashboard widget with the overall status.

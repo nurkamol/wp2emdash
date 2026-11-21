@@ -6,6 +6,10 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Page cache controls** (Site health → Speed, `@wp2emdash/health` 0.2): switch the cache refill on/off, choose every 15, 30 or 60 minutes, see the last run (pages checked, built again, failed, each page's state) and **Refresh all pages now** (clears the page cache; refilled within 5 minutes). The Worker's cron reads the setting from D1 on each tick (no redeploy) and skips while coming-soon mode is on. Default unchanged: on at `performance.rewarmMinutes`.
+- **Coming-soon preview link** (Site health → Settings): `?preview=<key>` lets people without an admin account see the site while coming-soon mode is on (a cookie for 7 days, never cached); **New link** replaces the key and ends every old link.
+
 ## [1.1.0] — 2026-11-21
 
 ### Added

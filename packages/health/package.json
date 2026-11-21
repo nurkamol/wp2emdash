@@ -1,6 +1,6 @@
 {
   "name": "@wp2emdash/health",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Site health and the monthly report for EmDash on Cloudflare Workers: scheduled uptime, indexability, form, broken-link, mail-DNS, certificate, speed and analytics checks, email alerts and a branded monthly report (admins only)",
   "license": "MIT",
   "private": true,
@@ -10,7 +10,8 @@
     ".": "./src/index.ts",
     "./plugin": "./src/plugin/index.ts",
     "./checks/dns": "./src/checks/dns.ts",
-    "./report": "./src/report.ts"
+    "./report": "./src/report.ts",
+    "./cache": "./src/cache.ts"
   },
   "files": ["src", "README.md"],
   "peerDependencies": {

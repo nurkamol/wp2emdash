@@ -16,7 +16,7 @@ import { typesOf } from "@wp2emdash/seo/analytics/trackers";
 import { pageAnalytics } from "./utils/analytics";
 import { REGION_PATH, regionResponse } from "./utils/consent";
 import { PREVIEW_PARAM as MOTION_PREVIEW } from "@wp2emdash/motion/settings";
-import { comingSoonHtml, MAINTENANCE_OPTION, MAINTENANCE_TTL_MS, maintenanceBypass, type MaintenanceState, parseMaintenance, retryAfter } from "./utils/maintenance";
+import { comingSoonHtml, MAINTENANCE_OPTION, MAINTENANCE_TTL_MS, maintenanceBypass, type MaintenanceState, parseMaintenance, PREVIEW_COOKIE, PREVIEW_DAYS, PREVIEW_PARAM, previewAccess, retryAfter } from "./utils/maintenance";
 import announcementScript from "./scripts/inline/announcement.js?raw";
 import { commentPostTarget } from "./utils/comments";
 import { commentsConfig } from "./utils/comments-data";
@@ -201,7 +201,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// and noindex; anyone signed in to the admin sees the site. Never kept in the route cache.
 	if (!maintenanceBypass(u.pathname) && !context.cookies.get("astro-session")) {
 		const m = await maintenanceState();
-		if (m.on) {
+		const preview = previewAccess(m, u.searchParams.get(PREVIEW_PARAM), context.cookies.get(PREVIEW_COOKIE)?.value);
+		if (preview === "link") {
+			// The preview link: remember it in this browser, then show the address without the key.
+			context.cookies.set(PREVIEW_COOKIE, m.previewKey as string, { path: "/", httpOnly: true, secure: u.protocol === "https:", sameSite: "lax", maxAge: PREVIEW_DAYS * 86_400 });
+			const clean = new URL(u);
+			clean.searchParams.delete(PREVIEW_PARAM);
+			if (context.cache?.enabled) context.cache.set(false);
+			return redirect(`${clean.pathname}${clean.search}`, 302);
+		}
+		if (m.on && !preview) {
 			if (context.cache?.enabled) context.cache.set(false);
 			const header = site.header as { logo?: string };
 			return new Response(context.request.method === "HEAD" ? null : comingSoonHtml(m, { siteName: site.name, ...(header.logo ? { logo: header.logo } : {}), lang: site.lang }), { status: 503, headers: { "Content-Type": "text/html; charset=utf-8", "Retry-After": String(retryAfter(m)), "Cache-Control": "no-store", "X-Robots-Tag": "noindex", ...HEADERS } });
@@ -245,6 +254,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const response = goneStatus ? await next("/404") : await next();
 	// A signed-in editor (or an edit/preview link) gets its own page: never stored for everyone else.
 	if (isEditor(context.cookies, context.url) && context.cache?.enabled) context.cache.set(false);
+	// A coming-soon preview visitor (Site health → Settings → preview link) sees the site: never stored for everyone else.
+	if (context.cookies.get(PREVIEW_COOKIE) && context.cache?.enabled) context.cache.set(false);
 	// A Motion preview link (?motion-preview=…, Plugins → Motion) is never stored either.
 	if (context.url.searchParams.has(MOTION_PREVIEW) && context.cache?.enabled) context.cache.set(false);
 	// Responsive images (EmDash's /_image endpoint, Cloudflare Images binding): when a transform fails (e.g. the
