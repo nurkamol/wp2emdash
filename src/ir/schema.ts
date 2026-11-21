@@ -513,6 +513,21 @@ export const irPage = z.object({
 			robots: z.string().optional(),
 			ogImage: z.string().optional(),
 			jsonLdTypes: z.array(z.string()).default([]),
+			/**
+			 * Custom social sharing text the editor set in Yoast / Rank Math (src/transform/social-seo.ts), or an owner
+			 * override: load stores it in the SEO plugin's per-entry store, printed by its `page:metadata` hook.
+			 */
+			social: z
+				.object({
+					ogTitle: z.string().optional(),
+					ogDescription: z.string().optional(),
+					ogImage: z.string().optional(),
+					twitterTitle: z.string().optional(),
+					twitterDescription: z.string().optional(),
+					twitterImage: z.string().optional(),
+					source: z.enum(["yoast", "rank-math", "override"]),
+				})
+				.optional(),
 		})
 		.default({ jsonLdTypes: [] }),
 	/** WordPress featured image (social image fallback, listings). */

@@ -42,6 +42,8 @@ import type { IrSettings } from "../transform/settings.js";
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
 import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
+import { loadSocial, socialImageUrls, socialPayload } from "../targets/emdash/social.js";
+import type { TermSeoPlan } from "../transform/term-meta.js";
 
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
 const write = (file: string, data: unknown) => {
@@ -273,6 +275,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const colBySlug = new Map(cptCols.map((c) => [c.slug, c]));
 		// WordPress comments (ir/comments.json): collections that take new comments get the "Comments closed" field.
 		const commentsFile = readJson<CommentsFile>(join(paths.ir, "comments.json"));
+		const termSeoFile = readJson<TermSeoPlan>(join(paths.ir, "term-seo.json"));
 		const commentForm = new Set((commentsFile?.collections ?? []).filter((c) => c.form).map((c) => c.slug));
 		const commentsClosed = new Set((commentsFile?.entries ?? []).filter((e) => e.closed).map((e) => e.key));
 		const irDocs = ["pages", "posts"].flatMap((d) => (existsSync(join(paths.ir, d)) ? readdirSync(join(paths.ir, d)).filter((f) => f.endsWith(".json")).map((f) => readJson<IrPage>(join(paths.ir, d, f)) as IrPage) : []));
@@ -441,15 +444,20 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		for (const s of sectionsPlan?.sections ?? []) collect(s.content);
 		// Social sharing image (og:image from the SEO plugin): uploaded like any other picture and set as the page's SEO image.
 		const uploadPath = (u: string) => /\/(?:wp-content\/uploads|storage)\/(.+)$/.exec(u.split(/[?#]/)[0] ?? "")?.[1]?.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/i, "").toLowerCase();
-		const ogRef = (d: IrPage): MediaRef | undefined => {
-			const u = d.seo.ogImage;
+		const urlRef = (u: string | undefined): MediaRef | undefined => {
 			if (!u || !/^https?:/.test(u)) return undefined;
 			const path = uploadPath(u);
 			const m = path ? manifest.find((x) => x.id && x.file?.toLowerCase() === path) : undefined;
 			return m ? { kind: "image", wpId: m.id as number, ...(m.alt ? { alt: m.alt } : {}) } : siteHosts.has(new URL(u).host.replace(/^www\./, "")) ? undefined : { kind: "image", url: u };
 		};
+		const ogRef = (d: IrPage) => urlRef(d.seo.ogImage);
 		for (const d of docs) {
 			const r = ogRef(d);
+			if (r) refs.set(mediaKey(r), r);
+		}
+		// Sharing images the SEO plugin keeps (a page's own X/Twitter image, an archive's sharing images): uploaded too.
+		for (const u of socialImageUrls(docs, termSeoFile)) {
+			const r = urlRef(u);
 			if (r) refs.set(mediaKey(r), r);
 		}
 		// Files linked from content (PDFs, Word, Excel, ZIP… and pictures opened by a link): uploaded too, so the links can
@@ -875,6 +883,21 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				}
 			}
 			check("references", "Reference fields and parents point at the migrated entries", refErrors.length === 0, refErrors.slice(0, 5).join("; ") || `${links} links in ${withRefs.length} entries`);
+		}
+
+		// ── Sharing text and archive SEO → the SEO plugin's stores (src/targets/emdash/social.ts) ──────────────────────
+		if (config.seo.panel) {
+			const payload = socialPayload(docs, termSeoFile, (d) => idMap.content[`${d.source.type}:${d.source.wpId}`], (u) => {
+				const r = urlRef(u);
+				const url = r ? idMap.media[mediaKey(r)]?.url : undefined;
+				return url?.startsWith("/_emdash/api/media/file/") ? url : undefined;
+			});
+			if (payload.entries.length || payload.terms.length) {
+				reporter.emit({ type: "step:start", step: "Sharing text and archive SEO", total: payload.entries.length + payload.terms.length });
+				const r = await loadSocial(api, payload);
+				reporter.emit({ type: "step:end", step: "Sharing text and archive SEO", ok: r.ok, detail: r.detail });
+				check("seo-social", "Sharing text and archive SEO in the SEO plugin (per page and per term archive)", r.ok, r.detail);
+			}
 		}
 
 		// ── Comments: WordPress comments through the kit's import route, approved through EmDash's moderation ──────

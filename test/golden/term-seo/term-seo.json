@@ -1,0 +1,69 @@
+{
+	"version": 1,
+	"terms": [
+		{
+			"taxonomy": "category",
+			"wpTaxonomy": "category",
+			"wpId": 7,
+			"slug": "news",
+			"label": "News",
+			"path": "/category/news/",
+			"title": "News from the studio | Example Journal",
+			"description": "Schedule changes, new classes and studio news",
+			"ogTitle": "Studio news",
+			"twitterImage": "https://blog.example.test/wp-content/uploads/2024/05/photo.jpg",
+			"source": "yoast"
+		},
+		{
+			"taxonomy": "category",
+			"wpTaxonomy": "category",
+			"wpId": 8,
+			"slug": "workshops",
+			"label": "Workshops",
+			"path": "/category/workshops/",
+			"noindex": true,
+			"source": "yoast"
+		},
+		{
+			"taxonomy": "tag",
+			"wpTaxonomy": "post_tag",
+			"wpId": 21,
+			"slug": "breathing",
+			"label": "Breathing",
+			"path": "/tag/breathing/",
+			"source": "override",
+			"title": "Breathing exercises | Example Journal",
+			"overridden": true
+		},
+		{
+			"taxonomy": "tag",
+			"wpTaxonomy": "post_tag",
+			"wpId": 20,
+			"slug": "tips",
+			"label": "Tips",
+			"path": "/tag/tips/",
+			"title": "Tips tips | Example Journal",
+			"description": "Short practical tips for your practice",
+			"noindex": true,
+			"ogTitle": "Tips worth sharing",
+			"twitterTitle": "Tips on X",
+			"source": "rank-math"
+		}
+	],
+	"notCarried": [
+		{
+			"wpTaxonomy": "post_format",
+			"terms": 1,
+			"why": "taxonomy not migrated (no archive on the new site)"
+		},
+		{
+			"wpTaxonomy": "(Rank Math term meta)",
+			"terms": 1,
+			"why": "term not in a migrated taxonomy (no archive on the new site)"
+		}
+	],
+	"sources": {
+		"yoast": true,
+		"rankMath": true
+	}
+}

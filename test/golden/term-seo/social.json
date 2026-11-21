@@ -1,0 +1,15 @@
+{
+	"hello": {
+		"ogTitle": "Hello from the journal",
+		"ogDescription": "Hello Gutenberg | our first post",
+		"twitterTitle": "Hello, X",
+		"twitterImage": "https://blog.example.test/wp-content/uploads/2024/06/team.jpg",
+		"source": "yoast"
+	},
+	"classic": {
+		"ogTitle": "Classic notes",
+		"ogDescription": "Notes for every class",
+		"twitterDescription": "Classic notes, for X",
+		"source": "override"
+	}
+}

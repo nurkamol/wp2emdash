@@ -8,13 +8,14 @@ import { join } from "node:path";
 import { BRICKS_OPTIONS } from "../adapters/bricks/site.js";
 import { sitePaths } from "../core/paths.js";
 import { folderSourcesFromDump } from "../extract/media-folders.js";
-import { readOptionsFromDump } from "../extract/sql-options.js";
+import { phpUnserialize, readOptionsFromDump, readTablesFromDump } from "../extract/sql-options.js";
+import { rankMathTermMeta, SEO_TERMMETA_FILE } from "../transform/term-meta.js";
 
 /**
- * Rank Math and Yoast options the site settings read (social profiles, default sharing image, verification), and Yoast's
- * per-term SEO values (`wpseo_taxonomy_meta`: counted in the transform report; EmDash terms have no SEO fields).
+ * Rank Math and Yoast options the site settings read (social profiles, default sharing image, verification, title
+ * separator), and Yoast's per-term SEO values (`wpseo_taxonomy_meta`: carried into the SEO plugin's archive store).
  */
-export const SEO_OPTIONS = ["rank-math-options-titles", "rank-math-options-general", "wpseo_social", "wpseo", "wpseo_taxonomy_meta"];
+export const SEO_OPTIONS = ["rank-math-options-titles", "rank-math-options-general", "wpseo_social", "wpseo", "wpseo_titles", "wpseo_taxonomy_meta"];
 
 /** WordPress discussion settings (Settings → Discussion) for the comment settings: plain flags and numbers, no secrets. */
 export const DISCUSSION_OPTIONS = ["default_comment_status", "comment_moderation", "comment_previously_approved", "close_comments_for_old_posts", "close_comments_days_old", "comment_registration", "require_name_email", "thread_comments", "thread_comments_depth"];
@@ -40,7 +41,7 @@ export function withoutSecrets(v: unknown, dropped: string[] = [], path = "", se
 	return v;
 }
 
-export async function importOptions(slug: string, dump: string, sitesDir?: string): Promise<{ file: string; found: string[]; missing: string[]; dropped: string[]; folders: string[] }> {
+export async function importOptions(slug: string, dump: string, sitesDir?: string): Promise<{ file: string; found: string[]; missing: string[]; dropped: string[]; folders: string[]; termSeo: number }> {
 	if (!existsSync(dump)) throw new Error(`No such file: ${dump}`);
 	const paths = sitesDir ? sitePaths(slug, sitesDir) : sitePaths(slug);
 	const all = await readOptionsFromDump(dump, [...BRICKS_OPTIONS, ...SEO_OPTIONS, ...DISCUSSION_OPTIONS]);
@@ -55,8 +56,18 @@ export async function importOptions(slug: string, dump: string, sitesDir?: strin
 	// Discussion settings for the comments plan (src/transform/comments.ts): scalars only.
 	const discussion = Object.fromEntries(Object.entries(all).filter(([k, v]) => DISCUSSION_OPTIONS.includes(k) && (typeof v === "string" || typeof v === "number")));
 	if (Object.keys(discussion).length) writeFileSync(join(paths.raw, "discussion.json"), `${JSON.stringify(discussion, null, 2)}\n`);
+	// Rank Math per-term SEO (rows of <prefix>termmeta, its keys only): src/transform/term-meta.ts.
+	const termmeta = rankMathTermMeta((await readTablesFromDump(dump, ["termmeta"], { termmeta: ["meta_id", "term_id", "meta_key", "meta_value"] })).termmeta ?? [], (raw) => {
+		try {
+			return phpUnserialize(raw);
+		} catch {
+			return raw;
+		}
+	});
+	const termFile = join(paths.raw, SEO_TERMMETA_FILE);
+	if (Object.keys(termmeta).length) writeFileSync(termFile, `${JSON.stringify({ rankMath: termmeta }, null, 2)}\n`);
 	// FileBird / Real Media Library folders (their own tables; folder names, parents and attachment ids only).
 	const folders = await folderSourcesFromDump(dump);
 	if (folders.length) writeFileSync(join(paths.raw, "media-folders-dump.json"), `${JSON.stringify({ sources: folders }, null, 2)}\n`);
-	return { file, found: Object.keys(clean), missing: BRICKS_OPTIONS.filter((k) => !(k in clean)), dropped, folders: folders.map((f) => `${f.plugin} (${f.folders.length} folders)`) };
+	return { file, found: Object.keys(clean), missing: BRICKS_OPTIONS.filter((k) => !(k in clean)), dropped, folders: folders.map((f) => `${f.plugin} (${f.folders.length} folders)`), termSeo: Object.keys(termmeta).length };
 }

@@ -79,7 +79,7 @@ export async function importDump(slug: string, dir?: string, sitesDir?: string):
 		if (/\.sql$/i.test(name)) {
 			try {
 				const r = await importOptions(slug, file, sitesDir);
-				items.push({ file: rel, used: `database dump → raw/bricks-options.json (${r.found.length ? r.found.join(", ") : "no builder options"}${r.dropped.length ? `; ${r.dropped.length} credential-like setting(s) left out` : ""}${r.folders.length ? `; media folders: ${r.folders.join(", ")} → raw/media-folders-dump.json` : ""}). Form entries and users are never read.`, ok: true });
+				items.push({ file: rel, used: `database dump → raw/bricks-options.json (${r.found.length ? r.found.join(", ") : "no builder options"}${r.dropped.length ? `; ${r.dropped.length} credential-like setting(s) left out` : ""}${r.folders.length ? `; media folders: ${r.folders.join(", ")} → raw/media-folders-dump.json` : ""}${r.termSeo ? `; Rank Math term SEO for ${r.termSeo} term(s) → raw/seo-termmeta.json` : ""}). Form entries and users are never read.`, ok: true });
 			} catch (e) {
 				items.push({ file: rel, used: `database dump not read: ${(e as Error).message}`, ok: false });
 			}

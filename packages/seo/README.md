@@ -1,5 +1,26 @@
 # @wp2emdash/seo (experimental) — SEO & Analytics
 
+Version 0.3.0 adds **sharing text per page** and **archive SEO** (below), exports `/social` (read by the starter and
+the kit's load) and declares `taxonomies:read`.
+
+## Sharing text and archive SEO (0.3)
+
+- **Per page** (KV `social:<collection>:<entryId>` = D1 row `plugin:site-seo:social:…`): Open Graph and X (Twitter) title,
+  description and image. Carried from Yoast / Rank Math by the kit's load (admin route `seo-import`); edited in the page
+  editor's SEO panel → **Social sharing** (contributors and up, as the panel). Images are addresses (https:// or a media
+  library file address): Block Kit 1.5 renders no media picker.
+- **Per term archive** (KV `term:<taxonomy>:<slug>`): SEO title (the whole `<title>`), meta description, noindex and the same
+  sharing fields. Carried from Yoast `wpseo_taxonomy_meta` / Rank Math term meta; edited in the dashboard tab
+  **Archives** (editors and admins; terms listed with `taxonomies:read`).
+- **Rendering:** the `page:metadata` hook (priority 50, so before `@wp2emdash/og`'s cards; plugin tags are first-wins)
+  prints only what is set. Twitter falls back to Open Graph; empty fields fall back to EmDash's own tags (the entry's SEO
+  title, description and image, or the sharing card). Archives: og/twitter fall back to the archive's SEO title and
+  description, plus `description` and `robots: noindex, follow`. The archive's `<title>` comes from the starter, which
+  reads the same row (`readTermSeo`, one primary-key read per uncached render). The hook finds an archive's term from its
+  address with the `archives` option (taxonomy + base; scaffold passes the blog and collection archives).
+- **Saves** purge the cached pages (`purgePages`: tags `wp2emdash:analytics` and `emdash:settings`, which every page
+  carries). A value saved in the admin is marked `editor`; load's import keeps it and reports it as "kept".
+
 Version 0.2.1 exports `/site-checks` and `/plugin/collect` and lets the Visits query take a date range (used by
 `@wp2emdash/health` for its monthly report).
 
