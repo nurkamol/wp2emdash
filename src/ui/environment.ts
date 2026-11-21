@@ -240,6 +240,7 @@ export function runtimeSecrets(ctx: SiteContext, env: EnvName): { name: string; 
 		...(ctx.config.health !== false
 			? [
 					{ name: "CRUX_API_KEY", required: false, why: "Optional: Site health's real-visitor Core Web Vitals (Google Chrome UX Report API key). Without it the speed check uses the page build time only." },
+					{ name: "PAGESPEED_API_KEY", required: false, why: "Optional: Site health's weekly PageSpeed lab score (Google Cloud key with the PageSpeed Insights API). Without it CRUX_API_KEY is used, if that key has the API enabled." },
 					{ name: "CF_ZONE_READ_TOKEN", required: false, why: "Optional: Site health reads the certificate expiry (Zone Read + SSL and Certificates Read on this zone only). Cloudflare renews certificates itself." },
 				]
 			: []),

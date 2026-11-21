@@ -4,7 +4,8 @@
  *
  * - `cron` hook, task `tick` every 5 minutes (EmDash plugin cron, run by the Worker's scheduled handler through
  *   EmDash's `runScheduledTasks`): runs the checks that are due (schedule.ts), sends alerts, makes the monthly report.
- *   Scheduled on install/activate and re-checked whenever an admin opens the page.
+ *   Scheduled on install/activate and re-checked whenever an admin opens the page. After the checks the same tick
+ *   runs the weekly PageSpeed lab test when due or asked for (lab.ts; up to 90 s waiting on Google).
  * - `admin` route (EmDash's default `plugins:manage`, admins only; checked again here): the Site health page and the
  *   dashboard widget; "Run checks now" (single flight, at most every 2 minutes), settings, reports.
  * - `report` route (public GET, raw): a report as a print-friendly HTML file, only for a random token an admin's
@@ -28,6 +29,8 @@ import type { LinkJob } from "../checks/links.js";
 import { renderReportHtml, type ReportData } from "../report.js";
 import { adminUrl, alertRecipients, currentImprovements, emailReport, type HealthEnv, makeReport, reportFormsTrend, type RunDeps, runChecks, settingsOf, storeReport } from "../run.js";
 import { TICK_SCHEDULE, TICK_TASK } from "../schedule.js";
+import { runLab } from "../lab.js";
+import { LAB_MANUAL_EVERY, labKey, type LabRequest, readLab } from "../checks/lab.js";
 import { parseRewarmSetting, REWARM_INTERVALS, REWARM_KEYS, type RewarmLast } from "../cache.js";
 import { type Cwv, type DayRow, type Incident, KEYS, type Kv, type LinksResult, readState, type Settings, type Today } from "../store.js";
 import { monthOf, previousMonth } from "../util.js";
@@ -48,6 +51,8 @@ export function previewKey(): string {
 	return btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 const DOWNLOAD_MS = 2 * 60_000;
+/** The cron hook's timeout: the checks (≤ 25 s) plus the PageSpeed test (≤ 90 s) and margin. */
+export const CRON_TIMEOUT = 150_000;
 const TEST_EVERY = 10 * 60_000;
 /** "Refresh all pages now" at most every 5 minutes (one purge, one refill per cron tick). */
 const REFRESH_EVERY = 5 * 60_000;
@@ -113,7 +118,7 @@ function deps(ctx: Ctx, env: WorkerEnv, o: HealthOptions): RunDeps | undefined {
 
 async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Partial<PageData> = {}): Promise<PageData> {
 	const kv = ctx.kv;
-	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance, csp, security] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance), kv.get<CspStore>(KEYS.csp), kv.get<SecurityFacts>(KEYS.security)]);
+	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance, csp, security, lab, labRequest] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance), kv.get<CspStore>(KEYS.csp), kv.get<SecurityFacts>(KEYS.security), kv.get<unknown>(KEYS.lab), kv.get<LabRequest>(KEYS.labRequest)]);
 	// "What to improve": the same list the monthly report carries, from what is stored now (never fails the page).
 	const improve = await reportFormsTrend(kv)
 		.then((forms) => currentImprovements({ kv, options: o, env }, forms ? { forms } : {}))
@@ -139,7 +144,9 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 		email: { ready: ready.ok, ...(ready.ok ? {} : { reason: ready.reason }), provider: env.EMAIL_PROVIDER === "emdash" ? "EmDash email settings" : (env.EMAIL_PROVIDER ?? "brevo") },
 		live: o.live,
 		staging: env.STAGING === "1",
-		secrets: { crux: !!env.CRUX_API_KEY?.trim(), zone: !!env.CF_ZONE_READ_TOKEN?.trim(), analytics: !!env.CF_ANALYTICS_TOKEN?.trim() },
+		secrets: { crux: !!env.CRUX_API_KEY?.trim(), pagespeed: !!env.PAGESPEED_API_KEY?.trim(), zone: !!env.CF_ZONE_READ_TOKEN?.trim(), analytics: !!env.CF_ANALYTICS_TOKEN?.trim() },
+		lab: readLab(lab),
+		labRequest,
 		selfBinding: !!env.SELF,
 		productionUrl: o.productionUrl,
 		...(cache ? { cache } : {}),
@@ -216,6 +223,8 @@ export function createPlugin(options: HealthOptions) {
 		}
 		const r = await runChecks(d);
 		if (r.ran.length) ctx.log?.info("health run", { ran: r.ran.join(","), alertsSent: r.alerts.sent, ...(r.skipped ? { skipped: r.skipped } : {}) });
+		// The weekly / asked-for PageSpeed test, after the checks (one KV read when nothing is due; lab.ts).
+		await runLab({ ...d, now: Date.now() }).catch((e: unknown) => ctx.log?.warn?.("health pagespeed failed", { error: e instanceof Error ? e.name : "error" }));
 	};
 	return definePlugin({
 		...HEALTH_PLUGIN,
@@ -224,8 +233,11 @@ export function createPlugin(options: HealthOptions) {
 		hooks: {
 			"plugin:install": async (_event: unknown, ctx: unknown) => ensureCron((ctx as Ctx).cron),
 			"plugin:activate": async (_event: unknown, ctx: unknown) => ensureCron((ctx as Ctx).cron),
-			// A run stays far below this (schedule.ts: ≤ 3 + 5 + 12 requests, 8 s time limit each, 3 at a time).
-			cron: { timeout: 25_000, handler: async (event: { name: string }, ctx: unknown) => (event.name === TICK_TASK ? tick(ctx as Ctx) : undefined) },
+			// The checks stay far below 25 s (schedule.ts: ≤ 3 + 5 + 12 requests, 8 s time limit each, 3 at a time); the
+			// weekly PageSpeed test after them waits up to 90 s on Google (mobile and desktop in parallel). EmDash races the
+			// hook against this timeout without aborting it, and the scheduled event's waitUntil ends when the hook does:
+			// leave room for both. Scheduled Workers may run 15 minutes of wall time; waiting on fetch is not CPU time.
+			cron: { timeout: CRON_TIMEOUT, handler: async (event: { name: string }, ctx: unknown) => (event.name === TICK_TASK ? tick(ctx as Ctx) : undefined) },
 		},
 		admin: {
 			pages: [{ path: PAGE, label: "Site health", icon: "heartbeat" }],
@@ -255,6 +267,18 @@ export function createPlugin(options: HealthOptions) {
 						const r = await runChecks(d, { manual: true });
 						const message = r.skipped === "locked" ? "Checks are running already; refresh in a minute." : r.skipped === "too-soon" ? "Checks ran less than 2 minutes ago." : `Checks done: ${r.ran.length} run${r.state.checks.links && r.ran.includes("links") ? "; the link check continues in the background" : ""}.`;
 						return { blocks: await show(), toast: { message, type: r.skipped ? "info" : "success" } };
+					}
+					if (i.type === "block_action" && act === "lab-run") {
+						// Only stores the request: a Lighthouse run takes up to a minute, longer than an admin request's
+						// waitUntil allows; the next cron tick (within 5 minutes) runs it (lab.ts).
+						if (env.STAGING === "1") return { blocks: await show(TABS.speed), toast: { message: "PageSpeed tests run on the production site only.", type: "info" } };
+						if (!labKey(env)) return { blocks: await show(TABS.speed), toast: { message: "Add a Google API key first (see the steps under Lab score).", type: "error" } };
+						const now = Date.now();
+						const asked = await ctx.kv.get<LabRequest>(KEYS.labRequest);
+						if (asked?.at && now - Date.parse(asked.at) < LAB_MANUAL_EVERY) return { blocks: await show(TABS.speed), toast: { message: asked.done ? "A test ran less than 10 minutes ago." : "A test is already on its way: results within about 5 minutes.", type: "info" } };
+						await ctx.kv.set(KEYS.labRequest, { at: new Date(now).toISOString() });
+						ctx.log?.info("health pagespeed asked", {});
+						return { blocks: await show(TABS.speed), toast: { message: "PageSpeed test asked for: results within about 5 minutes (Google needs up to a minute per test).", type: "success" } };
 					}
 					if (i.type === "form_submit" && act === "save-settings") {
 						const v = i.values ?? {};

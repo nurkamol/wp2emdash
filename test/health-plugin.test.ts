@@ -9,6 +9,7 @@ import { healthPlugin } from "../packages/health/src/index.js";
 import { createPlugin, ensureCron } from "../packages/health/src/plugin/index.js";
 import { overallOf, trend } from "../packages/health/src/plugin/views.js";
 import { KEYS } from "../packages/health/src/store.js";
+import { PSI_TIMEOUT } from "../packages/health/src/checks/lab.js";
 import { kitConfigSchema } from "../src/config/schema.js";
 import { wranglerJsonc } from "../src/phases/scaffold.js";
 import { clientRepoFiles, type ClientRepoInput } from "../src/scaffold/client-repo.js";
@@ -63,7 +64,10 @@ describe("Site health plugin", () => {
 		expect(plugin.routes.status?.permission).toBe("plugins:manage");
 		expect(plugin.routes.report).toMatchObject({ public: true, methods: ["GET"], response: "raw" });
 		expect(plugin.routes.heartbeat).toMatchObject({ public: true, methods: ["GET"] });
-		expect(plugin.hooks.cron.timeout).toBeLessThanOrEqual(30_000);
+		// Room for the checks (≤ 25 s) and the PageSpeed test (≤ 90 s); under EmDash's 10-minute stale-task lock and the
+		// 15-minute wall time of a scheduled Worker.
+		expect(plugin.hooks.cron.timeout).toBeGreaterThanOrEqual(25_000 + PSI_TIMEOUT);
+		expect(plugin.hooks.cron.timeout).toBeLessThan(10 * 60_000);
 	});
 	it("schedules its 5-minute task on install, once", async () => {
 		await plugin.hooks["plugin:install"]({}, { cron });
@@ -181,9 +185,17 @@ describe("kit side", () => {
 		expect(on["docs/editor-guide.md"]).toContain("at most one per issue per day");
 		expect(on["docs/deployment.md"]).toContain("CRUX_API_KEY");
 		expect(on["docs/deployment.md"]).toContain("CF_ZONE_READ_TOKEN");
+		expect(on["docs/deployment.md"]).toMatch(/PAGESPEED_API_KEY .*optional/);
 		const off = clientRepoFiles(input);
 		expect(off["docs/editor-guide.md"]).not.toContain("Site health");
 		expect(off["docs/deployment.md"]).not.toContain("CRUX_API_KEY");
+		expect(off["docs/deployment.md"]).not.toContain("PAGESPEED_API_KEY");
+	});
+	it("the dashboard's Secrets view lists the optional PAGESPEED_API_KEY with a format check", () => {
+		const psi = SECRET_KEYS.find((s) => s.key === "PAGESPEED_API_KEY");
+		expect(psi?.label).toContain("optional");
+		expect(psi?.help).toContain("CRUX_API_KEY");
+		expect(psi?.check?.(`AIza${"SyTESTKEY0123456789abcdefghijklmnop"}`)).toBe(true);
 	});
 	it("the dashboard's Secrets view lists the optional CRUX_API_KEY with a format check", () => {
 		const crux = SECRET_KEYS.find((s) => s.key === "CRUX_API_KEY");

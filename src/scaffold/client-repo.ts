@@ -146,6 +146,7 @@ Optional, for **Site health** (each check explains itself on the page while its 
 
 \`\`\`bash
 npx wrangler secret put CRUX_API_KEY         # real-visitor speed: a free Google Cloud API key with the Chrome UX Report API enabled
+npx wrangler secret put PAGESPEED_API_KEY    # weekly lab score: a Google Cloud API key with the PageSpeed Insights API enabled (optional: CRUX_API_KEY is used when that key has both APIs enabled)
 npx wrangler secret put CF_ZONE_READ_TOKEN   # certificate expiry: Cloudflare token with Zone → Zone → Read and Zone → SSL and Certificates → Read, this zone only
 \`\`\`
 
@@ -207,6 +208,11 @@ const healthGuide = (h: ClientRepoInput["health"], productionUrl: string) =>
   or delete it; or fix the link that sent people there. Requests for WordPress login pages and similar bot probes are
   left out.
 - **Run checks now** re-checks everything except links (which continue in the background).
+- **Lab score (PageSpeed)** on the Speed tab, when your developer added a Google API key: once a week Google tests the
+  home page on a simulated phone and a desktop and scores it 0–100 (90+ good), with the trend over 26 weeks and the
+  element that loads last. It is a lab test from one place; the real-visitor numbers above it are what visitors
+  actually experienced. **Run PageSpeed test now** gives a fresh result within about 5 minutes. You get an email when
+  the phone score drops by 15 points or more.
 
 **Coming-soon mode** (Site health → Settings): shows every visitor a holding page with your logo and a message of your
 own instead of the site — for example while it is being rebuilt — and tells search engines to come back later, so the

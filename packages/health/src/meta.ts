@@ -1,2 +1,2 @@
 /** Plugin identity (shared by the Node-side descriptor and the Worker-side plugin; they must match). */
-export const HEALTH_PLUGIN = { id: "site-health", version: "0.4.0" } as const;
+export const HEALTH_PLUGIN = { id: "site-health", version: "0.5.0" } as const;

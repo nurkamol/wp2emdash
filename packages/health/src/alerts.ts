@@ -1,7 +1,8 @@
 /**
  * Alerts: an email when the site goes down or comes back, when a page keeps failing, when new broken links are found,
  * when search-engine access, form email, the mail DNS records, the certificate, the analytics tags or the security
- * policy start failing, and when visitors' browsers report a new kind of blocked script (csp.ts).
+ * policy start failing, when visitors' browsers report a new kind of blocked script (csp.ts), and when the weekly
+ * PageSpeed test's mobile performance score drops by 15 points or more (checks/lab.ts).
  *
  * Rate limit: at most ONE email per issue per day (an issue = what happened, e.g. "site down", "site back up", "new
  * broken links"), and at most MAX_PER_DAY alert emails a day in total; the Site health page always shows the current
@@ -87,6 +88,19 @@ export function alertEvents(o: { siteName: string; before: Partial<Record<CheckI
 		out.push({ issue: "links-new", severity: "problem", subject: `${o.siteName}: ${n} new broken link${n === 1 ? "" : "s"}`, lines: [`The daily link check found ${n} link${n === 1 ? "" : "s"} that no longer work${n === 1 ? "s" : ""}:`, ...o.freshLinks.slice(0, 10).map((l) => `${l.url} (${l.status ? `HTTP ${l.status}` : "no answer"})${l.on.length ? ` — linked from ${l.on.join(", ")}` : ""}`), ...(n > 10 ? [`…and ${n - 10} more on the Site health page.`] : [])] });
 	}
 	return out;
+}
+
+/** The weekly PageSpeed test found mobile performance down by LAB_DROP points or more (checks/lab.ts labDrop). Pure. */
+export function labAlertEvents(siteName: string, drop: { from: number; to: number } | undefined): AlertEvent[] {
+	if (!drop) return [];
+	return [
+		{
+			issue: "lab-drop",
+			severity: "problem",
+			subject: `${siteName}: the mobile speed score dropped to ${drop.to}`,
+			lines: [`Google's PageSpeed test scored the home page ${drop.to} for mobile performance, down from ${drop.from} at the previous test.`, "A new large image, video, font or script on the home page is the usual cause. The Speed tab of Site health shows which element loads last (LCP) and the scores over time.", "This is a lab test from one location; one low result can be noise, so check the next test or run one again from the Speed tab."],
+		},
+	];
 }
 
 export interface Mail {

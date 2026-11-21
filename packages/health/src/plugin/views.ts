@@ -4,6 +4,7 @@
 import { REWARM_INTERVALS, type RewarmLast, type RewarmSetting } from "../cache.js";
 import { MAX_RECIPIENTS } from "@wp2emdash/forms/outbox";
 import { missingText, RATING_LABEL, rate } from "../checks/speed.js";
+import { type LabRequest, type LabRun, type LabStore, labMissingText, latestOf, scoreLabel, scoreTrend, STRATEGIES } from "../checks/lab.js";
 import { headerRows, type SecurityFacts } from "../checks/headers.js";
 import { blockedLabel, type CspStore, isScriptDirective, meaning } from "../csp.js";
 import { cspLine } from "../report.js";
@@ -63,7 +64,10 @@ export interface PageData {
 	email: { ready: boolean; reason?: string; provider: string };
 	live: boolean;
 	staging: boolean;
-	secrets: { crux: boolean; zone: boolean; analytics: boolean };
+	secrets: { crux: boolean; pagespeed?: boolean; zone: boolean; analytics: boolean };
+	/** PageSpeed lab runs (checks/lab.ts) and the open "Run PageSpeed test now" request. */
+	lab?: LabStore;
+	labRequest?: LabRequest | null;
 	selfBinding: boolean;
 	productionUrl: string;
 	download?: { url: string; month: string };
@@ -179,7 +183,7 @@ function overview(d: PageData): Block[] {
 				return { check: CHECK_LABELS[id], status: BADGE[c?.status ?? "unknown"], summary: c ? [c.summary, ...(c.detail ?? [])].join(" ") : "Not checked yet.", at: c?.at ?? "", trend: trend(d.history, id) };
 			}),
 		},
-		{ type: "context", text: "✓ fine · ! needs a look · ✗ problem · · not checked. Uptime every 5 minutes, search engines, analytics, security headers and backups hourly, forms every 15 minutes, links, email DNS, certificate and real-visitor speed once a day (UTC)." },
+		{ type: "context", text: "✓ fine · ! needs a look · ✗ problem · · not checked. Uptime every 5 minutes, search engines, analytics, security headers and backups hourly, forms every 15 minutes, links, email DNS, certificate and real-visitor speed once a day, the PageSpeed lab score weekly (UTC)." },
 		{ type: "actions", elements: [{ type: "button", action_id: "run-now", label: "Run checks now", style: "primary" }] },
 		...(d.state.lastRunAt ? [{ type: "context", text: `Last run ${shortTime(d.state.lastRunAt)}.${d.linkJob ? ` A link check is running (${d.linkJob.done} of ${plural(d.linkJob.pages, "page")} read).` : ""}` }] : []),
 	];
@@ -318,10 +322,93 @@ function speedTab(d: PageData): Block[] {
 	} else items.push({ type: "banner", title: "Real-visitor speed not available", description: missingText(c?.missing ?? (d.secrets.crux ? "not-enough-data" : "no-key")), variant: "default" });
 	const rows = d.history.filter((r) => r.ttfb50 !== undefined).slice(-30);
 	if (rows.length) items.push({ type: "chart", config: { chart_type: "timeseries", style: "line", height: 220, x_axis_name: "Day", y_axis_name: "ms", series: [{ name: "Page build time (median)", data: rows.map((r) => [Date.parse(`${r.d}T12:00:00Z`), r.ttfb50 as number] as [number, number]) }] } });
+	items.push(...labSection(d));
 	items.push(...cacheSection(d));
 	items.push(...prefetchSection(d));
 	items.push({ type: "context", text: `Page build time${ttfb !== undefined ? ` today: ${ttfb} ms (median)` : ""} — how long the site takes to build the home page, measured inside Cloudflare every 5 minutes. Most visitors get a ready-made copy from the cache, which is faster; the developer's verify run measures that from outside.` });
 	return items;
+}
+
+const secs = (ms: number | undefined) => (ms === undefined ? "—" : `${(ms / 1000).toFixed(1)} s`);
+const msText = (ms: number | undefined) => (ms === undefined ? "—" : `${ms} ms`);
+const pts = (v: number | undefined) => (v === undefined ? "—" : String(v));
+/** "92 ▲ +4", "61 ▼ −12", "88 =" against the previous run of the same strategy. */
+export function withChange(cur: number | undefined, prev: number | undefined): string {
+	if (cur === undefined) return "—";
+	if (prev === undefined) return String(cur);
+	const diff = cur - prev;
+	return diff > 0 ? `${cur} ▲ +${diff}` : diff < 0 ? `${cur} ▼ −${-diff}` : `${cur} =`;
+}
+
+export const LAB_SETUP =
+	"Add a free Google Cloud API key as the Worker secret PAGESPEED_API_KEY: in Google Cloud console create (or pick) a project, open APIs & Services → Library and enable \"PageSpeed Insights API\", then APIs & Services → Credentials → Create credentials → API key (restrict it to that API). If the site already has CRUX_API_KEY, you can instead enable the PageSpeed Insights API on that same key's project: one key serves both, and PAGESPEED_API_KEY is then not needed. Without a key Google's shared quota is almost always used up.";
+
+/** The weekly PageSpeed Insights lab test: latest scores, the trend, setup steps when no key is set. */
+export function labSection(d: PageData): Block[] {
+	const lab = d.lab ?? { v: 1 as const, runs: [] };
+	const hasKey = !!(d.secrets.pagespeed || d.secrets.crux);
+	const out: Block[] = [{ type: "header", text: "Lab score (PageSpeed)" }];
+	out.push({ type: "context", text: "Lab score: Google loads the home page once from its own computers, on a simulated mid-range phone with a slow mobile connection and on a desktop, and scores it 0–100 (90+ good, 50–89 needs improvement, under 50 poor). It shows changes from week to week and what to fix. Real-visitor speed above is what actual visitors experienced over 28 days: that is what Google uses for search. The two often differ; a phone lab score in the 70s with good real-visitor numbers is normal." });
+	if (!hasKey) {
+		out.push({ type: "banner", title: "Lab score needs a Google API key", description: LAB_SETUP, variant: "default" });
+		if (!lab.runs.length) return out;
+	}
+	const m = latestOf(lab.runs, "mobile");
+	const dk = latestOf(lab.runs, "desktop");
+	if (m || dk) {
+		const latest = [m, dk].filter((r): r is LabRun => !!r).sort((a, b) => (a.at < b.at ? 1 : -1))[0] as LabRun;
+		out.push({ type: "stats", items: [...(m ? [{ label: "Mobile performance", value: pts(m.perf), description: scoreLabel(m.perf), trend: scoreTrend(m.perf) }] : []), ...(dk ? [{ label: "Desktop performance", value: pts(dk.perf), description: scoreLabel(dk.perf), trend: scoreTrend(dk.perf) }] : []), { label: "Accessibility", value: pts((m ?? dk)?.a11y), trend: scoreTrend((m ?? dk)?.a11y) }, { label: "Best practices", value: pts((m ?? dk)?.bp), trend: scoreTrend((m ?? dk)?.bp) }, { label: "SEO", value: pts((m ?? dk)?.seo), trend: scoreTrend((m ?? dk)?.seo) }] });
+		const row = (metric: string, f: (r: LabRun) => string) => ({ metric, mobile: m ? f(m) : "—", desktop: dk ? f(dk) : "—" });
+		out.push({
+			type: "table",
+			block_id: "lab-latest",
+			page_action_id: "noop",
+			columns: [
+				{ key: "metric", label: `Latest test (${latest.at.slice(0, 10)})` },
+				{ key: "mobile", label: "Mobile" },
+				{ key: "desktop", label: "Desktop" },
+			],
+			rows: [row("First Contentful Paint (first text or image)", (r) => secs(r.fcp)), row("Largest Contentful Paint (main content shown)", (r) => secs(r.lcp)), row("Total Blocking Time (page busy, cannot react)", (r) => msText(r.tbt)), row("Cumulative Layout Shift (things jumping)", (r) => (r.cls === undefined ? "—" : r.cls.toFixed(2))), row("Speed Index (how fast it fills in)", (r) => secs(r.si))],
+		});
+		const el = m?.lcpEl ?? dk?.lcpEl;
+		if (el) out.push({ type: "context", text: `Largest element on the first screen (the one LCP waits for${m?.lcpEl ? ", on mobile" : ""}): ${el}` });
+		if (latest.pre) out.push({ type: "context", text: "Tested before go-live: the domain still showed the old site, so these scores describe the old site — a useful baseline." });
+	} else out.push({ type: "context", text: "No test has finished yet: the first one runs within about 5 minutes and takes up to a minute." });
+
+	const mobile = lab.runs.filter((r) => r.strategy === "mobile" && r.perf !== undefined);
+	const desktop = lab.runs.filter((r) => r.strategy === "desktop" && r.perf !== undefined);
+	if (mobile.length + desktop.length > 2)
+		out.push({ type: "chart", config: { chart_type: "timeseries", style: "line", height: 220, x_axis_name: "Test", y_axis_name: "Performance score", series: [{ name: "Mobile", data: mobile.map((r) => [Date.parse(r.at), r.perf as number] as [number, number]) }, { name: "Desktop", data: desktop.map((r) => [Date.parse(r.at), r.perf as number] as [number, number]) }] } });
+	const times = [...new Set(lab.runs.map((r) => r.at))].sort().reverse().slice(0, 8);
+	if (times.length > 1) {
+		const prevOf = (s: string, at: string) => lab.runs.filter((r) => r.strategy === s && r.at < at && r.perf !== undefined).at(-1)?.perf;
+		out.push({
+			type: "table",
+			block_id: "lab-history",
+			page_action_id: "noop",
+			columns: [
+				{ key: "at", label: "Test" },
+				{ key: "mobile", label: "Mobile performance" },
+				{ key: "desktop", label: "Desktop performance" },
+				{ key: "lcp", label: "Mobile LCP" },
+			],
+			rows: times.map((at) => {
+				const get = (s: string) => lab.runs.find((r) => r.at === at && r.strategy === s);
+				const mm = get("mobile");
+				const dd = get("desktop");
+				return { at: `${shortTime(at)}${mm?.pre || dd?.pre ? " (old site)" : ""}`, mobile: withChange(mm?.perf, mm ? prevOf("mobile", at) : undefined), desktop: withChange(dd?.perf, dd ? prevOf("desktop", at) : undefined), lcp: secs(mm?.lcp) };
+			}),
+		});
+	}
+	const missing = lab.last?.missing ?? {};
+	const failed = STRATEGIES.filter((s) => missing[s]);
+	if (hasKey && failed.length && lab.last) out.push({ type: "banner", title: "The last test did not finish", description: `${shortTime(lab.last.at)}, ${failed.join(" and ")}: ${[...new Set(failed.map((s) => labMissingText(missing[s] as string)))].join(" ")}`, variant: "alert" });
+	if (d.labRequest && !d.labRequest.done) out.push({ type: "banner", title: "Test asked for", description: `Asked ${shortTime(d.labRequest.at)}: the next check run (within 5 minutes) tests the home page; Google needs up to a minute. Reopen this tab to see the result.`, variant: "default" });
+	if (hasKey && !d.staging) {
+		out.push({ type: "actions", elements: [{ type: "button", action_id: "lab-run", label: "Run PageSpeed test now", style: "secondary" }] });
+		out.push({ type: "context", text: `Tested every 7 days (mobile and desktop)${lab.next ? `; next scheduled test from ${shortTime(lab.next)}` : ""}. Kept 26 weeks. An email goes out when the mobile performance score drops by 15 points or more. Uses ${d.secrets.pagespeed ? "PAGESPEED_API_KEY" : "CRUX_API_KEY (the PageSpeed Insights API must be enabled for it too)"}.` });
+	} else if (d.staging) out.push({ type: "context", text: "PageSpeed tests run on the production site only." });
+	return out;
 }
 
 /** Page preloading: a status line only (the kit config switches it; nothing for the owner to tune). */
@@ -534,6 +621,7 @@ function settingsTab(d: PageData): Block[] {
 			type: "fields",
 			fields: [
 				{ label: "Real-visitor speed (CRUX_API_KEY)", value: d.secrets.crux ? "Set" : "Not set — a free Google API key with the Chrome UX Report API" },
+				{ label: "Weekly lab score (PAGESPEED_API_KEY)", value: d.secrets.pagespeed ? "Set" : d.secrets.crux ? "Not set — CRUX_API_KEY is used (enable the PageSpeed Insights API for it)" : "Not set — a free Google API key with the PageSpeed Insights API" },
 				{ label: "Certificate expiry (CF_ZONE_READ_TOKEN)", value: d.secrets.zone ? "Set" : "Not set — Cloudflare renews the certificate on its own" },
 				{ label: "Visits in the report (CF_ANALYTICS_TOKEN)", value: d.secrets.analytics ? "Set" : "Not set — the report leaves visits out" },
 			],

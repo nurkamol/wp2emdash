@@ -6,7 +6,7 @@
  */
 import type { OutboxEnv } from "@wp2emdash/forms/outbox";
 import type { D1Like } from "@wp2emdash/seo/analytics/store";
-import { alertEvents, alertMail, type AlertLog, pickAlerts } from "./alerts.js";
+import { type AlertEvent, alertEvents, alertMail, type AlertLog, pickAlerts } from "./alerts.js";
 import { analyticsCheck, expectedTrackers } from "./checks/analytics.js";
 import { backupsCheck, readBackupBeat } from "./checks/backups.js";
 import { compareMail, dnsCheck } from "./checks/dns.js";
@@ -37,6 +37,8 @@ import { dayOf, median, monthOf, previousMonth } from "./util.js";
 export interface HealthEnv extends OutboxEnv, MailEnv {
 	DB?: D1Like;
 	CRUX_API_KEY?: string;
+	/** Google Cloud API key with the PageSpeed Insights API enabled (falls back to CRUX_API_KEY). */
+	PAGESPEED_API_KEY?: string;
 	CF_ZONE_READ_TOKEN?: string;
 	CF_ANALYTICS_TOKEN?: string;
 	CF_ANALYTICS_ACCOUNT_ID?: string;
@@ -74,19 +76,19 @@ export interface RunResult {
 const iso = (t: number) => new Date(t).toISOString();
 
 /** Single flight: one run at a time (atomic compare-and-set on the plugin KV; a crashed run frees it after LOCK_MS). */
-export async function acquireLock(kv: Kv, now: number): Promise<boolean> {
-	const value = { until: iso(now + LOCK_MS) };
+export async function acquireLock(kv: Kv, now: number, key: string = KEYS.lock, ms = LOCK_MS): Promise<boolean> {
+	const value = { until: iso(now + ms) };
 	if (kv.getVersioned && kv.compareAndSet) {
-		const cur = await kv.getVersioned<{ until: string }>(KEYS.lock);
+		const cur = await kv.getVersioned<{ until: string }>(key);
 		if (cur && Date.parse(cur.value.until) > now) return false;
-		return (await kv.compareAndSet(KEYS.lock, cur ? cur.revision : null, value)).applied;
+		return (await kv.compareAndSet(key, cur ? cur.revision : null, value)).applied;
 	}
-	const cur = await kv.get<{ until: string }>(KEYS.lock);
+	const cur = await kv.get<{ until: string }>(key);
 	if (cur && Date.parse(cur.until) > now) return false;
-	await kv.set(KEYS.lock, value);
+	await kv.set(key, value);
 	return true;
 }
-export const releaseLock = (kv: Kv) => kv.delete(KEYS.lock);
+export const releaseLock = (kv: Kv, key: string = KEYS.lock) => kv.delete(key);
 
 export const settingsOf = async (kv: Kv): Promise<Settings> => (await kv.get<Settings>(KEYS.settings)) ?? {};
 export const alertRecipients = (s: Settings, o: HealthOptions) => (s.alertsTo?.length ? s.alertsTo : o.alertsTo);
@@ -298,27 +300,7 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 
 	// ── Alerts.
 	const events = [...alertEvents({ siteName: o.siteName, before, after: checks, opened: change.opened, closed: change.closed, freshLinks }), ...cspAlertEvents(await takeCspFresh(kv), o.siteName)];
-	const settings = await settingsOf(kv);
-	let alerts: RunResult["alerts"] = { sent: 0, held: 0 };
-	if (events.length) {
-		const blocked = emailBlocked(o, env, settings, "alerts");
-		if (blocked) alerts = { sent: 0, held: events.length, notEmailed: blocked };
-		else {
-			const picked = pickAlerts(events, (await kv.get<AlertLog>(KEYS.alerts)) ?? {}, now);
-			await kv.set(KEYS.alerts, picked.log);
-			const to = alertRecipients(settings, o);
-			let sent = 0;
-			let failed: string | undefined;
-			for (const e of picked.send) {
-				const r = await sendMail(env, d.email, to, alertMail(e, { siteName: o.siteName, adminUrl: adminUrl(o), footer: o.brand.footer, ...(o.brand.colors?.accent ? { accent: o.brand.colors.accent } : {}) }));
-				if (r.ok) sent++;
-				else failed = r.reason;
-			}
-			alerts = { sent, held: picked.held.length, ...(failed ? { notEmailed: failed } : {}) };
-			// Counts and reasons only: no addresses, no content.
-			d.log?.info("health alerts", { events: events.length, sent, held: picked.held.length, ...(failed ? { failed } : {}) });
-		}
-	}
+	const alerts = await deliverAlerts(d, events);
 
 	state = { ...state, v: 1, lastRunAt: at, checks, jobs: { ...jobs, ...(mode.manual ? { manual: at } : {}), run: at } };
 	await kv.set(KEYS.state, state);
@@ -326,6 +308,28 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 	await kv.set(KEYS.history, history);
 	await kv.set(KEYS.incidents, incidents);
 	return { ran, alerts, state };
+}
+
+/** Emails the alert events this run allows (gating, one per issue per day, MAX_PER_DAY); logs counts only. */
+export async function deliverAlerts(d: RunDeps, events: AlertEvent[]): Promise<RunResult["alerts"]> {
+	const { kv, options: o, env, now } = d;
+	if (!events.length) return { sent: 0, held: 0 };
+	const settings = await settingsOf(kv);
+	const blocked = emailBlocked(o, env, settings, "alerts");
+	if (blocked) return { sent: 0, held: events.length, notEmailed: blocked };
+	const picked = pickAlerts(events, (await kv.get<AlertLog>(KEYS.alerts)) ?? {}, now);
+	await kv.set(KEYS.alerts, picked.log);
+	const to = alertRecipients(settings, o);
+	let sent = 0;
+	let failed: string | undefined;
+	for (const e of picked.send) {
+		const r = await sendMail(env, d.email, to, alertMail(e, { siteName: o.siteName, adminUrl: adminUrl(o), footer: o.brand.footer, ...(o.brand.colors?.accent ? { accent: o.brand.colors.accent } : {}) }));
+		if (r.ok) sent++;
+		else failed = r.reason;
+	}
+	// Counts and reasons only: no addresses, no content.
+	d.log?.info("health alerts", { events: events.length, sent, held: picked.held.length, ...(failed ? { failed } : {}) });
+	return { sent, held: picked.held.length, ...(failed ? { notEmailed: failed } : {}) };
 }
 
 /**

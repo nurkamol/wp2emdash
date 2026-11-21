@@ -12,7 +12,7 @@
   <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-F6821F"></a>
   <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
-  <img alt="Tests: 1411 passing" src="https://img.shields.io/badge/tests-1411%20passing-1F9D6B">
+  <img alt="Tests: 1452 passing" src="https://img.shields.io/badge/tests-1452%20passing-1F9D6B">
 </p>
 
 wp2emdash is an open-source kit, built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net), that migrates WordPress sites to
@@ -335,7 +335,7 @@ health: { alertsTo: ["ops@agency.example"], reportTo: ["owner@client.example"], 
 | Broken links | daily (02–04 UTC), resumable | Every sitemap page, every internal link once (HEAD, GET fallback, 3 at a time, 12 requests a tick); links to other sites: 20 sampled weekly |
 | Email DNS | daily | MX/SPF/DMARC/DKIM over DNS-over-HTTPS vs the hashed baseline from `cutover/dns-before.json` |
 | Certificate | daily | Optional `CF_ZONE_READ_TOKEN`; otherwise "renewed by Cloudflare" |
-| Speed | daily + every probe | Page build time median; Chrome UX Report p75 LCP/INP/CLS with optional `CRUX_API_KEY` |
+| Speed | daily + every probe; lab score weekly | Page build time median; Chrome UX Report p75 LCP/INP/CLS with optional `CRUX_API_KEY`; PageSpeed Insights lab scores (mobile + desktop, 26 weeks) with optional `PAGESPEED_API_KEY` (or the same key as CrUX) |
 | Analytics tags | hourly | The page's `site-analytics` tag carries the codes switched on in SEO & Analytics (the browser check stays in verify) |
 | Missing pages (404) | hourly | EmDash's own 404 log (one D1 read): the addresses asked for in the last 7 days, most requested first, each with a suggested redirect from the sitemap; bot probes (wp-login.php, .env…) counted, not listed. Tab **Missing pages**, a dashboard hint; never an alert |
 
