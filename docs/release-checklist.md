@@ -38,16 +38,16 @@ No secrets were ever committed (checked: API keys, tokens, private keys — the 
 
 ## 3. Content sweep (current tree)
 
-- [ ] `git grep` for client names, domains, slugs, tracking IDs, Cloudflare account IDs, personal emails: none outside
+- [x] `git grep` for client names, domains, slugs, tracking IDs, Cloudflare account IDs, personal emails: none outside
       `sites/` (untracked).
-- [ ] Docs describe pilots generically ("a real WPBakery/Salient site", "a real Bricks site").
-- [ ] Test fixtures and goldens are synthetic (no real copy, images, addresses or phone numbers).
-- [ ] `CLAUDE.md` and `skills/` contain no internal paths, account names or credentials.
-- [ ] Every relative link in README, docs and `site/` resolves.
+- [x] Docs describe pilots generically ("a real WPBakery/Salient site", "a real Bricks site").
+- [x] Test fixtures and goldens are synthetic (no real copy, images, addresses or phone numbers).
+- [x] `CLAUDE.md` and `skills/` contain no internal paths, account names or credentials.
+- [x] Every relative link in README, docs and `site/` resolves.
 
 ## 4. Quality gates
 
-- [ ] `pnpm test && pnpm typecheck` green on a fresh clone with `pnpm install --frozen-lockfile`.
+- [x] `pnpm test && pnpm typecheck` green on a fresh clone with `pnpm install --frozen-lockfile`.
 - [ ] CI workflow green on the public repository (runs on pull requests from forks without secrets).
 - [ ] `pnpm wp2emdash --help` and every command in the README run.
 - [ ] Generated client projects build: scaffold a fixture site and run `astro check` + `astro build`.

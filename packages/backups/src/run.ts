@@ -47,7 +47,7 @@ export async function storeDoc(d: RunDeps, doc: BackupDoc, key: string, by?: str
 	await d.bucket.put(key, body, { httpMetadata: { contentType: "application/gzip" }, customMetadata: { format: FORMAT, version: String(FORMAT_VERSION), id: doc.id, at: doc.createdAt, trigger: doc.trigger } });
 	let offsite: string | undefined;
 	if (offsiteReady(d.options, d.env) && doc.trigger !== "pre-delete") {
-		const r = await putOffsite(d.options.offsite as NonNullable<BackupsOptions["offsite"]>, { accessKeyId: (d.env.BACKUP_S3_ACCESS_KEY_ID as string).trim(), secretAccessKey: (d.env.BACKUP_S3_SECRET_ACCESS_KEY as string).trim() }, key, body, d.fetch);
+		const r = await putOffsite(d.options.offsite as NonNullable<BackupsOptions["offsite"]>, { accessKeyId: (d.env.BACKUP_S3_ACCESS_KEY_ID as string).trim(), secretAccessKey: (d.env.BACKUP_S3_SECRET_ACCESS_KEY as string).trim() }, key, body, d.fetch, new Date(d.now));
 		entry.offsite = r.ok ? "ok" : "failed";
 		if (!r.ok) offsite = r.reason;
 	}

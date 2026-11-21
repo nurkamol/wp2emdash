@@ -42,6 +42,7 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - Contact icons beside a form (phone, email, address, hours) are carried: each lands on the line it stands for (a `tel:` link, an email, a street address, opening hours), drawn by the starter in front of the line.
 
 ### Fixed
+- Backups: the off-site copy was signed with the wall clock instead of the run's clock (a test failed on any day but the one it was written; found by the release checklist's fresh-clone run).
 - An inlined component script (the comment form, under Astro's 4 KB inline limit) was blocked by the public CSP on every page: generated projects never inline scripts (`vite.build.assetsInlineLimit: 0`) and the comment script renders only where the comment form does.
 - Verify crashed before the old-address check (`archivePaths` used before it was defined).
 - Verify's menu capture clicked the consent banner's button instead of the burger, and screenshots accepted the kit's own banner instead of rejecting it: banners are now rejected or hidden on both sides (`src/audit/consent-banners.ts`).
