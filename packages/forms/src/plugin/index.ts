@@ -5,8 +5,10 @@
  * recipients setting (stored in the same KV, so the form endpoint reads it per request; it overrides FORM_TO). With
  * keep sent (FORM_OUTBOX_KEEP_SENT="1") the inbox holds every message with its delivery status (Emailed / Waiting /
  * Failed), filterable, and any message can be emailed again. Settings also holds the chat notifications (chat.ts:
- * Telegram, Slack, a generic webhook — each only once its Worker secret exists) with a rate-limited test button, and a
- * notification's link (`/messages/<time>_<hex>`) opens that message on page load.
+ * Telegram, Slack, a generic webhook — each only once its Worker secret exists) with a rate-limited test button, a
+ * notification's link (`/messages/<time>_<hex>`) opens that message on page load, and the CRM & mailing lists section
+ * (crm.ts: Brevo, HubSpot, Mailchimp — provider switches, per-form field mapping, last errors; unavailable on sensitive
+ * sites and forms).
  *
  * Admins only. The `admin` route keeps EmDash's default plugin-route permission, `plugins:manage` (Admin role); EmDash
  * checks it and its CSRF header before the handler runs, and the handler checks the role again. The `download` route
@@ -20,6 +22,7 @@
 import { definePlugin, pluginResponse } from "emdash";
 import { deleteQueued, deliveryOf, importQueued, isOutboxKey, keepsSent, listSummaries, type OutboxEnv, outboxStatus, parseRecipients, type Queued, readCounts, readQueued, resolveRecipients, retentionDays, sendQueued, testRecipients, updateQueued, writeRecipientSetting } from "../outbox.js";
 import { CHANNEL_NAME, CHANNELS, type Channel, chatEnabled, type ChatEnv, chatSettingsFromForm, keyFromPage, readChatFailures, readChatSettings, secretSet, sendTestNotification, siteSensitive, writeChatSettings } from "../chat.js";
+import { brevoUsesEmailKey, clearCrmError, crmEnabled, type CrmEnv, type CrmForm, crmSecretSet, crmSettingsFromForm, crmSiteSensitive, PROVIDER_NAME, PROVIDERS, type Provider, readCrmSettings, readCrmStatus, writeCrmSettings } from "../crm.js";
 import { FORMS_PLUGIN } from "../meta.js";
 import { exportFileName, grantDownload, logActivity, parseImport, readActivity, redeemDownload, toCsv, toJson, toQueued } from "./data.js";
 import { adminsOnly, type Filter, filtered, message, overview, type Overview, PAGE, parseDelivery, TABS, toSend, WIDGET, widget } from "./views.js";
@@ -35,26 +38,35 @@ interface Interaction {
 }
 
 // Bindings exist only in the Worker: imported per request, not at module level (astro.config loads the descriptor in Node).
-const outboxEnv = async () => ((await import("cloudflare:workers")) as unknown as { env: OutboxEnv & ChatEnv }).env;
+const outboxEnv = async () => ((await import("cloudflare:workers")) as unknown as { env: OutboxEnv & ChatEnv & CrmEnv }).env;
 
-/** Options from the descriptor (`formsPlugin({ forms })` in astro.config): the site's forms, for the chat form picker. */
+/** Options from the descriptor (`formsPlugin({ forms })` in astro.config): the site's forms, for the chat form picker and the CRM mapping. */
 export interface FormsPluginOptions {
-	forms?: { id: string; title: string }[];
+	forms?: { id: string; title: string; sensitive?: boolean; fields?: { name: string; label: string; type: string; autocomplete?: string }[] }[];
 }
 
-/** The site's forms for the chat picker: the descriptor's list, plus any form id seen in messages or counts. */
-function siteForms(options: FormsPluginOptions, seen: string[]): { id: string; title: string }[] {
-	const out = (options.forms ?? []).filter((f) => typeof f?.id === "string" && /^[\w-]{1,80}$/.test(f.id)).map((f) => ({ id: f.id, title: String(f.title ?? f.id).slice(0, 120) }));
-	for (const id of seen) if (!out.some((f) => f.id === id)) out.push({ id, title: id });
+type SiteForm = { id: string; title: string; sensitive?: boolean; fields: CrmForm["fields"] };
+
+/** The site's forms: the descriptor's list, plus any form id seen in messages or counts (no fields known: not mappable). */
+function siteForms(options: FormsPluginOptions, seen: string[]): SiteForm[] {
+	const out: SiteForm[] = (options.forms ?? [])
+		.filter((f) => typeof f?.id === "string" && /^[\w-]{1,80}$/.test(f.id))
+		.map((f) => ({
+			id: f.id,
+			title: String(f.title ?? f.id).slice(0, 120),
+			...(f.sensitive === true ? { sensitive: true } : {}),
+			fields: (Array.isArray(f.fields) ? f.fields : []).filter((x) => typeof x?.name === "string" && typeof x?.type === "string").slice(0, 60).map((x) => ({ name: x.name.slice(0, 100), label: String(x.label ?? x.name).slice(0, 120), type: x.type, ...(typeof x.autocomplete === "string" ? { autocomplete: x.autocomplete } : {}) })),
+		}));
+	for (const id of seen) if (!out.some((f) => f.id === id)) out.push({ id, title: id, fields: [] });
 	return out.slice(0, 100);
 }
 
-async function build(env: OutboxEnv & ChatEnv, filter: Filter = {}, extra: Partial<Overview> = {}, options: FormsPluginOptions = {}): Promise<Overview> {
+async function build(env: OutboxEnv & ChatEnv & CrmEnv, filter: Filter = {}, extra: Partial<Overview> = {}, options: FormsPluginOptions = {}): Promise<Overview> {
 	const since = new Date(Date.now() - 29 * 86_400_000).toISOString().slice(0, 10);
 	const week = new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10);
 	// Keep sent: an inbox, so the newest messages are listed; otherwise the oldest (the queue drains oldest first).
 	const keepSent = keepsSent(env);
-	const [{ items, more }, counts, activity, status, recipients, chatSettings, failures] = await Promise.all([listSummaries(env, 1000, { newest: keepSent }), readCounts(env, since), readActivity(env.FORM_OUTBOX), outboxStatus(env), resolveRecipients(env), readChatSettings(env), readChatFailures(env, week)]);
+	const [{ items, more }, counts, activity, status, recipients, chatSettings, failures, crmSettings, crmStatus] = await Promise.all([listSummaries(env, 1000, { newest: keepSent }), readCounts(env, since), readActivity(env.FORM_OUTBOX), outboxStatus(env), resolveRecipients(env), readChatSettings(env), readChatFailures(env, week), readCrmSettings(env), readCrmStatus(env, week)]);
 	let matches: Set<string> | undefined;
 	const q = filter.q?.trim().toLowerCase();
 	if (q) {
@@ -70,7 +82,9 @@ async function build(env: OutboxEnv & ChatEnv, filter: Filter = {}, extra: Parti
 	const test = env.FORM_LIVE_HOST ? { test: { host: env.FORM_LIVE_HOST, to: testRecipients(env) } } : {};
 	const secrets = Object.fromEntries(CHANNELS.map((ch) => [ch, secretSet(env, ch)])) as Record<Channel, boolean>;
 	const chat = { enabled: chatEnabled(env), settings: chatSettings, secrets, sensitive: siteSensitive(env), forms: siteForms(options, forms), failures };
-	return { status, items, more, counts, activity, days: retentionDays(env), forms, filter, recipients: { ...recipients, configTo, ...test }, provider: env.EMAIL_PROVIDER ?? "brevo", keepSent, chat, ...(matches ? { matches } : {}), ...extra };
+	const crmSecrets = Object.fromEntries(PROVIDERS.map((p) => [p, crmSecretSet(env, p)])) as Record<Provider, boolean>;
+	const crm = { enabled: crmEnabled(env), sensitive: crmSiteSensitive(env), settings: crmSettings, secrets: crmSecrets, brevoEmailKey: brevoUsesEmailKey(env), forms: siteForms(options, forms), env: { FORM_CRM_PRESELECT: env.FORM_CRM_PRESELECT, FORM_SENSITIVE: env.FORM_SENSITIVE }, ...crmStatus };
+	return { status, items, more, counts, activity, days: retentionDays(env), forms, filter, recipients: { ...recipients, configTo, ...test }, provider: env.EMAIL_PROVIDER ?? "brevo", keepSent, chat, crm, ...(matches ? { matches } : {}), ...extra };
 }
 
 const str = (v: unknown, max = 200) => (typeof v === "string" ? v.slice(0, max) : undefined);
@@ -206,6 +220,24 @@ export function createPlugin(options: FormsPluginOptions = {}) {
 						// The log records the change and how many channels are on — never a chat id or a secret.
 						await logActivity(kv, who, "Changed chat notifications", on.length);
 						return { blocks: await page({}, TABS.settings), toast: { message: on.length ? `Chat notifications on: ${on.map((ch) => CHANNEL_NAME[ch]).join(", ")}.` : "Chat notifications are off.", type: "success" } };
+					}
+
+					if (i.type === "form_submit" && act === "crm") {
+						// CRM & mailing lists: providers (only those whose secret exists), their ids and field names, and per
+						// form which providers and which field goes where. Sensitive sites and forms are refused here too.
+						const seen = (await listSummaries(env, 1000)).items.map((m) => m.s.form);
+						const { settings, errors } = crmSettingsFromForm(i.values ?? {}, { env, forms: siteForms(options, seen), current: await readCrmSettings(env) });
+						if (errors.length) return { blocks: await page({}, TABS.settings, { crmErrors: errors }), toast: { message: "CRM settings not saved. See the errors.", type: "error" } };
+						await writeCrmSettings(env, settings);
+						const on = PROVIDERS.filter((p) => settings[p].on);
+						// The log records the change and how many providers are on — never ids, keys or field values.
+						await logActivity(kv, who, "Changed CRM & mailing list settings", on.length);
+						return { blocks: await page({}, TABS.settings), toast: { message: on.length ? `CRM sync on: ${on.map((p) => PROVIDER_NAME[p]).join(", ")}.` : "CRM sync is off.", type: "success" } };
+					}
+
+					if (i.type === "block_action" && act === "crm-clear" && typeof i.value === "string" && (PROVIDERS as readonly string[]).includes(i.value)) {
+						await clearCrmError(env, i.value as Provider);
+						return { blocks: await page({}, TABS.settings), toast: { message: "Error cleared.", type: "success" } };
 					}
 
 					if (i.type === "block_action" && act === "chat-test") {

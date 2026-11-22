@@ -63,6 +63,20 @@ describe("client repo files", () => {
 		expect(sensitive).toContain("npx wrangler secret put TELEGRAM_BOT_TOKEN");
 		expect(clientRepoFiles(input({ outbox, formChat: true, sensitiveData: false }))["docs/forms-and-integrations.md"]).toContain("a **summary** (form, time, the sender's name");
 	});
+	it("documents the CRM / mailing-list sync and its optional secrets only when the site has it", () => {
+		const outbox = { days: 30, hold: false };
+		const none = clientRepoFiles(input({ outbox }));
+		expect(none["docs/forms-and-integrations.md"]).not.toContain("CRM and mailing lists");
+		expect(Object.values(none).join("\n")).not.toContain("HUBSPOT_TOKEN");
+		const f = clientRepoFiles(input({ outbox, sensitiveData: false, formCrm: { providers: ["hubspot"], brevoEmailKey: true } }));
+		const doc = f["docs/forms-and-integrations.md"] as string;
+		expect(doc).toContain("**CRM and mailing lists.**");
+		expect(doc).toContain("HubSpot pre-selected for every form");
+		expect(doc).toContain("**Only the mapped fields are sent**");
+		const all = Object.values(f).join("\n");
+		for (const s of ["npx wrangler secret put BREVO_API_KEY", "npx wrangler secret put HUBSPOT_TOKEN", "npx wrangler secret put MAILCHIMP_API_KEY"]) expect(all).toContain(s);
+		expect(all).toContain("the Brevo email key (EMAIL_API_KEY) is used when it is not set");
+	});
 	it("rewrites marked files and leaves taken-over ones alone", () => {
 		const dir = mkdtempSync(join(tmpdir(), "client-repo-"));
 		const files = clientRepoFiles(input());
