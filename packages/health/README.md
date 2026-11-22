@@ -66,6 +66,31 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   only in ticks without the PageSpeed test; KV `visual` keeps baselines, the latest fingerprints and the last 8 runs (no
   page text). Not on staging, paused in coming-soon mode, alerts held before go-live. No screenshots (Browser Rendering
   would need a new binding).
+- **Accessibility** (0.8, own tab, `src/checks/a11y.ts`; option `accessibility`, default on): with the weekly visual
+  check, the HTML it already fetched is read for common problems — no extra request, no browser. Rules (ids as in axe,
+  which the kit's verify uses): `image-alt` (no alt attribute; `alt=""` is decorative and fine), `image-alt-filename`
+  (alt is the file name or a camera default), `page-has-heading-one` / `multiple-h1`, `heading-order` (two or more
+  levels down, H2 → H4), `link-name` / `empty-link`, `button-name`, `label` (label[for], wrapping label, aria-label /
+  -labelledby, title or placeholder), `duplicate-id` (not inside inline SVG icons), `html-has-lang`, `frame-title`.
+  Anything aria-hidden, `hidden`, in `<template>` / `<noscript>` or in the comments section is skipped, so the
+  starter's decorative markup (logo `alt=""` in a named link, the form honeypot, post-card picture links, the
+  preloader) never shows. The same issue on several pages (a footer link) is one item with its pages; each item has
+  the rule in plain words — what it is, why it matters, how to fix it in the admin — an **Edit the page** link when it
+  concerns one page, and **Dismiss** (3 months, a year, or for good).
+- **Content freshness** (0.8, own tab, `src/checks/freshness.ts`; options `freshness`, default on, and `staleMonths`,
+  default 18): past event dates in page text ("Saturday, March 3, 2024"; full, numeric and month-year dates only next
+  to an event word such as join us, workshop, register, until or 7 pm; dates after since / founded / posted / updated
+  skipped; numeric dates count only when past read either way, never with dashes, so phone numbers and prices do not
+  match), ended year-bound phrases ("Summer 2023", "Black Friday 2024", "2024 offer", "schedule for 2023", "© 2023"
+  — the kit's own footer credit is always this year), and pages not saved for `staleMonths` months. Text from the
+  visual check's HTML (`<main>`, without `<time>`, post cards and comments; the copyright line from the whole page)
+  and from the pages' content (`ctx.content.list`, pages only — posts are left out on purpose). Legal pages
+  (privacy, terms, cookies, imprint, refund, …) and thank-you pages are skipped by slug. English plus German, French,
+  Spanish and Dutch month names. Items group across pages, link to the page's editor
+  (`/_emdash/admin/content/<collection>/<id>`) and can be dismissed ("this date is a historic fact" → for good).
+  Both parts are stored in KV `review` (≤ 60 items each, ≤ 25 pages per item, short strings — never visitor data),
+  dismissals in `review:dismissed` (≤ 200, expired ones dropped on every write); both feed **What to improve** (and so
+  the monthly report); no email alert (weekly noise). Need the visual check (`visualPages` > 0).
 - **Page cache refill** (Speed tab; kit.config `performance.rewarmMinutes`, option `rewarm`): on/off and every 15, 30 or
   60 minutes (KV key `rewarm`, absent = on at the kit's interval), the last run (KV key `rewarm:last`: pages checked,
   built again, failed, each page's state) and **Refresh all pages now** (purges the page cache and leaves `rewarm:request`;
@@ -109,9 +134,11 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   and a link to the admin page that fixes it. Ranked: backups failing (Backups) → pictures that no longer exist
   (Media) → slow real-visitor speed, poor before needs-improvement (Speed tab) → missing addresses asked for 3+ times
   a week without a redirect (Missing pages tab) → form messages down by half or more from a month with 5+ (Form
-  messages; the two monthly **counts** only, no message is read) → pages with too little text, pages without a meta
-  description (SEO) → pictures without a description (Media, else SEO) → oversized pictures (Media) → focus keyword
-  missing (SEO). Built from what is already stored — no request, no analysis: this plugin's checks, the Media
+  messages; the two monthly **counts** only, no message is read) → accessibility issues on many pages (0.8) → pages
+  with too little text → pages without a meta description (SEO) → accessibility
+  issues on one or a few pages → past dates and ended offers → pictures without a description (Media, else SEO) →
+  oversized pictures (Media) → focus keyword missing (SEO) → pages not updated for 18 months. Accessibility and
+  freshness items link to Site health's tabs, or straight to the page's editor when they concern one page. Built from what is already stored — no request, no analysis: this plugin's checks, the Media
   Assistant's scan counts (`plugin:media-assistant:summary`) and the SEO suite's page summary
   (`plugin:site-seo:summary`, written when its dashboard opens; the monthly report calculates and keeps its own,
   the newer one wins). Plugins a site does not run (`seo`, `media`, `backups`, `formsOutbox` options) are skipped.

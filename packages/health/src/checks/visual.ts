@@ -17,6 +17,7 @@
  * docs/spikes/health-findings.md.
  */
 import { type Fetcher, pool, USER_AGENT } from "../probe.js";
+import type { PageNotes } from "../review.js";
 import { DAY, HOUR, plural } from "../util.js";
 
 /** Main pages checked by default (HealthOptions.visualPages; 0 turns the check off). */
@@ -139,6 +140,8 @@ export interface VisualJob {
 	/** Asset address → HTTP status (0 no answer) and whether it is usable. */
 	assets: Record<string, { s: number; ok: boolean }>;
 	fonts: string[];
+	/** Accessibility and freshness findings per page read (VisualIo.inspect; review.ts builds the page review from them). */
+	notes?: Record<string, PageNotes>;
 }
 
 export const emptyVisual = (): VisualStore => ({ v: 1, baseline: {}, current: {}, runs: [] });
@@ -284,6 +287,8 @@ export interface VisualIo {
 	budget?: number;
 	concurrency?: number;
 	timeout?: number;
+	/** Reads more from each page's HTML while it is in hand (accessibility, freshness): no extra request. Never throws. */
+	inspect?: (path: string, html: string) => PageNotes;
 }
 
 /** One asset: status, content type and (for stylesheets) the text. Never throws. */
@@ -342,6 +347,13 @@ export async function stepVisual(job: VisualJob, io: VisualIo): Promise<{ job: V
 			budget--;
 			requests++;
 			const p = parsePage(path, status, html, io.origin);
+			if (io.inspect && status === 200 && html) {
+				try {
+					j.notes = { ...(j.notes ?? {}), [path]: io.inspect(path, html) };
+				} catch {
+					// A page the rules cannot read is simply not reviewed.
+				}
+			}
 			j.fonts = [...new Set([...j.fonts, ...p.fonts])];
 			j.cur = { fp: p.fp, images: p.images, css: p.css };
 		}

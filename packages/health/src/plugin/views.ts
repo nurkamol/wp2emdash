@@ -11,6 +11,9 @@ import { blockedLabel, type CspStore, isScriptDirective, meaning } from "../csp.
 import { cspLine } from "../report.js";
 import type { NotFoundSummary } from "../checks/notfound.js";
 import { type Improvement, improveUrl, namesLine, NOTHING_TO_IMPROVE } from "../improve.js";
+import { A11Y_RULES, type A11yItem, isSiteWide } from "../checks/a11y.js";
+import { STALE_TEXT, type StaleItem } from "../checks/freshness.js";
+import { activeReview, DISMISS_DAYS, type Dismissed, type ReviewStore } from "../review.js";
 import { maintenanceActive, type MaintenanceSetting, maintenanceUpcoming, scheduleText, utcText } from "../maintenance.js";
 import type { ReportData } from "../report.js";
 import { headline } from "../report.js";
@@ -21,7 +24,7 @@ export type Block = Record<string, unknown>;
 
 export const PAGE = "/health";
 export const WIDGET = "site-health";
-export const TABS = { overview: 0, incidents: 1, links: 2, missing: 3, speed: 4, visual: 5, security: 6, reports: 7, settings: 8 } as const;
+export const TABS = { overview: 0, incidents: 1, links: 2, missing: 3, speed: 4, visual: 5, accessibility: 6, freshness: 7, security: 8, reports: 9, settings: 10 } as const;
 
 /** Coming-soon mode as stored (KEYS.maintenance; the starter's middleware reads the same row). */
 export type { MaintenanceSetting };
@@ -94,6 +97,8 @@ export interface PageData {
 	redirects?: boolean;
 	/** "Create redirect" was asked for one address: the form for it (target prefilled with the suggestion). */
 	redirectForm?: { source: string; target?: string };
+	/** Accessibility and content freshness (review.ts): the last review and what admins dismissed. */
+	review?: { store: ReviewStore | null; dismissed: Dismissed; accessibility: boolean; freshness: boolean };
 	/** "What to improve this month" (improve.ts); absent: not shown. */
 	improve?: Improvement[];
 	/** The time the page describes (tests); default now. */
@@ -186,7 +191,7 @@ function overview(d: PageData): Block[] {
 				return { check: CHECK_LABELS[id], status: BADGE[c?.status ?? "unknown"], summary: c ? [c.summary, ...(c.detail ?? [])].join(" ") : "Not checked yet.", at: c?.at ?? "", trend: trend(d.history, id) };
 			}),
 		},
-		{ type: "context", text: "✓ fine · ! needs a look · ✗ problem · · not checked. Uptime every 5 minutes, search engines, analytics, security headers and backups hourly, forms every 15 minutes, links, email DNS, certificate and real-visitor speed once a day, the PageSpeed lab score and the visual check of the main pages weekly (UTC)." },
+		{ type: "context", text: "✓ fine · ! needs a look · ✗ problem · · not checked. Uptime every 5 minutes, search engines, analytics, security headers and backups hourly, forms every 15 minutes, links, email DNS, certificate and real-visitor speed once a day, the PageSpeed lab score, the visual check, accessibility and content freshness of the main pages weekly (UTC)." },
 		{ type: "actions", elements: [{ type: "button", action_id: "run-now", label: "Run checks now", style: "primary" }] },
 		...(d.state.lastRunAt ? [{ type: "context", text: `Last run ${shortTime(d.state.lastRunAt)}.${d.linkJob ? ` A link check is running (${d.linkJob.done} of ${plural(d.linkJob.pages, "page")} read).` : ""}` }] : []),
 	];
@@ -491,6 +496,110 @@ export function visualTab(d: PageData): Block[] {
 	return out;
 }
 
+/** "/, /about/, /contact/ and 4 more" — or "every checked page". */
+function pagesLine(pages: string[], checked: number, max = 4): string {
+	if (checked > 2 && pages.length >= checked) return `Every checked page (${pages.length})`;
+	return `${pages.slice(0, max).join(", ")}${pages.length > max ? ` and ${pages.length - max} more` : ""}`;
+}
+
+const DISMISS_LABEL: Record<(typeof DISMISS_DAYS)[number], string> = { 90: "For 3 months", 365: "For a year", 1825: "For good (it is correct as it is)" };
+const dismissMenu = (id: string): Block => ({ type: "menu", action_id: "review-dismiss", label: "Dismiss", style: "secondary", items: DISMISS_DAYS.map((days) => ({ label: DISMISS_LABEL[days], value: `${id}:${days}` })) });
+const editUrl = (e: { collection: string; id: string }) => `/_emdash/admin/content/${encodeURIComponent(e.collection)}/${encodeURIComponent(e.id)}`;
+const editCell = (r: ReviewStore, pages: string[], label = "Edit the page"): Block | string => {
+	const e = pages.length === 1 ? r.edit?.[pages[0] as string] : undefined;
+	return e ? { type: "link", label, target: { kind: "external", url: editUrl(e) } } : "";
+};
+
+/** The dismissed items still in their period, and "Show again". */
+function dismissedBlocks(r: ReviewStore, d: Dismissed, kind: "a11y" | "stale", now: number): Block[] {
+	const ids = new Set((kind === "a11y" ? r.a11y : r.stale).map((x) => x.id));
+	const live = Object.entries(d.items).filter(([id, x]) => ids.has(id) && Date.parse(x.until) > now);
+	if (!live.length) return [];
+	return [
+		{
+			type: "table",
+			block_id: `review-dismissed-${kind}`,
+			page_action_id: "noop",
+			columns: [
+				{ key: "what", label: "Dismissed" },
+				{ key: "until", label: "Until" },
+				{ key: "restore", label: "", format: "element" },
+			],
+			rows: live.map(([id, x]) => ({ what: x.label, until: x.until.slice(0, 10), restore: { type: "button", action_id: "review-restore", label: "Show again", value: id, style: "secondary" } })),
+		},
+	];
+}
+
+/** Site health → Accessibility: the weekly text-based rules on the visual check's pages, grouped across pages. */
+export function accessibilityTab(d: PageData): Block[] {
+	const v = d.review;
+	const out: Block[] = [{ type: "context", text: "Once a week, when the visual check reads the main pages, the same pages are checked for common accessibility problems that keep visitors with screen readers, keyboards or poor eyesight out: pictures without a description, missing or skipped headings, links, buttons and form fields without a name, embeds without a title, the page language and duplicate ids. The same issue on many pages (a footer link, a menu button) is listed once. These checks read the page text; colour contrast and keyboard focus need a browser and are covered by the developer's verify run." }];
+	if (d.staging) return [...out, { type: "context", text: "Checked on the production site only." }];
+	if (!v?.accessibility || d.visual?.on === false) return [...out, { type: "banner", title: "Accessibility check is off", description: d.visual?.on === false ? "It runs with the visual check, which your developer switched off (kit setting health.visualPages: 0)." : "Your developer switched it off for this site (kit setting health.accessibility: false).", variant: "default" }];
+	const r = v.store;
+	if (!r || !r.accessibility) return [...out, { type: "empty", title: "Not checked yet", description: "The first check runs with the next visual check (weekly, or Check now on the Visual check tab).", size: "base" }];
+	const now = d.now ?? Date.now();
+	const active = activeReview(r, v.dismissed, now) as ReviewStore;
+	const wide = active.a11y.filter((x) => isSiteWide(x, r.pages));
+	out.push({ type: "stats", items: [{ label: "Pages checked", value: r.pages }, { label: "Issues", value: active.a11y.length, ...(active.a11y.length ? { trend: "down" } : {}) }, { label: "On many pages", value: wide.length, ...(wide.length ? { trend: "down" } : {}) }] });
+	if (!active.a11y.length) out.push({ type: "banner", title: "No accessibility issues found", description: `${plural(r.pages, "page")} checked ${shortTime(r.at)}.`, variant: "default" });
+	else
+		out.push({
+			type: "table",
+			block_id: "a11y",
+			page_action_id: "noop",
+			columns: [
+				{ key: "issue", label: "Issue" },
+				{ key: "el", label: "Where on the page" },
+				{ key: "pages", label: "Pages" },
+				{ key: "why", label: "Why it matters" },
+				{ key: "fix", label: "How to fix" },
+				{ key: "edit", label: "", format: "element" },
+				{ key: "dismiss", label: "", format: "element" },
+			],
+			rows: active.a11y.map((x: A11yItem) => ({ issue: `${A11Y_RULES[x.r].label}${x.count > x.pages.length ? ` (${x.count}×)` : ""}`, el: x.el, pages: pagesLine(x.pages, r.pages), why: A11Y_RULES[x.r].why, fix: A11Y_RULES[x.r].fix, edit: editCell(r, x.pages), dismiss: dismissMenu(x.id) })),
+		});
+	out.push(...dismissedBlocks(r, v.dismissed, "a11y", now));
+	out.push({ type: "context", text: `Checked ${shortTime(r.at)}, with the visual check (rule names as in axe, the tool the developer's verify uses). Tolerances: an empty description (alt="") marks a decorative picture and is fine; a heading counts as skipped only two levels down (H2 → H4); a placeholder counts as a field's name; ids inside icons and anything hidden from screen readers are ignored. Dismiss an item that is fine as it is; it comes back after the period you choose.` });
+	return out;
+}
+
+const STALE_LABEL: Record<StaleItem["k"], string> = { date: "Past date", phrase: "Out-of-date wording", old: "Not updated" };
+
+/** Site health → Content freshness: past dates and ended phrases on pages, and pages untouched for a long time. */
+export function freshnessTab(d: PageData): Block[] {
+	const v = d.review;
+	const out: Block[] = [{ type: "context", text: "Once a week the main pages and the text of every page are read for things that have gone out of date: an event or offer whose date has passed, a season or year that is over (“Summer 2023”, “2024 prices”, “© 2023”), and pages nobody has saved in the editor for a long time. Posts are left out (old news is fine), and so are legal pages (privacy, terms, cookies, imprint) and thank-you pages, which rarely change by design." }];
+	if (d.staging) return [...out, { type: "context", text: "Checked on the production site only." }];
+	if (!v?.freshness || d.visual?.on === false) return [...out, { type: "banner", title: "Content freshness is off", description: d.visual?.on === false ? "It runs with the visual check, which your developer switched off (kit setting health.visualPages: 0)." : "Your developer switched it off for this site (kit setting health.freshness: false).", variant: "default" }];
+	const r = v.store;
+	if (!r) return [...out, { type: "empty", title: "Not checked yet", description: "The first check runs with the next visual check (weekly, or Check now on the Visual check tab).", size: "base" }];
+	const now = d.now ?? Date.now();
+	const active = activeReview(r, v.dismissed, now) as ReviewStore;
+	const dated = active.stale.filter((x) => x.k !== "old").length;
+	out.push({ type: "stats", items: [{ label: "Past dates and wording", value: dated, ...(dated ? { trend: "down" } : {}) }, { label: r.staleMonths ? `Not updated for ${r.staleMonths} months` : "Not updated", value: active.stale.length - dated }, { label: "Legal pages left out", value: r.skipped }] });
+	if (!r.content) out.push({ type: "context", text: "The pages' content could not be read this time, so only the main pages' text was checked and “not updated” is not known." });
+	if (!active.stale.length) out.push({ type: "banner", title: "Nothing out of date found", description: `Checked ${shortTime(r.at)}.`, variant: "default" });
+	else
+		out.push({
+			type: "table",
+			block_id: "freshness",
+			page_action_id: "noop",
+			columns: [
+				{ key: "what", label: "What" },
+				{ key: "found", label: "Found" },
+				{ key: "pages", label: "Pages" },
+				{ key: "fix", label: "What to do" },
+				{ key: "edit", label: "", format: "element" },
+				{ key: "dismiss", label: "", format: "element" },
+			],
+			rows: active.stale.map((x) => ({ what: STALE_LABEL[x.k], found: x.k === "old" ? `Last saved ${x.text}` : `“${x.text}”${x.ended ? ` (ended ${x.ended})` : ""}`, pages: pagesLine(x.pages, r.pages), fix: STALE_TEXT[x.k].fix, edit: x.entry ? { type: "link", label: x.k === "old" ? "Open the page" : "Edit the page", target: { kind: "external", url: editUrl(x.entry) } } : "", dismiss: dismissMenu(x.id) })),
+		});
+	out.push(...dismissedBlocks(r, v.dismissed, "stale", now));
+	out.push({ type: "context", text: `Checked ${shortTime(r.at)}. A date counts when it has a weekday (“Saturday, March 3, 2024”) or sits next to an event word (join us, workshop, register, until, 7 pm…); dates after “since”, “founded”, “posted” or “updated” are history and are skipped. Numeric dates (03/04/2024) count only when they are past read either way; phone numbers and prices are never dates. ${r.staleMonths ? `“Not updated”: pages not saved in the editor for ${r.staleMonths} months.` : "“Not updated” is switched off."} If a date is a historic fact, dismiss it “for good”.` });
+	return out;
+}
+
 /** Page preloading: a status line only (the kit config switches it; nothing for the owner to tune). */
 function prefetchSection(d: PageData): Block[] {
 	const on = d.prefetch !== false;
@@ -716,6 +825,9 @@ export function page(d: PageData, tab: number = TABS.overview): Block[] {
 	const blocked = d.csp && !d.csp.off ? d.csp.items.filter((e) => isScriptDirective(e.directive)).length : 0;
 	const latest = needsLook(d.visual?.store.runs.at(-1));
 	const look = latest.problems.length + latest.changes.length;
+	const review = d.review?.store ? activeReview(d.review.store, d.review.dismissed, d.now ?? Date.now()) : null;
+	const a11y = d.review?.accessibility && d.visual?.on !== false && review?.accessibility ? review.a11y.length : 0;
+	const stale = d.review?.freshness && d.visual?.on !== false ? (review?.stale.length ?? 0) : 0;
 	return [
 		{ type: "header", text: "Site health" },
 		{
@@ -728,6 +840,8 @@ export function page(d: PageData, tab: number = TABS.overview): Block[] {
 				{ label: `Missing pages${missing ? ` (${missing})` : ""}`, blocks: missingTab(d) },
 				{ label: "Speed", blocks: speedTab(d) },
 				{ label: `Visual check${look ? ` (${look})` : ""}`, blocks: visualTab(d) },
+				{ label: `Accessibility${a11y ? ` (${a11y})` : ""}`, blocks: accessibilityTab(d) },
+				{ label: `Content freshness${stale ? ` (${stale})` : ""}`, blocks: freshnessTab(d) },
 				{ label: `Security${blocked ? ` (${blocked})` : ""}`, blocks: securityTab(d) },
 				{ label: "Reports", blocks: reportsTab(d) },
 				{ label: "Settings", blocks: settingsTab(d) },
