@@ -77,7 +77,7 @@ describe("provision", () => {
 		writeFileSync(cfFile(), JSON.stringify({ accountId: "agency", accountName: "Agency", production: { d1: { name: "acme-db", id: "old-d1", location: "weur" }, r2: { bucket: "acme-media", location: "weur" }, worker: { name: "acme" } } }));
 		const api = fakeApi();
 		const r = await provision("acme", "production", { sitesDir: dir, vars }, api.fetcher);
-		expect(r).toMatchObject({ accountId: "client-acct", accountName: "Client", movedFrom: "agency", created: ["D1 acme-db", "R2 acme-media", "R2 acme-sessions", "KV acme-form-outbox"] });
+		expect(r).toMatchObject({ accountId: "client-acct", accountName: "Client", movedFrom: "agency", created: ["D1 acme-db", "R2 acme-media", "R2 acme-sessions", "KV acme-form-outbox", "D1 acme-restore-drill-db"] });
 		const cf = JSON.parse(readFileSync(cfFile(), "utf8"));
 		expect(cf.accountId).toBe("agency");
 		expect(cf.production).toMatchObject({ accountId: "client-acct", d1: { id: "new-d1", location: "weur" }, r2: { bucket: "acme-media" }, worker: { url: "https://acme.client.workers.dev" } });
@@ -87,10 +87,10 @@ describe("provision", () => {
 
 	it("is idempotent: existing resources are reused, nothing created twice", async () => {
 		const rule = { id: "wp2emdash-sessions-expire", enabled: true, conditions: {}, deleteObjectsTransition: { condition: { type: "Age", maxAge: 30 * 86400 } } };
-		const api = fakeApi({ d1: ["acme-db"], r2: ["acme-media", "acme-sessions"], kv: ["acme-form-outbox"], lifecycle: { "acme-sessions": [rule] } });
+		const api = fakeApi({ d1: ["acme-db", "acme-restore-drill-db"], r2: ["acme-media", "acme-sessions"], kv: ["acme-form-outbox"], lifecycle: { "acme-sessions": [rule] } });
 		const r = await provision("acme", "production", { sitesDir: dir, vars }, api.fetcher);
 		expect(r.created).toEqual([]);
-		expect(r.reused).toEqual(["D1 acme-db", "R2 acme-media", "R2 acme-sessions", "KV acme-form-outbox"]);
+		expect(r.reused).toEqual(["D1 acme-db", "R2 acme-media", "R2 acme-sessions", "KV acme-form-outbox", "D1 acme-restore-drill-db"]);
 		expect(JSON.parse(readFileSync(cfFile(), "utf8")).production.d1.id).toBe("uuid-acme-db");
 		expect(api.calls.filter((c) => !c.startsWith("GET"))).toEqual([]);
 	});
@@ -98,7 +98,7 @@ describe("provision", () => {
 	it("sessions on R2 (default): creates a private <worker>-sessions bucket next to the media bucket, with an expiry rule, and no SESSION KV", async () => {
 		const api = fakeApi();
 		const r = await provision("acme", "production", { sitesDir: dir, vars, location: "weur" }, api.fetcher);
-		expect(r.created).toEqual(["D1 acme-db", "R2 acme-media", "R2 acme-sessions", "KV acme-form-outbox"]);
+		expect(r.created).toEqual(["D1 acme-db", "R2 acme-media", "R2 acme-sessions", "KV acme-form-outbox", "D1 acme-restore-drill-db"]);
 		expect(api.bodies["POST /client/v4/accounts/client-acct/r2/buckets"]).toEqual({ name: "acme-sessions", locationHint: "weur" });
 		// Lifecycle: read first, the default multipart rule kept, the kit's rule added (30 days by default).
 		expect(api.bodies["PUT /client/v4/accounts/client-acct/r2/buckets/acme-sessions/lifecycle"]).toEqual({
@@ -135,6 +135,27 @@ describe("provision", () => {
 		expect(r.notes.join(" ")).toMatch(/r2\.dev access was on; switched off/);
 		const custom = fakeApi({ r2: ["acme-sessions"], customDomains: { "acme-sessions": ["sessions.acme.example"] } });
 		await expect(provision("acme", "production", { sitesDir: dir, vars }, custom.fetcher)).rejects.toThrow(/served on sessions\.acme\.example/);
+	});
+
+	it("backups' restore test: an empty scratch D1 database for production only, recorded in cloudflare.json; never for staging or with the test off", async () => {
+		setConfig("target: {", "target: {\n\t\tstaging: true,");
+		const api = fakeApi();
+		const prod = await provision("acme", "production", { sitesDir: dir, vars, location: "weur" }, api.fetcher);
+		expect(prod.created).toContain("D1 acme-restore-drill-db");
+		expect(api.bodies["POST /client/v4/accounts/client-acct/d1/database"]).toEqual({ name: "acme-restore-drill-db", primary_location_hint: "weur" });
+		expect(JSON.parse(readFileSync(cfFile(), "utf8")).production.restoreDrill).toEqual({ name: "acme-restore-drill-db", id: "new-d1" });
+		const staging = await provision("acme", "staging", { sitesDir: dir, vars }, api.fetcher);
+		expect([...staging.created, ...staging.reused].filter((x) => x.includes("restore-drill"))).toEqual([]);
+		expect(JSON.parse(readFileSync(cfFile(), "utf8")).staging.restoreDrill).toBeUndefined();
+		expect(api.calls.some((c) => c.startsWith("DELETE"))).toBe(false);
+	});
+
+	it("backups' restore test off (or backups off): no scratch database", async () => {
+		setConfig("target: {", "backups: { restoreDrill: false },\n\ttarget: {");
+		const api = fakeApi();
+		const r = await provision("acme", "production", { sitesDir: dir, vars }, api.fetcher);
+		expect([...r.created, ...r.reused].filter((x) => x.includes("restore-drill"))).toEqual([]);
+		expect(JSON.parse(readFileSync(cfFile(), "utf8")).production.restoreDrill).toBeUndefined();
 	});
 
 	it("refuses staging on a single-environment site (the default) and creates production only", async () => {

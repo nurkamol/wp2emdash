@@ -175,6 +175,8 @@ export interface BackupEntry {
 	/** Compressed size in bytes. */
 	bytes: number;
 	counts: BackupCounts;
+	/** SHA-256 (hex) of the stored compressed file (backups made by 0.2.0 and later; also in the R2 custom metadata). */
+	sha256?: string;
 	/** Off-site copy: ok, failed (with a short reason) or not configured. */
 	offsite?: "ok" | "failed";
 	/** Who asked (display name; nightly runs have none). */

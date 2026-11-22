@@ -10,7 +10,7 @@ import { businessFooter } from "../scaffold/business.js";
 import { createHash, randomBytes } from "node:crypto";
 import type { OgCardOptions } from "../../packages/og/src/index.js";
 import { OG_DEPENDENCIES, ogColors, ogFonts } from "../scaffold/og.js";
-import { backupsOptions } from "../scaffold/backups.js";
+import { backupsOptions, RESTORE_DRILL_BINDING } from "../scaffold/backups.js";
 import { healthOptions, mailBaselineFrom } from "../scaffold/health.js";
 import { ardManifest } from "../../starter/src/utils/ard.js";
 import { CSP_REPORT_PATH } from "../../starter/src/utils/csp-report.js";
@@ -84,7 +84,7 @@ export const STACK = {
 
 export interface CloudflareResources {
 	staging?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; outbox?: { id: string }; session?: { id: string }; sessions?: { bucket: string } };
-	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; live?: boolean; outbox?: { id: string }; session?: { id: string }; sessions?: { bucket: string } };
+	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; live?: boolean; outbox?: { id: string }; session?: { id: string }; sessions?: { bucket: string }; restoreDrill?: { name: string; id: string } };
 }
 
 /**
@@ -140,7 +140,7 @@ export function workerVars(config: Pick<KitConfig, "email" | "forms"> & { sensit
  * preview URL (docs/spikes/single-env-findings.md). Opt-in staging: `env.staging` with its own Worker, data and vars
  * (unchanged from before 2026-11-20).
  */
-export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms"> & { sensitiveData?: boolean }; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; health?: boolean; backups?: boolean; media?: boolean; ai?: boolean; productionHost: string; perf?: PerfConfig; live?: boolean; keepWorkersDev?: boolean; sessions?: "r2" | "kv" }): string {
+export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms"> & { sensitiveData?: boolean }; workerName: string; compatibilityDate: string; cf: CloudflareResources; staging: boolean; sandboxedEnvs: string[][]; seoPanel: boolean; health?: boolean; backups?: boolean; restoreDrill?: boolean; media?: boolean; ai?: boolean; productionHost: string; perf?: PerfConfig; live?: boolean; keepWorkersDev?: boolean; sessions?: "r2" | "kv" }): string {
 	const { config, workerName, cf } = o;
 	// SELF: the SEO dashboard and Site health request the site's own pages through the Worker itself; Backups restores
 	// through EmDash's own API as the admin who confirmed; Media replaces and moves files the same way.
@@ -149,6 +149,9 @@ export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms"> & 
 	const ai = o.ai ? `\n\t// Workers AI: Media's alt text suggestions (kit.config media.aiAlt) and SEO fix-it drafts (seo.panel, not on sensitive sites).\n\t"ai": { "binding": "AI" },` : "";
 	const loader = (e: "staging" | "production") => o.sandboxedEnvs.some((envs) => envs.includes(e));
 	const d1 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "DB", database_name: cf[env]?.d1?.name ?? fallback, ...(cf[env]?.d1?.id ? { database_id: cf[env]?.d1?.id } : {}) });
+	// Backups' restore test (production only, never staging): an empty scratch database, bound only once provision
+	// recorded its id — a D1 binding without an id would be auto-provisioned by `wrangler deploy` (Wrangler 4.163.0).
+	const drill = o.backups && o.restoreDrill && cf.production?.restoreDrill?.id ? `, ${JSON.stringify({ binding: RESTORE_DRILL_BINDING, database_name: cf.production.restoreDrill.name, database_id: cf.production.restoreDrill.id })}` : "";
 	// R2: media, and the sessions bucket (SESSIONS) when sign-in sessions are on R2 (src/scaffold/sessions.ts).
 	const r2 = (env: "staging" | "production", fallback: string) => [{ binding: "MEDIA", bucket_name: cf[env]?.r2?.bucket ?? fallback }, ...(o.sessions === "r2" ? [sessionsBucketBinding(cf, env)].filter(Boolean) : [])].map((b) => JSON.stringify(b)).join(", ");
 	// KV: the form outbox, and SESSION (Astro sessions) bound explicitly once provision recorded it. Without an id the
@@ -187,7 +190,7 @@ export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms"> & 
 	"main": "./src/worker.ts",
 	"compatibility_date": ${JSON.stringify(o.compatibilityDate)},
 	"compatibility_flags": ["nodejs_compat"],
-	"d1_databases": [${d1("production", `${workerName}-db`)}],
+	"d1_databases": [${d1("production", `${workerName}-db`)}${drill}],
 	"r2_buckets": [${r2("production", `${workerName}-media`)}],
 	"vars": ${JSON.stringify(vars.production)},
 	"ratelimits": ${limiter(ns)}${kvJson("production")},
@@ -603,7 +606,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const backups = backupsOptions({ config, productionUrl: siteConfig.productionUrl, live: !!cfNow?.production?.live, ...(cfNow?.production?.d1?.name ? { database: cfNow.production.d1.name } : {}) });
 	if (backups) {
 		cpSync(join(KIT_ROOT, "packages", "backups"), join(project, "packages", "backups"), { recursive: true, filter: (src) => !/node_modules/.test(src) });
-		reporter.emit({ type: "log", level: "info", message: `backups on (@wp2emdash/backups): nightly at ~${backups.hourUtc ?? "01–03"} UTC, keep ${backups.retention?.daily} daily + ${backups.retention?.monthly} monthly, alerts to ${backups.alertsTo.length} address(es)${backups.offsite ? `, off-site copy to ${new URL(backups.offsite.endpoint).host} (set BACKUP_S3_ACCESS_KEY_ID / BACKUP_S3_SECRET_ACCESS_KEY on the Worker)` : ""}` });
+		reporter.emit({ type: "log", level: "info", message: `backups on (@wp2emdash/backups): nightly at ~${backups.hourUtc ?? "01–03"} UTC, keep ${backups.retention?.daily} daily + ${backups.retention?.monthly} monthly, alerts to ${backups.alertsTo.length} address(es)${backups.offsite ? `, off-site copy to ${new URL(backups.offsite.endpoint).host} (set BACKUP_S3_ACCESS_KEY_ID / BACKUP_S3_SECRET_ACCESS_KEY on the Worker)` : ""}${backups.restoreDrill ? `, restore test every ${backups.restoreDrill.everyDays} days` : ""}` });
+		if (backups.restoreDrill && !cfNow?.production?.restoreDrill?.id) reporter.emit({ type: "log", level: "info", message: `backups: no restore-test database recorded in cloudflare.json, so the monthly restore test runs as a dry run (no write); \`wp2emdash provision ${config.slug}\` creates it (${config.slug}-restore-drill-db) and the next scaffold binds it as ${RESTORE_DRILL_BINDING}` });
 	}
 	// Media Assistant (@wp2emdash/media, on by default); media: false turns it off.
 	rmSync(join(project, "packages", "media"), { recursive: true, force: true });
@@ -823,7 +827,7 @@ ${sess.options}${ap.options}	integrations: [
 	if (config.forms.outbox && config.forms.crm !== false && !config.sensitiveData && forms.length) reporter.emit({ type: "log", level: "info", message: `CRM sync available in Form messages → Settings → CRM & mailing lists (${config.forms.crm?.providers.length ? `pre-selected: ${config.forms.crm.providers.join(", ")}` : "off until an admin turns a provider on"}); each provider needs its Worker secret: npx wrangler secret put BREVO_API_KEY | HUBSPOT_TOKEN | MAILCHIMP_API_KEY` });
 	if (config.forms.outbox && config.forms.chat !== false && forms.length) reporter.emit({ type: "log", level: "info", message: `chat notifications available in Form messages → Settings (off until an admin turns a channel on${config.sensitiveData ? "; sensitiveData: notification only" : ""}); each channel needs its Worker secret: npx wrangler secret put TELEGRAM_BOT_TOKEN | SLACK_WEBHOOK_URL | CHAT_WEBHOOK_URL` });
 	if (!envs.staging && !config.forms.turnstileSiteKey && forms.length) reporter.emit({ type: "log", level: "warn", message: `single environment: production forms refuse messages until forms.turnstileSiteKey is set (one Turnstile widget for ${new URL(siteConfig.productionUrl).host} and the account's workers.dev subdomain) and its secret is put (wrangler secret put TURNSTILE_SECRET_KEY)` });
-	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, health: !!health, backups: !!backups, media: !!mediaAssistant, ai: workerNeedsAi(mediaAssistant, !!seoPanel, config.sensitiveData), productionHost: new URL(siteConfig.productionUrl).host, perf: config.performance, live: !!cf.production?.live, keepWorkersDev: config.target.keepWorkersDev, sessions: sessions.store }));
+	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, health: !!health, backups: !!backups, restoreDrill: !!backups?.restoreDrill, media: !!mediaAssistant, ai: workerNeedsAi(mediaAssistant, !!seoPanel, config.sensitiveData), productionHost: new URL(siteConfig.productionUrl).host, perf: config.performance, live: !!cf.production?.live, keepWorkersDev: config.target.keepWorkersDev, sessions: sessions.store }));
 	// Local dev: Turnstile's always-pass test keys so forms work under `astro dev` (kept if the developer edited the file).
 	const devVars = join(project, ".dev.vars");
 	if (!existsSync(devVars)) write(devVars, "# Local only (gitignored). Turnstile always-pass test keys; add EMAIL_API_KEY and FORM_FROM to test real delivery.\nTURNSTILE_SITE_KEY=1x00000000000000000000AA\nTURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA\n");
@@ -868,7 +872,7 @@ ${sess.options}${ap.options}	integrations: [
 			...(config.performance.routeCache ? { routeCache: true } : {}),
 			...(health ? { health: { alertsTo: health.alertsTo, reportTo: health.reportTo, footer: health.brand.footer } } : {}),
 			...(consent ? { consent: { mode: consent.mode, ...(consent.options.keptTools ? { keptTools: consent.options.keptTools } : {}) } } : {}),
-			...(backups ? { backups: { alertsTo: backups.alertsTo, daily: backups.retention?.daily ?? 30, monthly: backups.retention?.monthly ?? 12, offsite: !!backups.offsite, ...(backups.database ? { database: backups.database } : {}) } } : {}),
+			...(backups ? { backups: { alertsTo: backups.alertsTo, daily: backups.retention?.daily ?? 30, monthly: backups.retention?.monthly ?? 12, offsite: !!backups.offsite, ...(backups.database ? { database: backups.database } : {}), ...(backups.restoreDrill ? { restoreTestDays: backups.restoreDrill.everyDays ?? 30 } : {}) } } : {}),
 			...(mediaAssistant ? { media: { aiAlt: mediaAssistant.aiAlt, autoOptimize: !!mediaAssistant.autoOptimize, maxDimension: mediaAssistant.limits?.maxDimension ?? 2500 } } : {}),
 			...(changeRequests ? { changeRequests: { retentionMonths: changeRequests.retentionMonths ?? 12, webhook: !!changeRequests.webhook } } : {}),
 			...(motionPanel ? { motion: { siteEntrance: motionPanel.siteEntrance } } : {}),

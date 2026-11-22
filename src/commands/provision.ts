@@ -2,7 +2,8 @@
  * `wp2emdash provision <slug> [production|staging]`: create the Cloudflare resources an environment needs — D1
  * database, R2 media bucket, KV form outbox (when the site keeps one), the Astro sessions store (EmDash sign-in: a
  * private R2 bucket `<worker>-sessions` with a lifecycle rule by default, or the `SESSION` KV namespace with kit.config
- * `sessions: "kv"`; docs/spikes/sessions-findings.md) — in the account that environment runs in, and record them in sites/<slug>/cloudflare.json. Idempotent (an existing resource with the same name is reused) and
+ * `sessions: "kv"`; docs/spikes/sessions-findings.md), and for production the backups restore test's empty scratch D1 database
+ * `<slug>-restore-drill-db` (docs/spikes/backup-findings.md) — in the account that environment runs in, and record them in sites/<slug>/cloudflare.json. Idempotent (an existing resource with the same name is reused) and
  * never deletes anything: when the environment moves to another account, the old entries are kept under `previous`
  * so they can be removed later, once the new environment serves traffic.
  *
@@ -33,6 +34,8 @@ export interface EnvResources {
 	session?: { name: string; id: string };
 	/** Private R2 bucket bound as SESSIONS (Astro sessions, kit.config sessions "r2"); objects deleted after `days`. */
 	sessions?: { bucket: string; location?: string; days: number };
+	/** Empty D1 database bound as RESTORE_DRILL_DB: backups' monthly restore test (production only). */
+	restoreDrill?: { name: string; id: string };
 	worker?: { name?: string; url?: string; addresses?: string[] };
 	live?: boolean;
 	previous?: Omit<EnvResources, "previous">[];
@@ -173,6 +176,25 @@ export async function provision(slug: string, env: Env, opts: { location?: strin
 	// deploy already created is found and reused: nothing changes for an existing site.
 	// Sessions on R2: no new namespace; one recorded earlier stays in cloudflare.json (a switch back to "kv" reuses it).
 	if (config.sessions.store === "kv") next.session = await kv(next.session?.name ?? `${workerName}-session`);
+
+	// Backups' restore test (production only): an EMPTY scratch D1 database the Worker restores the newest backup into
+	// once a month, then empties (bound as RESTORE_DRILL_DB by the next scaffold). A Worker cannot create a database
+	// itself without an account token, so it is created here, ahead of time. Not for staging (the test never runs there).
+	if (env === "production" && config.backups !== false && config.backups.restoreDrill !== false) {
+		const drillName = next.restoreDrill?.name ?? `${slug}-restore-drill-db`;
+		const got = await call<{ uuid: string; name: string }[]>("GET", `/accounts/${accountId}/d1/database?name=${encodeURIComponent(drillName)}`);
+		const drillHit = got.result?.find((d) => d.name === drillName);
+		if (drillHit) {
+			next.restoreDrill = { name: drillName, id: drillHit.uuid };
+			result.reused.push(`D1 ${drillName}`);
+		} else {
+			const made = await call<{ uuid: string }>("POST", `/accounts/${accountId}/d1/database`, { name: drillName, primary_location_hint: location });
+			if (!made.ok || !made.result) throw fail(`Creating D1 ${drillName} (D1: Edit)`, made);
+			next.restoreDrill = { name: drillName, id: made.result.uuid };
+			result.created.push(`D1 ${drillName}`);
+			result.notes.push(`${drillName}: empty scratch database for the monthly backup restore test (never migrated, never holds live data); rerun the scaffold to bind it as RESTORE_DRILL_DB.`);
+		}
+	}
 
 	// workers.dev subdomain: the Worker's preview address until the switch.
 	const sub = await call<{ subdomain?: string }>("GET", `/accounts/${accountId}/workers/subdomain`);

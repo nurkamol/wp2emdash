@@ -344,6 +344,24 @@ export const kitConfigSchema = z.object({
 						prefix: z.string().max(200).optional(),
 					})
 					.optional(),
+				/**
+				 * Restore test (on by default): every `everyDays` days the Worker restores the newest full backup into an
+				 * empty scratch database (D1 binding RESTORE_DRILL_DB, created by `wp2emdash provision`), checks it against
+				 * the backup's own counts and samples `mediaSample` media files in R2, then empties the scratch database.
+				 * Without that binding it validates the backup against the live schema without writing (dry run). Never
+				 * on staging. `false` turns it off.
+				 */
+				restoreDrill: z
+					.union([
+						z.literal(false),
+						z.object({
+							everyDays: z.number().int().min(1).max(366).default(30),
+							mediaSample: z.number().int().min(0).max(100).default(12),
+							/** Allowed difference between restored and expected rows per table, in percent (0 = exact). */
+							tolerancePct: z.number().min(0).max(50).default(0),
+						}),
+					])
+					.prefault({}),
 			}),
 		])
 		.prefault({}),

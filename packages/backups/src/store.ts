@@ -22,6 +22,10 @@ export const KEYS = {
 	settings: "settings",
 	download: (token: string) => `dl:${token}`,
 	plan: (token: string) => `plan:${token}`,
+	/** The restore test: the last result, a run in progress, a pending "Run restore test now" (drill.ts). */
+	drill: "drill",
+	/** The restore test's own single-flight lock (a backup and a restore test may overlap: the test only reads R2). */
+	drillLock: "drill-lock",
 } as const;
 
 export interface AlertSettings {
@@ -48,19 +52,19 @@ export async function updateIndex(kv: Kv, fn: (list: BackupEntry[]) => BackupEnt
 }
 
 /** Single flight: one backup or restore at a time (atomic compare-and-set; a crashed run frees it after `ms`). */
-export async function acquireLock(kv: Kv, now: number, ms: number, what: string): Promise<boolean> {
+export async function acquireLock(kv: Kv, now: number, ms: number, what: string, key: string = KEYS.lock): Promise<boolean> {
 	const value = { until: new Date(now + ms).toISOString(), what };
 	if (kv.getVersioned && kv.compareAndSet) {
-		const cur = await kv.getVersioned<{ until: string }>(KEYS.lock);
+		const cur = await kv.getVersioned<{ until: string }>(key);
 		if (cur && Date.parse(cur.value.until) > now) return false;
-		return (await kv.compareAndSet(KEYS.lock, cur ? cur.revision : null, value)).applied;
+		return (await kv.compareAndSet(key, cur ? cur.revision : null, value)).applied;
 	}
-	const cur = await kv.get<{ until: string }>(KEYS.lock);
+	const cur = await kv.get<{ until: string }>(key);
 	if (cur && Date.parse(cur.until) > now) return false;
-	await kv.set(KEYS.lock, value);
+	await kv.set(key, value);
 	return true;
 }
-export const releaseLock = (kv: Kv) => kv.delete(KEYS.lock);
+export const releaseLock = (kv: Kv, key: string = KEYS.lock) => kv.delete(key);
 
 /** One-time grants (downloads, restore previews): random token, expiry; stale ones are removed when a new one is made. */
 export async function grant<T extends object>(kv: Kv, kind: "dl" | "plan", value: T, ms: number, now = Date.now()): Promise<string> {

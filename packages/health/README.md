@@ -11,7 +11,7 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   waiting / refused counts, email status — read through that package, counts only), broken links (daily, resumable;
   20 sampled external links weekly), email DNS records against the go-live baseline (DNS over HTTPS), the certificate
   (optional token), speed (page build time; Chrome UX Report p75 LCP / INP / CLS with an optional key) and the
-  analytics tags (the page carries the codes switched on in SEO & Analytics), backups (the backups plugin's heartbeat)
+  analytics tags (the page carries the codes switched on in SEO & Analytics), backups (the backups plugin's heartbeat, plus its last restore test from one D1 row: a failed test is a warning)
   and media (the Media Assistant's daily counts: images on pages without alt text, oversized originals, broken image
   references; one D1 read, never an alert). Cadence and limits: `src/schedule.ts`.
 - **Missing pages** (hourly, one D1 read of EmDash's `_emdash_404_log`): the addresses asked for in the last 7 days,

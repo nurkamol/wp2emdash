@@ -8,7 +8,7 @@ import type { OutboxEnv } from "@wp2emdash/forms/outbox";
 import type { D1Like } from "@wp2emdash/seo/analytics/store";
 import { type AlertEvent, alertEvents, alertMail, type AlertLog, pickAlerts } from "./alerts.js";
 import { analyticsCheck, expectedTrackers } from "./checks/analytics.js";
-import { backupsCheck, readBackupBeat } from "./checks/backups.js";
+import { backupsCheck, readBackupBeat, readDrillSummary } from "./checks/backups.js";
 import { compareMail, dnsCheck } from "./checks/dns.js";
 import { mediaCheck, readMediaSummary } from "./checks/media.js";
 import { NOTFOUND_WINDOW, notFoundCheck, readNotFound, summarizeNotFound } from "./checks/notfound.js";
@@ -184,7 +184,7 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 
 	// ── Backups (hourly): the backups plugin's heartbeat, through the Worker itself.
 	if (plan.light.includes("backups")) {
-		checks.backups = backupsCheck(!!o.backups, o.backups ? await readBackupBeat(d.self, origin) : undefined, at, now);
+		checks.backups = backupsCheck(!!o.backups, o.backups ? await readBackupBeat(d.self, origin) : undefined, at, now, o.backups ? await readDrillSummary(env.DB) : undefined);
 		jobs.backups = at;
 		ran.push("backups");
 	}
