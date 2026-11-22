@@ -114,7 +114,10 @@ log "seeding WordPress (log: ${WORK}/seed.log)"
 compose --profile tools run --rm -T wpcli bash /seed/seed.sh 2>&1 | tee "${WORK}/seed.log" || setup_failed "seed failed"
 
 log "smoke checks against the seeded site"
-for path in "/" "/fr/" "/about/" "/shop/" "/wp-json/emdash/v1/probe"; do
+# Polylang may answer /fr/ with a redirect (front page translation): logged for diagnosis, not fatal.
+fr_home="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "${E2E_WP_URL}/fr/" || true)"
+echo "  /fr/ → HTTP ${fr_home} (informational)"
+for path in "/" "/fr/a-propos/" "/about/" "/shop/" "/wp-json/emdash/v1/probe"; do
 	code="$(curl -s -o /dev/null -w '%{http_code}' "${E2E_WP_URL}${path}" || true)"
 	echo "  ${path} → HTTP ${code}"
 	[ "${code}" = "200" ] || setup_failed "seeded site: ${path} answered HTTP ${code} (expected 200)"
