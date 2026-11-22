@@ -119,6 +119,7 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 	const fields: FormFieldOut[] = [];
 	// Conditional logic is resolved once every field is known (rules name fields by their `name` attribute).
 	const rules: { field: FormFieldOut; logic: Obj }[] = [];
+	const optionLabels = new Map<string, Map<string, string>>();
 	let customSubmit: string | undefined;
 	let step = 0;
 	const visit = (f: Obj, half: boolean) => {
@@ -192,6 +193,8 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 		}
 		const label = str(s.label) || (placeholder ?? name).replace(/\*\s*$/, "").trim();
 		const options = Array.isArray(s.advanced_options) ? (s.advanced_options as Obj[]).map((x) => str(x.label) ?? str(x.value) ?? "").filter(Boolean) : undefined;
+		// The rebuilt form submits the option's label; Fluent's rules compare its value — remember value → label.
+		if (options?.length) optionLabels.set(name, new Map((s.advanced_options as Obj[]).flatMap((x) => (str(x.value) !== undefined && (str(x.label) ?? str(x.value)) ? [[(str(x.value) as string).trim().toLowerCase(), (str(x.label) ?? str(x.value)) as string]] : []))));
 		// Fluent date: `is_time_enabled`, or a format with hours (`m/d/Y h:i K`) → a date and time picker.
 		const time = type === "date" && (s.is_time_enabled === true || s.is_time_enabled === "yes" || /[hHgGi]/.test(str(s.date_format) ?? ""));
 		fields.push({ name, label, type, ...(required ? { required } : {}), ...(placeholder ? { placeholder } : {}), ...(options?.length ? { options } : {}), ...(time ? { time } : {}), ...(type === "textarea" && Number(a.rows) >= 2 && Number(a.rows) <= 20 ? { rows: Number(a.rows) } : {}), ...(half && type !== "signature" ? { half } : {}), ...(AUTOCOMPLETE[name] ? { autocomplete: AUTOCOMPLETE[name] } : {}) });
@@ -206,10 +209,35 @@ export function fluentFormToDefinition(raw: { id: string; title: string; form: {
 	const afterSubmit = str(confirmation.samePageFormBehavior) === "hide_form" ? "hide" : str(confirmation.samePageFormBehavior) === "reset_form" ? "reset" : undefined;
 	const signed = fields.some((f) => f.type === "signature");
 	// Fluent conditional_logics: { status, type: "any" | "all", conditions: [{ field, operator: "=" | "!=" | …, value }] }.
-	const names = new Set(fields.map((f) => f.name));
+	// On a choice field (checkbox group, radio, select) "=" means "this option is chosen" — for a checkbox group, ticked
+	// among others — which is what showIf's equals does with the submitted values (packages/forms/src/logic.ts), so
+	// "any" over several options of one group is "one of [A, B, …]". Fluent's contains / doNotContains on a choice field
+	// test the same membership. Rule values are mapped to the option labels the rebuilt form submits. A name part is
+	// referenced as names[first_name]; the rebuilt form has it as first_name.
+	const byName = new Map(fields.map((f) => [f.name, f]));
+	const resolve = (ref: string) => {
+		const part = /^[\w-]+\[([\w-]+)\]$/.exec(ref)?.[1];
+		return byName.has(ref) ? ref : part && byName.has(part) ? part : undefined;
+	};
 	for (const { field, logic } of rules) {
 		const conditions = (Array.isArray(logic.conditions) ? logic.conditions : []).map((c) => o(c)).filter((c) => str(c.field));
-		const r = showIfFrom(field.label, conditions.map((c) => ({ field: names.has(str(c.field) as string) ? str(c.field) : undefined, op: str(c.operator) ?? "=", value: str(c.value) ?? String(c.value ?? "") })), str(logic.type) === "all" ? "all" : "any");
+		// A rule on the field itself would hide it for good (it can never be filled in while hidden): reported instead.
+		if (conditions.some((c) => resolve(str(c.field) as string) === field.name)) {
+			notes.push(`“${field.label}”: conditional logic not carried (it depends on the field itself); the field is always shown`);
+			continue;
+		}
+		const r = showIfFrom(
+			field.label,
+			conditions.map((c) => {
+				const ctl = resolve(str(c.field) as string);
+				const choice = ctl ? byName.get(ctl)?.options?.length : false;
+				const raw = str(c.operator) ?? "=";
+				const op = choice && /^contains$/i.test(raw) ? "=" : choice && /^(doNotContains|not_contains|notContains)$/i.test(raw) ? "!=" : raw;
+				const value = str(c.value) ?? String(c.value ?? "");
+				return { field: ctl, op, value: (ctl && optionLabels.get(ctl)?.get(value.trim().toLowerCase())) ?? value };
+			}),
+			str(logic.type) === "all" ? "all" : "any",
+		);
 		if (r.showIf) field.showIf = r.showIf;
 		if (r.note) notes.push(r.note);
 	}

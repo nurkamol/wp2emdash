@@ -1,0 +1,67 @@
+{
+  "id": "14",
+  "title": "Class interest (synthetic)",
+  "form": {
+    "form_fields": {
+      "fields": [
+        {
+          "element": "input_name",
+          "attributes": { "name": "names" },
+          "settings": { "label": "Name", "conditional_logics": { "status": false, "type": "any", "conditions": [{ "field": "", "value": "", "operator": "" }] } },
+          "fields": {
+            "first_name": { "element": "input_text", "attributes": { "name": "first_name", "type": "text" }, "settings": { "label": "First Name", "visible": true, "validation_rules": { "required": { "value": true } } } },
+            "middle_name": { "element": "input_text", "attributes": { "name": "middle_name", "type": "text" }, "settings": { "label": "Middle Name", "visible": true } },
+            "last_name": { "element": "input_text", "attributes": { "name": "last_name", "type": "text" }, "settings": { "label": "Last Name", "visible": true, "validation_rules": { "required": { "value": true } } } }
+          }
+        },
+        { "element": "input_email", "attributes": { "name": "email", "type": "email" }, "settings": { "label": "Email", "validation_rules": { "required": { "value": true } } } },
+        {
+          "element": "input_checkbox",
+          "attributes": { "name": "checkbox", "type": "checkbox" },
+          "settings": {
+            "label": "Which classes interest you?",
+            "advanced_options": [
+              { "label": "Mat basics", "value": "Mat basics" },
+              { "label": "Reformer flow", "value": "Reformer flow" },
+              { "label": "Barre fusion", "value": "Barre fusion" },
+              { "label": "Prenatal", "value": "Prenatal" },
+              { "label": "Something else (tell us)", "value": "Other" }
+            ],
+            "conditional_logics": { "status": false, "type": "any", "conditions": [{ "field": "", "value": "", "operator": "" }] }
+          }
+        },
+        {
+          "element": "input_text",
+          "attributes": { "name": "input_text", "type": "text" },
+          "settings": {
+            "label": "What else would you like to try?",
+            "validation_rules": { "required": { "value": true } },
+            "conditional_logics": { "status": true, "type": "any", "conditions": [{ "field": "checkbox", "value": "Other", "operator": "=" }] }
+          }
+        },
+        {
+          "element": "input_checkbox",
+          "attributes": { "name": "checkbox_1", "type": "checkbox" },
+          "settings": {
+            "label": "Preferred times",
+            "advanced_options": [
+              { "label": "Mornings", "value": "Mornings" },
+              { "label": "Evenings", "value": "Evenings" }
+            ],
+            "conditional_logics": {
+              "status": true,
+              "type": "any",
+              "conditions": [
+                { "field": "checkbox", "value": "Mat basics", "operator": "=" },
+                { "field": "checkbox", "value": "Reformer flow", "operator": "=" },
+                { "field": "checkbox", "value": "Barre fusion", "operator": "=" },
+                { "field": "checkbox", "value": "Prenatal", "operator": "=" }
+              ]
+            }
+          }
+        }
+      ],
+      "submitButton": { "settings": { "button_ui": { "text": "Send" } } }
+    }
+  }
+}
