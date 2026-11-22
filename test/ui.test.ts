@@ -235,3 +235,20 @@ describe("live progress (server-sent events)", () => {
 		expect((await raw("/api/sites/demo/runs/..%2F..%2Fstate/stream")).status).toBe(404);
 	});
 });
+
+describe("fleet", () => {
+	it("serves /api/fleet from local files (no network) behind the token", async () => {
+		expect((await fetch(`${base()}/api/fleet`)).status).toBe(401);
+		const res = await fetch(`${base()}/api/fleet`, { headers: { Cookie: cookie } });
+		expect(res.status).toBe(200);
+		const sites = (await res.json()) as { slug: string; kit: { gap: { status: string } }; live?: unknown }[];
+		expect(sites.map((s) => s.slug)).toEqual(["beta", "demo"]);
+		expect(sites.every((s) => s.live === undefined && typeof s.kit.gap.status === "string")).toBe(true);
+	});
+
+	it("the page has a fleet route", () => {
+		const js = readFileSync(new URL("../src/ui/assets/app.js", import.meta.url), "utf8");
+		expect(js).toContain('if (parts[0] === "fleet") return fleetPage();');
+		expect(js).toContain('api("/api/fleet")');
+	});
+});

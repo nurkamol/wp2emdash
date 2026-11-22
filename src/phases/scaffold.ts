@@ -29,6 +29,7 @@ import type { BricksHeaderLook, BricksLayout } from "../adapters/bricks/layout.j
 import type { KitConfig } from "../config/schema.js";
 import { siteEnvironments } from "../core/environments.js";
 import { KIT_ROOT } from "../core/paths.js";
+import { writeBuildMarker } from "../core/build-marker.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
 import { missingFamilies, resolveGoogleHref, selfHostGoogleFonts, typekitKit } from "../scaffold/fonts.js";
@@ -754,6 +755,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		},
 		devDependencies: { "@astrojs/check": STACK["@astrojs/check"], "@cloudflare/workers-types": STACK["@cloudflare/workers-types"], typescript: STACK.typescript, wrangler: STACK.wrangler, ...(changeRequests ? { "@types/react": "19.2.18" } : {}) }, // @types/react: the change-requests upload page is a React admin page (astro check needs its types)
 	});
+	// Which kit built this project (kit version, build time, package versions): read by `wp2emdash fleet`.
+	writeBuildMarker(project);
 	writePerfFiles(project, config.performance);
 	// Password-protected pages never get a route-cache rule (the page itself refuses every cache: utils/access.ts).
 	const pagePaths = pages.flatMap((p) => (p.source.status === "publish" && !p.access && p.route?.path ? [p.route.path] : []));

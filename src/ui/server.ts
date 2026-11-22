@@ -33,6 +33,7 @@ import { phaseState, readState } from "../core/state.js";
 import { scrubSecrets } from "../extract/credentials.js";
 import { type ActionDeps, BusyError, defaultDeps, mergedEnv, SiteLocks } from "./actions.js";
 import { checklistView, cockpitView } from "./cockpit.js";
+import { fleet } from "../commands/fleet.js";
 import { appendVisualDecision, isRunId, isSiteSlug, listRuns, portfolio, readiness, runFile, runHistory, SERVABLE_ROOTS, siteMeta, siteSummary, UserError, visualReport } from "./data.js";
 import { environmentView, environmentViewLive, startSecretPut, workerSecretsView } from "./environment.js";
 import { inspectorView, proposeSectionChange } from "./inspector.js";
@@ -326,6 +327,8 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 		// ── API ──
 		if (parts[0] === "api") {
 			if (parts.length === 2 && parts[1] === "portfolio") return json(res, 200, (await portfolio(sitesDir)).map((s) => scrubFor(s.slug)(s)));
+			// Fleet: local files only (no --live network from the dashboard).
+			if (parts.length === 2 && parts[1] === "fleet") return json(res, 200, (await fleet({ sitesDir })).map((s) => scrubFor(s.slug)(s)));
 			if (parts[1] === "sites" && parts[2] !== undefined) {
 				const slug = parts[2];
 				if (!isSiteSlug(slug, sitesDir)) return json(res, 404, { error: "Unknown site" });
