@@ -14,6 +14,8 @@ pnpm wp2emdash status     # phase timeline for all sites (--json for machines)
 pnpm wp2emdash run <slug> <phase> [--json]   # exit 0 pass · 2 gate failed · 3 not built yet · 1 error
 pnpm wp2emdash accept <slug> <phase> --reason "…" --by "…"
 pnpm wp2emdash doctor
+pnpm wp2emdash changes <slug> [--json]   # what changed in WordPress between the last two extracts (new/edited/moved/deleted, menus, media, forms); deletions reported, never applied
+pnpm wp2emdash run <slug> load --overwrite-edited   # also replace entries edited in the EmDash admin since the last load (default: kept; also changed in WordPress = conflict, gate fails)
 pnpm wp2emdash estimate <url> [--rate <n>] [--lab] [--json]   # sales estimate from a prospect's public site → estimates/<host>-<date>/ (gitignored)
 pnpm wp2emdash fleet [--live] [--json]     # every site: versions built with vs current kit, last change, upgrade check, owner to-dos
 pnpm wp2emdash fleet upgrade-prs           # dry run; --apply commits a wp2emdash/v<version> branch per client project, --open also pushes it + opens the PR (never main; refuses if CI would deploy the branch)

@@ -45,6 +45,8 @@ import type { MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
 import { loadSocial, socialImageUrls, socialPayload } from "../targets/emdash/social.js";
 import type { TermSeoPlan } from "../transform/term-meta.js";
+import { type ContentRecord, editState, emptyRecord, shouldWrite, updateRecord } from "../targets/emdash/content-record.js";
+import { MANIFEST_FILE, readManifest } from "../extract/changes.js";
 
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
 const write = (file: string, data: unknown) => {
@@ -184,7 +186,7 @@ export async function ensureDevServer(project: string, port: number, log: (m: st
 	throw new Error("dev server did not start within 90 s");
 }
 
-export async function runLoad({ config, paths, reporter, force, overwriteSettings, only }: PhaseContext): Promise<GateCheck[]> {
+export async function runLoad({ config, paths, reporter, force, overwriteSettings, overwriteEdited, only }: PhaseContext): Promise<GateCheck[]> {
 	const onlySettings = only === "settings";
 	const checks: GateCheck[] = [];
 	const check = (id: string, label: string, ok: boolean, detail?: string) => checks.push({ id, label, ok, ...(detail ? { detail } : {}) });
@@ -450,6 +452,16 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const mapFile = join(paths.root, "load", `id-map.${target}.json`);
 		const idMap: IdMap = readJson<IdMap>(mapFile) ?? { target, baseUrl: api.baseUrl, media: {}, content: {} };
 		const saveMap = () => write(mapFile, idMap);
+		// What load wrote to each entry (version/updatedAt after its last write) and the WordPress side it came from: an
+		// entry an editor changed in the admin since is kept unless --overwrite-edited (src/targets/emdash/content-record.ts).
+		const recordFile = join(paths.root, "load", `content.${target}.json`);
+		const contentRecord: ContentRecord = readJson<ContentRecord>(recordFile) ?? emptyRecord();
+		const wpHashes = new Map<string, string>((readManifest(join(paths.raw, MANIFEST_FILE))?.items ?? []).map((i) => [`${i.type}:${i.wpId}`, i.rawHash] as const));
+		/** Entries load left as the editor had them (edited in the admin), and the ones whose write failed: their record stays. */
+		const keptEdited = new Set<string>();
+		const notRecorded = new Set<string>();
+		const conflicts: string[] = [];
+		const keptOnly: string[] = [];
 		const siteHosts = new Set([new URL(config.source.url).host, ...config.source.alternateHosts].map((h) => h.replace(/^www\./, "")));
 		const uploadsRe = /\/(?:wp-content\/uploads|storage)\/\d{4}\/\d{2}\/[^\s"')]+/i;
 
@@ -871,6 +883,16 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 						reporter.emit({ type: "log", level: "info", message: `adopted existing ${collection}/${slug} (first load into this target)` });
 					}
 				}
+				// Changed in the EmDash admin since the last load: kept (a conflict when WordPress changed too) unless --overwrite-edited.
+				const current = entryId ? list.find((e) => e.id === entryId) : undefined;
+				const state = editState(contentRecord.entries[key], current, { ...(doc.source.modifiedGmt ? { modified: doc.source.modifiedGmt } : {}), ...(wpHashes.get(key) ? { hash: wpHashes.get(key) } : {}) });
+				if (entryId && !shouldWrite(state, !!overwriteEdited)) {
+					keptEdited.add(key);
+					(state === "conflict" ? conflicts : keptOnly).push(`${collection}/${current?.slug ?? slug}`);
+					idMap.content[key] = { collection, id: entryId, slug: current?.slug ?? slug };
+					continue;
+				}
+				if (state === "edited" || state === "conflict") reporter.emit({ type: "log", level: "warn", message: `${collection}/${slug}: replacing the admin edit (--overwrite-edited)` });
 				// Posts: bylines (byline ids), term assignments (taxonomy → term slugs) and the WordPress publish date.
 				const postExtras = isPost && doc.post ? { bylines: doc.post.bylines.flatMap((b) => (bylineIds.get(b) ? [{ bylineId: bylineIds.get(b) as string }] : [])), taxonomies: doc.post.terms, ...(doc.post.publishedAt && doc.source.status === "publish" ? { publishedAt: doc.post.publishedAt } : {}) } : doc.entry ? { ...(doc.entry.bylines.length ? { bylines: doc.entry.bylines.flatMap((b) => (bylineIds.get(b) ? [{ bylineId: bylineIds.get(b) as string }] : [])) } : {}), ...(Object.keys(doc.entry.terms).length ? { taxonomies: doc.entry.terms } : {}), ...(doc.entry.publishedAt && doc.source.status === "publish" ? { publishedAt: doc.entry.publishedAt } : {}) } : {};
 				if (entryId) {
@@ -893,9 +915,13 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					if (cur.status === "published") await api.unpublish(collection, entryId);
 				}
 			} catch (e) {
+				notRecorded.add(key);
 				contentErrors.push(`${collection}/${slug}: ${(e as Error).message}`);
 			}
 		}
+		for (const c of conflicts) reporter.emit({ type: "log", level: "warn", message: `conflict: ${c} changed in the EmDash admin and in WordPress since the last load — kept the admin version (--overwrite-edited replaces it with WordPress)` });
+		for (const c of keptOnly) reporter.emit({ type: "log", level: "info", message: `kept: ${c} was changed in the EmDash admin since the last load (unchanged in WordPress; --overwrite-edited replaces it)` });
+		if (conflicts.length || keptOnly.length) check("edited-in-admin", "No entry changed both in the EmDash admin and in WordPress since the last load", conflicts.length === 0, [conflicts.length ? `${conflicts.length} conflict(s), admin version kept: ${conflicts.slice(0, 8).join(", ")}${conflicts.length > 8 ? ", …" : ""}. Rerun with --overwrite-edited to take WordPress's version, or accept the gate to keep the admin's` : "", keptOnly.length ? `${keptOnly.length} kept as edited in the admin (unchanged in WordPress)` : ""].filter(Boolean).join("; "));
 		reporter.emit({ type: "step:end", step: "Content", ok: contentErrors.length === 0, detail: `${created} created, ${updated} updated${adopted ? `, ${adopted} adopted` : ""}` });
 		for (const d of drops) reporter.emit({ type: "log", level: "info", message: `not stored (no matching field): ${d}` });
 		check("content", "Every IR document written to the target", contentErrors.length === 0, contentErrors.slice(0, 5).join("; ") || `${docs.length} documents (${created} created, ${updated} updated)`);
@@ -908,6 +934,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			for (const d of withRefs) {
 				const entry = idMap.content[`${d.source.type}:${d.source.wpId}`];
 				if (!entry) continue; // reported by `content`
+				if (keptEdited.has(`${d.source.type}:${d.source.wpId}`)) continue; // the editor's version, left as it is
 				const references = resolveReferences(docReferences(d), (k) => idMap.content[k]?.id, (field, k) => refErrors.push(`${entry.collection}/${entry.slug} ${field} → ${k}: not on the target (not migrated)`));
 				links += Object.values(references).flat().length;
 				try {
@@ -1157,8 +1184,10 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		const dupes: string[] = [];
 		// Posts: the WordPress publish date kept, read back from the target.
 		const dateErrors: string[] = [];
+		const listed = new Map<string, ContentItem>();
 		for (const c of ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.map((x) => x.slug)]) {
 			const items = await api.list(c);
+			for (const it of items) listed.set(`${c}/${it.id}`, it);
 			const expected = docs.filter((d) => collectionOf(d, !!blogPlan) === c).length;
 			if (c === "posts") {
 				for (const d of docs.filter((x) => collectionOf(x, true) === "posts" && x.source.status === "publish" && x.post?.publishedAt && postAction(x, overrides.protectedPosts?.as) === "publish")) {
@@ -1180,6 +1209,21 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 				if (/\[(vc_|nectar|\/?[a-z_]+\s+[a-z_]+=")/i.test(json)) leftovers.push(`${c}/${it.slug}: raw shortcode`);
 				for (const m of json.matchAll(/"provider":"local","id":"([^"]+)"/g)) if (!mediaIds.has(m[1] as string)) missingMedia.push(`${c}/${it.slug}: media ${m[1]}`);
 			}
+		}
+		if (!onlySettings) {
+			write(
+				recordFile,
+				updateRecord(
+					contentRecord,
+					docs.flatMap((d) => {
+						const key = `${d.source.type}:${d.source.wpId}`;
+						const e = idMap.content[key];
+						const item = e ? listed.get(`${e.collection}/${e.id}`) : undefined;
+						return e ? [{ key, collection: e.collection, id: e.id, ...(item ? { item } : {}), ...(d.source.modifiedGmt ? { wpModified: d.source.modifiedGmt } : {}), ...(wpHashes.get(key) ? { wpHash: wpHashes.get(key) } : {}) }] : [];
+					}),
+					new Set([...keptEdited, ...notRecorded]),
+				),
+			);
 		}
 		if (!onlySettings) check("counts", "Entry counts on the target equal the IR, no duplicate slugs", counts.length === 0 && dupes.length === 0, [...counts, ...dupes.map((d) => `duplicate ${d}`)].join("; ") || undefined);
 		if (!onlySettings && blogPlan) check("post-dates", "Published posts keep their WordPress publish date", dateErrors.length === 0, dateErrors.slice(0, 6).join("; ") || `${docs.filter((x) => x.kind === "post" && x.source.status === "publish").length} posts`);

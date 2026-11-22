@@ -533,7 +533,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 				<div class="stat"><dt>unmapped content nodes on the real WPBakery/Salient site</dt><dd>0</dd></div>
 				<div class="stat"><dt>of the live site’s page text carried over</dt><dd>100<small>%</small></dd></div>
 				<div class="stat"><dt>in-scope WordPress features done in the parity audit</dt><dd>87<small> / 103</small></dd></div>
-				<div class="stat"><dt>automated tests, golden fixtures per element</dt><dd>1809</dd></div>
+				<div class="stat"><dt>automated tests, golden fixtures per element</dt><dd>1818</dd></div>
 			</dl>
 		</div>
 	</div>
@@ -895,6 +895,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 				<li><code class="verb">fleet</code><h3>Every site at a glance</h3><p>One table with the kit version each site was built with, its last change, its last upgrade check, live status and owner to-dos. <code>fleet upgrade-prs</code> opens upgrade pull requests on a separate branch, never on main.</p></li>
 				<li><code class="verb">monitor</code><h3>Watch from the outside</h3><p>One small Worker loads every site’s home page every 5 minutes and checks certificate and domain expiry daily. It alerts by email, Telegram or Slack, even when a site’s own Worker or account is down.</p></li>
 				<li><code class="verb">e2e: real WordPress</code><h3>Tested on real WordPress, nightly</h3><p>A throwaway WordPress in CI with Elementor, WooCommerce, Polylang, Contact Form 7 and Fluent Forms runs through the whole pipeline every night. Its first runs caught bugs that made-up fixtures could not: a build failure for new projects, lost quote text and every translated page answering 404.</p></li>
+				<li><code class="verb">changes &lt;slug&gt;</code><h3>Keep up with a client still editing WordPress</h3><p>Lists what changed in WordPress since the previous extract: new, edited, moved and deleted pages, menus, media and forms. Load then keeps pages edited in EmDash’s admin and lists the ones changed on both sides as conflicts.</p></li>
 				<li><code class="verb">sync-staging &lt;slug&gt;</code><h3>Test on real content</h3><p>Copies production’s content to staging from an explicit list of tables, without users, form messages or secrets. It shows a plan first and bookmarks staging before writing.</p></li>
 			</ul>
 		</div>
