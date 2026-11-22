@@ -218,16 +218,24 @@ program
 	.option("--verify [where]", "compare an address with the latest before.json now: production (default), staging, or a URL (e.g. a Workers version preview)")
 	.option("--limit <n>", "snapshot at most n pages (default 300)")
 	.option("--preview", "rebuild like `run <slug> scaffold --preview` (earlier gates not required, state.json untouched): sites delivered before the kit recorded every phase")
+	.option("--sync-staging", "with --deploy-staging: first refresh staging with production's content (wp2emdash sync-staging), so the comparison runs on real content. Shows the plan and stops unless --yes is given too")
+	.option("--yes", "with --sync-staging: apply the sync (staging bookmark first)")
 	.option("--json", "print the result as JSON")
-	.action(async (slug: string, o: { deployStaging?: boolean; verify?: string | boolean; limit?: string; preview?: boolean; json?: boolean }) => {
+	.action(async (slug: string, o: { deployStaging?: boolean; verify?: string | boolean; limit?: string; preview?: boolean; syncStaging?: boolean; yes?: boolean; json?: boolean }) => {
 		const { upgrade } = await import("../commands/upgrade.js");
 		if (o.verify !== undefined && o.deployStaging) fail("--verify and --deploy-staging are separate steps");
+		if (o.syncStaging && !o.deployStaging) fail("--sync-staging goes with --deploy-staging (the sync is for the staging comparison)");
+		if (o.yes && !o.syncStaging) fail("--yes belongs to --sync-staging");
 		const limit = o.limit ? Number(o.limit) : undefined;
 		if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) fail("--limit must be a positive whole number");
 		try {
-			const r = await upgrade(slug, { ...(o.verify !== undefined ? { verify: o.verify === true ? "production" : String(o.verify) } : {}), ...(o.deployStaging ? { deployStaging: true } : {}), ...(limit ? { limit } : {}), ...(o.preview ? { preview: true } : {}), ...(o.json ? {} : { log: (l: string) => console.log(pc.dim(l)) }) });
+			const r = await upgrade(slug, { ...(o.verify !== undefined ? { verify: o.verify === true ? "production" : String(o.verify) } : {}), ...(o.deployStaging ? { deployStaging: true } : {}), ...(limit ? { limit } : {}), ...(o.preview ? { preview: true } : {}), ...(o.syncStaging ? { syncStaging: true } : {}), ...(o.yes ? { yes: true } : {}), ...(o.json ? {} : { log: (l: string) => console.log(pc.dim(l)) }) });
 			if (o.json) console.log(JSON.stringify(r, null, 2));
 			else {
+				if (r.syncStaging) {
+					const { syncReport } = await import("../commands/sync-staging.js");
+					console.log(syncReport({ ...r.syncStaging, next: [] }));
+				}
 				if (r.scaffold) console.log(`${r.scaffold.ok ? pc.green("✔") : pc.red("✖")} scaffold gate${r.scaffold.failing.length ? pc.dim(` — failing: ${r.scaffold.failing.map((c) => c.id).join(", ")}`) : ""}`);
 				if (r.stagingDeploy?.ran) console.log(`${r.stagingDeploy.ok ? pc.green("✔") : pc.red("✖")} staging deploy${r.stagingDeploy.reason ? pc.dim(` — ${r.stagingDeploy.reason}`) : ""}`);
 				for (const c of r.comparisons) console.log(`${c.identical ? pc.green("✔") : pc.red("✖")} ${c.label}: ${c.identical ? "identical (only expected changes)" : `${c.pagesWithDifferences} page(s) with differences`} · ${c.pagesCompared} compared${c.pagesWithNotices ? pc.dim(` · ${c.pagesWithNotices} with expected changes`) : ""}\n  ${pc.dim(`Report: ${c.md}`)}`);
@@ -292,6 +300,23 @@ program
 		for (const c of r.reused) console.log(`${pc.dim("=")} ${c}`);
 		if (r.workersSubdomain) console.log(`${pc.dim("workers.dev:")} ${r.workersSubdomain}`);
 		for (const n of r.notes) console.log(`${pc.yellow("!")} ${n}`);
+	});
+
+program
+	.command("sync-staging <slug>")
+	.description("Sites with staging (target.staging): refresh staging with production's content (content, media, menus, taxonomies, widgets, sections, SEO, redirects, site settings, allowlisted plugin configuration) so upgrades are checked on real content. Production is only read; users, sessions, tokens and form messages are never copied. Dry run (the plan) unless --yes; a staging D1 bookmark is taken first")
+	.option("--yes", "apply: bookmark staging, copy media files, import the rows, purge staging's cached pages")
+	.option("--no-media", "leave media files out (records are still copied)")
+	.option("--json", "print the result (counts and table names only) as JSON")
+	.action(async (slug: string, o: { yes?: boolean; media?: boolean; json?: boolean }) => {
+		const { syncStaging, syncReport } = await import("../commands/sync-staging.js");
+		try {
+			const r = await syncStaging(slug, { yes: !!o.yes, ...(o.media === false ? { media: false } : {}), ...(o.json ? {} : { log: (l: string) => console.log(pc.dim(l)) }) });
+			console.log(o.json ? JSON.stringify(r, null, 2) : syncReport(r));
+			process.exit(r.exitCode);
+		} catch (e) {
+			fail((e as Error).message);
+		}
 	});
 
 program
