@@ -89,9 +89,29 @@ Where the mode comes from, in order: the plugin's options (database dump → `im
   default language's is migrated, each translation is listed.
 - String translations (WPML String Translation, Polylang strings) and per-language term links (terms of every
   language are migrated as their own terms, unlinked).
-- Blog listings, archives and feeds per language: they list the default language's posts; a translated posts page,
-  category or author archive under `/fr/…` has no list of posts (the translated posts page migrates as a page with its own text only).
-- Previous/next and related posts are not filtered by language.
+- A translated posts page (`/fr/actualites/` as Polylang's posts page in French) migrates as a page with its own text
+  only, without a list of posts. Since 2026-11-22 the language's term and author archives and its feeds are carried
+  (below); its date archives redirect to the language's home.
+
+## Per-language archives, feeds and home pages (2026-11-22, WordPress end-to-end test)
+
+Polylang 3.9 on the test site served, under `/fr/`: the French front page at `/fr/accueil/` (with `/fr/` redirecting
+there — `seed-summary.txt`, the audit's `urls.json`), category / tag / author archives (`/fr/category/actualites/`,
+`/fr/tag/argile/`, `/fr/author/admin/`, all in the sitemap), their feeds and month archives (`/fr/2026/03/`).
+The migrated site linked `/fr/` from the logo and the switcher (404), answered the archives 404 and their feeds 410
+(the wp-urls matcher took `/fr/…/feed/` for a comments feed), and an English post's previous/next were French posts.
+
+Now:
+- `site.config.json` `i18n.languages[].home`: the front page's published translation when its address is not the bare
+  directory (`languageHomes`, src/transform/multilingual.ts); the starter's `homeOf` links it, and the wp-urls rules'
+  `languages` redirect the bare directory there (301, as WordPress did).
+- `blogRoute(path, cfg, langDirs)`: an archive (and its pages and feed) under a language directory is the archive of
+  that language — `listPosts({ …, lang })` adds `lang` to the `where` (a plain column, as for the default language).
+  `/fr/feed/` is the language's site feed. Terms are not per language in EmDash (see above), so `/fr/category/x/`
+  lists the French posts in term `x`.
+- The wp-urls matcher treats a language directory's archives and feeds as real routes and its date archives as
+  redirects to the language's home; verify's `feeds` check expects each language's feeds under its directory.
+- Previous/next and related posts filter on the post's `lang`.
 
 ## Field name collision (2026-11-22, WordPress end-to-end test)
 

@@ -11,7 +11,7 @@
 /** A path on the new site to 301 to (e.g. "/", "/search/"), or "gone" (410). */
 export type WpUrlTarget = string;
 
-export type WpUrlKind = "feed" | "comments-feed" | "search" | "category" | "tag" | "author" | "date" | "attachment" | "paged" | "wp-id" | "shop";
+export type WpUrlKind = "feed" | "comments-feed" | "search" | "category" | "tag" | "author" | "date" | "attachment" | "paged" | "wp-id" | "shop" | "language-home";
 
 export interface WpAttachment {
 	/** The attachment page's own path on WordPress (`/photo-name/`, `/parent/photo-name/`). */
@@ -52,6 +52,12 @@ export interface WpUrlRules {
 	 * `to` — there is no cart on the new site.
 	 */
 	shop?: { paths: string[]; to: string };
+	/**
+	 * Multilingual sites in directory mode (Polylang / WPML): each prefixed language's directory (`fr`) and its home page
+	 * when that is not the bare directory (`/fr/accueil/`). Under a directory the blog's archives and feeds are real
+	 * routes (the language's posts), date archives go to the language's home, and the bare directory redirects there.
+	 */
+	languages?: { dir: string; home?: string }[];
 }
 
 export type WpUrlAction =
@@ -134,6 +140,23 @@ export function matchWpUrl(pathname: string, search: URLSearchParams, rules: WpU
 	}
 	if (pages.has(norm(path))) return undefined;
 	if (rules.shop?.paths.some((p) => norm(path).startsWith(norm(p)))) return { kind: "shop", to: styled(rules.shop.to, style) };
+
+	// A language directory: the same WordPress forms under `/fr/`.
+	const lang = rules.languages?.find((l) => l.dir && (path === `/${l.dir}` || path.startsWith(`/${l.dir}/`)));
+	if (lang) {
+		const rest = path.slice(lang.dir.length + 1) || "/";
+		const home = lang.home ?? `/${lang.dir}/`;
+		// The bare directory, when the language's home page has an address of its own (WordPress redirects there too).
+		if (norm(rest) === "/") return norm(home) !== norm(path) ? { kind: "language-home", to: styled(home, style) } : undefined;
+		if (blog) {
+			// The language's feed and its archives (with their pages and feeds) are real routes.
+			if (norm(rest) === "/feed/") return undefined;
+			const inner = rest.replace(FEED_SUFFIX, "/").replace(/page\/\d+\/?$/, "");
+			if (blog.archives.some((b) => norm(inner).startsWith(norm(b)) && norm(inner) !== norm(b))) return undefined;
+		}
+		// Date archives: the language's home page (its posts page, if any, is a translated page of its own).
+		if (/^\/\d{4}\/(?:\d{2}\/(?:\d{2}\/)?)?$/.test(norm(rest))) return rules.date === "gone" ? { kind: "date", gone: true } : { kind: "date", to: styled(home, style) };
+	}
 
 	// Blog: the posts page and archives with their pages and feeds are real routes; feed variants → /feed/.
 	if (blog && blogFeed) {

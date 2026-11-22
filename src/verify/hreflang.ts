@@ -35,7 +35,12 @@ export function reciprocityProblems(pages: HreflangPage[], base = "https://site.
 	return out;
 }
 
-/** Live vs migrated: the same languages pointing at the same paths (x-default included when the live page had it). */
+/**
+ * Live vs migrated: the same languages pointing at the same paths (x-default included when the live page had it).
+ * An x-default the live page lacked is the migration's own addition (the starter announces the default language's
+ * version on every translated page, as Google recommends): accepted when it points at one of the page's own
+ * alternates, the default-language version. (Polylang prints no x-default; WordPress e2e test, 2026-11-22.)
+ */
 export function hreflangParity(source: HreflangPage["hreflang"], target: HreflangPage["hreflang"], base = "https://site.invalid"): string[] {
 	const norm = (list: HreflangPage["hreflang"]) => new Map(list.map((a) => [a.lang.toLowerCase(), pathOf(a.href, base)]));
 	const s = norm(source);
@@ -45,6 +50,7 @@ export function hreflangParity(source: HreflangPage["hreflang"], target: Hreflan
 		if (!t.has(lang)) out.push(`missing ${lang} → ${path}`);
 		else if (t.get(lang) !== path) out.push(`${lang}: ${t.get(lang)} instead of ${path}`);
 	}
-	for (const lang of t.keys()) if (!s.has(lang)) out.push(`extra ${lang} → ${t.get(lang)}`);
+	const alternates = new Set([...t].filter(([l]) => l !== "x-default").map(([, p]) => p));
+	for (const lang of t.keys()) if (!s.has(lang) && !(lang === "x-default" && alternates.has(t.get(lang) as string))) out.push(`extra ${lang} → ${t.get(lang)}`);
 	return out;
 }

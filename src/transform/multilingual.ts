@@ -300,6 +300,23 @@ export function localizeRoute(path: string, lang: string | undefined, plan: MlPl
 	return path === "/" ? `/${l.prefix}/` : `/${l.prefix}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/**
+ * Each prefixed language's home page when it is not the bare directory: the published translation of the front page at
+ * its own address. Polylang can serve the French front page at `/fr/accueil/` (with `/fr/` redirecting there); the
+ * starter's logo and language switcher linked `/fr/`, a 404 on the new site (WordPress e2e test, 2026-11-22).
+ */
+export function languageHomes(plan: Pick<MlPlan, "languages">, docs: { kind: string; route?: { path: string }; published: boolean; i18n?: { lang: string; group: string } }[]): Map<string, string> {
+	const out = new Map<string, string>();
+	const front = docs.find((d) => d.kind === "page" && d.route?.path === "/" && d.published);
+	if (!front?.i18n) return out;
+	for (const l of plan.languages.filter((x) => x.prefix)) {
+		const t = docs.find((d) => d.kind === "page" && d.published && d.i18n?.group === front.i18n?.group && d.i18n?.lang === l.code && d.route);
+		const dir = `/${l.prefix}/`;
+		if (t?.route && t.route.path.replace(/\/?$/, "/") !== dir) out.set(l.code, t.route.path);
+	}
+	return out;
+}
+
 /** The language a site path belongs to (its first segment), the default language otherwise. */
 export function langOfPath(path: string, plan: Pick<MlPlan, "languages" | "defaultLang">): string {
 	const seg = normCode(path.split("/")[1] ?? "");

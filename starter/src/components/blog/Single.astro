@@ -56,7 +56,7 @@ const byline = (d.bylines?.[0] as { byline?: { slug: string; displayName: string
 			{
 				byline?.bio && (
 					<aside class="author-box" aria-label="About the author">
-						<p class="author-box__name">{authorHref(byline.slug) ? <a href={authorHref(byline.slug)} rel="author">{byline.displayName}</a> : byline.displayName}</p>
+						<p class="author-box__name">{authorHref(byline.slug, d.lang) ? <a href={authorHref(byline.slug, d.lang)} rel="author">{byline.displayName}</a> : byline.displayName}</p>
 						<p class="author-box__bio">{byline.bio}</p>
 					</aside>
 				)

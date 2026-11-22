@@ -208,6 +208,8 @@ export interface ScreenshotResult {
 	stillFile?: string;
 	/** How far the page scrolls sideways (document wider than the screen), px; 0 when it fits. */
 	overflowX?: number;
+	/** The outermost element passing the right edge when the page scrolls sideways (`form.form > div.form__row`, +39px). */
+	overflowBy?: string;
 	/** Images still without a picture when the screenshot was taken (after retries and one reload); omitted when 0. */
 	missingImages?: number;
 	error?: string;
@@ -311,6 +313,34 @@ export async function sectionBoxes(page: Page): Promise<SectionBox[]> {
 /** tsx/esbuild wraps named functions with a \`__name\` helper; page.evaluate code runs in the browser, which lacks it. */
 const NAME_SHIM = "globalThis.__name = globalThis.__name || ((fn) => fn);";
 
+/**
+ * Runs in the page: the outermost visible element whose box passes the right edge of the screen (its ancestors fit),
+ * as `parent > tag.class` with how far it sticks out. Undefined when nothing does (the overflow is a margin or a
+ * transform the boxes do not show).
+ */
+function widestElement(): string | undefined {
+	const edge = document.documentElement.clientWidth;
+	const name = (el: Element) => `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}${[...el.classList].filter((c) => !c.startsWith("astro-") && !/^data-/.test(c)).slice(0, 2).map((c) => `.${c}`).join("")}`;
+	const out = (el: Element) => el.getBoundingClientRect().right - edge;
+	const visible = (el: Element) => {
+		const s = getComputedStyle(el);
+		return s.display !== "none" && s.visibility !== "hidden" && el.getBoundingClientRect().width > 0;
+	};
+	const walk = (el: Element): Element | undefined => {
+		for (const c of el.children) {
+			if (!visible(c)) continue;
+			// Content clipped by its parent does not widen the page.
+			if (getComputedStyle(el).overflowX !== "visible" && el !== document.body) continue;
+			if (out(c) > 1) return c;
+			const inner = walk(c);
+			if (inner) return inner;
+		}
+		return undefined;
+	};
+	const hit = walk(document.body);
+	return hit ? `${hit.parentElement ? `${name(hit.parentElement)} > ` : ""}${name(hit)} +${Math.round(out(hit))}px` : undefined;
+}
+
 export async function withBrowser<T>(fn: (b: Browser) => Promise<T>): Promise<T> {
 	const browser = await chromium.launch();
 	try {
@@ -370,6 +400,8 @@ export async function captureScreenshots(
 					const height = await page.evaluate(() => document.documentElement.scrollHeight);
 					// Visible sideways scroll only: content clipped by an overflow:hidden ancestor (off-canvas menus) does not count.
 					const overflowX = await page.evaluate(() => Math.max(0, Math.round(document.documentElement.scrollWidth - document.documentElement.clientWidth)));
+					// What sticks out: the outermost element whose box passes the right edge, named so the report says where to look.
+					const overflowBy = overflowX > 1 ? await page.evaluate(widestElement).catch(() => undefined) : undefined;
 					const sections = await sectionBoxes(page).catch(() => undefined);
 					const bricks = await bricksMeasure(page).catch(() => undefined);
 					const moving = await movingRegions(page).catch(() => undefined);
@@ -384,7 +416,7 @@ export async function captureScreenshots(
 						await page.screenshot({ path: stillFile, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height }, timeout: 60_000 });
 						await tag.evaluate((el) => (el as Element).remove());
 					}
-					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), ...(bricks && Object.keys(bricks).length ? { bricks } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), overflowX, ...(missingImages ? { missingImages } : {}), consoleErrors });
+					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), ...(bricks && Object.keys(bricks).length ? { bricks } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), overflowX, ...(overflowBy ? { overflowBy } : {}), ...(missingImages ? { missingImages } : {}), consoleErrors });
 				} catch (e) {
 					results.push({ url, viewport: vp.name, error: (e as Error).message.split("\n")[0], consoleErrors });
 				}

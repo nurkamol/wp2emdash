@@ -18,7 +18,7 @@ a { color: var(--color-link, inherit); text-underline-offset: 0.18em; }
 .container { width: min(100% - 2 * var(--gutter), var(--container)); margin-inline: auto; }
 
 /* ── Type ── */
-h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight: var(--heading-weight, 400); line-height: var(--leading-heading); margin: 0 0 0.5em; letter-spacing: var(--heading-tracking, 0); }
+h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight: var(--heading-weight, 400); line-height: var(--leading-heading); margin: 0 0 0.5em; letter-spacing: var(--heading-tracking, 0); overflow-wrap: break-word; }
 .heading--h1, h1 { font-size: var(--font-size-h1); font-family: var(--h1-font, var(--font-display)); font-weight: var(--h1-weight, var(--heading-weight, 400)); letter-spacing: var(--h1-tracking, var(--heading-tracking, 0)); text-transform: var(--h1-transform, none); line-height: var(--h1-leading, var(--leading-heading)); }
 .heading--h2, h2 { font-size: var(--font-size-h2); font-family: var(--h2-font, var(--font-display)); font-weight: var(--h2-weight, var(--heading-weight, 400)); letter-spacing: var(--h2-tracking, var(--heading-tracking, 0)); text-transform: var(--h2-transform, none); line-height: var(--h2-leading, var(--leading-heading)); }
 .heading--h3, h3 { font-size: var(--font-size-h3); font-family: var(--h3-font, var(--font-display)); font-weight: var(--h3-weight, var(--heading-weight, 400)); letter-spacing: var(--h3-tracking, var(--heading-tracking, 0)); text-transform: var(--h3-transform, none); line-height: var(--h3-leading, var(--leading-heading)); }
@@ -515,8 +515,9 @@ h1, h2, h3, h4, h5, h6, .heading { font-family: var(--font-display); font-weight
 .embed--scheduler { min-height: 100svh; }
 
 /* forms */
-.form-layout { display: grid; gap: clamp(1.5rem, 5vw, 4rem); }
-@media (min-width: 900px) /* stack */ { .form-layout { grid-template-columns: 1fr 1fr; align-items: start; } }
+/* minmax(0, …): a long word in the heading ("commissions" at display size on a phone) wraps instead of widening the column and the page. */
+.form-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(1.5rem, 5vw, 4rem); }
+@media (min-width: 900px) /* stack */ { .form-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
 /* Form under its heading (field "stacked", set when the source stacks them): one column, the form at its own width. */
 .form-layout.form-layout--stacked { grid-template-columns: minmax(0, 1fr); gap: var(--form-gap, clamp(1.5rem, 5vw, 4rem)); }
 .form-layout--stacked > .form { width: 100%; max-width: var(--form-w, none); margin-inline: auto; }

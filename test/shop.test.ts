@@ -239,7 +239,9 @@ describe("seed and starter", async () => {
 		expect(formatPrice(24, "EUR", "en")).toBe("€24.00");
 		expect(priceView({ price: 40, sale_price: 32 }, shop)).toEqual({ current: "€32.00", regular: "€40.00", from: false, onSale: true });
 		expect(priceView({ price: 24, currency: "USD" }, shop)).toEqual({ current: "$24.00", from: false, onSale: false });
-		expect(priceView({ product_type: "variable", price: 50, variations: [{ price: 50 }, { price: 80, sale_price: 70 }] }, shop)).toMatchObject({ current: "€50.00", from: true });
+		// A variable product shows its range, as WooCommerce's listing does ("€50.00 – €70.00"; WordPress e2e test).
+		expect(priceView({ product_type: "variable", price: 50, variations: [{ price: 50 }, { price: 80, sale_price: 70 }] }, shop)).toMatchObject({ current: "€50.00", from: true, max: "€70.00" });
+		expect(priceView({ product_type: "variable", price: 50, variations: [{ price: 50 }, { price: 50 }] }, shop)).toEqual({ current: "€50.00", from: false, onSale: false });
 		expect(priceView({ title: "No price" }, shop)).toBeUndefined();
 	});
 

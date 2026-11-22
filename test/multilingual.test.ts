@@ -15,10 +15,11 @@ import type { IrPage, IrSite } from "../src/ir/schema.js";
 import { runTransform } from "../src/phases/transform.js";
 import { seedLanguages } from "../src/scaffold/seed.js";
 import { emdashMenuNames } from "../src/transform/menus.js";
-import { buildPlan, codesFor, entryLanguages, hreflangAlternates, inheritMenuRoles, langOfPath, languageChecked, localizeRoute, matchCode, menuLanguage, type MlDoc, type MlPlan, multilingualChecks, urlModeFromHreflang, urlModeFromOptions } from "../src/transform/multilingual.js";
+import { buildPlan, codesFor, entryLanguages, hreflangAlternates, inheritMenuRoles, langOfPath, languageChecked, languageHomes, localizeRoute, matchCode, menuLanguage, type MlDoc, type MlPlan, multilingualChecks, urlModeFromHreflang, urlModeFromOptions } from "../src/transform/multilingual.js";
 import { baseOf } from "../src/transform/wp-urls.js";
 import { hreflangParity, reciprocityProblems } from "../src/verify/hreflang.js";
 import { blogRoute } from "../starter/src/utils/blog.js";
+import { matchWpUrl, type WpUrlRules } from "../starter/src/utils/wp-urls.js";
 import * as starter from "../starter/src/utils/i18n.js";
 
 const fixtures = join(import.meta.dirname, "fixtures", "multilingual");
@@ -359,6 +360,11 @@ describe("verify: hreflang", () => {
 		// Live (WordPress host) vs migrated (staging host): compared as paths.
 		expect(hreflangParity([{ lang: "en", href: "https://old.test/about/" }, { lang: "fr", href: "https://old.test/fr/a-propos/" }, { lang: "x-default", href: "https://old.test/about/" }], [{ lang: "en", href: "https://new.test/about/" }, { lang: "fr", href: "https://new.test/fr/a-propos/" }, { lang: "x-default", href: "https://new.test/about/" }])).toEqual([]);
 		expect(hreflangParity([{ lang: "fr", href: "https://old.test/fr/a-propos/" }], [{ lang: "fr", href: "https://new.test/fr/about/" }, { lang: "de", href: "/de/" }])).toEqual(["fr: /fr/about/ instead of /fr/a-propos/", "extra de → /de/"]);
+		// Polylang prints no x-default: the starter's x-default on the default-language version is an addition, not a
+		// difference; one pointing anywhere else still is.
+		const live = [{ lang: "en", href: "https://old.test/about/" }, { lang: "fr", href: "https://old.test/fr/a-propos/" }];
+		expect(hreflangParity(live, [...live.map((a) => ({ ...a, href: a.href.replace("old", "new") })), { lang: "x-default", href: "https://new.test/about/" }])).toEqual([]);
+		expect(hreflangParity(live, [...live, { lang: "x-default", href: "https://new.test/elsewhere/" }])).toEqual(["extra x-default → /elsewhere/"]);
 	});
 });
 
@@ -401,7 +407,11 @@ describe("starter wiring", () => {
 		expect(base).toContain("<SiteHeader languages={langs?.switcher ?? []}");
 		expect(read("components/SiteHeader.astro")).toContain("<LanguageSwitcher links={languages} />");
 		expect(read("utils/chrome.ts")).toContain('menuFor("primary", pathname)');
-		expect(read("utils/blog-data.ts")).toContain("lang: defaultLang");
+		expect(read("utils/blog-data.ts")).toContain("lang: lang ?? defaultLang");
+		// Listings under a language directory list that language's posts; previous/next and related posts stay in the post's language.
+		expect(read("pages/[...slug].astro")).toContain("blogRoute(Astro.params.slug ? Astro.url.pathname : \"/\", blog, langDirs)");
+		expect(read("pages/[...slug].astro")).toContain("neighbours(post.data.publishedAt, post.data.lang)");
+		expect(read("utils/blog-data.ts")).toContain("sameLang({ [tax]: slugs }, post.data.lang)");
 		expect(read("pages/[...slug].astro").match(/group: data\.lang_group, lang: data\.lang/g)).toHaveLength(3);
 		const sw = read("components/LanguageSwitcher.astro");
 		expect(sw).toContain('aria-current={l.current ? "true" : undefined}');
@@ -428,5 +438,56 @@ describe("multilingual fields never collide with EmDash's system columns", () =>
 		const { RESERVED_SLUGS } = await import("../src/transform/cpt-fields.js");
 		expect(RESERVED_SLUGS.has("translation_group")).toBe(true);
 		for (const f of [LANG_FIELD, GROUP_FIELD]) expect(RESERVED_SLUGS.has(f.slug), f.slug).toBe(false);
+	});
+});
+
+// WordPress e2e test (2026-11-22): Polylang served the French front page at /fr/accueil/ (with /fr/ redirecting there),
+// and its French category, tag, author and date archives and feeds under /fr/. The new site linked /fr/ (404), answered
+// the French archives with 404 and their feeds with 410.
+describe("language homes and per-language blog addresses", () => {
+	const blogCfg = { index: "/news/", perPage: 10, feed: { full: false, items: 10 }, archives: [{ taxonomy: "category", base: "/category/", label: "Categories", labelSingular: "Category" }, { taxonomy: "tag", base: "/tag/", label: "Tags", labelSingular: "Tag" }], authorBase: "/author/" };
+
+	it("finds a language's home page: the front page's translation when it has its own address", () => {
+		const plan = { languages: [{ code: "en", prefix: "" }, { code: "fr", prefix: "fr" }, { code: "de", prefix: "de" }] } as Pick<MlPlan, "languages">;
+		const doc = (path: string, lang: string, group: string, published = true) => ({ kind: "page", route: { path }, published, i18n: { lang, group } });
+		const homes = languageHomes(plan, [doc("/", "en", "g1"), doc("/fr/accueil/", "fr", "g1"), doc("/de/", "de", "g1"), doc("/about/", "en", "g2"), doc("/fr/a-propos/", "fr", "g2")]);
+		expect([...homes]).toEqual([["fr", "/fr/accueil/"]]);
+		// No translated front page (or an unpublished one): the bare directory stays the home.
+		expect(languageHomes(plan, [doc("/", "en", "g1"), doc("/fr/accueil/", "fr", "g1", false)]).size).toBe(0);
+		expect(languageHomes(plan, [{ kind: "page", route: { path: "/" }, published: true }]).size).toBe(0);
+	});
+
+	it("links the language's home page (logo, switcher)", () => {
+		const fr: starter.I18nLanguage = { code: "fr", prefix: "fr", hreflang: "fr", label: "Français", home: "/fr/accueil/" };
+		expect(starter.homeOf(fr)).toBe("/fr/accueil/");
+		expect(starter.homeOf(fr, "never")).toBe("/fr/accueil");
+		const cfg: starter.I18nConfig = { defaultLang: "en", languages: [{ code: "en", prefix: "", hreflang: "en", label: "English" }, fr] };
+		expect(starter.switcherLinks(cfg.languages[0] as starter.I18nLanguage, [{ lang: "en", slug: "contact" }], cfg).find((l) => l.code === "fr")?.href).toBe("/fr/accueil/");
+	});
+
+	it("routes a language's archives and feeds under its directory", () => {
+		expect(blogRoute("/fr/category/actualites/", blogCfg, ["fr"])).toEqual({ kind: "term", taxonomy: "category", slug: "actualites", base: "/category/", page: 1, feed: false, dir: "fr" });
+		expect(blogRoute("/fr/tag/argile/feed/", blogCfg, ["fr"])).toMatchObject({ kind: "term", slug: "argile", feed: true, dir: "fr" });
+		expect(blogRoute("/fr/author/admin/page/2/", blogCfg, ["fr"])).toMatchObject({ kind: "author", slug: "admin", page: 2, dir: "fr" });
+		expect(blogRoute("/fr/feed/", blogCfg, ["fr"])).toEqual({ kind: "index", page: 1, feed: true, dir: "fr" });
+		// Pages and posts under the directory are not listings; neither is the posts page's path under it.
+		for (const p of ["/fr/", "/fr/a-propos/", "/fr/news/", "/fr/category/"]) expect(blogRoute(p, blogCfg, ["fr"]), p).toBeUndefined();
+		// Without the language directories the address is not a blog route (single-language behaviour unchanged).
+		expect(blogRoute("/fr/category/actualites/", blogCfg)).toBeUndefined();
+		// Front page listing the posts: each language's directory is its listing.
+		expect(blogRoute("/fr/page/2/", { ...blogCfg, index: "/" }, ["fr"])).toEqual({ kind: "index", page: 2, feed: false, dir: "fr" });
+	});
+
+	it("answers WordPress's language addresses: the bare directory → home, date archives → home, archives and feeds are routes", () => {
+		const rules: WpUrlRules = { feed: "/feed/", commentsFeed: "gone", search: "/search/", category: "/news/", tag: "/news/", author: "/news/", date: "/news/", attachment: "/", pages: ["/", "/fr/accueil/", "/fr/a-propos/"], trailingSlash: "always", blog: { index: "/news/", archives: ["/category/", "/tag/", "/author/"] }, languages: [{ dir: "fr", home: "/fr/accueil/" }] };
+		const m = (p: string) => matchWpUrl(p, new URLSearchParams(), rules);
+		expect(m("/fr/")).toEqual({ kind: "language-home", to: "/fr/accueil/" });
+		expect(m("/fr")).toEqual({ kind: "language-home", to: "/fr/accueil/" });
+		expect(m("/fr/2026/03/")).toEqual({ kind: "date", to: "/fr/accueil/" });
+		for (const p of ["/fr/category/actualites/", "/fr/category/actualites/feed/", "/fr/tag/argile/", "/fr/author/admin/", "/fr/feed/", "/fr/a-propos/", "/fr/accueil/"]) expect(m(p), p).toBeUndefined();
+		// The default language keeps its rules.
+		expect(m("/2026/03/")).toEqual({ kind: "date", to: "/news/" });
+		// A language whose home is its directory: no redirect for /de/ (a page there answers).
+		expect(matchWpUrl("/de/", new URLSearchParams(), { ...rules, languages: [{ dir: "de" }] })).toBeUndefined();
 	});
 });

@@ -13,6 +13,8 @@ export interface I18nLanguage {
 	prefix: string;
 	hreflang: string;
 	label: string;
+	/** The language's home page when it is not its directory (`/fr/accueil/`: WordPress served the translated front page there). */
+	home?: string;
 }
 export interface I18nConfig {
 	defaultLang: string;
@@ -46,9 +48,10 @@ export function langOfPath(pathname: string, cfg: I18nConfig): I18nLanguage {
 	return cfg.languages.find((l) => l.prefix && l.prefix === seg) ?? cfg.languages.find((l) => l.code === cfg.defaultLang) ?? (cfg.languages[0] as I18nLanguage);
 }
 
-/** The home page of a language (`/`, `/fr/`). */
+/** The home page of a language (`/`, `/fr/`, or the translated front page's own address, `/fr/accueil/`). */
 export function homeOf(lang: I18nLanguage, style: "always" | "never" | undefined = "always"): string {
-	return lang.prefix ? (style === "never" ? `/${lang.prefix}` : `/${lang.prefix}/`) : "/";
+	const p = lang.home ?? (lang.prefix ? `/${lang.prefix}/` : "/");
+	return p === "/" ? "/" : style === "never" ? p.replace(/\/+$/, "") : p.replace(/\/?$/, "/");
 }
 
 /**

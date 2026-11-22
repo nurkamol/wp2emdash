@@ -18,10 +18,11 @@ export interface BlogConfig {
 	authorBase?: string;
 }
 
+/** `dir`: the language directory the address is under (multilingual sites: `/fr/category/actualites/` → `fr`). */
 export type BlogRoute =
-	| { kind: "index"; page: number; feed: boolean }
-	| { kind: "term"; taxonomy: string; slug: string; base: string; page: number; feed: boolean }
-	| { kind: "author"; slug: string; base: string; page: number; feed: boolean };
+	| { kind: "index"; page: number; feed: boolean; dir?: string }
+	| { kind: "term"; taxonomy: string; slug: string; base: string; page: number; feed: boolean; dir?: string }
+	| { kind: "author"; slug: string; base: string; page: number; feed: boolean; dir?: string };
 
 const trim = (p: string) => (p === "/" ? "/" : `/${p.replace(/^\/+|\/+$/g, "")}/`);
 
@@ -29,7 +30,17 @@ const trim = (p: string) => (p === "/" ? "/" : `/${p.replace(/^\/+|\/+$/g, "")}/
  * Which blog page an address is: the posts page (and /page/N/), a term or author archive (and its pages), or one of
  * their feeds (`/feed/`). Undefined: not a blog listing (a page or a post, resolved by slug).
  */
-export function blogRoute(pathname: string, cfg: BlogConfig): BlogRoute | undefined {
+export function blogRoute(pathname: string, cfg: BlogConfig, langDirs: string[] = []): BlogRoute | undefined {
+	// Multilingual sites (Polylang / WPML directory mode): a language's archives and feeds live under its directory
+	// (`/fr/category/actualites/`, `/fr/author/jane/`, `/fr/feed/`) and list that language's posts. Its posts page is a
+	// translated page with an address of its own, so under a directory only the feed (and, when the front page lists the
+	// posts, the directory's own listing) is the index.
+	const seg = pathname.split("/")[1] ?? "";
+	if (seg && langDirs.includes(seg)) {
+		const inner = blogRoute(pathname.slice(seg.length + 1) || "/", cfg);
+		if (!inner || (inner.kind === "index" && !inner.feed && trim(cfg.index) !== "/")) return undefined;
+		return { ...inner, dir: seg };
+	}
 	let path = trim(pathname);
 	let feed = false;
 	let page = 1;

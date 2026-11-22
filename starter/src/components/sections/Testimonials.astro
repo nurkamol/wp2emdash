@@ -20,6 +20,8 @@ const items = (v.items ?? []) as Array<Record<string, any>>;
 					<p class="quote__by">
 						{q.photo && <Image image={q.photo} class="quote__photo" width={48} height={48} />}
 						{q.name && <strong>{q.name}</strong>}
+						{/* A space between name and role: screen readers and text copies read "Robin Example Member since 2023", not "ExampleMember". */}
+						{q.name && q.role && " "}
 						{q.role && <span>{q.role}</span>}
 					</p>
 				</li>

@@ -47,8 +47,8 @@ const price = priceView(data, shop, lang);
 	{
 		price && !hidePrice && (
 			<p class="product-card__price">
-				{price.from && <span class="product-card__from">From </span>}
-				{price.regular && <del>{price.regular}</del>} <span class="product-card__current">{price.current}</span>
+				{price.from && !price.max && <span class="product-card__from">From </span>}
+				{price.regular && <del>{price.regular}</del>} <span class="product-card__current">{price.current}{price.max && ` – ${price.max}`}</span>
 			</p>
 		)
 	}
@@ -74,7 +74,8 @@ const price = priceView(data, shop, lang);
 	.product-card__title a { color: inherit; text-decoration: none; }
 	.product-card__title a:hover, .product-card__title a:focus-visible { text-decoration: underline; }
 	.product-card__price { margin: 0; font-weight: 600; }
-	.product-card__price del { font-weight: 400; opacity: 0.65; margin-right: 0.35em; }
+	/* Regular price in the text colour: dimmed it fell below WCAG AA contrast. */
+	.product-card__price del { font-weight: 400; margin-right: 0.35em; }
 	.product-card__from { font-weight: 400; }
 	.product-card__stock { margin: 0; font-size: 0.9em; opacity: 0.75; }
 	.product-card__action { margin: 0.5rem 0 0; }

@@ -41,6 +41,8 @@ export interface WpUrlInput {
 	comments?: boolean;
 	/** Language directories of a multilingual site (`fr`, `de`): left out of term and author links when the bases are read. */
 	langDirs?: string[];
+	/** Language home pages that are not the bare directory (`fr` → `/fr/accueil/`), for the rules' `languages`. */
+	langHomes?: Record<string, string>;
 }
 
 const pathOf = (u: string): string | undefined => {
@@ -132,8 +134,9 @@ export function buildWpUrlPlan(input: WpUrlInput): WpUrlPlan {
 		attachments[String(m.id)] = { ...(ownPage ? { path: ownPage } : {}), ...(parent ? { parent } : {}), ...(file ? { file } : {}) };
 	}
 	const allPages = realBlog ? [...new Set([...pages, ...realBlog.posts])] : pages;
+	const languages = dirs.filter(Boolean).map((dir) => ({ dir, ...(input.langHomes?.[dir] ? { home: input.langHomes[dir] } : {}) }));
 	return {
-		rules: { ...(rules as Record<RuleKey, string>), ...(Object.keys(bases).length ? { bases } : {}), pages: allPages, ...(Object.keys(attachments).length ? { attachments } : {}), trailingSlash: input.trailingSlash, ...(realBlog ? { blog: { index: realBlog.index, archives: realBlog.archives, ...(Object.keys(realBlog.ids).length ? { ids: realBlog.ids } : {}) } } : {}) } as WpUrlRules,
+		rules: { ...(rules as Record<RuleKey, string>), ...(Object.keys(bases).length ? { bases } : {}), pages: allPages, ...(Object.keys(attachments).length ? { attachments } : {}), trailingSlash: input.trailingSlash, ...(realBlog ? { blog: { index: realBlog.index, archives: realBlog.archives, ...(Object.keys(realBlog.ids).length ? { ids: realBlog.ids } : {}) } } : {}), ...(languages.length ? { languages } : {}) } as WpUrlRules,
 		explain,
 		feedPending: hasPosts && !realBlog && rules.feed !== "gone",
 	};
