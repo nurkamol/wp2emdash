@@ -14,6 +14,10 @@
  * Sharing text and archive SEO (social.ts, plugin/social.ts): per-entry Open Graph / Twitter text (panel → "Social
  * sharing") and per-term archive SEO (dashboard tab "Archives"), carried from Yoast / Rank Math by the kit's load
  * (`seo-import` route) and printed by the `page:metadata` hook, which runs before the sharing-card plugin (priority 50).
+ *
+ * SEO fix-it (fixit.ts, plugin/fixit.ts): admin page `/seo-fixit` (editors and admins) that drafts missing meta
+ * descriptions, focus keywords and SEO titles with Workers AI (`AI` binding) for review; approving writes the SEO
+ * fields with `content.update(c, id, { seo })` (`content:write`) and the keyword to KV, then purges the cached pages.
  */
 import { definePlugin } from "emdash";
 import type { Analysis, Check } from "../analyze.js";
@@ -31,6 +35,8 @@ import { dateRange, GoogleError, parseServiceAccount, pickProperty, SearchConsol
 import { type IndexNowResult, submitIndexNow } from "../indexnow.js";
 import { importSocial, parseSocial, parseTermSeo, socialKey, socialTags, termFromPath, termKey, termTags } from "../social.js";
 import { archivesState, archivesTab, saveSocial, socialPanel, termAction } from "./social.js";
+import { FIXIT_PAGE, fixitLink, fixitRoute } from "./fixit.js";
+import type { AiBinding } from "../fixit.js";
 
 type Block = Record<string, unknown>;
 
@@ -70,7 +76,8 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 	const collections = o.collections?.length ? o.collections : ["pages"];
 	return definePlugin({
 		...SEO_PLUGIN,
-		capabilities: ["content:read", "media:read", "media:metadata:write", "admin.editor-draft:read", "taxonomies:read"],
+		// content:write: SEO fix-it saves approved SEO fields (only those; never page content).
+		capabilities: ["content:read", ...(o.fixit === false ? [] : ["content:write" as const]), "media:read", "media:metadata:write", "admin.editor-draft:read", "taxonomies:read"],
 		hooks: {
 			// Sharing text of the entry, or SEO of the term archive, from KV (one row by primary key). Before the sharing-card
 			// plugin (@wp2emdash/og, default priority 100): plugin tags are first-wins, so a custom image beats the card.
@@ -105,7 +112,7 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 				gscKey: { type: "secret", label: "Google Search Console service account key (JSON)" },
 				gscProperty: { type: "string", label: "Search Console property (optional)" },
 			},
-			pages: [{ path: DASHBOARD_PAGE, label: o.analytics ? "SEO & Analytics" : "SEO", icon: "chart-line" }],
+			pages: [{ path: DASHBOARD_PAGE, label: o.analytics ? "SEO & Analytics" : "SEO", icon: "chart-line" }, ...(o.fixit === false ? [] : [{ path: FIXIT_PAGE, label: "SEO fix-it", icon: "magic-wand" }])],
 			widgets: [{ id: WIDGET, title: "SEO", size: "third" }, ...(o.analytics ? [{ id: VISITS_WIDGET, title: "Visits", size: "half" as const }] : [])],
 			editorPanels: [{ id: "seo", title: "SEO", route: "panel", collections, order: 10, draft: { read: { fields: ["title", "content"] } } }],
 		},
@@ -134,6 +141,13 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 					if (ctx.ui?.surface === "dashboard-widget" && i.page === `widget:${VISITS_WIDGET}`) {
 						if (!o.analytics || (ctx.user?.role ?? 0) < ADMIN_ROLE) return { blocks: [] };
 						return { blocks: visitsWidget(await visitsState(ctx, o, await workerBits(), fetchFn), host, DASHBOARD_PAGE) };
+					}
+					// SEO fix-it: its own page (editors and admins; the role is checked again there).
+					if (o.fixit !== false && (i.page === FIXIT_PAGE || (i.action_id ?? "").startsWith("fx-"))) {
+						const report = await siteReport(ctx, o, collections);
+						const w = (await import("cloudflare:workers")) as unknown as { env?: { AI?: AiBinding }; cache?: Parameters<typeof purgePages>[0] };
+						const ai = typeof w.env?.AI?.run === "function" ? w.env.AI : undefined;
+						return fixitRoute(ctx, o, report.pages, i, { ...(ai ? { ai } : {}), ...(w.cache ? { cache: w.cache } : {}) });
 					}
 					// Archive SEO actions: the edit form replaces the dashboard.
 					const archives = o.archives ?? [];
@@ -221,7 +235,7 @@ export function createPlugin(options: SeoPanelOptions, deps: { fetch?: typeof fe
 					const tabFor: Record<string, TabKey> = { "save-alt": "images", refresh: "site", "biz-footer": "site", "indexnow-all": "indexnow", "visits-refresh": "visits" };
 					const archivesBlocks = archives.length ? archivesTab(await archivesState(ctx, archives)) : undefined;
 					return {
-						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}), google, ...(indexNow ? { indexNow } : {}), productionUrl: o.productionUrl, ...(an ? { analytics: an } : {}), ...(archivesBlocks ? { archives: archivesBlocks } : {}), ...(o.businessFooter ? { businessFooter: businessFooterBlocks({ on: business?.footer ?? true, admin: (ctx.user?.role ?? 0) >= ADMIN_ROLE, ...(business ? { stored: business } : {}) }) } : {}) }, act.startsWith("gsc-") ? "google" : act.startsWith("an-") ? "analytics" : act.startsWith("term-") ? "archives" : (tabFor[act] ?? "overview")),
+						blocks: dashboard({ pages: report.pages, missingAlt, site, ...(altSaved !== undefined ? { altSaved } : {}), google, ...(indexNow ? { indexNow } : {}), productionUrl: o.productionUrl, ...(an ? { analytics: an } : {}), ...(archivesBlocks ? { archives: archivesBlocks } : {}), ...(o.fixit !== false ? { fixit: fixitLink({ description: report.pages.filter((p) => !p.item.seo?.noIndex && !p.item.seo?.description?.trim()).length, keyword: report.pages.filter((p) => !p.item.seo?.noIndex && !p.keyword?.trim()).length }) } : {}), ...(o.businessFooter ? { businessFooter: businessFooterBlocks({ on: business?.footer ?? true, admin: (ctx.user?.role ?? 0) >= ADMIN_ROLE, ...(business ? { stored: business } : {}) }) } : {}) }, act.startsWith("gsc-") ? "google" : act.startsWith("an-") ? "analytics" : act.startsWith("term-") ? "archives" : (tabFor[act] ?? "overview")),
 						...(toast ? { toast } : {}),
 					};
 				},

@@ -27,3 +27,10 @@ export function mediaOptions(i: MediaInputs): MediaOptions | undefined {
 
 /** The Worker needs `"ai": { "binding": "AI" }` (wrangler.jsonc; not inherited by named environments). */
 export const mediaNeedsAi = (o: MediaOptions | undefined) => !!o?.aiAlt;
+
+/**
+ * Whether the Worker gets the Workers AI binding: Media's AI alt text, or SEO fix-it (SEO panel on). Fix-it sends only
+ * published page text, but on sensitiveData sites the binding is left out so no AI feature is reachable by default;
+ * the fix-it page then explains how to add it.
+ */
+export const workerNeedsAi = (media: MediaOptions | undefined, seoPanel: boolean, sensitiveData: boolean | undefined) => mediaNeedsAi(media) || (seoPanel && !sensitiveData);

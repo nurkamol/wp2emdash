@@ -24,6 +24,8 @@ export interface DashboardData {
 	archives?: Block[];
 	/** The footer business-details switch (business.ts); absent on sites built without the block. */
 	businessFooter?: Block[];
+	/** Link to SEO fix-it when pages lack a description or focus keyword (plugin/fixit.ts); absent when it is off. */
+	fixit?: Block[];
 }
 
 function overview(d: DashboardData): Block[] {
@@ -51,6 +53,7 @@ function overview(d: DashboardData): Block[] {
 			],
 		},
 		...(siteProblems ? [{ type: "banner", title: `${siteProblems} site-wide problem${siteProblems === 1 ? "" : "s"}`, description: "See the Site checks tab.", variant: "error" }] : []),
+		...(d.fixit ?? []),
 		{
 			type: "chart",
 			config: {

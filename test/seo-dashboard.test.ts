@@ -55,7 +55,7 @@ describe("SEO dashboard", () => {
 	const plugin = createPlugin({ productionUrl: "https://a.example" }) as unknown as { capabilities: string[]; admin: { pages: { path: string }[]; widgets: { id: string }[] }; routes: { admin: { permission: string; handler: (c: unknown) => Promise<{ blocks: Record<string, any>[]; toast?: { message: string } }> } } };
 	const tab = (r: { blocks: Record<string, any>[] }, n: number) => r.blocks.find((b) => b.type === "tab")?.panels[n].blocks as Record<string, any>[];
 	it("declares the page, the widget and alt-text writing for editors", () => {
-		expect(plugin.admin.pages.map((p) => p.path)).toEqual(["/seo"]);
+		expect(plugin.admin.pages.map((p) => p.path)).toEqual(["/seo", "/seo-fixit"]);
 		expect(plugin.admin.widgets.map((w) => w.id)).toEqual(["seo-overview"]);
 		expect(plugin.capabilities).toContain("media:metadata:write");
 		expect(plugin.routes.admin.permission).toBe("content:edit_any");

@@ -3,7 +3,7 @@
  * result and social previews, an on-page checklist with a score, focus keyword, the page's visits), the SEO & Analytics
  * dashboard (scores, images, site checks, Search Console, IndexNow), and Analytics: tracking codes managed by ID
  * (Google, Meta, Clarity, Hotjar, Cloudflare), conversion events and consent mode as switches, and Cloudflare Web
- * Analytics visits; sharing text per page and SEO of category/tag archives (carried from Yoast and Rank Math). Safe to import from astro.config: it only builds the plugin descriptor. Worker-side modules:
+ * Analytics visits; sharing text per page and SEO of category/tag archives (carried from Yoast and Rank Math); SEO fix-it (AI drafts of missing descriptions and focus keywords, approved by an editor). Safe to import from astro.config: it only builds the plugin descriptor. Worker-side modules:
  * `/plugin` (EmDash loads it) and `/analytics/*` (the starter reads trackers, CSP hosts and events from them).
  */
 import type { LegacyAnalytics } from "./analytics/trackers.js";
@@ -52,6 +52,12 @@ export interface SeoPanelOptions {
 	 * switch that shows or hides it (business.ts). Absent: no switch, nothing to hide.
 	 */
 	businessFooter?: boolean;
+	/**
+	 * SEO fix-it (admin page "SEO fix-it"): Workers AI drafts of missing meta descriptions, focus keywords and SEO titles
+	 * for editors to review and approve. On by default; needs the Worker's `AI` binding to draft. `false` removes the page
+	 * (and the plugin's content:write capability).
+	 */
+	fixit?: { model?: string; dailyLimit?: number; titles?: boolean } | false;
 }
 
 export function seoPlugin(options: SeoPanelOptions) {

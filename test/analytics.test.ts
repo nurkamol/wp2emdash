@@ -381,7 +381,7 @@ describe("SEO & Analytics plugin", () => {
 		const plain = createPlugin({ productionUrl: "https://acme.example" }) as unknown as typeof plugin;
 		expect(plain.admin.pages[0]?.label).toBe("SEO");
 		expect(plain.admin.widgets.map((w) => w.id)).toEqual(["seo-overview"]);
-		expect(seoPlugin(opts)).toMatchObject({ id: "site-seo", version: "0.5.0", displayName: "SEO & Analytics" });
+		expect(seoPlugin(opts)).toMatchObject({ id: "site-seo", version: "0.6.0", displayName: "SEO & Analytics" });
 	});
 	it("first load stores what was carried over (UA retired, verification shown read-only); no purge", async () => {
 		const r = await call({ type: "page_load" });

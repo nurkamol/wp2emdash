@@ -12,7 +12,7 @@
   <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-F6821F"></a>
   <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
-  <img alt="Tests: 1637 passing" src="https://img.shields.io/badge/tests-1637%20passing-1F9D6B">
+  <img alt="Tests: 1666 passing" src="https://img.shields.io/badge/tests-1666%20passing-1F9D6B">
 </p>
 
 wp2emdash is an open-source kit, built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net), that migrates WordPress sites to
@@ -313,6 +313,7 @@ seo: { panel: false },
 |---|---|---|
 | **SEO panel** | Page editor sidebar (contributors and up) | Score out of 100, Google result preview with cut-off warnings, plain-words checklist (title and description length, duplicates across pages, one H1, heading order, text length, image alt text, links, address, indexing, canonical, sharing image), focus keyword per page, "Check my unsaved changes". |
 | **SEO dashboard** | Plugins → SEO, dashboard widget (editors and admins) | Average score and a score per page, the most common issues and where they are, every page with a link to fix it, every image without a description with a form that writes alt text to the media library, robots.txt / sitemap / indexability checks (environment-aware). |
+| **SEO fix-it** | Plugins → SEO fix-it (editors and admins) | Workers AI drafts of missing meta descriptions and focus keywords (optionally better SEO titles) from each published page's own text, cleaned of details the page does not state; editors edit, approve or discard each one (approve all shown). Approved SEO fields are live at once (they are not versioned); cached pages are purged. 10 pages per press, 100 drafts a day. Needs the Worker's AI binding (added by scaffold, except on `sensitiveData` sites). |
 | **Google Search Console** | SEO dashboard → Google | Connected once with a service account (key stored encrypted): clicks, impressions, click rate, position, daily chart, top searches and pages, sitemaps (submit), index status per page. Works before go-live. |
 | **IndexNow** | SEO dashboard → IndexNow | After go-live, publishing a page notifies Bing, Yandex and the other IndexNow engines; key file at the domain root; notification log; notify-all button. |
 | **Analytics** | SEO & Analytics → Analytics (changes: admins) | Tracking codes by ID only — GA4, Google tag, Google Ads, Tag Manager, Meta Pixel, Microsoft Clarity, Hotjar, Cloudflare Web Analytics — prefilled with everything the audit found on the old site (retired `UA-` listed, never loaded); on/off, edit, remove; conversion events as switches (form sent, phone/email, booking links, outbound) with no visitor data; consent mode (driven by the built-in [Privacy & consent](#privacy--consent) banner); Google/Bing verification points to EmDash's Settings → SEO, other carried tags listed read-only. Saving purges cached pages: live within seconds. The site loads trackers on the production domain only, never for signed-in editors, and its CSP allows exactly the switched-on services (one host table, `packages/seo/src/analytics/csp.ts`). |
