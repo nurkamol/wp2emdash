@@ -111,7 +111,7 @@ describe("Missing pages tab: Create redirect", () => {
 	it("each row offers it: to the suggestion in one click, or to another page", async () => {
 		const r = await call({});
 		const t = table(r);
-		expect(t?.columns.at(-1)).toMatchObject({ key: "action", format: "element" });
+		expect(t?.columns.slice(-2)).toMatchObject([{ key: "action", format: "element" }, { key: "dismiss", format: "element" }]);
 		expect(t?.rows[0].action).toMatchObject({ type: "menu", action_id: "redirect-menu", items: [{ label: "To /blog/hello-world/", value: "create:/old/hello-world/" }, { label: "To another page…", value: "edit:/old/hello-world/" }] });
 		expect(t?.rows[1].action).toMatchObject({ type: "button", action_id: "redirect-edit", value: "/typo/" });
 	});

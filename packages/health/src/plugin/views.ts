@@ -9,7 +9,7 @@ import { headerRows, type SecurityFacts } from "../checks/headers.js";
 import { needsLook, type PageResult, STATE_TEXT, type VisualStore } from "../checks/visual.js";
 import { blockedLabel, type CspStore, isScriptDirective, meaning } from "../csp.js";
 import { cspLine } from "../report.js";
-import type { NotFoundSummary } from "../checks/notfound.js";
+import { notFoundId, type NotFoundSummary, referrerHost, WHY_TEXT } from "../checks/notfound.js";
 import { type Improvement, improveUrl, namesLine, NOTHING_TO_IMPROVE } from "../improve.js";
 import { A11Y_RULES, type A11yItem, isSiteWide } from "../checks/a11y.js";
 import { STALE_TEXT, type StaleItem } from "../checks/freshness.js";
@@ -97,6 +97,8 @@ export interface PageData {
 	redirects?: boolean;
 	/** "Create redirect" was asked for one address: the form for it (target prefilled with the suggestion). */
 	redirectForm?: { source: string; target?: string };
+	/** Missing addresses an admin dismissed (KEYS.notFoundDismissed). */
+	notFoundDismissed?: Dismissed;
 	/** Accessibility and content freshness (review.ts): the last review and what admins dismissed. */
 	review?: { store: ReviewStore | null; dismissed: Dismissed; accessibility: boolean; freshness: boolean };
 	/** "What to improve this month" (improve.ts); absent: not shown. */
@@ -260,21 +262,20 @@ function linksTab(d: PageData): Block[] {
 function missingTab(d: PageData): Block[] {
 	const s = d.notFound;
 	if (!s) return [{ type: "empty", title: "Not read yet", description: "EmDash logs every address that does not exist; the list is read every hour. Run checks now to read it.", size: "base" }];
-	const host = (r: string | null | undefined) => {
-		try {
-			return r ? new URL(r).host : "";
-		} catch {
-			return "";
-		}
-	};
+	const now = d.now ?? Date.now();
+	const dismissed = d.notFoundDismissed;
+	// Dismissed since the last hourly read: hidden at once.
+	const rows = s.top.filter((r) => !isDismissedNow(dismissed, notFoundId(r.path), now));
 	const can = d.redirects === true;
 	const action = (path: string, suggest?: string): Block =>
 		suggest
 			? { type: "menu", action_id: "redirect-menu", label: "Create redirect", style: "secondary", items: [{ label: `To ${suggest}`, value: `create:${path}` }, { label: "To another page…", value: `edit:${path}` }] }
 			: { type: "button", action_id: "redirect-edit", label: "Create redirect…", style: "secondary", value: path };
+	const reason = (r: (typeof rows)[number]) => (r.why ? WHY_TEXT[r.why] : r.removed ? "Removed at the migration" : "—");
+	const live = Object.entries(dismissed?.items ?? {}).filter(([, x]) => Date.parse(x.until) > now);
 	return [
 		...(can && d.redirectForm ? redirectFormBlocks(d, d.redirectForm) : []),
-		{ type: "context", text: can ? "Addresses visitors asked for that do not exist, seen in the last 7 days, most requested first (requests counted since the address first failed). Where a page of the site probably fits, it is suggested. Create redirect adds a permanent (301) redirect to Redirects — to the suggested page, or to another page of the site — and the address leaves this list. Or fix the link on the page that sent people there." : "Addresses visitors asked for that do not exist, seen in the last 7 days, most requested first (requests counted since the address first failed). Where a page of the site probably fits, it is suggested: add it in Redirects (source → suggested page), or fix the link on the page that sent people there." },
+		{ type: "context", text: `${can ? "Addresses visitors asked for that do not exist, seen in the last 7 days, most requested first (requests counted since the address first failed; an address with and without the closing / counts once). Where a page of the site probably fits, it is suggested — first the old WordPress address list kept from the migration, then the same address spelled differently, an old dated post address, the same last part or similar words. Create redirect adds a permanent (301) redirect to Redirects — to the suggested page, or to another page of the site — and the address leaves this list. Or fix the link on the page that sent people there." : "Addresses visitors asked for that do not exist, seen in the last 7 days, most requested first (requests counted since the address first failed). Where a page of the site probably fits, it is suggested: add it in Redirects (source → suggested page), or fix the link on the page that sent people there."} Dismiss an address that needs nothing (a mistyped link nobody will follow again): it leaves this list and What to improve.` },
 		{
 			type: "table",
 			block_id: "missing",
@@ -286,14 +287,38 @@ function missingTab(d: PageData): Block[] {
 				{ key: "last", label: "Last asked", format: "relative_time" },
 				{ key: "from", label: "Came from" },
 				{ key: "suggest", label: "Suggested redirect" },
+				{ key: "why", label: "Why" },
 				...(can ? [{ key: "action", label: "", format: "element" }] : []),
+				{ key: "dismiss", label: "", format: "element" },
 			],
-			rows: s.top.map((r) => ({ path: r.path, hits: r.hits, last: r.lastSeen, from: host(r.referrer) || "—", suggest: r.suggest ?? "—", ...(can ? { action: action(r.path, r.suggest) } : {}) })),
+			rows: rows.map((r) => ({ path: r.path, hits: r.hits, last: r.lastSeen, from: r.from ?? (referrerHost(r.referrer) || "—"), suggest: r.suggest ?? "—", why: reason(r), ...(can ? { action: action(r.path, r.suggest) } : {}), dismiss: missingDismissMenu(r.path) })),
 		},
+		...(live.length
+			? [
+					{
+						type: "table",
+						block_id: "missing-dismissed",
+						page_action_id: "noop",
+						columns: [
+							{ key: "what", label: "Dismissed address" },
+							{ key: "until", label: "Until" },
+							{ key: "restore", label: "", format: "element" },
+						],
+						rows: live.map(([id, x]) => ({ what: x.label, until: x.until.slice(0, 10), restore: { type: "button", action_id: "missing-restore", label: "Show again", value: id, style: "secondary" } })),
+					},
+				]
+			: []),
 		{ type: "actions", elements: [{ type: "link", label: "Open Redirects", target: { kind: "external", url: "/_emdash/admin/redirects" }, appearance: "secondary" }] },
-		{ type: "context", text: `Read ${shortTime(s.at)}.${s.probes ? ` ${plural(s.probes, "bot probe")} (wp-login.php, .env and similar) left out: those addresses never existed here.` : ""}` },
+		{ type: "context", text: `Read ${shortTime(s.at)}.${s.probes ? ` ${plural(s.probes, "bot probe")} (wp-login.php, .env and similar) left out: those addresses never existed here.` : ""} Only the address, the number of requests and the referring website are kept — never who asked.` },
 	];
 }
+
+const isDismissedNow = (d: Dismissed | undefined, id: string, now: number) => {
+	const x = d?.items[id];
+	return !!x && Date.parse(x.until) > now;
+};
+const missingDismissMenu = (path: string): Block => ({ type: "menu", action_id: "missing-dismiss", label: "Dismiss", style: "secondary", items: DISMISS_DAYS.map((days) => ({ label: MISSING_DISMISS_LABEL[days], value: `${notFoundId(path)}:${days}` })) });
+const MISSING_DISMISS_LABEL: Record<(typeof DISMISS_DAYS)[number], string> = { 90: "For 3 months", 365: "For a year", 1825: "For good (nothing to send it to)" };
 
 /** Pages offered as redirect targets (the sitemap, at most this many; the text box takes any other page). */
 const TARGET_OPTIONS = 200;
@@ -821,7 +846,7 @@ function settingsTab(d: PageData): Block[] {
 export function page(d: PageData, tab: number = TABS.overview): Block[] {
 	const open = d.incidents.filter((i) => !i.endedAt).length;
 	const broken = d.links?.broken.length ?? 0;
-	const missing = d.notFound?.top.length ?? 0;
+	const missing = d.notFound?.top.filter((r) => !isDismissedNow(d.notFoundDismissed, notFoundId(r.path), d.now ?? Date.now())).length ?? 0;
 	const blocked = d.csp && !d.csp.off ? d.csp.items.filter((e) => isScriptDirective(e.directive)).length : 0;
 	const latest = needsLook(d.visual?.store.runs.at(-1));
 	const look = latest.problems.length + latest.changes.length;

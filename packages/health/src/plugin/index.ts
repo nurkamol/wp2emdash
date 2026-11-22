@@ -42,9 +42,9 @@ import { type Cwv, type DayRow, type Incident, KEYS, type Kv, type LinksResult, 
 import { monthOf, previousMonth } from "../util.js";
 import type { SecurityFacts } from "../checks/headers.js";
 import { createLimiter, CSP_MAX_BYTES, type CspStore, parseCspBody, readCspStore, recordViolations, siteOrigins, violationOf } from "../csp.js";
-import type { NotFoundSummary } from "../checks/notfound.js";
+import { notFoundId, type NotFoundSummary } from "../checks/notfound.js";
 import { applyMaintenanceSchedule, maintenanceActive, maintenanceUpcoming, scheduleText, utcText } from "../maintenance.js";
-import { addRedirected, checkRedirect, findRelated, REDIRECT_GROUP, type Redirected, type RedirectsAccess, samePath } from "../redirects.js";
+import { addRedirected, checkRedirect, findRelated, liveAnswer, REDIRECT_GROUP, type Redirected, type RedirectsAccess, samePath } from "../redirects.js";
 import { adminsOnly, type MaintenanceSetting, overallOf, PAGE, type PageData, page, reportView, TABS, WIDGET, widget } from "./views.js";
 
 const ADMIN_ROLE = 50;
@@ -127,7 +127,7 @@ function deps(ctx: Ctx, env: WorkerEnv, o: HealthOptions): RunDeps | undefined {
 async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Partial<PageData> = {}): Promise<PageData> {
 	const kv = ctx.kv;
 	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance, csp, security, lab, labRequest, visual, visualJob, visualRequest] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance), kv.get<CspStore>(KEYS.csp), kv.get<SecurityFacts>(KEYS.security), kv.get<unknown>(KEYS.lab), kv.get<LabRequest>(KEYS.labRequest), kv.get<unknown>(KEYS.visual), kv.get<unknown>(KEYS.visualJob), kv.get<{ at: string; done?: string }>(KEYS.visualRequest)]);
-	const [review, dismissed] = await Promise.all([kv.get<unknown>(KEYS.review), kv.get<unknown>(KEYS.reviewDismissed)]);
+	const [review, dismissed, nfDismissed] = await Promise.all([kv.get<unknown>(KEYS.review), kv.get<unknown>(KEYS.reviewDismissed), kv.get<unknown>(KEYS.notFoundDismissed)]);
 	const vj = readJob(visualJob);
 	// "What to improve": the same list the monthly report carries, from what is stored now (never fails the page).
 	const improve = await reportFormsTrend(kv)
@@ -170,6 +170,7 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 		cspBuild: o.cspReports !== false,
 		security,
 		redirects: typeof ctx.redirects?.create === "function",
+		notFoundDismissed: readDismissed(nfDismissed),
 		...(improve ? { improve } : {}),
 		...extra,
 	};
@@ -426,6 +427,10 @@ export function createPlugin(options: HealthOptions) {
 						let check = checkRedirect(req);
 						if (check.ok) check = checkRedirect({ ...req, existing: await findRelated(access, [check.source, check.destination]) });
 						if (!check.ok) return formAgain([check.error]);
+						// The sitemap lists published pages only: ask the site itself whether the address answers now (a page
+						// left out of the sitemap, or a WordPress rule of the starter). One request; never throws.
+						const live = await liveAnswer(env.SELF ? (url, init) => (env.SELF as NonNullable<WorkerEnv["SELF"]>).fetch(new Request(url, init)) : undefined, o.productionUrl, check.source);
+						if (live) return formAgain([live]);
 						try {
 							await access.create({ source: check.source, destination: check.destination, type: 301, groupName: REDIRECT_GROUP });
 						} catch (e) {
@@ -457,6 +462,26 @@ export function createPlugin(options: HealthOptions) {
 						return createRedirect(v.source, other || v.target);
 					}
 					if (i.type === "block_action" && act === "redirect-cancel") return { blocks: await show(TABS.missing) };
+					// ── Missing pages → Dismiss an address for a period (it needs no redirect), or show it again.
+					if (i.type === "block_action" && act === "missing-dismiss") {
+						const v = parseDismissValue(i.value);
+						const summary = await ctx.kv.get<NotFoundSummary>(KEYS.notFound);
+						const row = v ? summary?.top.find((r) => notFoundId(r.path) === v.id) : undefined;
+						if (!v || !row || !summary) return { blocks: await show(TABS.missing), toast: { message: "That address is no longer listed.", type: "info" } };
+						const now = Date.now();
+						await ctx.kv.set(KEYS.notFoundDismissed, dismiss(readDismissed(await ctx.kv.get(KEYS.notFoundDismissed)), v.id, v.days, row.path, now));
+						await ctx.kv.set(KEYS.notFound, { ...summary, top: summary.top.filter((r) => r !== row && notFoundId(r.path) !== v.id), dismissed: (summary.dismissed ?? 0) + 1 });
+						// The period only: never the address.
+						ctx.log?.info("health missing address dismissed", { days: v.days });
+						return { blocks: await show(TABS.missing), toast: { message: `Dismissed until ${new Date(now + v.days * 86_400_000).toISOString().slice(0, 10)}. It is no longer listed or counted in What to improve.`, type: "success" } };
+					}
+					if (i.type === "block_action" && act === "missing-restore") {
+						const id = typeof i.value === "string" && /^[0-9a-z]{4,16}$/.test(i.value) ? i.value : undefined;
+						if (!id) return { blocks: await show(TABS.missing) };
+						await ctx.kv.set(KEYS.notFoundDismissed, restore(readDismissed(await ctx.kv.get(KEYS.notFoundDismissed)), id, Date.now()));
+						ctx.log?.info("health missing address restored", {});
+						return { blocks: await show(TABS.missing), toast: { message: "Shown again from the next hourly read, if visitors still ask for it.", type: "success" } };
+					}
 					if (i.type === "block_action" && act === "test-email") {
 						const state = await readState(ctx.kv);
 						if (state.jobs.test && Date.now() - Date.parse(state.jobs.test) < TEST_EVERY) return { blocks: await show(TABS.settings), toast: { message: "A test email was sent less than 10 minutes ago.", type: "info" } };

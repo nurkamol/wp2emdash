@@ -324,7 +324,7 @@ describe("404 monitoring (Site health → Missing pages)", () => {
 	});
 	it("the week's list and the check: attention when an address keeps failing", () => {
 		const s = summarizeNotFound([{ path: "/old/hello-world/", hits: 7, lastSeen: "2026-11-20T10:00:00Z", referrer: "https://google.com/" }, { path: "/wp-login.php", hits: 50, lastSeen: "2026-11-20T10:00:00Z" }, { path: "/typo/", hits: 1, lastSeen: "2026-11-19T10:00:00Z" }], SITE, "2026-11-21T00:00:00Z");
-		expect(s).toEqual({ at: "2026-11-21T00:00:00Z", top: [{ path: "/old/hello-world/", hits: 7, lastSeen: "2026-11-20T10:00:00Z", referrer: "https://google.com/", suggest: "/blog/hello-world/" }, { path: "/typo/", hits: 1, lastSeen: "2026-11-19T10:00:00Z" }], probes: 1 });
+		expect(s).toEqual({ at: "2026-11-21T00:00:00Z", top: [{ path: "/old/hello-world/", hits: 7, lastSeen: "2026-11-20T10:00:00Z", from: "google.com", suggest: "/blog/hello-world/", why: "slug" }, { path: "/typo/", hits: 1, lastSeen: "2026-11-19T10:00:00Z" }], probes: 1 });
 		expect(notFoundCheck(s, "t")).toMatchObject({ status: "warn", detail: ["/old/hello-world/ (7× → /blog/hello-world/)", "1 bot probe left out (wp-login.php, .env and similar)."] });
 		expect(notFoundCheck({ at: "t", top: [], probes: 0 }, "t").status).toBe("ok");
 		expect(notFoundCheck(undefined, "t").status).toBe("unknown");

@@ -9,7 +9,7 @@
  *   seo          the SEO suite's cached page analysis (thin pages, missing meta
  *                descriptions, focus keyword, pictures without description; D1 row
  *                plugin:site-seo:summary, or the one the monthly report calculated)    sites with the SEO suite
- *   notfound     the week's missing addresses without a redirect (EmDash's 404 log)    every site
+ *   notfound     the week's missing addresses without a redirect or a dismissal (404 log) every site
  *   speed        Chrome UX Report p75 (poor or needs improvement)                     when Google has data
  *   forms        form message COUNTS of the month against the month before            sites with the form outbox
  *   visual       the weekly visual check's last run: main pages broken or changed      every site (when it ran)
@@ -132,7 +132,8 @@ export function improvements(i: ImproveInputs): Improvement[] {
 	const speed = speedItem(i.cwv);
 	if (speed) out.push(speed);
 	const busy = (i.notFound?.top ?? []).filter((r) => r.hits >= NOTFOUND_WARN_HITS);
-	if (busy.length) out.push({ id: "notfound", impact: 70, text: `Visitors keep arriving at ${plural(busy.length, "address", "addresses")} that ${these(busy.length, "no longer exists", "no longer exist")}. Send ${these(busy.length, "it", "each one")} to the right page with a redirect.`, count: busy.length, names: names("Addresses", busy.map((r) => r.path)), link: LINKS.health("missing", "See Missing pages") });
+	const suggested = busy.filter((r) => r.suggest).length;
+	if (busy.length) out.push({ id: "notfound", impact: 70, text: `Visitors keep arriving at ${plural(busy.length, "address", "addresses")} that ${these(busy.length, "no longer exists", "no longer exist")}. Send ${these(busy.length, "it", "each one")} to the right page with a redirect${suggested ? ` (${suggested} with a suggested page: one click on Missing pages)` : ""}, or dismiss what needs nothing.`, count: busy.length, names: names("Addresses", busy.map((r) => r.path)), link: LINKS.health("missing", "See Missing pages") });
 	const f = i.forms;
 	if (f && f.previous !== undefined && f.previous >= FORMS_DROP_MIN && f.total * 2 <= f.previous) out.push({ id: "forms", impact: 65, text: `Form messages fell from ${f.previous} to ${f.total} compared with the month before. Send yourself a test message to make sure the forms still work.`, count: f.total, link: LINKS.forms });
 	const s = i.seo;

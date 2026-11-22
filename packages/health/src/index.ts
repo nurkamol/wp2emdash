@@ -94,6 +94,12 @@ export interface HealthOptions {
 	staleMonths?: number;
 	/** Mail DNS records at go-live (cutover/dns-before.json), as hashes: never the record values. */
 	mail?: MailBaseline;
+	/**
+	 * The old WordPress addresses that did not keep their path at the migration: old path → its path on the new site
+	 * ("" = not carried over). Written by the kit's scaffold from the audit and the migrated routes (at most 2,000);
+	 * Missing pages suggests these first. Site paths only: no visitor data.
+	 */
+	oldUrls?: Record<string, string>;
 }
 
 /** The EmDash plugin descriptor for `emdash({ plugins: [healthPlugin({...})] })`: adds Plugins → Site health and a dashboard widget. */

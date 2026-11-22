@@ -141,3 +141,27 @@ export function withoutRedirected(s: NotFoundSummary, sources: Iterable<string>)
 	const list = [...sources];
 	return { ...s, top: s.top.filter((r) => !list.some((x) => samePath(x, r.path))) };
 }
+
+/**
+ * Whether the missing address answers on the site now, asked of the site itself (the SELF binding): a page (200) that
+ * is not in the sitemap — a redirect would hide it — or a redirect of its own (a WordPress rule of the starter, a
+ * redirect added in the meantime). Returns the reason to refuse, or undefined (404 / 410, no binding, no answer). One
+ * request, 8 s limit, never throws. EmDash logs the 404 of this request too (one more hit for that address).
+ */
+export async function liveAnswer(self: ((url: string, init?: RequestInit) => Promise<Response>) | undefined, origin: string, source: string): Promise<string | undefined> {
+	if (!self) return undefined;
+	try {
+		const res = await self(new URL(source, origin).href, { redirect: "manual", headers: { "user-agent": "wp2emdash-site-health" }, signal: AbortSignal.timeout(8000) });
+		await res.body?.cancel();
+		if (res.status === 200) return `${source} answers as a page of this site now (it is not in the sitemap): redirecting it would hide that page.`;
+		if ([301, 302, 303, 307, 308].includes(res.status)) {
+			const to = res.headers.get("location");
+			let path = to ?? "";
+			try {
+				path = to ? new URL(to, origin).pathname : "";
+			} catch {}
+			return `${source} already redirects${path ? ` to ${path}` : ""}: nothing to add.`;
+		}
+	} catch {}
+	return undefined;
+}
