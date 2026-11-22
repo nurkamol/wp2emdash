@@ -6,6 +6,8 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-11-22
+
 ### Added
 - **Deploy check with automatic rollback** (`performance.deployCheck`, `performance.rollback`, both on): every deploy script runs `scripts/deploy-check.mjs` after the warm-up — sitemap pages answer, titles / main content / footer present, stylesheets, scripts and the hero picture load, every font the site uses is in its CSS. On a failure the Worker is rolled back to the version live before and the deploy fails. `DEPLOY_ROLLBACK=0` skips the rollback for one run.
 - **What to improve this month** (`@wp2emdash/health` 0.5.0): the monthly report email (HTML and plain text) opens with at most six plain-language to-dos, most important first, each with the pages, addresses or pictures it concerns (three named, the rest counted) and a link to the admin page that fixes it; the Site health **Overview** shows the same list (Site health's own items open the Missing pages or Speed tab). Sources, all already stored: backups failing, broken / undescribed / oversized pictures (Media Assistant), slow real-visitor speed (CrUX), missing addresses without a redirect (404 log), form messages down by half (monthly counts only, no message read), thin pages, missing meta descriptions and focus keywords (SEO suite). Plugins a site does not run are skipped; nothing to do is one positive line. Stored reports from before show no section.
