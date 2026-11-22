@@ -4,6 +4,8 @@
  *
  * - `cron` hook, task `nightly` once an hour at a minute fixed per site (EmDash plugin cron, run by the Worker's
  *   `*\/5 * * * *` trigger): the nightly backup when due, retries, retention, failure alerts.
+ * - `cron` hook, task `restore-drill` every 15 minutes (minutes fixed per site): the monthly restore test (drill.ts) —
+ *   due, in progress or requested — split across ticks, its own lock, never on staging.
  * - `content:beforeDelete` hook (fires when an entry is moved to the trash): a snapshot of just that entry first.
  * - `admin` route (EmDash's default `plugins:manage`, admins only; role checked again): the Backups page — list,
  *   Back up now (single flight, at most every 2 minutes), downloads, restore with a preview, alert settings.
@@ -23,6 +25,7 @@ import { mailReady, type PluginEmail } from "../email.js";
 import type { BackupsOptions } from "../index.js";
 import { BACKUPS_PLUGIN } from "../meta.js";
 import { applyEntry, applyMenus, applySettings, currentEntry, currentMenus, currentSettings, emdashApi, entriesOf, entryOf, fingerprint, menusOf, type Plan, planEntry, planMenus, planSettings, type RestoreKind } from "../restore.js";
+import { DRILL_MANUAL_MS, DRILL_MANUAL_STATEMENTS, DRILL_TASK, drillCron, drillLine, drillSettings, drillTick, readDrill, requestDrill, type ScratchDb } from "../drill.js";
 import { type BackupEnv, nightly, offsiteReady, rebuildIndex, type RunDeps, runBackup, snapshotEntry } from "../run.js";
 import { cronSchedule, DEFAULT_RETENTION, LOCK_MS, nightlyHour, TASK } from "../schedule.js";
 import { acquireLock, type AlertSettings, grant, KEYS, type Kv, readIndex, readStatus, redeem, releaseLock } from "../store.js";
@@ -69,8 +72,21 @@ const workerEnv = async () => ((await import("cloudflare:workers")) as unknown a
 
 export async function ensureCron(cron: CronAccess | undefined, o: BackupsOptions): Promise<void> {
 	if (!cron) return;
-	const want = cronSchedule(new URL(o.productionUrl).host);
-	if (!(await cron.list()).some((t) => t.name === TASK && t.schedule === want)) await cron.schedule(TASK, { schedule: want });
+	const host = new URL(o.productionUrl).host;
+	const tasks = await cron.list();
+	const want = cronSchedule(host);
+	if (!tasks.some((t) => t.name === TASK && t.schedule === want)) await cron.schedule(TASK, { schedule: want });
+	// The restore test's task (every 15 minutes: it only reads KV unless a test is due or in progress).
+	const drill = drillCron(host);
+	if (drillSettings(o) && !tasks.some((t) => t.name === DRILL_TASK && t.schedule === drill)) await cron.schedule(DRILL_TASK, { schedule: drill });
+}
+
+/** The restore test's scratch database binding, when the Worker has one (never the live database binding). */
+export function scratchBinding(env: WorkerEnv, o: BackupsOptions): ScratchDb | undefined {
+	const cfg = drillSettings(o);
+	if (!cfg) return undefined;
+	const db = env[cfg.binding] as ScratchDb | undefined;
+	return db?.prepare && db !== env[o.bindings?.database ?? "DB"] ? db : undefined;
 }
 
 function bindings(env: WorkerEnv, o: BackupsOptions): { db?: D1Db; bucket?: R2Like } {
@@ -155,6 +171,7 @@ export function createPlugin(options: BackupsOptions) {
 			selfBinding: !!env.SELF,
 			...(o.database ? { database: o.database } : {}),
 			markers,
+			drill: o.restoreDrill === false ? { mode: "off" } : { mode: scratchBinding(env, o) ? "scratch" : "dry-run", store: await readDrill(ctx.kv), everyDays: drillSettings(o)?.everyDays ?? 30 },
 			...extra,
 		};
 	}
@@ -191,9 +208,17 @@ export function createPlugin(options: BackupsOptions) {
 			cron: {
 				timeout: 120_000,
 				handler: async (event: { name: string }, raw: unknown) => {
-					if (event.name !== TASK) return;
+					if (event.name !== TASK && event.name !== DRILL_TASK) return;
 					const ctx = raw as Ctx;
-					const d = deps(ctx, await workerEnv(), o);
+					const env = await workerEnv();
+					const d = deps(ctx, env, o);
+					if (event.name === DRILL_TASK) {
+						if (!d) return;
+						const scratch = scratchBinding(env, o);
+						const r = await drillTick({ ...d, staging: env.STAGING === "1", ...(scratch ? { scratch } : {}) });
+						if (r.state === "skipped" && r.why === "locked") ctx.log?.info("restore test", { skipped: "locked" });
+						return;
+					}
 					if (!d) return void ctx.log?.warn?.("backups: no D1 or R2 binding; nothing backed up");
 					const r = await nightly(d);
 					if (!r.ok && r.skipped !== "not-due") ctx.log?.info("backups nightly", r.skipped ? { skipped: r.skipped } : { failed: true });
@@ -234,6 +259,17 @@ export function createPlugin(options: BackupsOptions) {
 						const r = await runBackup(d, "manual", { by: who });
 						const message = r.ok ? `Backup stored (${r.entry.id})${r.offsite ? `; ${r.offsite}` : ""}.` : r.skipped === "locked" ? "A backup or restore is running already; refresh in a minute." : r.skipped === "too-soon" ? "A backup was made less than 2 minutes ago." : `Backup failed: ${r.reason}.`;
 						return { blocks: await show(), toast: { message, type: r.ok ? "success" : r.skipped ? "info" : "error" } };
+					}
+					if (i.type === "block_action" && act === "drill-now") {
+						if (!d) return { blocks: await show(), toast: { message: "The restore test cannot run: the Worker has no D1 or R2 binding.", type: "error" } };
+						if (!drillSettings(o)) return { blocks: await show(), toast: { message: "The restore test is switched off for this site (kit.config backups.restoreDrill).", type: "info" } };
+						if (env.STAGING === "1") return { blocks: await show(), toast: { message: "The restore test does not run on the staging site.", type: "info" } };
+						const q = await requestDrill(ctx.kv, d.now, who);
+						if (!q.ok) return { blocks: await show(), toast: { message: q.why === "running" ? "A restore test is running already; it continues every 15 minutes." : "A restore test was started less than 10 minutes ago.", type: "info" } };
+						const scratch = scratchBinding(env, o);
+						const r = await drillTick({ ...d, staging: false, ...(scratch ? { scratch } : {}) }, { manual: true, budget: { ms: DRILL_MANUAL_MS, statements: DRILL_MANUAL_STATEMENTS } });
+						const message = r.state === "done" ? `Restore test ${drillLine(r.result)}.` : r.state === "running" ? `Restore test started: ${r.progress.rows} rows restored so far. It continues in the background (every 15 minutes); refresh later.` : r.why === "no-backup" ? "There is no backup to test yet: use Back up now first." : r.why === "locked" ? "A restore test step is running right now; refresh in a minute." : "The restore test could not start.";
+						return { blocks: await show(), toast: { message, type: r.state === "done" ? (r.result.ok ? "success" : "error") : "info" } };
 					}
 					if (i.type === "block_action" && act === "download") {
 						const e = await findEntry(v);
@@ -349,8 +385,9 @@ export function createPlugin(options: BackupsOptions) {
 				handler: async (raw: unknown) => {
 					const ctx = raw as Ctx;
 					if ((ctx.user?.role ?? ADMIN_ROLE) < ADMIN_ROLE) return { error: "admins only" };
-					const [s, list] = await Promise.all([readStatus(ctx.kv), readIndex(ctx.kv)]);
-					return { plugin: BACKUPS_PLUGIN.id, version: BACKUPS_PLUGIN.version, lastBackupAt: s.lastSuccessAt ?? null, ok: s.failures === 0, failures: s.failures, kept: list.filter((e) => e.trigger !== "pre-delete").length, bytes: list.reduce((n, e) => n + e.bytes, 0) };
+					const [s, list, drill] = await Promise.all([readStatus(ctx.kv), readIndex(ctx.kv), readDrill(ctx.kv)]);
+					const t = drill.last;
+					return { plugin: BACKUPS_PLUGIN.id, version: BACKUPS_PLUGIN.version, lastBackupAt: s.lastSuccessAt ?? null, ok: s.failures === 0, failures: s.failures, kept: list.filter((e) => e.trigger !== "pre-delete").length, bytes: list.reduce((n, e) => n + e.bytes, 0), restoreTest: t ? { at: t.at, ok: t.ok, mode: t.mode, tables: t.tables, rows: t.rows, mediaSampled: t.mediaSampled } : null };
 				},
 			},
 		},

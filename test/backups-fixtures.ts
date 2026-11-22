@@ -5,6 +5,7 @@
  */
 import { DatabaseSync } from "node:sqlite";
 import type { D1Db, R2Like, R2ObjectLike } from "../packages/backups/src/export.js";
+import type { ScratchDb, ScratchStmt } from "../packages/backups/src/drill.js";
 
 /** Values that must never appear in a backup, a log line or an email. */
 export const SECRETS = {
@@ -92,15 +93,39 @@ export function seed(db: DatabaseSync): void {
 }
 
 /** The D1 binding's shape over node:sqlite. `fail` makes every query throw (a broken database). */
-export function d1(db: DatabaseSync, o: { fail?: () => boolean } = {}): D1Db & { sql: DatabaseSync } {
-	const stmt = (q: string, binds: unknown[] = []) => ({
+export function d1(db: DatabaseSync, o: { fail?: () => boolean; onQuery?: (sql: string) => void } = {}): D1Db & ScratchDb & { sql: DatabaseSync; batch(s: ScratchStmt[]): Promise<unknown[]> } {
+	type Stmt = { bind(...v: unknown[]): Stmt; all<T>(): Promise<{ results: T[] }>; run(): Promise<{ success: true }> };
+	const stmt = (q: string, binds: unknown[] = []): Stmt => ({
 		bind: (...v: unknown[]) => stmt(q, [...binds, ...v]),
 		all: async <T>() => {
 			if (o.fail?.()) throw new Error("D1_ERROR: database unavailable");
+			o.onQuery?.(q);
 			return { results: db.prepare(q).all(...(binds as never[])).map((r) => ({ ...r })) as T[] };
 		},
+		run: async () => {
+			if (o.fail?.()) throw new Error("D1_ERROR: database unavailable");
+			o.onQuery?.(q);
+			db.prepare(q).run(...(binds as never[]));
+			return { success: true as const };
+		},
 	});
-	return { sql: db, prepare: (q: string) => stmt(q) };
+	return {
+		sql: db,
+		prepare: (q: string) => stmt(q),
+		// D1's batch: one transaction, rolled back when a statement fails.
+		batch: async (stmts) => {
+			db.exec("BEGIN");
+			try {
+				const out: unknown[] = [];
+				for (const s of stmts) out.push(await s.run());
+				db.exec("COMMIT");
+				return out;
+			} catch (e) {
+				db.exec("ROLLBACK");
+				throw e;
+			}
+		},
+	};
 }
 
 export function freshDb(): DatabaseSync {
@@ -120,6 +145,10 @@ export function memoryR2(): R2Like & { store: Map<string, { body: Uint8Array; cu
 		async get(key) {
 			const e = store.get(key);
 			return e ? { arrayBuffer: async () => e.body.slice().buffer as ArrayBuffer, ...(e.customMetadata ? { customMetadata: e.customMetadata } : {}) } : null;
+		},
+		async head(key) {
+			const e = store.get(key);
+			return e ? { size: e.body.byteLength } : null;
 		},
 		async delete(keys) {
 			for (const k of Array.isArray(keys) ? keys : [keys]) store.delete(k);

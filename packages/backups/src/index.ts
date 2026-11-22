@@ -7,7 +7,8 @@
  * "Back up now", one-time download links, and restore of the site settings, the menus or a single entry from a chosen
  * backup with a preview of the changes — always after a fresh backup. Email alerts when the nightly backup fails twice
  * in a row, an optional off-site copy (any S3-compatible bucket), and a public heartbeat (time of the last backup) for
- * Site health and the kit's verify. Full-site restore stays a guided CLI step (D1 Time Travel). Never in a backup:
+ * Site health and the kit's verify. A monthly restore test restores the newest backup into an empty scratch D1 database
+ * (RESTORE_DRILL_DB; a dry run without it) and checks it. Full-site restore stays a guided CLI step (D1 Time Travel). Never in a backup:
  * users, passkeys, sessions, API/OAuth tokens, plugin data and secrets, form messages, comments.
  *
  * This entry is safe to import from astro.config (Node): it only builds the plugin descriptor. The Worker-side module
@@ -39,6 +40,13 @@ export interface BackupsOptions {
 	 * only writes there (no deletes): set a lifecycle rule on that bucket for retention.
 	 */
 	offsite?: { endpoint: string; bucket: string; region?: string; prefix?: string };
+	/**
+	 * The restore test (default on; `false` turns it off): every `everyDays` days (30) the newest full backup is restored
+	 * into an empty scratch D1 database (Worker binding `binding`, default RESTORE_DRILL_DB), checked against the backup's
+	 * own counts, `mediaSample` media files (12) are checked in R2, and the scratch database is emptied again. Without
+	 * the binding the backup is validated against the live schema without writing anything (dry run). Never on staging.
+	 */
+	restoreDrill?: false | { everyDays?: number; mediaSample?: number; tolerancePct?: number; hourUtc?: number; binding?: string };
 	/** Footer line of alert emails, e.g. "Prepared by <your agency>". */
 	footer?: string;
 }

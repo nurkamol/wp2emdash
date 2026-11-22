@@ -4,6 +4,7 @@
  */
 import { MAX_RECIPIENTS } from "@wp2emdash/forms/outbox";
 import type { BackupCounts, BackupEntry, KitMarker, Trigger } from "../format.js";
+import { type DrillStore, drillLine } from "../drill.js";
 import type { Plan } from "../restore.js";
 import type { RunStatus } from "../schedule.js";
 import type { AlertSettings } from "../store.js";
@@ -40,6 +41,27 @@ export interface PageData {
 	markers: (KitMarker & { key: string })[];
 	download?: { url: string; id: string };
 	errors?: string[];
+	/** The restore test: off, or its mode (scratch database bound or dry run) and stored state. */
+	drill?: { mode: "off" } | { mode: "scratch" | "dry-run"; store: DrillStore; everyDays: number };
+}
+
+/** The restore test's lines on the Backups tab: the last result, a run in progress, failed checks, the button. */
+export function drillBlocks(d: PageData): Block[] {
+	const t = d.drill;
+	if (!t || t.mode === "off") return [];
+	const s = t.store;
+	const last = s.last;
+	const how = t.mode === "scratch" ? "restored into an empty scratch database, counted back and checked, then the scratch database is emptied" : "checked against the site's database schema without writing anything (dry run: no scratch database is bound — your developer can add one with the kit's provision and scaffold)";
+	return [
+		{ type: "header", text: "Restore test" },
+		last
+			? { type: "banner", title: `Last restore test: ${drillLine(last)}`, description: last.ok ? `Backup ${last.backupId ?? ""} was ${how}.` : `${last.reason ?? "A check failed"}. Backups are still made; the test is repeated tomorrow.`, variant: last.ok ? "default" : "error" }
+			: { type: "context", text: `No restore test yet. Every ${plural(t.everyDays, "day")} the newest backup is ${how}.` },
+		...(s.running ? [{ type: "context", text: `A restore test is running (started ${shortTime(s.running.startedAt)}, ${s.running.inserted.toLocaleString("en-US")} rows restored so far); it continues every 15 minutes.` }] : s.requested ? [{ type: "context", text: "A restore test is queued: it starts within 15 minutes." }] : []),
+		...(last && !last.ok ? [{ type: "table", block_id: "drill-checks", page_action_id: "noop", columns: [{ key: "check", label: "Check" }, { key: "result", label: "Result", format: "badge" }, { key: "detail", label: "Details" }], rows: last.checks.slice(0, 20).map((c) => ({ check: c.label, result: c.ok ? "Passed" : "Failed", detail: c.detail ?? "" })) }] : []),
+		{ type: "actions", elements: [{ type: "button", action_id: "drill-now", label: "Run restore test now", style: "secondary" }] },
+		{ type: "context", text: d.staging ? "The restore test does not run on the staging site." : `Every ${plural(t.everyDays, "day")}; only counts are checked and kept — never the content itself, and form messages are never in a backup.` },
+	];
 }
 
 function statusBanner(d: PageData): Block {
@@ -67,6 +89,7 @@ function backupsTab(d: PageData): Block[] {
 			],
 		},
 		{ type: "actions", elements: [{ type: "button", action_id: "backup-now", label: "Back up now", style: "primary" }] },
+		...drillBlocks(d),
 		{
 			type: "table",
 			block_id: "backups",

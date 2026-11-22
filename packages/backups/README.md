@@ -34,6 +34,19 @@ builds (`backups: false` in `kit.config.ts` turns it off). Admins only.
   the kit's `load --force` and `golive` write markers in `backups/markers/` (listed with their restore commands).
 - **Alerts:** two failed nightly attempts in a row → one email (and one when it works again), through the forms
   package's email path; only once the site is live, never from staging; recipients editable on the page.
+- **Restore test (monthly, on by default; 0.2.0):** proof that the newest backup can actually be restored. Plugin cron
+  task `restore-drill` (every 15 minutes at minutes fixed per site; it only reads one KV row unless a test is due or
+  running): every 30 days (`restoreDrill.everyDays`), after the nightly hour, the newest full backup is checked (SHA-256
+  recorded at store time, decompression, format, its counts) and **restored into an empty scratch D1 database** bound as
+  `RESTORE_DRILL_DB` — tables created from the live schema (columns, types, NOT NULL, defaults, primary keys), every
+  row inserted, every table counted back against the backup (tolerance `tolerancePct`, default exact), pages / posts,
+  media records and site settings checked, `mediaSample` (12) media files checked in R2 (HEAD), then the scratch
+  database emptied. Without that binding: a **dry run** — the same checks against the live schema, nothing written.
+  Split across ticks (≤ 400 statements / 60 s each), its own lock, never on staging. The scratch database is written
+  only if it is empty or holds the test's marker table (never the live `DB`). Result on the Backups page ("Last restore
+  test: passed 2026-11-03, 1,234 rows across 38 tables, 12 media sampled"), **Run restore test now** (admins, at most
+  every 10 minutes), in Site health's Backups check, and the `status` route; a failure emails the alert recipients
+  (one email, plus one when it passes again). Counts only — never content; form messages are never in a backup.
 - **Off-site copy (opt-in):** each backup is also PUT (AWS SigV4) to an S3-compatible bucket; never deleted from there.
 - **Public routes:** `download` (one-time token) and `heartbeat` (time of the last good backup and whether the last
   attempt worked — read by Site health's Backups check and the kit's verify).
@@ -46,7 +59,10 @@ emdash({ plugins: [backupsPlugin({ productionUrl: "https://example.com", siteNam
 ```
 
 Needs the `DB` (D1) and `MEDIA` (R2) bindings EmDash already uses, the Worker's cron trigger (EmDash's scheduled
-handler runs plugin cron), and for restores a service binding of the Worker to itself (`SELF`).
+handler runs plugin cron), and for restores a service binding of the Worker to itself (`SELF`). Optional: an empty D1
+database bound as `RESTORE_DRILL_DB` for the restore test (the kit's `provision` creates `<slug>-restore-drill-db`; the
+scaffold binds it once its id is in `cloudflare.json`); without it the test is a dry run. `restoreDrill: false` turns
+the test off.
 
 ## Optional Worker secrets
 

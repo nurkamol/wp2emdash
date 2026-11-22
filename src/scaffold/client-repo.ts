@@ -69,7 +69,7 @@ export interface ClientRepoInput {
 	/** Privacy & consent (@wp2emdash/consent): the banner mode it starts with, and consent tools kept from the old site. */
 	consent?: { mode: string; keptTools?: string[] };
 	/** Backups & Restore (@wp2emdash/backups): alert recipients, retention, off-site copy, production D1 name. */
-	backups?: { alertsTo: string[]; daily: number; monthly: number; offsite: boolean; database?: string };
+	backups?: { alertsTo: string[]; daily: number; monthly: number; offsite: boolean; database?: string; restoreTestDays?: number };
 	/** Media Assistant (@wp2emdash/media): AI alt text, upload queue, largest original (docs/media.md). */
 	media?: MediaDocInput;
 	/** Change requests (@wp2emdash/change-requests): retention and whether a webhook feeds the agency tracker. */
@@ -310,7 +310,15 @@ Kept: every backup of the last ${b.daily} days, and the first backup of each of 
 If the nightly backup fails twice in a row, ${b.alertsTo.length ? b.alertsTo.join(", ") : "the alert recipients"} get an email (change this under
 **Backups → Settings**). When a page is moved to the trash, a copy of just that page is kept first.
 
-## Restore a page
+${b.restoreTestDays ? `## Restore test
+
+Every ${b.restoreTestDays} days the site proves its newest backup can really be restored: it restores it into an empty
+scratch database (never the live one), counts every table back against the backup, checks that a sample of the media
+files is still in storage, then empties the scratch database again. The result is on the Backups page ("Last restore
+test: passed …") and in Site health; if it fails, the alert recipients get an email. **Run restore test now** starts
+one by hand. Only counts are checked and kept, never the content itself.
+
+` : ""}## Restore a page
 
 1. Open **Plugins → Backups**. Find a backup from before the change (the list shows when each was made).
 2. Click **Restore…** next to it, then **Restore this…** next to the page.

@@ -10,7 +10,7 @@ import { alertMail, type MailEnv, type PluginEmail, sendMail } from "./email.js"
 import { putOffsite } from "./s3.js";
 import { ALERT_AFTER, LOCK_MS, MANUAL_EVERY, nightlyDue, nightlyHour, planRetention, type RunStatus } from "./schedule.js";
 import { acquireLock, type AlertSettings, KEYS, type Kv, readIndex, readStatus, releaseLock, updateIndex } from "./store.js";
-import { dayOf, gzip, plural, randomHex } from "./util.js";
+import { dayOf, gzip, plural, randomHex, sha256Hex } from "./util.js";
 
 export interface BackupEnv extends MailEnv {
 	BACKUP_S3_ACCESS_KEY_ID?: string;
@@ -42,9 +42,11 @@ export function offsiteReady(o: BackupsOptions, env: BackupEnv): boolean {
 /** Stores a backup document; returns its list entry. */
 export async function storeDoc(d: RunDeps, doc: BackupDoc, key: string, by?: string): Promise<{ entry: BackupEntry; offsite?: string }> {
 	const body = await gzip(JSON.stringify(doc));
-	const entry: BackupEntry = { id: doc.id, key, at: doc.createdAt, trigger: doc.trigger, bytes: body.byteLength, counts: doc.counts, ...(by ? { by: by.slice(0, 80) } : {}) };
-	// Custom metadata lets the list be rebuilt from the bucket alone if the plugin's KV is ever lost (R2 caps it at 2 KB).
-	await d.bucket.put(key, body, { httpMetadata: { contentType: "application/gzip" }, customMetadata: { format: FORMAT, version: String(FORMAT_VERSION), id: doc.id, at: doc.createdAt, trigger: doc.trigger } });
+	const sha256 = await sha256Hex(body);
+	const entry: BackupEntry = { id: doc.id, key, at: doc.createdAt, trigger: doc.trigger, bytes: body.byteLength, counts: doc.counts, sha256, ...(by ? { by: by.slice(0, 80) } : {}) };
+	// Custom metadata lets the list be rebuilt from the bucket alone if the plugin's KV is ever lost (R2 caps it at 2 KB);
+	// the SHA-256 of the stored (compressed) file lets the restore test prove the file is the one written (0.2.0+).
+	await d.bucket.put(key, body, { httpMetadata: { contentType: "application/gzip" }, customMetadata: { format: FORMAT, version: String(FORMAT_VERSION), id: doc.id, at: doc.createdAt, trigger: doc.trigger, sha256 } });
 	let offsite: string | undefined;
 	if (offsiteReady(d.options, d.env) && doc.trigger !== "pre-delete") {
 		const r = await putOffsite(d.options.offsite as NonNullable<BackupsOptions["offsite"]>, { accessKeyId: (d.env.BACKUP_S3_ACCESS_KEY_ID as string).trim(), secretAccessKey: (d.env.BACKUP_S3_SECRET_ACCESS_KEY as string).trim() }, key, body, d.fetch, new Date(d.now));

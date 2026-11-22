@@ -506,7 +506,13 @@ caches). Whole site: D1 Time Travel by timestamp (CLI), never a browser button. 
 snapshot of the entry; `load --force` and `golive` record a D1 bookmark + `backups/markers/` object (R2 object API,
 token A). Alerts after 2 failed nightly attempts in a row (forms email path, live only, never staging). Off-site copy:
 SigV4 PUT to an S3-compatible bucket, keys as Worker secrets, no deletes. Public routes: `download` (one-time token)
-and `heartbeat`. Verify: `backups-plugin` (live: a backup within 36 h). Facts: docs/spikes/backup-findings.md.
+and `heartbeat`. Verify: `backups-plugin` (live: a backup within 36 h). **Restore test** (0.2.0, on by default,
+`backups.restoreDrill`): monthly (task `restore-drill`, every 15 min, split across ticks, own lock, not on staging) the
+newest backup is checked (SHA-256, gzip, format, counts) and restored into an empty scratch D1 `RESTORE_DRILL_DB`
+(created by `provision` as `<slug>-restore-drill-db`, bound by scaffold once recorded; tables from the live schema),
+counted back, media sampled in R2, scratch emptied; without the binding a dry run against the live schema. Result on
+the page, in Site health's Backups check (D1 row `plugin:site-backups:drill`) and by alert email on failure.
+Facts: docs/spikes/backup-findings.md.
 
 ## 7f. Media Assistant (on by default; `media: false` turns it off)
 `packages/media` (`@wp2emdash/media`, 0.1, experimental; a PixelKraft plugin). EmDash native plugin, **Plugins → Media**

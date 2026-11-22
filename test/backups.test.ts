@@ -16,6 +16,7 @@ import { nightly, prune, rebuildIndex, type RunDeps, runBackup, snapshotEntry } 
 import { offsiteUrl, putOffsite, signV4 } from "../packages/backups/src/s3.js";
 import { cronSchedule, nightlyDue, nightlyHour, planRetention } from "../packages/backups/src/schedule.js";
 import { acquireLock, KEYS, readIndex, readStatus } from "../packages/backups/src/store.js";
+import { drillCron } from "../packages/backups/src/drill.js";
 import { gunzip } from "../packages/backups/src/util.js";
 import { backupsCheck } from "../packages/health/src/checks/backups.js";
 import { kitConfigSchema } from "../src/config/schema.js";
@@ -317,7 +318,7 @@ describe("Backups plugin (routes)", () => {
 		expect(plugin.hooks["content:beforeDelete"].timeout).toBeLessThanOrEqual(5_000);
 		await plugin.hooks["plugin:install"]({}, { cron });
 		await plugin.hooks["plugin:activate"]({}, { cron });
-		expect(cron.tasks).toEqual([{ name: "nightly", schedule: cronSchedule("acme.example") }]);
+		expect(cron.tasks).toEqual([{ name: "nightly", schedule: cronSchedule("acme.example") }, { name: "restore-drill", schedule: drillCron("acme.example") }]);
 		expect((await call({}, 40)).blocks[0]).toMatchObject({ type: "banner", title: "Admins only" });
 	});
 
@@ -347,7 +348,7 @@ describe("Backups plugin (routes)", () => {
 			vi.useRealTimers();
 		}
 		const beat = await plugin.routes.heartbeat?.handler({ kv });
-		expect(beat).toEqual({ plugin: "site-backups", version: "0.1.0", lastBackupAt: entry?.at, ok: true });
+		expect(beat).toEqual({ plugin: "site-backups", version: "0.2.0", lastBackupAt: entry?.at, ok: true });
 	});
 
 	it("restores settings: preview, then confirm → a fresh backup first, then one settings write as the admin", async () => {
@@ -448,7 +449,7 @@ describe("kit side", () => {
 	it("kit.config: on by default (30 + 12), false turns it off, off-site validated", () => {
 		const base = { slug: "acme", name: "Acme", source: { url: ORIGIN }, target: { productionUrl: ORIGIN }, email: { to: ["owner@acme.example"], stagingTo: ["dev@agency.example"] } };
 		const c = kitConfigSchema.parse(base);
-		expect(c.backups).toEqual({ retention: { daily: 30, monthly: 12 } });
+		expect(c.backups).toEqual({ retention: { daily: 30, monthly: 12 }, restoreDrill: { everyDays: 30, mediaSample: 12, tolerancePct: 0 } });
 		expect(kitConfigSchema.parse({ ...base, backups: false }).backups).toBe(false);
 		expect(() => kitConfigSchema.parse({ ...base, backups: { offsite: { endpoint: "http://x", bucket: "b" } } })).toThrow();
 		const o = backupsOptions({ config: c, productionUrl: ORIGIN, live: true, database: "acme-db" });
