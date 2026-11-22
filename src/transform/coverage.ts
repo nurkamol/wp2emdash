@@ -64,8 +64,20 @@ export const CHROME = [
 	".product_meta .tagged_as",
 	".onsale",
 	".woocommerce-Tabs-panel > h2",
+	// WooCommerce's listing buttons ("Add to cart", "Select options"): catalogue mode has no cart.
+	"a.add_to_cart_button",
 	// WordPress's comment form (comments are imported and shown by the comments feature, with its own form).
 	"#respond",
+	// The theme's post meta and post navigation (the _s / Twenty* class names most themes share): its wording ("Published
+	// … By … Categorized as … Tagged") and the previous/next links. The new site prints its own post meta, previous/next
+	// and related posts; the publish date is checked by verify's posts check. (WordPress e2e test, 2026-11-22.)
+	".posted-on",
+	".byline",
+	".cat-links",
+	".tags-links",
+	".comments-link",
+	".edit-link",
+	"nav.post-navigation",
 	// wp2emdash starter chrome (verify compares the migrated site's HTML the same way)
 	"#menu-panel",
 	".menu-overlay",
@@ -83,11 +95,24 @@ export function sourceText(html: string): string {
 	});
 	for (const sel of CHROME) $(sel).remove();
 	const root = $("#ajax-content-wrap").length ? $("#ajax-content-wrap") : $("main").length ? $("main").first().parent() : $("body");
-	// Block-level elements end a word.
+	// Block-level elements start and end a word (`<span>Contact us</span><div><label>Your name` is two words, not "usyour").
 	root.find("p,div,li,h1,h2,h3,h4,h5,h6,br,td,th,tr,section,article,header,footer,aside,nav,main,figure,figcaption,blockquote,dt,dd,ul,ol,table,form,fieldset,legend,label,option,select,textarea,input,button,a").each((_, el) => {
-		$(el).append(" ");
+		$(el).prepend(" ").append(" ");
 	});
 	return root.text();
+}
+
+/**
+ * The page's own headings (h1–h4, in order), theme chrome left out as for the text (CHROME: the header's site title,
+ * the comment form's "Leave a comment", WooCommerce's "Related products" and tab headings, screen-reader-only labels).
+ */
+export function contentHeadings(html: string): { level: number; text: string }[] {
+	const $ = cheerio.load(html);
+	for (const sel of CHROME) $(sel).remove();
+	return $("h1, h2, h3, h4")
+		.toArray()
+		.map((el) => ({ level: Number(el.tagName.slice(1)), text: $(el).text().replace(/\s+/g, " ").trim() }))
+		.filter((h) => h.text);
 }
 
 export function tokens(text: string): string[] {

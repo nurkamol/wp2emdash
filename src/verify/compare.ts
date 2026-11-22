@@ -64,7 +64,9 @@ export function compareSeo(source: PageSnapshot["seo"], target: PageSnapshot["se
 	const canon = (u?: string) => (u ?? "").replace(/\/+$/, "");
 	return {
 		title: { ok: lower(source.title) === lower(target.title), ...(source.title ? { source: source.title } : {}), ...(target.title ? { target: target.title } : {}) },
-		description: { ok: lower(source.description) === lower(target.description), ...(source.description ? { source: source.description } : {}), ...(target.description ? { target: target.description } : {}) },
+		// A page that had no meta description gains one (the starter writes the excerpt or the site's tagline): an
+		// addition, not a change. A description the live page had must be kept word for word.
+		description: { ok: !norm(source.description) || lower(source.description) === lower(target.description), ...(source.description ? { source: source.description } : {}), ...(target.description ? { target: target.description } : {}) },
 		canonical: { ok: canon(target.canonical) === canon(expectedCanonical), expected: expectedCanonical, ...(target.canonical ? { target: target.canonical } : {}) },
 		robots: isStaging ? { ok: robotsT.includes("noindex"), target: robotsT, note: "staging must not be indexed" } : { ok: !robotsT.includes("noindex") || lower(source.robots).includes("noindex"), target: robotsT, note: "production must keep the source's indexability" },
 		jsonLd: { ok: missingLd.length === 0, missing: missingLd, target: target.jsonLdTypes },
@@ -72,11 +74,24 @@ export function compareSeo(source: PageSnapshot["seo"], target: PageSnapshot["se
 	};
 }
 
+/**
+ * The theme's "Proudly powered by WordPress" credit: a link to the home page of wordpress.org / wordpress.com (or
+ * woocommerce.com), which the new site, no longer WordPress, must not carry. Deeper links (a plugin page) still count.
+ */
+export const isWordPressCredit = (href: string): boolean => {
+	try {
+		const u = new URL(href);
+		return /^(?:[a-z]{2}(?:-[a-z]{2})?\.)?(?:wordpress\.org|wordpress\.com|woocommerce\.com)$/i.test(u.hostname.replace(/^www\./, "")) && (u.pathname === "/" || u.pathname === "");
+	} catch {
+		return false;
+	}
+};
+
 /** External destinations (booking, phone, email, social) the old page linked to and the new one doesn't. */
 export function missingExternalLinks(source: PageSnapshot["links"], target: PageSnapshot["links"]): string[] {
 	const key = (h: string) => h.replace(/\/+$/, "").replace(/^http:/, "https:").toLowerCase();
 	const t = new Set(target.filter((l) => !l.internal).map((l) => key(l.href)));
-	return [...new Set(source.filter((l) => !l.internal && /^(https?:|tel:|mailto:)/i.test(l.href) && !/\/(wp-content|storage)\//.test(l.href)).map((l) => l.href))].filter((h) => !t.has(key(h)));
+	return [...new Set(source.filter((l) => !l.internal && /^(https?:|tel:|mailto:)/i.test(l.href) && !/\/(wp-content|storage)\//.test(l.href) && !isWordPressCredit(l.href)).map((l) => l.href))].filter((h) => !t.has(key(h)));
 }
 
 export interface MotionResult {

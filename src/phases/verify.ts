@@ -13,7 +13,7 @@ import { loadSiteEnv } from "../extract/credentials.js";
 import { remoteTarget, targetName } from "../targets/remote.js";
 import { captureScreenshots, type ScreenshotResult, screenName } from "../audit/browser.js";
 import { captureMenu, type MenuCapture, motionRecipe } from "../audit/interactions.js";
-import { type PageSnapshot, parsePage } from "../audit/page.js";
+import { isContentForm, type PageSnapshot, parsePage } from "../audit/page.js";
 import { siteHosts } from "../audit/urls.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
@@ -21,7 +21,7 @@ import { type HreflangPage, hreflangParity, reciprocityProblems } from "../verif
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
 import { backupsHeartbeat } from "../verify/backups.js";
 import { healthHeartbeat } from "../verify/health.js";
-import { sourceText } from "../transform/coverage.js";
+import { contentHeadings, sourceText } from "../transform/coverage.js";
 import { loadOverrides } from "../config/overrides.js";
 import { currentYearText } from "../transform/year.js";
 import { accessibility, type A11yResult, launchFor, measurePerformance, type PerfResult, visualDiff, type VisualResult } from "../verify/browser.js";
@@ -199,7 +199,9 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 					const sourceHtml = existsSync(join(paths.snapshot, "html", `${name}.html`)) ? readFileSync(join(paths.snapshot, "html", `${name}.html`), "utf8") : "";
 					if (source) {
 						r.text = compareText(sourceText(liveYear(sourceHtml)), sourceText(html));
-						r.headings = compareHeadings(source.headings, snap.headings);
+						// Headings of the page itself on both sides: theme chrome (the header's site title, the comment form,
+						// WooCommerce's tab and related-products headings) is left out as for the text.
+						r.headings = compareHeadings(sourceHtml ? contentHeadings(sourceHtml) : source.headings, contentHeadings(html));
 						// Local and staging run with EmDash's staging flag (noindex) until cutover; only production must be indexable.
 						r.seo = compareSeo(source.seo, snap.seo, `${prod}${u.path}`, !live, u.kind);
 						// The sharing image must load from where the page points (link previews fetch it; a tag alone is not enough).
@@ -214,8 +216,9 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 						r.missingExternal = missingExternalLinks(source.links, snap.links);
 						r.imagesWithoutAlt = snap.images.filter((im) => im.alt === undefined).map((im) => im.src);
 						r.seoRules = seoRules(snap);
-						// Content forms only: the theme's search box is site chrome, not a migrated form.
-						for (const sf of source.forms.filter((f) => !/search/i.test(f.provider ?? "") && !f.fields.every((x) => x.name === "s" || x.type === "hidden") && f.fields.some((x) => x.type !== "hidden"))) {
+						// Content forms only: the theme's search box, WordPress's comment form (comments: the comments check) and
+						// WooCommerce's cart, variation and sorting forms (catalogue mode has no cart) are not migrated forms.
+						for (const sf of source.forms.filter((f) => isContentForm(f.provider ?? "") && !/search/i.test(f.provider ?? "") && !f.fields.every((x) => x.name === "s" || x.type === "hidden") && f.fields.some((x) => x.type !== "hidden"))) {
 							const visible = (f: { type: string }) => !["hidden", "submit", "button"].includes(f.type);
 							// A sensitive site's contact-only policy (owner decision) withholds everything but contact fields.
 							const policy = config.sensitiveData ? config.forms.sensitive : undefined;
@@ -410,18 +413,24 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 					postProblems.push(`${path}: ${(e as Error).message.split("\n")[0]}`);
 				}
 			});
-			const newest = [...irPosts].sort((a, b) => Date.parse(b.post?.publishedAt ?? "") - Date.parse(a.post?.publishedAt ?? ""));
-			const feeds: { path: string; titles: string[]; items: number }[] = [{ path: "/feed/", titles: newest.slice(0, blogIr.feed.items).map((p) => p.title), items: Math.min(newest.length, blogIr.feed.items) }];
-			for (const t of blogIr.taxonomies) {
-				const term = t.terms.find((x) => newest.some((p) => p.post?.terms[t.name]?.includes(x.slug)));
-				if (!term) continue;
-				const posts = newest.filter((p) => p.post?.terms[t.name]?.includes(term.slug));
-				feeds.push({ path: `${t.base}${term.slug}/feed/`, titles: posts.slice(0, blogIr.feed.items).map((p) => p.title), items: Math.min(posts.length, blogIr.feed.items) });
-			}
-			const author = blogIr.bylines[0];
-			if (author) {
-				const posts = newest.filter((p) => p.post?.bylines.includes(author.slug));
-				feeds.push({ path: `${blogIr.authorBase}${author.slug}/feed/`, titles: posts.slice(0, blogIr.feed.items).map((p) => p.title), items: Math.min(posts.length, blogIr.feed.items) });
+			// Multilingual sites: the feeds at the default language's addresses list that language's posts (as WordPress
+			// does with Polylang / WPML); each other language's are under its directory (/fr/feed/, /fr/category/…/feed/).
+			const langOf = (p: IrPage) => p.i18n?.lang ?? siteI18n?.defaultLang;
+			const feedLangs = siteI18n?.supported ? siteI18n.languages.map((l) => ({ code: l.code, dir: l.prefix ? `/${l.prefix}` : "" })) : [{ code: undefined as string | undefined, dir: "" }];
+			const byDate = [...irPosts].sort((a, b) => Date.parse(b.post?.publishedAt ?? "") - Date.parse(a.post?.publishedAt ?? ""));
+			const items = blogIr.feed.items;
+			const feed = (path: string, posts: IrPage[]) => ({ path, titles: posts.slice(0, items).map((p) => p.title), items: Math.min(posts.length, items) });
+			const feeds: { path: string; titles: string[]; items: number }[] = [];
+			for (const fl of feedLangs) {
+				const newest = fl.code ? byDate.filter((p) => langOf(p) === fl.code) : byDate;
+				if (fl.dir && !newest.length) continue;
+				feeds.push(feed(`${fl.dir}/feed/`, newest));
+				for (const t of blogIr.taxonomies) {
+					const term = t.terms.find((x) => newest.some((p) => p.post?.terms[t.name]?.includes(x.slug)));
+					if (term) feeds.push(feed(`${fl.dir}${t.base}${term.slug}/feed/`, newest.filter((p) => p.post?.terms[t.name]?.includes(term.slug))));
+				}
+				const author = blogIr.bylines.find((b) => newest.some((p) => p.post?.bylines.includes(b.slug))) ?? (fl.dir ? undefined : blogIr.bylines[0]);
+				if (author) feeds.push(feed(`${fl.dir}${blogIr.authorBase}${author.slug}/feed/`, newest.filter((p) => p.post?.bylines.includes(author.slug))));
 			}
 			for (const f of feeds) {
 				const path = config.target.trailingSlash === "never" ? f.path.replace(/\/$/, "") : f.path;
@@ -545,7 +554,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 			const footerDoc = readJson<{ partials?: { role: string; file: string }[] }>(join(paths.ir, "site.json"))?.partials?.find((p) => p.role === "footer");
 			const footerIr = footerDoc ? readJson<IrPage>(join(paths.ir, footerDoc.file)) : undefined;
 			const footerGroups = groupSections((footerIr?.sections ?? []).map((x) => ({ type: x.type, path: x.sourceRef.path, ...(x.sourceRef.row !== undefined ? { row: x.sourceRef.row } : {}) })), true);
-			for (const s of shots) if (s.overflowX && s.overflowX > 1) sideways.push(`${new URL(s.url).pathname} ${s.viewport} +${s.overflowX}px`);
+			for (const s of shots) if (s.overflowX && s.overflowX > 1) sideways.push(`${new URL(s.url).pathname} ${s.viewport} +${s.overflowX}px${s.overflowBy ? ` (${s.overflowBy})` : ""}`);
 			for (const s of shots)
 				if (s.missingImages) {
 					incomplete.push(`${new URL(s.url).pathname} ${s.viewport} (${s.missingImages} image${s.missingImages === 1 ? "" : "s"})`);
@@ -704,7 +713,7 @@ export async function runVerify({ config, paths, reporter }: PhaseContext): Prom
 		check("no-sideways-scroll", "No page scrolls sideways at any screen size", sideways.length === 0, sideways.slice(0, 8).join("; ") || undefined);
 		const a11y = results.filter((r) => r.a11y && (r.a11y.serious.length || r.a11y.error));
 		const thirdParty = [...new Set(results.flatMap((r) => (r.a11y?.thirdParty ?? []).map((v) => `${r.path} ${v.id}`)))];
-		check("a11y", "Accessibility: no serious or critical axe violations (third-party embeds reported, not gated)", a11y.length === 0, [a11y.map((r) => `${r.path}: ${r.a11y?.error ?? r.a11y?.serious.map((v) => v.id).join(", ")}`).slice(0, 6).join("; "), thirdParty.length ? `third-party embeds: ${thirdParty.slice(0, 4).join(", ")}` : ""].filter(Boolean).join(" · ") || undefined);
+		check("a11y", "Accessibility: no serious or critical axe violations (third-party embeds reported, not gated)", a11y.length === 0, [a11y.map((r) => `${r.path}: ${r.a11y?.error ?? r.a11y?.serious.map((v) => `${v.id}${v.where?.length ? ` at ${v.where.slice(0, 2).join(", ")}` : ""}`).join(", ")}`).slice(0, 6).join("; "), thirdParty.length ? `third-party embeds: ${thirdParty.slice(0, 4).join(", ")}` : ""].filter(Boolean).join(" · ") || undefined);
 		const perfFail = results.filter((r) => r.perf && ((r.perf.lcpMs ?? 0) > g.maxLcpMs || (r.perf.cls ?? 0) > g.maxCls || r.perf.error));
 		check("performance", `Lab LCP ≤ ${g.maxLcpMs} ms and CLS ≤ ${g.maxCls} (mobile)`, perfFail.length === 0, perfFail.map((r) => `${r.path}: ${r.perf?.error ?? `LCP ${r.perf?.lcpMs} ms, CLS ${r.perf?.cls}`}`).join("; ") || `worst LCP ${Math.max(...results.map((r) => r.perf?.lcpMs ?? 0))} ms`);
 		if (remote && config.performance.routeCache) {

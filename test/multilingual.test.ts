@@ -359,6 +359,11 @@ describe("verify: hreflang", () => {
 		// Live (WordPress host) vs migrated (staging host): compared as paths.
 		expect(hreflangParity([{ lang: "en", href: "https://old.test/about/" }, { lang: "fr", href: "https://old.test/fr/a-propos/" }, { lang: "x-default", href: "https://old.test/about/" }], [{ lang: "en", href: "https://new.test/about/" }, { lang: "fr", href: "https://new.test/fr/a-propos/" }, { lang: "x-default", href: "https://new.test/about/" }])).toEqual([]);
 		expect(hreflangParity([{ lang: "fr", href: "https://old.test/fr/a-propos/" }], [{ lang: "fr", href: "https://new.test/fr/about/" }, { lang: "de", href: "/de/" }])).toEqual(["fr: /fr/about/ instead of /fr/a-propos/", "extra de → /de/"]);
+		// Polylang prints no x-default: the starter's x-default on the default-language version is an addition, not a
+		// difference; one pointing anywhere else still is.
+		const live = [{ lang: "en", href: "https://old.test/about/" }, { lang: "fr", href: "https://old.test/fr/a-propos/" }];
+		expect(hreflangParity(live, [...live.map((a) => ({ ...a, href: a.href.replace("old", "new") })), { lang: "x-default", href: "https://new.test/about/" }])).toEqual([]);
+		expect(hreflangParity(live, [...live, { lang: "x-default", href: "https://new.test/elsewhere/" }])).toEqual(["extra x-default → /elsewhere/"]);
 	});
 });
 

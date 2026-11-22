@@ -58,11 +58,21 @@ export function visualDiff(sourcePng: string, targetPng: string, diffOut: string
 
 export interface A11yResult {
 	url: string;
-	serious: { id: string; impact: string; help: string; nodes: number }[];
+	/** `where`: the first elements (selector, and for contrast the colours and ratio), so the report says what to fix. */
+	serious: { id: string; impact: string; help: string; nodes: number; where?: string[] }[];
 	moderate: number;
 	/** Serious issues inside third-party embeds (booking widgets…): reported, not gated — the site can't change them. */
 	thirdParty?: { id: string; nodes: number }[];
 	error?: string;
+}
+
+/** The first elements of an axe violation: selector, and for colour contrast the colours and the ratio axe measured. */
+export function axeWhere(nodes: unknown[], max = 3): string[] {
+	return (nodes as { target?: unknown[]; any?: { data?: { fgColor?: string; bgColor?: string; contrastRatio?: number; expectedContrastRatio?: string } }[] }[]).slice(0, max).map((n) => {
+		const sel = (n.target ?? []).map(String).join(" ") || "?";
+		const d = n.any?.find((x) => x.data?.fgColor)?.data;
+		return d ? `${sel} (${d.fgColor} on ${d.bgColor}, ${d.contrastRatio}:1, needs ${d.expectedContrastRatio})` : sel;
+	});
 }
 
 const AXE_SOURCE = () => readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
@@ -98,7 +108,7 @@ export async function accessibility(browser: Browser, url: string): Promise<A11y
 			const o = document.querySelector<HTMLElement>(".section--hero .section__overlay");
 			return o ? Number(getComputedStyle(o).opacity) : 0;
 		});
-		const serious = r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length }));
+		const serious: A11yResult["serious"] = r.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length, where: axeWhere(v.nodes) }));
 		if (overlay !== undefined && overlay < 0.5) serious.push({ id: "header-over-media-contrast", impact: "serious", help: `Transparent header over a media hero needs an overlay of at least 50% (is ${Math.round(overlay * 100)}%)`, nodes: 1 });
 		const thirdParty = tp.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => ({ id: v.id, nodes: v.nodes.length }));
 		return {
