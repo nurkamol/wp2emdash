@@ -18,6 +18,15 @@ export interface Block {
 	innerBlocks: Block[];
 	/** HTML of this block without its inner blocks. */
 	innerHTML: string;
+	/** innerHTML in order, with `null` where each inner block sits (as WordPress's own parser: parse_blocks). */
+	innerContent?: (string | null)[];
+}
+
+/** A block's full HTML: its own markup with its inner blocks' HTML where they sit. */
+export function serialiseBlock(b: Block): string {
+	if (!b.innerBlocks.length || !b.innerContent) return b.innerHTML;
+	let i = 0;
+	return b.innerContent.map((c) => (c === null ? serialiseBlock(b.innerBlocks[i++] as Block) : c)).join("");
 }
 
 const TOKEN = /<!--\s+(\/)?wp:([a-z][a-z0-9_-]*\/)?([a-z][a-z0-9_-]*)\s+({(?:(?!}\s+\/?-->).)*?}\s+)?(\/)?-->/gs;
@@ -31,7 +40,10 @@ export function parseBlocks(content: string): Block[] {
 		const parent = stack.at(-1) as Block;
 		if (parent === root) {
 			if (html.trim()) root.innerBlocks.push({ name: "core/freeform", attrs: {}, innerBlocks: [], innerHTML: html });
-		} else parent.innerHTML += html;
+		} else {
+			parent.innerHTML += html;
+			if (html) (parent.innerContent ??= []).push(html);
+		}
 	};
 	for (const m of content.matchAll(TOKEN)) {
 		freeform(content.slice(last, m.index));
@@ -52,7 +64,9 @@ export function parseBlocks(content: string): Block[] {
 			}
 		}
 		const block: Block = { name: fullName, attrs, innerBlocks: [], innerHTML: "" };
-		(stack.at(-1) as Block).innerBlocks.push(block);
+		const parent = stack.at(-1) as Block;
+		parent.innerBlocks.push(block);
+		if (parent !== root) (parent.innerContent ??= []).push(null);
 		if (!selfClose) stack.push(block);
 	}
 	freeform(content.slice(last));
@@ -131,7 +145,9 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 			return [];
 		}
 		if (b.name === "core/list") return richFromHtml(serialiseList(b), ctx);
-		if (PROSE.has(b.name)) return richFromHtml(b.innerHTML, ctx);
+		// A quote / pullquote holds its paragraphs as inner blocks (WordPress 6.x): the full HTML, not just the wrapper's
+		// (the quote's text was lost, only its citation kept — found by the WordPress e2e test, 2026-11-22).
+		if (PROSE.has(b.name)) return richFromHtml(serialiseBlock(b), ctx);
 		// Block libraries (Kadence, Spectra, GenerateBlocks, Stackable, CoBlocks): src/adapters/gutenberg/libraries.ts.
 		const lib = LIB_LEAF[b.name];
 		if (lib) return lib(b, path, libEnv);
@@ -471,7 +487,8 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 
 	function containerRow(b: Block, path: string): Row {
 		const attrs = gutenbergStyle(b);
-		const raw = JSON.stringify(b).slice(0, 2000);
+		// innerContent left out: it only orders the inner blocks, and the row fingerprint (rawHash) must not change for sites already migrated.
+		const raw = JSON.stringify(b, (k, v) => (k === "innerContent" ? undefined : v)).slice(0, 2000);
 		if (b.name === "core/columns") return { attrs, columns: b.innerBlocks.map((c, k) => columnOf(c, `${path}/${k}`)), path, raw, adapter: "gutenberg" };
 		if (isLibContainer(b)) {
 			const style = { ...attrs, ...libStyle(b) };

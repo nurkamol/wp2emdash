@@ -62,6 +62,8 @@ export const CHROME = [
 	".woocommerce-notices-wrapper",
 	".product_meta .posted_in",
 	".product_meta .tagged_as",
+	".onsale",
+	".woocommerce-Tabs-panel > h2",
 	// WordPress's comment form (comments are imported and shown by the comments feature, with its own form).
 	"#respond",
 	// wp2emdash starter chrome (verify compares the migrated site's HTML the same way)

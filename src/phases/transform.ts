@@ -1388,16 +1388,28 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 /** Words of an entry's field values and body (text conservation): strings, Portable Text spans, repeater rows. */
 function entryWords(e: IrEntry): string {
 	const out: string[] = [];
+	// Prices as the live shop prints them ("$28.00"): a product's price fields are numbers (WordPress e2e test, 2026-11-22).
+	const currency = typeof (e.fields as Record<string, unknown> | undefined)?.currency === "string" ? ((e.fields as Record<string, unknown>).currency as string) : undefined;
+	const money = (n: number): string[] => {
+		const out2 = [n.toFixed(2)];
+		if (currency)
+			try {
+				out2.push(new Intl.NumberFormat("en-US", { style: "currency", currency }).format(n));
+			} catch {}
+		return out2;
+	};
 	const walk = (v: unknown, key = "") => {
 		if (typeof v === "string") {
 			if (key !== "_type" && key !== "_key" && key !== "url" && key !== "style" && key !== "kind" && !/^https?:/.test(v)) out.push(v);
 			return;
 		}
-		if (typeof v === "number" && key !== "wpId") out.push(String(v));
+		if (typeof v === "number" && key !== "wpId") out.push(String(v), ...(/price$/i.test(key) ? money(v) : []));
 		if (Array.isArray(v)) return v.forEach((x) => walk(x, key));
 		if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) if (k !== "_media" && k !== "markDefs") walk(x, k);
 	};
 	walk([e.fields, e.body]);
+	// The product page labels its SKU ("SKU: HL-101"); the starter's product page shows the same label.
+	if ((e.fields as Record<string, unknown> | undefined)?.sku) out.push("SKU");
 	return out.join("\n");
 }
 
@@ -1437,7 +1449,7 @@ function readFormText(dir: string): string[] {
 			for (const [k, x] of Object.entries(v)) if (!["notifications", "integrations", "conditional_logics", "validation_rules"].includes(k)) visit(x, k);
 			return;
 		}
-		if (typeof v === "string" && /^(label|placeholder|admin_field_label|text|button_ui|help_message|value|title)$/.test(key) && v.length < 200) out.push(v);
+		if (typeof v === "string" && /^(label|placeholder|admin_field_label|text|button_ui|help_message|value|title|options|choices)$/.test(key) && v.length < 200) out.push(v);
 		// Text shown inside the form (Fluent custom HTML, consent label): a waiver's terms are page text too.
 		else if (typeof v === "string" && /^(html_codes|tnc_html|description|html|sign_instruction)$/.test(key)) out.push(v.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " "));
 	};

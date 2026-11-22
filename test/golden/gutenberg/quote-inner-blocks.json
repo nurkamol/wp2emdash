@@ -1,0 +1,108 @@
+{
+  "sections": [
+    {
+      "type": "rich_text",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "gutenberg",
+        "path": "blocks[0-2]",
+        "rawHash": "da39a3ee5e"
+      },
+      "fields": {
+        "body": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "Our studio has worked with local clay since the start.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "blockquote",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Make the same bowl a hundred times and the hundred-and-first will surprise you.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "blockquote",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Second paragraph of the same quote.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t6",
+            "style": "blockquote",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t7",
+                "text": "Studio saying",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "t8",
+            "style": "blockquote",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t9",
+                "text": "A pullquote keeps its text in its own markup.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          },
+          {
+            "_type": "block",
+            "_key": "ta",
+            "style": "blockquote",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "tb",
+                "text": "Visitor",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "width": "normal",
+        "align": "left",
+        "buttons": []
+      }
+    }
+  ],
+  "diagnostics": []
+}

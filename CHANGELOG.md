@@ -18,6 +18,8 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - SEO fix-it: no focus keyword is drafted for legal pages (privacy, terms, cookies, waivers…) — found on the first live run; a description still is.
 
 ### Fixed
+- **Gutenberg quotes lost their text:** in WordPress 6.x a quote (and pullquote) holds its paragraphs as inner blocks; the adapter kept only the citation. The block parser now records where inner blocks sit (`innerContent`, as WordPress's own parser) and prose blocks are rebuilt in full; row fingerprints are unchanged. Fixture `gutenberg/quote-inner-blocks`. Found by the WordPress end-to-end test.
+- Text conservation counts form choices stored as a plain list (Contact Form 7 `[select]` options) and product prices as the shop prints them (`$28.00`), and leaves out WooCommerce's sale badge and tab headings.
 - **Multilingual sites could not be set up:** the kit's language-group field was named `translation_group`, a system column on every EmDash 1.5 content table — the seed failed with "duplicate column name". It is now `lang_group` (no delivered site used it). Found by the WordPress end-to-end test.
 - WordPress's comment form (and WooCommerce's review form) is recognised and left out like the search form; the comments feature imports comments with its own form.
 - Text conservation ignores the WooCommerce template parts catalogue mode does not carry (related products, reviews tab, tab labels, breadcrumbs, add-to-cart box, stock and sorting notes) and the comment form; product names, prices, descriptions and attributes are still compared.
