@@ -251,6 +251,28 @@ program
 	});
 
 program
+	.command("handover")
+	.description("Client handover pack from the site's own config and IR: handover.html (printable, self-contained) + handover.md in sites/<slug>/handover/ — addresses, sign-in, roles, how to edit each section the site uses, forms, built-in tools, monitoring, who does what, support. No secrets, no form messages, no people's names")
+	.argument("<slug>")
+	.option("--out <dir>", "write the pack here instead (outside the kit repository, or inside this site's workspace)")
+	.option("--agency <name>", "agency name (default: kit.config credit, WP2EMDASH_AGENCY_NAME, PixelKraft)")
+	.option("--agency-url <url>", "agency link (default: kit.config credit, WP2EMDASH_AGENCY_URL)")
+	.option("--contact <text>", "support contact line (or WP2EMDASH_AGENCY_CONTACT; else a blank to fill in)")
+	.option("--json", "print the pack's structure and the files written as JSON")
+	.action(async (slug: string, o: { out?: string; agency?: string; agencyUrl?: string; contact?: string; json?: boolean }) => {
+		const { handover } = await import("../commands/handover.js");
+		try {
+			const r = await handover(slug, { ...(o.out ? { out: o.out } : {}), ...(o.agency ? { agency: o.agency } : {}), ...(o.agencyUrl ? { agencyUrl: o.agencyUrl } : {}), ...(o.contact ? { contact: o.contact } : {}) });
+			if (o.json) return console.log(JSON.stringify({ dir: r.dir, files: r.files, ...r.model }, null, 2));
+			console.log(`${pc.green("✔")} Handover pack for ${pc.bold(r.model.site.name)}: ${r.model.chapters.map((c) => c.title).join(" · ")}`);
+			for (const f of r.files) console.log(`  ${f}`);
+			console.log(pc.dim("Open handover.html in a browser and print it (or save as PDF) for the owner."));
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
 	.command("fleet")
 	.description("One view of every site: environments, kit and plugin versions built with vs current, last change, last upgrade check, owner to-dos. `fleet upgrade-prs`: a wp2emdash/v<version> branch per site behind the kit, rebuilt and committed (dry run by default; never main)")
 	.argument("[action]", "upgrade-prs")

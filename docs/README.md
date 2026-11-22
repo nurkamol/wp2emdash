@@ -59,6 +59,7 @@ Astro, Wrangler and Cloudflare versions before code depended on it — check the
 | [Change requests](spikes/change-requests-findings.md) | Plugin storage, private uploads, roles, email and webhook design |
 | [Privacy & consent](spikes/consent-findings.md) | Banner modes, regions, Consent Mode v2, Meta/Clarity/Hotjar consent, GPC, caching |
 | [Custom post types & fields](spikes/cpt-findings.md) | CPTs → EmDash collections; ACF, Meta Box and Pods field mapping |
+| [Handover pack](spikes/handover-findings.md) | EmDash 1.5 sign-in methods (passkey, email link, OAuth only with env vars), passkeys bound to their address and the sign-in handover, roles and permissions, admin names the pack uses |
 | [Site health](spikes/health-findings.md) | Cron design, check limits, alerts and the monthly report |
 | [Outside-in monitor](spikes/monitor-findings.md) | Cron Triggers vs GitHub Actions schedules, Workers/KV limits, `global_fetch_strictly_public`, Cert Spotter / crt.sh / RDAP response shapes (live read-only GETs), wrangler dry-run and local run |
 | [Media assistant](spikes/media-findings.md) | Media scan, Images binding optimizing, Workers AI alt text, trash |

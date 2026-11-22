@@ -215,6 +215,7 @@
 									return el("li", null, pill(i.ok ? (i.accepted ? "accepted" : "passed") : "failed", i.ok ? (i.accepted ? "accepted" : "ok") : "fail"), " ", el("span", { text: i.label }), i.detail ? el("div", { class: "muted", text: i.detail }) : null);
 								})));
 						}))),
+				handoverCard(d.handover),
 				s.lastRun && !s.lastRun.finished ? el("section", { class: "card", "aria-label": "Live run" }, el("h2", null, el("span", { class: "live", "aria-hidden": "true" }), " Live: " + (s.lastRun.phase || "run") + " " + s.lastRun.runId), liveRun(slug, s.lastRun.runId)) : null));
 		}).catch(fail);
 		timers.push(setInterval(function () {
@@ -224,6 +225,17 @@
 				if (d.summary.lastRun && !d.summary.lastRun.finished && (!cur || cur.getAttribute("data-run") !== d.summary.lastRun.runId)) route();
 			}).catch(function () {});
 		}, 5000));
+	}
+
+	// ── handover pack (wp2emdash handover) ─────────────────────────────────────────────────────────
+	function handoverCard(h) {
+		if (!h) return null;
+		return el("section", { class: "card", "aria-labelledby": "ho" },
+			el("h2", { id: "ho", text: "Handover pack" }),
+			h.available
+				? el("p", null, el("a", { href: h.url, target: "_blank", rel: "noopener", text: "Open the handover pack →" }), " ", el("span", { class: "muted small", text: "generated " + ago(h.generatedAt) + " · print or save as PDF for the owner" }))
+				: el("p", { class: "muted", text: "The owner's guide to this site (sign-in, editing, forms, tools, support) is not generated yet." }),
+			fixLine(h.command));
 	}
 
 	// ── runs ─────────────────────────────────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ A workspace looks like this:
 | `raw/` | Extracted WordPress content and media | the kit |
 | `ir/` | Section IR — the migrated content, ready to load | the kit (never by hand) |
 | `reports/` | Gate reports per phase | the kit |
+| `handover/` | The owner's handover pack (`wp2emdash handover`): `handover.html`, `handover.md` | the kit |
 | `project/` | The generated EmDash site — its own Git repository | the kit, then you |
 
 To keep a client's workspace under version control, make it a private repository of its own (`cd sites/acme && git init`), separate from the kit.
