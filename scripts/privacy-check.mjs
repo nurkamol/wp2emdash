@@ -54,7 +54,8 @@ function fromWorkspace(dir, slug) {
 	for (const f of ["kit.config.ts", "cloudflare.json"]) {
 		const p = join(dir, f);
 		if (!existsSync(p)) continue;
-		const src = readFileSync(p, "utf8");
+		// Commented-out template lines hold placeholders (old-domain.com), not client data.
+		const src = readFileSync(p, "utf8").replace(/^\s*\/\/.*$/gm, "").replace(/\s\/\/.*$/gm, "");
 		const name = src.match(/^\s*name:\s*["'`]([^"'`]+)["'`]/m)?.[1];
 		if (name) {
 			const clean = name.replace(/\([^)]*\)/g, "").trim();
