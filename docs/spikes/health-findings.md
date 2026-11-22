@@ -192,6 +192,66 @@ keyless call.
 - **Block Kit 1.5**: `chart` with `chart_type: "timeseries"` takes several `series` (`[timestamp_ms, value][]`, optional
   colour) — used for mobile vs desktop performance; `stats` items take `trend: up | down | neutral`.
 
+## Visual check — structural fingerprints, no screenshots (2026-11-22, @wp2emdash/health 0.6.0)
+
+Checked against the installed **EmDash 1.5.0** (`spikes/m0-site/node_modules/emdash`, unchanged), the Astro Cloudflare
+adapter's build output in the same spike and Cloudflare's static-assets docs. Nothing deployed, no live site requested;
+everything below is unit-tested with a mocked site (`test/health-visual.test.ts`).
+
+- **Screenshots: not added.** Cloudflare Browser Rendering is a separate `browser` binding (plus `@cloudflare/puppeteer`
+  in the bundle); no generated project has it, and it is a small daily allowance on Workers Free and billed by browser
+  time on Paid. Per the kit rules no new binding or paid feature is added without an owner decision. The check is
+  **structural** instead, the same text reading the deploy check does from outside (`src/scaffold/deploy-check.ts`).
+  A future pixel diff would add the binding as an opt-in and keep images in R2, not KV.
+- **What a fingerprint holds** (per page, `checks/visual.ts`): HTTP status; `<title>`; the first `<h1>`; the starter's
+  section types in order — `starter/src/components/Section.astro` renders `<section class="section section--<type>
+  [section--<type>--<variant>] … [section--full] [section--media-bg]">`, so the type is the one `section--x` class that
+  is not a variant (`--` inside) or one of the two modifiers; the number of `<img>` and whether each (up to 8 per page,
+  each address once per run) answers **200 with `image/*`**; whether each `<link rel=stylesheet>` loads; the
+  `@font-face` families in the site's CSS (linked + inline) plus the families named in a Google Fonts link; the
+  visible word count of `<main>` (else `<body>` without header/nav/footer); whether a `<footer>` exists. Pages: the
+  home page, the baseline's pages still in the sitemap, then the sitemap's shallowest paths — default 10, kit.config
+  `health.visualPages` (0–25, 0 = off; HealthOptions `visualPages`).
+- **EmDash's `/_image` transforms are not requested.** `<Image>` emits `/_image?href=<media path>&w=…`; each variant
+  is a Cloudflare Images transformation (performance-findings.md: 5,000 unique/month free) and SELF requests skip the
+  route cache. The check requests the `href` original (`/_emdash/api/media/file/…`, R2) instead: a missing file is
+  what breaks a picture, and the starter's middleware already turns a failed transform into a 302 to the original.
+- **Stylesheets and the asset layer.** Astro's CSS lives in `/_astro/*.css`, served by Workers static assets.
+  Cloudflare documents "assets first, then the Worker" for incoming requests but says nothing about **service-binding**
+  calls, so it is not known whether `SELF.fetch("/_astro/x.css")` reaches the asset layer. The Astro Cloudflare adapter
+  writes `assets: { binding: "ASSETS", directory: "../client" }` into `dist/server/wrangler.json` (checked in the
+  spike build), so the binding exists in every generated Worker at no cost: a file the site answers 404 for is asked of
+  `env.ASSETS` before it is called missing. **Not verified on a deployed Worker** (either path).
+- **Time and request budget.** The cron hook timeout is 150 s (checks ≤ 25 s + PageSpeed ≤ 90 s). The visual step runs
+  after the checks **only in a tick where the PageSpeed test did not run**, spends at most **8 requests a tick**
+  (page HTML, then its pictures and stylesheets), 4 at a time, 8 s limit each (≤ ~24 s). The job (KV `visual:job`)
+  resumes on the next tick, so a 10-page run takes a few ticks (minutes). Subrequests per tick: checks ≤ 26 + 8 + 1
+  alert email — inside Workers Free's 50. Single flight: own lock `visual:lock` (2 min). Weekly from 10:00 UTC
+  (`next` = finish + 7 days), the first run at once (it is the baseline), "Check now" at most every 10 minutes (stored
+  request, picked up by the next tick, like the PageSpeed button). Not on staging; paused while coming-soon mode shows
+  the holding page. Before go-live it runs (SELF renders this Worker, so the baseline is the new site) and marks the
+  run; alerts are held by the normal alert path.
+- **Tolerances** (`comparePage`): problems — status not 200, a picture or stylesheet that does not load, a baseline
+  font no longer defined (site-wide, listed on the home page), the footer gone, the page empty (< 20 words and no
+  picture where the baseline had ≥ 50 words); changes — words ±30 % (pages with ≥ 50 words), fewer pictures, a section
+  type gone or two sections fewer, title or h1 changed. Problems and changes both alert (one email per day, issue
+  `visual-change`, through `deliverAlerts`) and become a "What to improve" item (broken: impact 95; changed: 55).
+- **Auto-update after an edit — `updatedAt` via `ctx.content.list`.** EmDash 1.5 `ContentListOptions` has `orderBy`
+  (`context-*.mjs` `list()` → `ContentRepository.findMany`, which maps `updatedAt` → `updated_at` and caps `limit` at
+  100); items carry `updatedAt`. One `list(collection, { limit: 100, orderBy: { updatedAt: "desc" } })` per collection
+  (HealthOptions `collections`, default `["pages"]`), stopping at the first entry older than the oldest baseline, at
+  most 3 pages — the `content:read` capability the plugin already has. Entry slug = WordPress path, `home` = `/`
+  (starter `entryHref`). A page saved after its baseline takes its new look as the baseline **unless something is
+  broken** (problems still alert). Limits: `updatedAt` also moves on a draft save, so an unpublished edit can make an
+  unrelated live change look intended for that page; menus, site settings, widgets and the design are not entries, so
+  their changes are reported and the admin accepts them.
+- **Accept** (`visual-accept`, admin route = `plugins:manage` + role ≥ 50 checked again): all pages and the font list,
+  or one page (`value` = path), take the latest fingerprint; error pages never become a baseline; broken pictures and
+  stylesheets stay problems after an accept.
+- **Storage** (KV `visual`): baselines (≤ 25 pages), the latest fingerprint per page, the baseline and current font
+  lists, the last **8** runs (per page: state, plain-language differences, status, words, pictures — no page text).
+  Worst case well under 400 KB (asserted in tests), normally ~20 KB. Nothing on the public site is changed or purged.
+
 ## Privacy
 
 Stored, logged, emailed and shown: URLs/paths of the site, page titles, statuses, counts, times, hostnames of
@@ -215,3 +275,5 @@ logs or emails after a full run. Settings logs carry recipient counts, never add
 - `ctx.redirects.create` from the admin route on a deployed site (source-read and unit-tested with a stand-in), and the
   `menu` element inside a table cell (Block Kit 1.5 `TableColumn.format: "element"` allows button, link or menu).
 - The cron's boundary purge on a deployed Worker (see "Scheduled coming-soon").
+- The visual check on a deployed Worker: whether `SELF` serves `/_astro/*.css` and other static files or the `ASSETS`
+  fallback is needed, and `ctx.content.list` with `orderBy: { updatedAt: "desc" }` against D1 (source-read only).

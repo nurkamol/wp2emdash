@@ -6,6 +6,7 @@ import { MAX_RECIPIENTS } from "@wp2emdash/forms/outbox";
 import { missingText, RATING_LABEL, rate } from "../checks/speed.js";
 import { type LabRequest, type LabRun, type LabStore, labMissingText, latestOf, scoreLabel, scoreTrend, STRATEGIES } from "../checks/lab.js";
 import { headerRows, type SecurityFacts } from "../checks/headers.js";
+import { needsLook, type PageResult, STATE_TEXT, type VisualStore } from "../checks/visual.js";
 import { blockedLabel, type CspStore, isScriptDirective, meaning } from "../csp.js";
 import { cspLine } from "../report.js";
 import type { NotFoundSummary } from "../checks/notfound.js";
@@ -20,7 +21,7 @@ export type Block = Record<string, unknown>;
 
 export const PAGE = "/health";
 export const WIDGET = "site-health";
-export const TABS = { overview: 0, incidents: 1, links: 2, missing: 3, speed: 4, security: 5, reports: 6, settings: 7 } as const;
+export const TABS = { overview: 0, incidents: 1, links: 2, missing: 3, speed: 4, visual: 5, security: 6, reports: 7, settings: 8 } as const;
 
 /** Coming-soon mode as stored (KEYS.maintenance; the starter's middleware reads the same row). */
 export type { MaintenanceSetting };
@@ -68,6 +69,8 @@ export interface PageData {
 	/** PageSpeed lab runs (checks/lab.ts) and the open "Run PageSpeed test now" request. */
 	lab?: LabStore;
 	labRequest?: LabRequest | null;
+	/** The weekly visual check (checks/visual.ts): stored runs and baselines, a run in progress, an open "Check now". */
+	visual?: { on: boolean; store: VisualStore; job?: { pages: number; done: number }; request?: { at: string; done?: string } };
 	selfBinding: boolean;
 	productionUrl: string;
 	download?: { url: string; month: string };
@@ -183,7 +186,7 @@ function overview(d: PageData): Block[] {
 				return { check: CHECK_LABELS[id], status: BADGE[c?.status ?? "unknown"], summary: c ? [c.summary, ...(c.detail ?? [])].join(" ") : "Not checked yet.", at: c?.at ?? "", trend: trend(d.history, id) };
 			}),
 		},
-		{ type: "context", text: "✓ fine · ! needs a look · ✗ problem · · not checked. Uptime every 5 minutes, search engines, analytics, security headers and backups hourly, forms every 15 minutes, links, email DNS, certificate and real-visitor speed once a day, the PageSpeed lab score weekly (UTC)." },
+		{ type: "context", text: "✓ fine · ! needs a look · ✗ problem · · not checked. Uptime every 5 minutes, search engines, analytics, security headers and backups hourly, forms every 15 minutes, links, email DNS, certificate and real-visitor speed once a day, the PageSpeed lab score and the visual check of the main pages weekly (UTC)." },
 		{ type: "actions", elements: [{ type: "button", action_id: "run-now", label: "Run checks now", style: "primary" }] },
 		...(d.state.lastRunAt ? [{ type: "context", text: `Last run ${shortTime(d.state.lastRunAt)}.${d.linkJob ? ` A link check is running (${d.linkJob.done} of ${plural(d.linkJob.pages, "page")} read).` : ""}` }] : []),
 	];
@@ -411,6 +414,83 @@ export function labSection(d: PageData): Block[] {
 	return out;
 }
 
+const VISUAL_BADGE: Record<PageResult["state"], string> = STATE_TEXT;
+
+/**
+ * Visual check: the last run per page in plain words, Accept (one page or all) and Check now, the last 8 runs. Shown
+ * to admins only (the whole page is); the buttons go to the admin route, which checks the role again.
+ */
+export function visualTab(d: PageData): Block[] {
+	const v = d.visual;
+	const out: Block[] = [{ type: "context", text: "Once a week the site reads its main pages — the home page and the most important pages from the sitemap — the way a browser would, and compares each with how it looked before: the page answers, its title and main heading, its sections, its pictures (and whether each one loads), its stylesheets, its fonts, how much text it has and its footer. It notices changes from any source: a new version of the site, an edit in the admin, a menu or settings change, or an outside service such as an image host or Google Fonts." }];
+	if (!v?.on) return [...out, { type: "banner", title: "Visual check is off", description: "Your developer switched the visual check off for this site (kit setting health.visualPages: 0).", variant: "default" }];
+	if (d.staging) return [...out, { type: "context", text: "The visual check runs on the production site only." }];
+	const s = v.store;
+	const run = s.runs.at(-1);
+	if (v.job) out.push({ type: "banner", title: "Visual check running", description: `${v.job.done} of ${plural(v.job.pages, "page")} read so far; a few pages are read every 5 minutes. Results appear here when it finishes.`, variant: "default" });
+	else if (v.request && !v.request.done) out.push({ type: "banner", title: "Check asked for", description: `Asked ${shortTime(v.request.at)}: it starts within 5 minutes.`, variant: "default" });
+	if (!run) {
+		out.push({ type: "empty", title: "No visual check yet", description: "The first check starts within a few minutes of the site starting and becomes the baseline: later checks are compared with it.", size: "base" });
+		out.push({ type: "actions", elements: [{ type: "button", action_id: "visual-run", label: "Check now", style: "secondary" }] });
+		return out;
+	}
+	const look = needsLook(run);
+	if (look.problems.length) out.push({ type: "banner", title: `${plural(look.problems.length, "page")} ${look.problems.length === 1 ? "looks" : "look"} broken`, description: "Something on these pages does not work: an error, a picture or stylesheet that does not load, a missing font or an empty page. Ask your developer to fix it; accepting the look does not make a missing file load.", variant: "error" });
+	if (look.changes.length) out.push({ type: "banner", title: `${plural(look.changes.length, "page")} ${look.changes.length === 1 ? "looks" : "look"} different`, description: "These pages changed since their baseline. If you changed them on purpose (a menu, the settings, a section), choose Accept so later checks compare with the new look. If not, ask your developer.", variant: "alert" });
+	if (!look.problems.length && !look.changes.length) out.push({ type: "banner", title: "All checked pages look as expected", description: `${plural(run.pages.length, "page")} checked ${shortTime(run.at)}.`, variant: "default" });
+	const acceptable = (p: PageResult) => p.status === 200 && p.diffs.some((x) => x.severity === "change" || x.kind === "footer" || x.kind === "empty");
+	out.push({
+		type: "table",
+		block_id: "visual-pages",
+		page_action_id: "noop",
+		empty_text: "No pages checked.",
+		columns: [
+			{ key: "path", label: "Page" },
+			{ key: "state", label: "Result", format: "badge" },
+			{ key: "what", label: "What changed" },
+			{ key: "words", label: "Words" },
+			{ key: "images", label: "Pictures" },
+			{ key: "accept", label: "", format: "element" },
+		],
+		rows: run.pages.map((p) => ({
+			path: p.path,
+			state: VISUAL_BADGE[p.state],
+			what: p.diffs.length ? p.diffs.map((x) => x.text).join(" ") : p.state === "baseline" ? "First check: this look is the baseline." : p.state === "updated" ? `Saved in the editor ${p.edited ? shortTime(p.edited) : "since the last check"}: the new look is the baseline.` : p.accepted ? `Accepted ${shortTime(p.accepted)}.` : p.edited ? `Saved in the editor ${shortTime(p.edited)}; looks as before.` : "Looks as before.",
+			words: p.status === 200 ? p.words : "—",
+			images: p.status === 200 ? p.images : "—",
+			accept: acceptable(p) ? { type: "button", action_id: "visual-accept", label: "Accept", value: p.path, style: "secondary" } : "",
+		})),
+	});
+	const base = s.fonts?.list ?? [];
+	out.push({ type: "fields", fields: [{ label: "Fonts in the baseline", value: base.length ? base.join(", ") : "None found (the site may use system fonts)" }, { label: "Fonts missing now", value: run.missingFonts.length ? run.missingFonts.join(", ") : "None" }, { label: "Last check", value: `${shortTime(run.at)}${run.trigger === "manual" ? " (asked for)" : run.trigger === "first" ? " (first check: the baseline)" : ""}${run.pre ? " — before go-live" : ""}` }, { label: "Next weekly check", value: s.next ? `From ${shortTime(s.next)}` : "—" }] });
+	out.push({
+		type: "actions",
+		elements: [
+			...(look.changes.length || look.problems.length || run.missingFonts.length ? [{ type: "button", action_id: "visual-accept", label: "Accept current as new baseline", style: "primary", confirm: { title: "Accept the current look?", text: "Every checked page (and the fonts) as it looks now becomes what later checks compare with. Do this after a change you made on purpose.", confirm: "Accept", deny: "Cancel" } }] : []),
+			{ type: "button", action_id: "visual-run", label: "Check now", style: "secondary" },
+		],
+	});
+	if (s.runs.length > 1)
+		out.push({
+			type: "table",
+			block_id: "visual-runs",
+			page_action_id: "noop",
+			columns: [
+				{ key: "at", label: "Check" },
+				{ key: "pages", label: "Pages" },
+				{ key: "problems", label: "Broken" },
+				{ key: "changes", label: "Changed" },
+				{ key: "updated", label: "Updated after an edit" },
+			],
+			rows: [...s.runs].reverse().map((r) => {
+				const l = needsLook(r);
+				return { at: `${shortTime(r.at)}${r.pre ? " (before go-live)" : ""}`, pages: r.pages.length, problems: l.problems.length, changes: l.changes.length, updated: r.pages.filter((p) => p.state === "updated").length };
+			}),
+		});
+	out.push({ type: "context", text: "Tolerances: text ±30% (pages with 50 words or more), any picture fewer or not loading, a kind of section gone or two sections fewer, the title or main heading changed, a font, stylesheet or the footer missing, or the page not answering normally. A page saved in the editor since its baseline takes its new look automatically (unless something is broken); menu, settings and design changes are not edits of a page, so accept those here. The last 8 checks are kept. Pictures are not compared pixel by pixel: no screenshots are taken (that would need Cloudflare Browser Rendering, which the kit does not set up)." });
+	return out;
+}
+
 /** Page preloading: a status line only (the kit config switches it; nothing for the owner to tune). */
 function prefetchSection(d: PageData): Block[] {
 	const on = d.prefetch !== false;
@@ -634,6 +714,8 @@ export function page(d: PageData, tab: number = TABS.overview): Block[] {
 	const broken = d.links?.broken.length ?? 0;
 	const missing = d.notFound?.top.length ?? 0;
 	const blocked = d.csp && !d.csp.off ? d.csp.items.filter((e) => isScriptDirective(e.directive)).length : 0;
+	const latest = needsLook(d.visual?.store.runs.at(-1));
+	const look = latest.problems.length + latest.changes.length;
 	return [
 		{ type: "header", text: "Site health" },
 		{
@@ -645,6 +727,7 @@ export function page(d: PageData, tab: number = TABS.overview): Block[] {
 				{ label: `Broken links${broken ? ` (${broken})` : ""}`, blocks: linksTab(d) },
 				{ label: `Missing pages${missing ? ` (${missing})` : ""}`, blocks: missingTab(d) },
 				{ label: "Speed", blocks: speedTab(d) },
+				{ label: `Visual check${look ? ` (${look})` : ""}`, blocks: visualTab(d) },
 				{ label: `Security${blocked ? ` (${blocked})` : ""}`, blocks: securityTab(d) },
 				{ label: "Reports", blocks: reportsTab(d) },
 				{ label: "Settings", blocks: settingsTab(d) },

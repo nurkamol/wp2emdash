@@ -61,6 +61,7 @@ export function healthOptions(i: HealthInputs): HealthOptions | undefined {
 		...(h.monthlyReport ? {} : { monthlyReport: false }),
 		...(h.externalLinks ? {} : { externalLinks: false }),
 		...(h.cspReports === false ? { cspReports: false } : {}),
+		...(h.visualPages !== undefined && h.visualPages !== 10 ? { visualPages: h.visualPages } : {}),
 		collections: ["pages"],
 		...(i.config.performance?.routeCache && i.config.performance.rewarmMinutes > 0 ? { rewarm: { everyMinutes: i.config.performance.rewarmMinutes, available: i.live } } : {}),
 		...(i.config.performance?.prefetch === false ? { prefetch: false } : {}),

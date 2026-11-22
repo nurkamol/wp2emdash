@@ -29,6 +29,7 @@ import { buildReport, type ReportData, reportMail } from "./report.js";
 import { type ReportSources, reportSources } from "./sources.js";
 import { parseSeoSummary, readSeoSummary, type SeoSummary } from "@wp2emdash/seo/summary";
 import { type Improvement, improvements } from "./improve.js";
+import { needsLook, readVisual } from "./checks/visual.js";
 import type { NotFoundSummary } from "./checks/notfound.js";
 import { EXTERNAL_SAMPLE, externalDue, LINK_BUDGET, LINK_CONCURRENCY, LOCK_MS, MANUAL_EVERY, planRun, reportDue } from "./schedule.js";
 import { CHECK_IDS, type CheckId, type CheckState, type Cwv, type DayRow, type HealthState, type Incident, KEYS, type Kv, type LinkLedger, type LinksResult, MAX_REPORTS, pruneIncidents, readState, rollDay, type Settings, type Today, upsertDay } from "./store.js";
@@ -46,7 +47,7 @@ export interface HealthEnv extends OutboxEnv, MailEnv {
 }
 
 export interface ContentLister {
-	list(collection: string, o?: { limit?: number; cursor?: string }): Promise<{ items: { id: string; slug: string | null; status?: string; data: Record<string, unknown>; seo?: unknown; publishedAt?: string | null; updatedAt?: string; createdAt?: string }[]; cursor?: string; hasMore?: boolean }>;
+	list(collection: string, o?: { limit?: number; cursor?: string; orderBy?: Record<string, "asc" | "desc"> }): Promise<{ items: { id: string; slug: string | null; status?: string; data: Record<string, unknown>; seo?: unknown; publishedAt?: string | null; updatedAt?: string; createdAt?: string }[]; cursor?: string; hasMore?: boolean }>;
 }
 
 export interface RunDeps {
@@ -384,13 +385,14 @@ export async function latestSeoSummary(d: Pick<RunDeps, "kv" | "env">, fresh?: S
 }
 
 /**
- * "What to improve" from what the checks and the other plugins keep (improve.ts): a few KV reads and at most two D1
+ * "What to improve" from what the checks, the visual check and the other plugins keep (improve.ts): a few KV reads and at most two D1
  * reads, no request. Plugins this site does not run (HealthOptions seo / media / backups / formsOutbox) are skipped.
  */
 export async function currentImprovements(d: Pick<RunDeps, "kv" | "options" | "env">, o: { seo?: SeoSummary; forms?: { total: number; previous?: number } } = {}): Promise<Improvement[]> {
 	const opt = d.options;
-	const [state, notFound, cwv, media, seo] = await Promise.all([readState(d.kv), d.kv.get<NotFoundSummary>(KEYS.notFound), d.kv.get<Cwv>(KEYS.cwv), opt.media ? readMediaSummary(d.env.DB) : undefined, opt.seo ? latestSeoSummary(d, o.seo) : undefined]);
-	return improvements({ ...(opt.backups && state.checks.backups ? { backups: state.checks.backups } : {}), media: media ?? null, seo: seo ?? null, notFound, cwv, ...(opt.formsOutbox && o.forms ? { forms: o.forms } : {}) });
+	const [state, notFound, cwv, media, seo, visualRaw] = await Promise.all([readState(d.kv), d.kv.get<NotFoundSummary>(KEYS.notFound), d.kv.get<Cwv>(KEYS.cwv), opt.media ? readMediaSummary(d.env.DB) : undefined, opt.seo ? latestSeoSummary(d, o.seo) : undefined, opt.visualPages === 0 ? null : d.kv.get<unknown>(KEYS.visual)]);
+	const look = needsLook(readVisual(visualRaw).runs.at(-1));
+	return improvements({ ...(opt.backups && state.checks.backups ? { backups: state.checks.backups } : {}), media: media ?? null, seo: seo ?? null, notFound, cwv, ...(opt.formsOutbox && o.forms ? { forms: o.forms } : {}), visual: { problems: look.problems.map((p) => p.path), changes: look.changes.map((p) => p.path) } });
 }
 
 /** Form message counts of the last stored report and of the month before it (counts only), for the admin's list. */

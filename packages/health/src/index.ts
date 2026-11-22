@@ -75,6 +75,11 @@ export interface HealthOptions {
 	 * site.config.json `cspReport` at scaffold). The admin switch on the Security tab only stops storing and alerts.
 	 */
 	cspReports?: boolean;
+	/**
+	 * Weekly visual check (checks/visual.ts): how many main pages (the home page + the sitemap's shallowest pages) get a
+	 * structural fingerprint compared with a baseline. Default 10, at most 25; 0 turns the visual check off.
+	 */
+	visualPages?: number;
 	/** Mail DNS records at go-live (cutover/dns-before.json), as hashes: never the record values. */
 	mail?: MailBaseline;
 }
