@@ -16,7 +16,9 @@ import { runTransform } from "../src/phases/transform.js";
 import { seedLanguages } from "../src/scaffold/seed.js";
 import { emdashMenuNames } from "../src/transform/menus.js";
 import { buildPlan, codesFor, entryLanguages, hreflangAlternates, inheritMenuRoles, langOfPath, languageChecked, localizeRoute, matchCode, menuLanguage, type MlDoc, type MlPlan, multilingualChecks, urlModeFromHreflang, urlModeFromOptions } from "../src/transform/multilingual.js";
+import { baseOf } from "../src/transform/wp-urls.js";
 import { hreflangParity, reciprocityProblems } from "../src/verify/hreflang.js";
+import { blogRoute } from "../starter/src/utils/blog.js";
 import * as starter from "../starter/src/utils/i18n.js";
 
 const fixtures = join(import.meta.dirname, "fixtures", "multilingual");
@@ -94,6 +96,55 @@ describe("transform phase on multilingual sites (golden)", () => {
 			for (const c of out.checks) expect(c.ok, `${c.id}: ${c.detail}`).toBe(true);
 		});
 	}
+});
+
+describe("archive bases on a site with translated terms (WordPress e2e: every /fr/ page 404)", () => {
+	// Polylang (directory mode) links a French term as /fr/category/<slug>/. With as many French categories as English
+	// ones (French first, as the live REST API listed them) the category base came out as /fr/, and the starter's
+	// blogRoute answered /fr/a-propos/ as the archive of a category "a-propos" that does not exist → 404.
+	const terms = [
+		{ id: 3, taxonomy: "category", slug: "actualites", link: "https://boulangerie.example/fr/category/actualites/", count: 1 },
+		{ id: 4, taxonomy: "category", slug: "conseils", link: "https://boulangerie.example/fr/category/conseils/", count: 1 },
+		{ id: 1, taxonomy: "category", slug: "guides", link: "https://boulangerie.example/category/guides/", count: 1 },
+		{ id: 2, taxonomy: "category", slug: "news", link: "https://boulangerie.example/category/news/", count: 1 },
+		{ id: 5, taxonomy: "post_tag", slug: "argile", link: "https://boulangerie.example/fr/tag/argile/", count: 1 },
+		{ id: 6, taxonomy: "post_tag", slug: "clay", link: "https://boulangerie.example/tag/clay/", count: 1 },
+	];
+	const authors = [{ id: 1, slug: "marie", link: "https://boulangerie.example/fr/author/marie/" }];
+
+	it("baseOf leaves the language directory out; without language directories it reads links as before", () => {
+		const cats = terms.filter((t) => t.taxonomy === "category");
+		expect(baseOf(cats, ["fr"])).toBe("/category/");
+		expect(baseOf(terms.filter((t) => t.taxonomy === "post_tag"), ["fr"])).toBe("/tag/");
+		expect(baseOf(authors, ["fr"])).toBe("/author/");
+		// Hierarchical terms under a language directory: still the first segment after it.
+		expect(baseOf([{ slug: "child", link: "https://x.example/fr/rubrique/parent/child/" }], ["fr"])).toBe("/rubrique/");
+		// Single-language sites pass no directories: unchanged (this tie is exactly what produced /fr/).
+		expect(baseOf(cats)).toBe("/fr/");
+		expect(baseOf([{ slug: "news", link: "https://x.example/category/news/" }])).toBe("/category/");
+		expect(baseOf([{ slug: "news", link: "https://x.example/topics/news/" }], [])).toBe("/topics/");
+	});
+
+	it("transform: blog archives and WordPress-URL bases are /category/ and /tag/, never the language directory", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "wp2e-ml-bases-"));
+		// The Polylang fixture's default language is French; English lives under /en/.
+		const { paths, config } = siteFrom("polylang", dir);
+		const toEn = <T extends { link: string }>(x: T): T => ({ ...x, link: x.link.replace("/fr/", "/en/") });
+		put(join(paths.snapshot, "discovery.json"), { items: [], terms: terms.map(toEn), authors: authors.map(toEn), media: [] });
+		await runTransform({ config, paths, reporter: { runId: "t", emit: () => {} } });
+		const wpUrls = JSON.parse(readFileSync(join(paths.ir, "wp-urls.json"), "utf8")) as { rules: { bases?: Record<string, string> } };
+		expect(wpUrls.rules.bases).toEqual({ category: "/category/", tag: "/tag/", author: "/author/" });
+		const blogFile = join(paths.ir, "blog.json");
+		if (existsSync(blogFile)) {
+			const blog = JSON.parse(readFileSync(blogFile, "utf8")) as { taxonomies: { base: string }[]; authorBase: string };
+			for (const t of blog.taxonomies) expect(t.base).not.toBe("/en/");
+			expect(blog.authorBase).toBe("/author/");
+		}
+		// The starter's router: a French page is not an archive address.
+		const cfg = { index: "/blog/", perPage: 10, feed: { full: false, items: 10 }, archives: [{ taxonomy: "category", base: wpUrls.rules.bases?.category as string, label: "Categories", labelSingular: "Category" }, { taxonomy: "tag", base: wpUrls.rules.bases?.tag as string, label: "Tags", labelSingular: "Tag" }], authorBase: "/author/" };
+		expect(blogRoute("/en/about/", cfg)).toBeUndefined();
+		expect(blogRoute("/category/guides/", cfg)).toMatchObject({ kind: "term", taxonomy: "category", slug: "guides" });
+	});
 });
 
 const dirPlan = (over: Partial<MlPlan> = {}): MlPlan => ({

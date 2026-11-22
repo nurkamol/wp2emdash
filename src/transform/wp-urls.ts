@@ -39,6 +39,8 @@ export interface WpUrlInput {
 	blog?: { index: string; archives: string[]; posts: string[]; ids: Record<string, string> };
 	/** Comments are migrated (src/transform/comments.ts): the comment feeds still answer 410 (no comment feed is built). */
 	comments?: boolean;
+	/** Language directories of a multilingual site (`fr`, `de`): left out of term and author links when the bases are read. */
+	langDirs?: string[];
 }
 
 const pathOf = (u: string): string | undefined => {
@@ -49,12 +51,20 @@ const pathOf = (u: string): string | undefined => {
 	}
 };
 
-/** The archive base the live permalinks use (`/category/`, `/topics/`…): the most common prefix before the slug. */
-export function baseOf(items: { slug: string; link: string }[]): string | undefined {
+/**
+ * The archive base the live permalinks use (`/category/`, `/topics/`…): the most common prefix before the slug.
+ * `langDirs` are a multilingual site's language directories (Polylang / WPML directory mode, without slashes): a
+ * translated term's link has its language in front (`/fr/category/actualites/`), which is not part of the base. Read
+ * as is, a site with as many French terms as English ones got the base `/fr/`, and the starter then answered every
+ * French address as a category archive (404) — docs/spikes/multilingual-findings.md.
+ */
+export function baseOf(items: { slug: string; link: string }[], langDirs: string[] = []): string | undefined {
 	const counts = new Map<string, number>();
 	for (const i of items) {
-		const p = pathOf(i.link);
+		let p = pathOf(i.link);
 		if (!p) continue;
+		const dir = langDirs.find((d) => d && (p as string).startsWith(`/${d}/`));
+		if (dir) p = p.slice(dir.length + 1);
 		const at = p.indexOf(`/${i.slug}/`);
 		if (at < 0) continue;
 		// Child terms (`/category/parent/child/`): the base is everything before the first term segment.
@@ -102,10 +112,14 @@ export function buildWpUrlPlan(input: WpUrlInput): WpUrlPlan {
 		}
 	}
 	const terms = input.discovery?.terms ?? [];
+	const dirs = input.langDirs ?? [];
+	const categoryBase = baseOf(terms.filter((t) => t.taxonomy === "category"), dirs);
+	const tagBase = baseOf(terms.filter((t) => t.taxonomy === "post_tag"), dirs);
+	const authorBase = baseOf(input.discovery?.authors ?? [], dirs);
 	const bases = {
-		...(baseOf(terms.filter((t) => t.taxonomy === "category")) ? { category: baseOf(terms.filter((t) => t.taxonomy === "category")) } : {}),
-		...(baseOf(terms.filter((t) => t.taxonomy === "post_tag")) ? { tag: baseOf(terms.filter((t) => t.taxonomy === "post_tag")) } : {}),
-		...(baseOf(input.discovery?.authors ?? []) ? { author: baseOf(input.discovery?.authors ?? []) } : {}),
+		...(categoryBase ? { category: categoryBase } : {}),
+		...(tagBase ? { tag: tagBase } : {}),
+		...(authorBase ? { author: authorBase } : {}),
 	};
 	const attachments: Record<string, WpAttachment> = {};
 	for (const m of input.discovery?.media ?? []) {
