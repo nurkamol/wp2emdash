@@ -635,7 +635,8 @@ export const irSite = z.object({
 			defaultLang: z.string(),
 			urlMode: z.enum(["directory", "content", "subdomain", "domain", "query", "unknown"]),
 			supported: z.boolean(),
-			languages: z.array(z.object({ code: z.string(), prefix: z.string(), hreflang: z.string(), label: z.string(), default: z.boolean() })),
+			/** `home`: the language's home page when it is not its directory (`/fr/accueil/`: the front page's translation at its own address). */
+			languages: z.array(z.object({ code: z.string(), prefix: z.string(), hreflang: z.string(), label: z.string(), default: z.boolean(), home: z.string().optional() })),
 		})
 		.optional(),
 	/** announcement = the bar above the header (ir/partials/announcement.json, site part slug "announcement"). */

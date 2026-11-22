@@ -24,7 +24,8 @@ import site from "../site.config.json";
 import { cachePage, noCache } from "../utils/cache";
 import { cacheChrome, loadChrome } from "../utils/chrome";
 import { autoExcerpt, blogRoute, feedHref, ptText, ptToHtml, rssXml } from "../utils/blog";
-import { blogConfig, bylineOf, cacheBlog, featuredPosts, listPosts, neighbours, type PostEntry, postHref, relatedPosts, termOf } from "../utils/blog-data";
+import { i18nConfig } from "../utils/i18n-data";
+import { blogConfig, bylineOf, cacheBlog, featuredPosts, langDirs, langOfDir, listPosts, neighbours, type PostEntry, postHref, relatedPosts, termOf } from "../utils/blog-data";
 import Archive from "../components/collections/Archive.astro";
 import Entry from "../components/collections/Entry.astro";
 import { type CollectionShop, collectionRoute } from "../utils/collections";
@@ -40,7 +41,9 @@ const slug = raw || "home";
 const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
 const production = new URL(site.productionUrl).origin;
 const blog = blogConfig;
-const route = blog ? blogRoute(Astro.params.slug ? Astro.url.pathname : "/", blog) : undefined;
+const route = blog ? blogRoute(Astro.params.slug ? Astro.url.pathname : "/", blog, langDirs) : undefined;
+/** Multilingual sites: the language of a listing under a language directory (`/fr/category/…` → fr), else the default. */
+const listLang = langOfDir(route?.dir);
 
 // ── Blog listings and feeds ──────────────────────────────────────────────────────────────────────────────────
 let listing: { heading: string; intro?: string | null; eyebrow?: string; posts: PostEntry[]; listing: string; page: number; hasMore: boolean; title: string; description?: string | null; feedTitle: string; avatar?: { src: string; alt: string }; seo?: ReturnType<typeof getSeoMeta>; canonicalPath: string; seoTitle?: string; robots?: string } | undefined;
@@ -52,14 +55,14 @@ if (blog && route) {
 	const page = route.feed ? 1 : route.page;
 	if (route.kind === "index") {
 		const indexSlug = blog.index.replace(/^\/+|\/+$/g, "") || "home";
-		const [list, featured, indexPage, c] = await Promise.all([listPosts({ page, perPage }), page === 1 && !route.feed ? featuredPosts() : Promise.resolve([] as PostEntry[]), getEmDashEntry("pages", indexSlug), route.feed ? Promise.resolve(undefined) : loadChrome(Astro.url.pathname)]);
+		const [list, featured, indexPage, c] = await Promise.all([listPosts({ page, perPage, ...(listLang ? { lang: listLang } : {}) }), page === 1 && !route.feed ? featuredPosts(10, listLang) : Promise.resolve([] as PostEntry[]), getEmDashEntry("pages", indexSlug), route.feed ? Promise.resolve(undefined) : loadChrome(Astro.url.pathname)]);
 		chrome = c;
 		const posts = [...featured, ...list.entries.filter((e) => !featured.some((f) => f.id === e.id))];
-		const pageTitle = blog.index === "/" ? undefined : (indexPage.entry?.data as { title?: string } | undefined)?.title;
-		listing = { heading: pageTitle ?? "Blog", posts, listing: blog.index, page, hasMore: list.hasMore, title: pageTitle ?? "Blog", feedTitle: "Feed", canonicalPath: Astro.url.pathname, ...(indexPage.entry && blog.index !== "/" ? { seo: getSeoMeta(indexPage.entry, { siteUrl: Astro.url.origin, path: Astro.url.pathname }) } : {}) };
+		const pageTitle = blog.index === "/" || route.dir ? undefined : (indexPage.entry?.data as { title?: string } | undefined)?.title;
+		listing = { heading: pageTitle ?? "Blog", posts, listing: route.dir ? `/${route.dir}/` : blog.index, page, hasMore: list.hasMore, title: pageTitle ?? "Blog", feedTitle: "Feed", canonicalPath: Astro.url.pathname, ...(indexPage.entry && blog.index !== "/" ? { seo: getSeoMeta(indexPage.entry, { siteUrl: Astro.url.origin, path: Astro.url.pathname }) } : {}) };
 		cacheBlog(Astro.cache, [list.cacheHint, indexPage.cacheHint]);
 	} else if (route.kind === "term") {
-		const [term, list, c, termSeo] = await Promise.all([termOf(route.taxonomy, route.slug), listPosts({ page, perPage, where: { [route.taxonomy]: route.slug } }), route.feed ? Promise.resolve(undefined) : loadChrome(Astro.url.pathname), readTermSeo(db, route.taxonomy, route.slug)]);
+		const [term, list, c, termSeo] = await Promise.all([termOf(route.taxonomy, route.slug), listPosts({ page, perPage, where: { [route.taxonomy]: route.slug }, ...(listLang ? { lang: listLang } : {}) }), route.feed ? Promise.resolve(undefined) : loadChrome(Astro.url.pathname), readTermSeo(db, route.taxonomy, route.slug)]);
 		chrome = c;
 		const a = blog.archives.find((x) => x.taxonomy === route.taxonomy);
 		if (term) listing = { heading: term.label, intro: term.description, eyebrow: a?.labelSingular, posts: list.entries, listing: Astro.url.pathname.replace(/(?:page\/\d+|feed)\/?$/, ""), page, hasMore: list.hasMore, title: term.label, description: termSeo?.description ?? term.description, feedTitle: `${term.label} ${a?.labelSingular ?? ""} Feed`.replace(/\s+/g, " "), canonicalPath: Astro.url.pathname, ...(termSeo?.title ? { seoTitle: archiveTitle(termSeo.title, page) } : {}), ...(termSeo?.noindex ? { robots: "noindex, follow" } : {}) };
@@ -68,7 +71,7 @@ if (blog && route) {
 		const [byline, c] = await Promise.all([bylineOf(route.slug), route.feed ? Promise.resolve(undefined) : loadChrome(Astro.url.pathname)]);
 		chrome = c;
 		if (byline) {
-			const list = await listPosts({ page, perPage, where: { byline: byline.translationGroup ?? byline.id } });
+			const list = await listPosts({ page, perPage, where: { byline: byline.translationGroup ?? byline.id }, ...(listLang ? { lang: listLang } : {}) });
 			const avatar = byline.avatarStorageKey ? { src: `/_emdash/api/media/file/${encodeURIComponent(byline.avatarStorageKey)}`, alt: byline.avatarAlt ?? byline.displayName } : undefined;
 			listing = { heading: byline.displayName, intro: byline.bio, eyebrow: "Author", posts: list.entries, listing: Astro.url.pathname.replace(/(?:page\/\d+|feed)\/?$/, ""), page, hasMore: list.hasMore, title: byline.displayName, description: byline.bio, feedTitle: `Posts by ${byline.displayName} Feed`, canonicalPath: Astro.url.pathname, ...(avatar ? { avatar } : {}) };
 			cacheBlog(Astro.cache, [list.cacheHint]);
@@ -99,7 +102,7 @@ if (blog && route) {
 				...(d.byline?.displayName ? { author: d.byline.displayName as string } : {}),
 			};
 		});
-		const xml = rssXml({ title: route.kind === "index" ? siteTitle : `${siteTitle} » ${listing.feedTitle}`, link: `${production}${route.kind === "index" ? blog.index : listing.listing}`, self: `${production}${Astro.url.pathname}`, description: (route.kind === "index" ? (settings?.tagline as string | undefined) : listing.description) || siteTitle, language: (site as { lang?: string }).lang ?? "en", ...(items[0] ? { updated: items[0].published } : {}) }, items);
+		const xml = rssXml({ title: route.kind === "index" ? siteTitle : `${siteTitle} » ${listing.feedTitle}`, link: `${production}${listing.listing}`, self: `${production}${Astro.url.pathname}`, description: (route.kind === "index" ? (settings?.tagline as string | undefined) : listing.description) || siteTitle, language: (route.dir ? i18nConfig?.languages.find((l) => l.prefix === route.dir)?.hreflang : undefined) ?? (site as { lang?: string }).lang ?? "en", ...(items[0] ? { updated: items[0].published } : {}) }, items);
 		return new Response(xml, { headers: { "Content-Type": "application/rss+xml; charset=utf-8" } });
 	}
 }
@@ -111,10 +114,15 @@ if (croute) {
 	const listingPath = Astro.url.pathname.replace(/page\/\d+\/?$/, "");
 	if (croute.kind === "archive") {
 		const c = croute.collection;
-		const [list, ch] = await Promise.all([listEntries(c, { page: croute.page }), loadChrome(Astro.url.pathname)]);
+		// The page WordPress kept at the archive's address (WooCommerce's shop page "Shop" at /shop/): its title and meta
+		// description head the listing, as on the old site, instead of the collection's label ("Products").
+		const archiveSlug = listingPath.replace(/^\/+|\/+$/g, "");
+		const [list, ch, archivePage] = await Promise.all([listEntries(c, { page: croute.page }), loadChrome(Astro.url.pathname), archiveSlug ? getEmDashEntry("pages", archiveSlug).catch(() => ({ entry: undefined, cacheHint: undefined })) : Promise.resolve({ entry: undefined, cacheHint: undefined })]);
 		chrome = ch;
-		archive = { heading: c.label, entries: list.entries, listing: listingPath, page: croute.page, hasMore: list.hasMore, ...(c.shop ? { shop: c.shop } : {}) };
-		cacheCollections(Astro.cache, [c], [list.cacheHint]);
+		const pageTitle = String((archivePage.entry?.data as { title?: string } | undefined)?.title ?? "").trim();
+		const pageSeo = archivePage.entry ? getSeoMeta(archivePage.entry, { siteUrl: Astro.url.origin, path: Astro.url.pathname }) : undefined;
+		archive = { heading: pageTitle || c.label, entries: list.entries, listing: listingPath, page: croute.page, hasMore: list.hasMore, ...(pageSeo?.description ? { description: pageSeo.description } : {}), ...(c.shop ? { shop: c.shop } : {}) };
+		cacheCollections(Astro.cache, [c], [list.cacheHint, archivePage.cacheHint]);
 	} else {
 		const [term, ch, termSeo] = await Promise.all([collectionTermOf(croute.taxonomy, croute.slug), loadChrome(Astro.url.pathname), readTermSeo(db, croute.taxonomy, croute.slug)]);
 		chrome = ch;
@@ -156,7 +164,7 @@ let older: PostEntry | undefined;
 let newer: PostEntry | undefined;
 let related: PostEntry[] = [];
 if (post) {
-	[{ older, newer }, related] = await Promise.all([neighbours(post.data.publishedAt), relatedPosts(post)]);
+	[{ older, newer }, related] = await Promise.all([neighbours(post.data.publishedAt, post.data.lang), relatedPosts(post)]);
 	cacheBlog(Astro.cache);
 }
 cachePage(Astro.cache, page ? "page" : "other");

@@ -45,8 +45,8 @@ const money = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? for
 					<h1 class="heading heading--h1" {...edit.title}>{d.title}</h1>
 					{price && (
 						<p class="product__price" {...edit.price}>
-							{price.from && <span class="product__from">From </span>}
-							{price.regular && <del><span class="visually-hidden">Regular price </span>{price.regular}</del>} <ins><span class="visually-hidden">{price.onSale ? "Sale price " : ""}</span>{price.current}</ins>
+							{price.from && !price.max && <span class="product__from">From </span>}
+							{price.regular && <del><span class="visually-hidden">Regular price </span>{price.regular}</del>} <ins><span class="visually-hidden">{price.onSale ? "Sale price " : ""}</span>{price.current}{price.max && ` – ${price.max}`}</ins>
 						</p>
 					)}
 					{d.stock_status && d.stock_status !== "instock" && <p class="product__stock" {...edit.stock_status}>{availabilityLabel(d.stock_status)}</p>}

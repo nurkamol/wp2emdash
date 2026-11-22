@@ -45,6 +45,8 @@ export interface PriceView {
 	regular?: string;
 	/** Variable products: "from" the lowest variation price. */
 	from: boolean;
+	/** Variable products whose variations cost different amounts: the highest, shown as a range (`$30.00 – $45.00`) as WooCommerce does. */
+	max?: string;
 	onSale: boolean;
 }
 
@@ -54,7 +56,10 @@ export function priceView(d: ProductData, shop: ShopSettings, lang = "en"): Pric
 	const variable = d.product_type === "variable";
 	if (!isNum(d.price)) return undefined;
 	const onSale = !variable && isNum(d.sale_price) && d.sale_price < d.price;
-	return { current: formatPrice(onSale ? (d.sale_price as number) : d.price, currency, lang), ...(onSale ? { regular: formatPrice(d.price, currency, lang) } : {}), from: variable && new Set((d.variations ?? []).map((v) => (isNum(v.sale_price) ? v.sale_price : v.price))).size > 1, onSale };
+	const prices = variable ? (d.variations ?? []).map((v) => (isNum(v.sale_price) ? v.sale_price : v.price)).filter(isNum) : [];
+	const from = variable && new Set(prices).size > 1;
+	const top = from ? Math.max(...prices) : undefined;
+	return { current: formatPrice(onSale ? (d.sale_price as number) : d.price, currency, lang), ...(onSale ? { regular: formatPrice(d.price, currency, lang) } : {}), from, ...(top !== undefined && top > d.price ? { max: formatPrice(top, currency, lang) } : {}), onSale };
 }
 
 const safeHref = (s: string | null | undefined): string | undefined => {

@@ -26,6 +26,7 @@ import { collectSnippets, completeProviderLoaders, providerLoaders, settleLoader
 import { consentReport, planConsent } from "../transform/consent.js";
 import { type Diagnostic, type IrEntry, IR_VERSION, type IrMenuItem, type IrPage, irPage, type IrPost, type IrSite, irSite, type MediaRef, type Section, type SectionType } from "../ir/schema.js";
 import { conservation, irText, missingContext, sourceText } from "../transform/coverage.js";
+import { themeTitleSection } from "../transform/page-title.js";
 import { buildSettings, irSettings, settingsReport } from "../transform/settings.js";
 import { contentInventory, HANDLED_TYPES, INTERNAL_TAXONOMIES, INTERNAL_TYPES, inventoryDetail, inventoryReport } from "../transform/content-types.js";
 import { type AnalyzeType, completeOptions, type ContentTypeDecision, type CptEntrySource, type CptPlan, cptReport, entryData, planCollections, proposal, type WpRestType } from "../transform/cpt.js";
@@ -57,7 +58,7 @@ import type { BricksBox, RootVariables, ScreenshotResult } from "../audit/browse
 import type { ExporterPost, MediaEntry } from "./extract.js";
 import type { PhaseContext } from "./index.js";
 import type { SitePaths } from "../core/paths.js";
-import { baseLocations, buildPlan, inheritMenuRoles, localizeRoute, menuLanguage, ML_FILE, type MlDoc, type MlRaw, multilingualChecks, multilingualReport, normCode, TEMPLATE_TYPES, translationGroups, type WpmlRow } from "../transform/multilingual.js";
+import { baseLocations, buildPlan, inheritMenuRoles, languageHomes, localizeRoute, menuLanguage, ML_FILE, type MlDoc, type MlRaw, multilingualChecks, multilingualReport, normCode, TEMPLATE_TYPES, translationGroups, type WpmlRow } from "../transform/multilingual.js";
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_]+/g, "-");
 const readJson = <T>(file: string): T | undefined => (existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : undefined);
@@ -503,6 +504,12 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const { builder, sections, diagnostics } = adapt(p, "page");
 		// Audit section boxes are paired by builder row; rows found in rendered HTML have no such pairing.
 		if (builder !== "dom-fallback") paddedEdges += applyMeasuredPadding(sections, boxesFor(routeOf(p)), false);
+		// The title the theme printed above the content (src/transform/page-title.ts): back as the page's first section.
+		const titleSection = builder !== "dom-fallback" ? themeTitleSection(snapHtmlOf(p.id), p.title, sections, new Keys(`${p.id.toString(36)}_t`)) : undefined;
+		if (titleSection) {
+			sections.unshift(titleSection);
+			diagnostics.push({ level: "info", code: "flagged", message: `The theme showed the page title "${p.title}" above the content: kept as the first section (h1)`, path: "theme-title" });
+		}
 		const template = typeof p.meta._wp_page_template === "string" && p.meta._wp_page_template !== "default" ? p.meta._wp_page_template : undefined;
 		const parentPath = p.parent && byId.get(p.parent) ? routeOf(byId.get(p.parent) as ExporterPost) : undefined;
 		// Order, parent and excerpt when the page has them (src/transform/pages.ts); a parent skipped by decision is not linked.
@@ -1001,7 +1008,9 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const homeSnap = existsSync(pagesDir) ? readdirSync(pagesDir).map((f) => readJson<{ url?: string; seo?: { jsonLd?: unknown[] } }>(join(pagesDir, f))).find((x) => { try { return !!x?.url && new URL(x.url).pathname === "/"; } catch { return false; } }) : undefined;
 	// Owner corrections (overrides.ts business) on top: the JSON-LD and the footer contact block both read this.
 	const business = applyBusinessOverride(businessFromJsonLd(homeSnap?.seo?.jsonLd ?? []), overrides.business, siteTitle);
-	const site: IrSite = { version: IR_VERSION, title: siteTitle, ...(business ? { business } : {}), ...(typeof options.blogdescription === "string" && options.blogdescription ? { tagline: options.blogdescription } : {}), ...(frontId ? { frontPage: "/" } : {}), ...(siteIconId ? { siteIcon: { wpId: siteIconId, kind: "image" } } : {}), menus, partials, popups, ...(ml ? { i18n: { plugin: ml.plan.plugin, defaultLang: ml.plan.defaultLang, urlMode: ml.plan.urlMode, supported: ml.plan.supported, languages: ml.plan.languages } } : {}) };
+	// Multilingual: a language whose home page is the front page's translation at its own address (`/fr/accueil/`).
+	const langHomes = ml ? languageHomes(ml.plan, results.map((r) => ({ kind: r.doc.kind, ...(r.doc.route ? { route: r.doc.route } : {}), published: r.published, ...(r.doc.i18n ? { i18n: r.doc.i18n } : {}) }))) : new Map<string, string>();
+	const site: IrSite = { version: IR_VERSION, title: siteTitle, ...(business ? { business } : {}), ...(typeof options.blogdescription === "string" && options.blogdescription ? { tagline: options.blogdescription } : {}), ...(frontId ? { frontPage: "/" } : {}), ...(siteIconId ? { siteIcon: { wpId: siteIconId, kind: "image" } } : {}), menus, partials, popups, ...(ml ? { i18n: { plugin: ml.plan.plugin, defaultLang: ml.plan.defaultLang, urlMode: ml.plan.urlMode, supported: ml.plan.supported, languages: ml.plan.languages.map((l) => (langHomes.has(l.code) ? { ...l, home: langHomes.get(l.code) as string } : l)) } } : {}) };
 	const siteValid = irSite.safeParse(site);
 	if (!siteValid.success) invalid.push(`site.json: ${siteValid.error.issues[0]?.message}`);
 	write(join(paths.ir, "site.json"), site);
@@ -1267,6 +1276,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		...(Number(options.page_for_posts) > 0 ? { blogPageId: Number(options.page_for_posts) } : {}),
 		...(discovery ? { discovery } : {}),
 		...(langDirs.length ? { langDirs } : {}),
+		...(ml && langHomes.size ? { langHomes: Object.fromEntries(ml.plan.languages.filter((l) => l.prefix && langHomes.has(l.code)).map((l) => [l.prefix, langHomes.get(l.code) as string])) } : {}),
 		overrides,
 		...(commentsPlan?.migrate && commentsPlan.counts.imported ? { comments: true } : {}),
 		trailingSlash: config.target.trailingSlash === "preserve" ? (pubPages.every((r) => r.doc.route?.path === "/" || r.doc.route?.path.endsWith("/")) ? "always" : "never") : config.target.trailingSlash,

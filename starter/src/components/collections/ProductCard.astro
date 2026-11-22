@@ -47,8 +47,8 @@ const price = priceView(data, shop, lang);
 	{
 		price && !hidePrice && (
 			<p class="product-card__price">
-				{price.from && <span class="product-card__from">From </span>}
-				{price.regular && <del>{price.regular}</del>} <span class="product-card__current">{price.current}</span>
+				{price.from && !price.max && <span class="product-card__from">From </span>}
+				{price.regular && <del>{price.regular}</del>} <span class="product-card__current">{price.current}{price.max && ` – ${price.max}`}</span>
 			</p>
 		)
 	}
