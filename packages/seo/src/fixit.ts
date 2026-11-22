@@ -366,11 +366,16 @@ export interface ReportPage {
 	analysis: { checks: { id: string; status: string }[] };
 }
 
+/** Legal and policy pages (privacy, terms, cookies, waivers…): nobody searches to land on them, so no focus keyword is
+ * drafted for them (a description still is: it shows when they do appear in results). Found on the live site's first
+ * run, 2026-11-22: "privacy policy" / "terms and conditions" were suggested as focus keywords. */
+export const LEGAL_SLUG = /(^|\/)(privacy|terms|cookies?|disclaimer|waiver|imprint|impressum|legal|gdpr|accessibility-statement)([-_]|\/|$)/i;
+
 /** What a page lacks; titles only when asked. Pure. */
 export function needsOf(p: ReportPage, titles: boolean): Needs {
 	return {
 		description: !p.item.seo?.description?.trim(),
-		keyword: !p.keyword?.trim(),
+		keyword: !p.keyword?.trim() && !LEGAL_SLUG.test(p.item.slug ?? ""),
 		title: titles && p.analysis.checks.some((c) => c.id === "title" && (c.status === "warn" || c.status === "bad")),
 	};
 }

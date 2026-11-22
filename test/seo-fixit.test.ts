@@ -160,6 +160,12 @@ describe("SEO fix-it: candidates, batches and limits", () => {
 		expect(a.ready[0]?.needs).toEqual({ description: true, keyword: true, title: false });
 		expect(candidates(pages, true).ready.map((c) => c.id)).toEqual(["P1", "P6"]);
 	});
+	it("drafts no focus keyword for legal pages (a description still)", () => {
+		const legal = ["privacy-policy", "terms-and-conditions", "cookie-policy", "waiver-agreement"].map((slug, n) => report({ id: `L${n}`, slug }));
+		for (const c of candidates(legal, false).ready) expect(c.needs).toEqual({ description: true, keyword: false, title: false });
+		expect(candidates([report({ slug: "privacy-policy", seo: { description: "Has one", noIndex: false } })], false).ready).toEqual([]);
+		expect(candidates([report({ slug: "pilates-terms-explained" })], false).ready[0]?.needs.keyword).toBe(true);
+	});
 	it("skips pages waiting or discarded, at most 10 and what today allows", () => {
 		const ready = Array.from({ length: 15 }, (_, n) => cand({ id: `P${n}` }));
 		expect(nextBatch(ready, [sugg("pages:P0")], [{ sid: "pages:P1", at: "" }], 10, 100).map((c) => c.id)).toEqual(["P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11"]);

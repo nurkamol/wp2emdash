@@ -85,3 +85,9 @@ still lists pages and lets editors approve or discard existing suggestions.
 - On a deployed Worker or local dev: a second admin page of one plugin (`/seo-fixit`) and its `page_load` (the Block
   Kit types say `page` carries the page path), real Workers AI answers and their quality per language, actual neuron
   use, whether Llama 3.3 needs a licence acceptance, `content.update` with `content:write` for a native plugin, the purge.
+
+## First live run (2026-11-22, a live client site)
+
+- `content.list`, Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`, no licence prompt) and the KV writes worked on a deployed Worker: one batch drafted 6 suggestions (6 of 100 daily drafts); 5 pages under 40 words were skipped as designed. Nothing approved.
+- Quality: focus keywords were sensible for content pages ("studio rentals", "pilates studio", "reformer pilates"), but legal pages got "privacy policy" / "terms and conditions". Since then no focus keyword is drafted for slugs starting with privacy/terms/cookie(s)/disclaimer/waiver/imprint/impressum/legal/gdpr/accessibility-statement (`LEGAL_SLUG`); a description still is.
+- Sites with `sensitiveData: true` have no AI binding (by design); the page explains how to add it.

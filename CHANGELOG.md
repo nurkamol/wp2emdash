@@ -6,6 +6,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Changed
+- SEO fix-it: no focus keyword is drafted for legal pages (privacy, terms, cookies, waivers…) — found on the first live run; a description still is.
+
 ## [1.8.0] — 2026-11-22
 
 ### Added
