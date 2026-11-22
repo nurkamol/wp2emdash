@@ -352,6 +352,34 @@ program
 	});
 
 program
+	.command("monitor <action>")
+	.description("Outside-in monitor for every delivered site, one Cloudflare Worker in the agency's account (docs/monitor.md). init: write monitor.config.json; build: regenerate the Worker project (site list from sites/*/ + extra URLs). Never deploys")
+	.option("--dir <path>", "monitor folder (default: <kit>/monitor, gitignored; or WP2EMDASH_MONITOR_DIR)")
+	.option("--json")
+	.action(async (action: string, o: { dir?: string; json?: boolean }) => {
+		const { monitorBuild, monitorInit } = await import("../commands/monitor.js");
+		const dir = o.dir ? { dir: o.dir } : {};
+		if (action === "init") {
+			const r = monitorInit(dir);
+			if (o.json) return console.log(JSON.stringify(r, null, 2));
+			console.log(r.created ? `${pc.green("+")} ${r.file}` : `${pc.dim("=")} ${r.file} ${pc.dim("(kept)")}`);
+			console.log(pc.dim("Fill in alertTo, from (and extraUrls), then: pnpm wp2emdash monitor build"));
+			return;
+		}
+		if (action !== "build") fail(`Unknown action "${action}" (init or build)`);
+		try {
+			const r = await monitorBuild(dir);
+			if (o.json) return console.log(JSON.stringify(r, null, 2));
+			for (const s of r.sites) console.log(`${pc.green("✔")} ${s.id.padEnd(28)} ${s.url}${s.keyword ? pc.dim(` (keyword)`) : ""}`);
+			for (const s of r.skipped) console.log(`${pc.dim("–")} ${s.slug.padEnd(28)} ${pc.dim(s.why)}`);
+			for (const w of r.warnings) console.log(`${pc.yellow("!")} ${w}`);
+			console.log(`\n${pc.bold(r.dir)}: ${r.files.length} files. Deploy (the operator, from that folder): ${pc.cyan("npx wrangler deploy")} — see docs/monitor.md`);
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
 	.command("doctor")
 	.description("Check local prerequisites")
 	.option("--json")

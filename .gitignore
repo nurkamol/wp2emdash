@@ -15,3 +15,6 @@ sites/*
 # Claude Code agent worktrees and local settings
 .claude/worktrees/
 .wp2emdash.local.json
+
+# The agency monitor (wp2emdash monitor init|build): client domains + agency alert address
+/monitor/

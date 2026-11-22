@@ -12,6 +12,7 @@ Astro, Wrangler and Cloudflare versions before code depended on it — check the
 | [seo-rules.md](seo-rules.md) | The kit's on-page SEO rules and the scenario for handling an SEO audit of a live site |
 | [WordPress → EmDash parity](parity/wp-to-emdash.md) | 110-feature matrix: where each WordPress feature lives in EmDash 1.5, what the kit does with it, the gap and its priority ([JSON](parity/wp-to-emdash.json), same data) |
 | [Environment setup](staging-setup.md) | Production on `workers.dev` (the default) and opt-in staging: resources, build → migrate → deploy, first admin sign-in (passkeys), load token, client CI, go-live and after it, troubleshooting |
+| [Outside-in monitor](monitor.md) | One Worker in the agency's account that checks every delivered site from outside (uptime, certificate and domain expiry), alerts by email / Telegram / Slack, private status page: setup, secrets, deploy, limits |
 | [Cloudflare API tokens](cloudflare-api-token.md) | The reusable build token (kit `.env`) and the separate, zone-scoped go-live token used only at cutover; permission sets and where each token goes |
 | [Site workspaces](../sites/README.md) | What lives in `sites/<slug>/` and why none of it is ever committed |
 | [Changelog](../CHANGELOG.md) | What changed, by day and milestone |
@@ -58,6 +59,7 @@ Astro, Wrangler and Cloudflare versions before code depended on it — check the
 | [Privacy & consent](spikes/consent-findings.md) | Banner modes, regions, Consent Mode v2, Meta/Clarity/Hotjar consent, GPC, caching |
 | [Custom post types & fields](spikes/cpt-findings.md) | CPTs → EmDash collections; ACF, Meta Box and Pods field mapping |
 | [Site health](spikes/health-findings.md) | Cron design, check limits, alerts and the monthly report |
+| [Outside-in monitor](spikes/monitor-findings.md) | Cron Triggers vs GitHub Actions schedules, Workers/KV limits, `global_fetch_strictly_public`, Cert Spotter / crt.sh / RDAP response shapes (live read-only GETs), wrangler dry-run and local run |
 | [Media assistant](spikes/media-findings.md) | Media scan, Images binding optimizing, Workers AI alt text, trash |
 | [Motion](spikes/motion-findings.md) | Cross-document View Transitions, the preloader's cap and CSP, byte-identical pages with motion off |
 | [P2 parity batch](spikes/p2-batch-findings.md) | Team invites (EmDash invite API, roles), term descriptions, page order/parent/excerpt/featured image, reusable blocks as sections, oEmbeds, Adobe Fonts, image sitemap entries |
