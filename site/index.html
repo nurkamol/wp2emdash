@@ -287,6 +287,89 @@ td.nowrap { white-space: nowrap; }
 .links a:hover svg { color: var(--brand-text); }
 .req { margin: 16px 0 0; font-size: 14px; color: var(--text-subtle); }
 
+/* Dashboard walkthrough: illustrations of the local dashboard (wp2emdash ui), drawn in HTML with made-up data */
+.walk { list-style: none; margin: 0; padding: 0; display: grid; gap: 56px; counter-reset: w; }
+.walk > li { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 40px; align-items: center; counter-increment: w; }
+.walk-text::before { content: counter(w, decimal-leading-zero); display: block; font: 500 12px/1 var(--mono); color: var(--brand-text); margin-bottom: 14px; }
+.walk-text h3 { font-size: 20px; margin-bottom: 10px; }
+.walk-text p { margin: 0 0 12px; color: var(--text-subtle); font-size: 15px; line-height: 1.6; }
+.walk-text p:last-child { margin-bottom: 0; }
+.mock { margin: 0; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--base); box-shadow: var(--shadow); overflow: hidden; font-size: 12px; line-height: 1.45; color: var(--text); }
+.mock-bar { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--recessed); font: 11px/1 var(--mono); color: var(--text-faint); }
+.mock-bar .dots i { width: 8px; height: 8px; }
+.mock-url { flex: 1; min-width: 0; background: var(--base); border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mock-nav { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--line); font-size: 11.5px; color: var(--text-subtle); }
+.mock-nav b { color: var(--text-strong); font-weight: 650; }
+.mock-logo { font: 700 9px/1 var(--mono); background: var(--text-strong); color: var(--canvas); border-radius: 4px; padding: 3px 4px; }
+.mock-tabs { display: flex; gap: 14px; padding: 0 14px; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--text-subtle); overflow: hidden; white-space: nowrap; }
+.mock-tabs span { padding: 8px 0; }
+.mock-tabs .on-tab { color: var(--text-strong); box-shadow: inset 0 -2px 0 var(--brand); }
+.mock-body { padding: 14px; display: grid; gap: 10px; }
+.m-title { font-size: 15px; font-weight: 680; color: var(--text-strong); margin: 0; }
+.m-sub { color: var(--text-faint); font-size: 11px; margin: 0; }
+.m-card { border: 1px solid var(--line); border-radius: var(--r); background: var(--elevated); padding: 12px; display: grid; gap: 8px; }
+.m-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.m-row > .grow { flex: 1; min-width: 0; }
+.m-k { color: var(--text-faint); width: 72px; flex: none; }
+.m-gates { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+.m-gates span { display: grid; gap: 4px; font-size: 9.5px; color: var(--text-faint); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-gates span::before { content: ""; height: 4px; border-radius: 2px; background: var(--line-strong); }
+.m-gates .g-ok::before { background: var(--ok); }
+.m-gates .g-acc::before { background: var(--warn); }
+.m-gates .g-bad::before { background: var(--bad); }
+.m-gates .g-now { color: var(--text-strong); font-weight: 650; }
+.m-ring { --p: 64; width: 46px; height: 46px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: var(--text-strong); background: radial-gradient(closest-side, var(--elevated) 76%, transparent 78% 100%), conic-gradient(var(--warn) calc(var(--p) * 1%), var(--line) 0); }
+.m-ring.full { background: radial-gradient(closest-side, var(--elevated) 76%, transparent 78% 100%), conic-gradient(var(--ok) 100%, var(--line) 0); }
+.m-cmd { display: flex; align-items: center; gap: 8px; font: 10.5px/1.4 var(--mono); background: var(--recessed); border: 1px solid var(--line); border-radius: 5px; padding: 5px 6px 5px 8px; min-width: 0; }
+.m-cmd code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: none; border: 0; padding: 0; font-size: inherit; }
+.m-btn { display: inline-block; font: 600 10.5px/1 var(--font); border: 1px solid var(--line-strong); background: var(--base); color: var(--text); border-radius: 5px; padding: 5px 8px; white-space: nowrap; }
+.m-btn.pri { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.m-btn.danger { background: color-mix(in oklch, var(--bad) 85%, transparent); border-color: transparent; color: #111; }
+.m-badge { display: inline-block; font-size: 9.5px; font-weight: 600; border-radius: 999px; padding: 2px 7px; white-space: nowrap; }
+.m-badge.ok { color: var(--ok); background: color-mix(in oklch, var(--ok) 16%, transparent); }
+.m-badge.warn { color: var(--warn); background: color-mix(in oklch, var(--warn) 16%, transparent); }
+.m-badge.bad { color: var(--bad); background: color-mix(in oklch, var(--bad) 16%, transparent); }
+.m-badge.info { color: var(--text-subtle); background: var(--tint); }
+.m-log { margin: 0; font: 10.5px/1.65 var(--mono); background: var(--recessed); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; color: var(--text-subtle); white-space: pre; overflow: hidden; }
+.m-log .ok { color: var(--ok); } .m-log .bad { color: var(--bad); } .m-log .st { color: var(--text-strong); }
+.m-progress { height: 5px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.m-progress i { display: block; height: 100%; width: 62%; background: var(--brand); }
+.m-slider { position: relative; height: 150px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; }
+.m-slider > div { padding: 10px; display: grid; gap: 6px; align-content: start; }
+.m-slider .wp { background: oklch(94% 0.01 80); }
+.m-slider .ed { background: oklch(94% 0.02 250); }
+.m-slider .lab { justify-self: start; font-size: 9px; font-weight: 650; color: #fff; background: oklch(30% 0 0); border-radius: 999px; padding: 2px 7px; }
+.m-slider .ed .lab { justify-self: end; }
+.m-slider .blk { height: 10px; border-radius: 3px; background: oklch(78% 0 0); }
+.m-slider .blk.h { height: 30px; background: oklch(70% 0.06 60); }
+.m-slider .ed .blk.h { background: oklch(70% 0.06 60); }
+.m-slider .blk.s { width: 60%; }
+.m-slider .blk.hl { outline: 2px solid var(--bad); outline-offset: 1px; }
+.m-slider::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--brand); }
+.m-slider::before { content: "⟷"; position: absolute; left: 50%; top: 50%; z-index: 1; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%; background: var(--brand); color: #111; font-size: 12px; display: grid; place-items: center; }
+.m-diff { margin: 0; font: 10.5px/1.6 var(--mono); background: var(--recessed); border: 1px solid var(--line); border-radius: 6px; padding: 8px 0; overflow: hidden; white-space: pre; color: var(--text-subtle); }
+.m-diff span { display: block; padding: 0 10px; }
+.m-diff .add { color: var(--ok); background: color-mix(in oklch, var(--ok) 12%, transparent); }
+.m-diff .del { color: var(--bad); background: color-mix(in oklch, var(--bad) 12%, transparent); }
+.m-diff .hunk { color: var(--text-faint); }
+.m-field { display: grid; gap: 4px; font-size: 10.5px; color: var(--text-faint); }
+.m-field > span:last-child { border: 1px solid var(--line-strong); border-radius: 5px; background: var(--base); padding: 6px 8px; color: var(--text); font-size: 11px; min-height: 26px; }
+.m-check { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text); }
+.m-check::before { content: "✓"; width: 13px; height: 13px; border-radius: 3px; background: var(--brand); color: #111; font-size: 9px; font-weight: 800; display: grid; place-items: center; flex: none; }
+.m-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.m-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.m-table th { font: 600 9px/1.2 var(--mono); padding: 6px 8px; background: var(--recessed); color: var(--text-faint); letter-spacing: 0.04em; }
+.m-table td { padding: 6px 8px; border-top: 1px solid var(--line); color: var(--text-subtle); white-space: nowrap; font-weight: 400; }
+.m-table td:first-child { color: var(--text-strong); font-weight: 600; }
+.walk-foot { margin: 40px 0 0; }
+
+/* Operations grid */
+.opsgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; list-style: none; margin: 0; padding: 0; }
+.opsgrid li { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--elevated); padding: 20px 20px 22px; display: grid; gap: 8px; align-content: start; }
+.opsgrid code.verb { justify-self: start; font-size: 12.5px; color: var(--brand-text); background: transparent; border: 0; padding: 0; font-weight: 600; white-space: normal; }
+.opsgrid h3 { font-size: 16px; }
+.opsgrid p { margin: 0; color: var(--text-subtle); font-size: 14px; line-height: 1.55; }
+
 /* Footer */
 footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14px; color: var(--text-subtle); }
 .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 24px; align-items: flex-start; }
@@ -311,6 +394,8 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 	.defs, .defs.three { grid-template-columns: minmax(0, 1fr); }
 	.pipeline li { grid-template-columns: 52px minmax(0, 1fr); }
 	.pipeline li > .proves-col { grid-column: 2; }
+	.walk > li { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+	.opsgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 	.nav { display: none; }
 }
 @media (max-width: 720px) {
@@ -331,6 +416,12 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 	.parity .big { text-align: left; }
 	.pipeline li { padding: 20px 18px 20px 14px; gap: 14px; grid-template-columns: 44px minmax(0, 1fr); }
 	.pipeline li::after { left: 18px; }
+	.walk > li { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+	.walk { gap: 48px; }
+	.opsgrid { grid-template-columns: minmax(0, 1fr); }
+	.m-grid2 { grid-template-columns: minmax(0, 1fr); }
+	.mock-tabs span:nth-child(n+6) { display: none; }
+	.m-gates span:not(.g-now) { color: transparent; }
 	.term pre { font-size: 11.5px; padding: 14px; }
 	.lede { font-size: 17px; }
 	.brand-text-hide { display: none; }
@@ -362,9 +453,11 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 		</a>
 		<nav class="nav" aria-label="Sections">
 			<a href="#pipeline">Pipeline</a>
+			<a href="#dashboard">Dashboard</a>
 			<a href="#migrates">What it migrates</a>
 			<a href="#plugins">Plugins</a>
 			<a href="#launch">Launch</a>
+			<a href="#operations">Operations</a>
 			<a href="#start">Get started</a>
 		</nav>
 		<div class="top-actions">
@@ -440,7 +533,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 				<div class="stat"><dt>unmapped content nodes on the real WPBakery/Salient site</dt><dd>0</dd></div>
 				<div class="stat"><dt>of the live site’s page text carried over</dt><dd>100<small>%</small></dd></div>
 				<div class="stat"><dt>in-scope WordPress features done in the parity audit</dt><dd>87<small> / 103</small></dd></div>
-				<div class="stat"><dt>automated tests, golden fixtures per element</dt><dd>1702</dd></div>
+				<div class="stat"><dt>automated tests, golden fixtures per element</dt><dd>1760</dd></div>
 			</dl>
 		</div>
 	</div>
@@ -501,6 +594,180 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 		</div>
 	</section>
 
+	<section class="block" id="dashboard" aria-labelledby="dashboard-h">
+		<div class="wrap">
+			<div class="sec-head">
+				<div>
+					<p class="kicker">Dashboard</p>
+					<h2 id="dashboard-h">A migration, step by step, in the browser<a class="anchor" href="#dashboard" aria-label="Link to this section">#</a></h2>
+				</div>
+				<p><code>pnpm wp2emdash ui</code> opens a local dashboard for everything a terminal can’t show well: where each site stands, screenshots and diffs, changes waiting for approval, and the launch. Phases still run from the terminal or the wizard, and the dashboard streams them live. The pictures below are drawings of the real screens, filled with made-up data.</p>
+			</div>
+
+			<ol class="walk">
+				<li>
+					<div class="walk-text">
+						<h3>Open the portfolio</h3>
+						<p>Run <code>pnpm wp2emdash ui</code>. It serves on <code>127.0.0.1</code> only, behind a token that is new on every start, and opens your browser.</p>
+						<p>Every site in <code>sites/</code> gets a card: the eight phases as a bar, a launch-readiness score, what blocks launch, the last run and the exact command to run next, with a copy button.</p>
+					</div>
+					<figure class="mock" aria-label="Illustration: the portfolio page with one site card">
+						<div class="mock-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="mock-url">127.0.0.1:53480 · wp2emdash dashboard</span></div>
+						<div class="mock-nav" aria-hidden="true"><span class="mock-logo">W→E</span><b>wp2emdash</b> dashboard <span style="margin-left:auto">Portfolio</span></div>
+						<div class="mock-body" aria-hidden="true">
+							<p class="m-title">Portfolio</p>
+							<p class="m-sub">2 sites · refreshes every 5 s · Fleet (versions, upgrades, to-dos) →</p>
+							<div class="m-card">
+								<div class="m-row"><div class="grow"><b style="color:var(--brand-text);font-size:13px">Example Studio</b><br><span class="m-sub">example · example.com</span></div><span class="m-ring" style="--p:64">64</span></div>
+								<div class="m-gates"><span class="g-ok">init</span><span class="g-ok">audit</span><span class="g-ok">extract</span><span class="g-acc">transform</span><span class="g-ok">scaffold</span><span class="g-ok">load</span><span class="g-bad g-now">verify</span><span>cutover</span></div>
+								<div class="m-row"><span class="m-k">Next</span><b class="grow">verify (failing)</b></div>
+								<div class="m-cmd"><code>pnpm wp2emdash run example verify</code><span class="m-btn">Copy</span></div>
+								<div class="m-row"><span class="m-k">Readiness</span><span class="grow">7 / 11 launch checks pass</span></div>
+								<div class="m-row"><span class="m-k">Approvals</span><span class="grow" style="color:var(--brand-text)">1 waiting</span></div>
+							</div>
+						</div>
+					</figure>
+				</li>
+
+				<li>
+					<div class="walk-text">
+						<h3>See what blocks launch</h3>
+						<p>A site’s Overview shows every gate (passed, accepted with the owner’s reason, or failed) and turns the failing checks into a to-do list. Each item has the command or the screen that fixes it.</p>
+						<p>The readiness score is simply the share of launch checks that pass: pipeline gates, verify checks and the cutover preflight.</p>
+					</div>
+					<figure class="mock" aria-label="Illustration: a site overview with gates, blockers and the readiness score">
+						<div class="mock-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="mock-url">127.0.0.1:53480/#/site/example</span></div>
+						<div class="mock-tabs" aria-hidden="true"><span class="on-tab">Overview</span><span>Visual diff</span><span>Inspector</span><span>Approvals</span><span>Secrets</span><span>Checklist</span><span>Launch</span><span>Runs</span></div>
+						<div class="mock-body" aria-hidden="true">
+							<div class="m-gates"><span class="g-ok">passed</span><span class="g-ok">passed</span><span class="g-ok">passed</span><span class="g-acc">accepted</span><span class="g-ok">passed</span><span class="g-ok">passed</span><span class="g-bad g-now">failed</span><span>—</span></div>
+							<div class="m-grid2">
+								<div class="m-card">
+									<b style="color:var(--text-strong)">What blocks launch</b>
+									<div><b>Visual difference within 3%</b><br><span class="m-sub">/ · phone 12.0% → open the visual viewer</span></div>
+									<div><b>Every old address accounted for</b><br><span class="m-sub">317 / 318 · /spring-offer/ answers 404</span></div>
+									<div class="m-cmd"><code>pnpm wp2emdash run example verify</code><span class="m-btn">Copy</span></div>
+								</div>
+								<div class="m-card">
+									<div class="m-row"><span class="m-ring" style="--p:64">64</span><div class="grow"><b style="color:var(--text-strong)">Launch readiness</b><br><span class="m-sub">7 of 11 launch checks pass</span></div></div>
+									<div class="m-row"><span class="m-badge ok">ok</span><span class="grow">audit · extract · scaffold · load</span></div>
+									<div class="m-row"><span class="m-badge warn">accepted</span><span class="grow">transform: owner dropped the old slider</span></div>
+									<div class="m-row"><span class="m-badge bad">fail</span><span class="grow">verify: 2 checks failing</span></div>
+								</div>
+							</div>
+						</div>
+					</figure>
+				</li>
+
+				<li>
+					<div class="walk-text">
+						<h3>Run a phase and watch it live</h3>
+						<p>Run the phase from the terminal or the wizard. The dashboard streams its steps, item counts and log as they happen, and keeps every past run on the Runs tab.</p>
+						<p>Gates are data, so the terminal, CI, Claude Code and the dashboard all show the same result.</p>
+					</div>
+					<figure class="mock" aria-label="Illustration: a verify run streaming in the Runs tab">
+						<div class="mock-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="mock-url">127.0.0.1:53480/#/site/example/runs</span></div>
+						<div class="mock-tabs" aria-hidden="true"><span>Overview</span><span>Visual diff</span><span>Inspector</span><span>Approvals</span><span>Secrets</span><span>Checklist</span><span>Launch</span><span class="on-tab">Runs</span></div>
+						<div class="mock-body" aria-hidden="true">
+							<div class="m-row"><b class="grow" style="color:var(--text-strong)">verify · running</b><span class="m-badge info">step 3 of 6</span></div>
+							<div class="m-row"><span class="grow m-sub">Visual diff · 78 / 126 page views</span></div>
+							<div class="m-progress"><i></i></div>
+<pre class="m-log"><span class="st">▶ verify</span>
+  <span class="ok">✔</span> Pages (42)
+  <span class="ok">✔</span> Old addresses — 318/318 accounted for
+  • Visual diff — 78/126 · phone, tablet, desktop
+    /about/ desktop 0.8% · /contact/ phone 1.1%</pre>
+						</div>
+					</figure>
+				</li>
+
+				<li>
+					<div class="walk-text">
+						<h3>Compare WordPress and EmDash</h3>
+						<p>Every page at phone, tablet and desktop widths: drag the slider, view them side by side, or show only the changed pixels. A table lists the difference section by section.</p>
+						<p>Approve or reject a difference with a reason, and a dated row goes into <code>decisions.md</code>. That never passes the gate on its own: the owner still accepts it with <code>wp2emdash accept</code>.</p>
+					</div>
+					<figure class="mock" aria-label="Illustration: the visual diff viewer with a slider between the WordPress and EmDash screenshots">
+						<div class="mock-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="mock-url">127.0.0.1:53480/#/site/example/visual</span></div>
+						<div class="mock-tabs" aria-hidden="true"><span>Overview</span><span class="on-tab">Visual diff</span><span>Inspector</span><span>Approvals</span><span>Secrets</span><span>Checklist</span><span>Launch</span><span>Runs</span></div>
+						<div class="mock-body" aria-hidden="true">
+							<div class="m-row"><b class="grow" style="color:var(--text-strong)">/ · phone · difference <span style="color:var(--bad)">12.0%</span></b><span class="m-btn pri">Slider</span><span class="m-btn">Side by side</span><span class="m-btn">Pixel diff</span></div>
+							<div class="m-slider">
+								<div class="wp"><span class="lab">WordPress</span><span class="blk h"></span><span class="blk"></span><span class="blk s"></span><span class="blk"></span><span class="blk s"></span></div>
+								<div class="ed"><span class="lab">EmDash</span><span class="blk h"></span><span class="blk"></span><span class="blk s hl"></span><span class="blk"></span><span class="blk s"></span></div>
+							</div>
+							<div class="m-row"><span class="grow m-sub">Section 2 · intro text wraps one line later</span><span class="m-btn">Reject</span><span class="m-btn pri">Approve with reason</span></div>
+						</div>
+					</figure>
+				</li>
+
+				<li>
+					<div class="walk-text">
+						<h3>Approve the fixes</h3>
+						<p>Click a row on the WordPress screenshot in the Section inspector to see its source and what it became. “Change section type” or “Drop row” writes a proposal. Claude Code’s suggestions land in the same queue.</p>
+						<p>Each proposal shows the exact change to <code>overrides.ts</code> or <code>decisions.md</code>. Approving applies it and can start a preview run of transform, scaffold or verify. It never starts load or cutover.</p>
+					</div>
+					<figure class="mock" aria-label="Illustration: the approval queue with a proposed change to overrides.ts">
+						<div class="mock-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="mock-url">127.0.0.1:53480/#/site/example/approvals</span></div>
+						<div class="mock-tabs" aria-hidden="true"><span>Overview</span><span>Visual diff</span><span>Inspector</span><span class="on-tab">Approvals</span><span>Secrets</span><span>Checklist</span><span>Launch</span><span>Runs</span></div>
+						<div class="mock-body" aria-hidden="true">
+							<div class="m-row"><b class="grow" style="color:var(--text-strong)">Map the intro row on / to a rich text section</b><span class="m-badge info">pending</span></div>
+							<span class="m-sub">overrides.ts · proposed by the section inspector · rerun: transform</span>
+<pre class="m-diff"><span class="hunk">@@ -6,7 +6,9 @@</span><span>   routes: {},</span><span class="del">-  elements: {},</span><span class="add">+  elements: {</span><span class="add">+    "home:vc_row[1]": "rich_text",</span><span class="add">+  },</span><span>   integrations: {},</span></pre>
+							<div class="m-check">After approving, start a preview run of transform</div>
+							<div class="m-row"><span class="m-btn pri">Approve and apply</span><span class="m-btn danger">Reject</span></div>
+						</div>
+					</figure>
+				</li>
+
+				<li>
+					<div class="walk-text">
+						<h3>Hand over keys safely</h3>
+						<p>The Secrets tab takes each key in a write-only form: the migration key, the app password, Cloudflare and email keys. Values go to the site’s <code>.env</code> and are never shown again, only “set” and a short fingerprint.</p>
+						<p>The owner’s checklist (<code>ACCESS.md</code>) is shown next to it, so missing access is visible before the first phase runs.</p>
+					</div>
+					<figure class="mock" aria-label="Illustration: the write-only secrets form">
+						<div class="mock-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="mock-url">127.0.0.1:53480/#/site/example/secrets</span></div>
+						<div class="mock-tabs" aria-hidden="true"><span>Overview</span><span>Visual diff</span><span>Inspector</span><span>Approvals</span><span class="on-tab">Secrets</span><span>Checklist</span><span>Launch</span><span>Runs</span></div>
+						<div class="mock-body" aria-hidden="true">
+							<table class="m-table">
+								<thead><tr><th>KEY</th><th>STATUS</th><th>FINGERPRINT</th></tr></thead>
+								<tbody>
+									<tr><td>Migration key</td><td><span class="m-badge ok">set</span></td><td>3f9a1c0e</td></tr>
+									<tr><td>Email API key</td><td><span class="m-badge ok">set</span></td><td>b71d42aa</td></tr>
+									<tr><td>Go-live token</td><td><span class="m-badge warn">not set</span></td><td>—</td></tr>
+								</tbody>
+							</table>
+							<div class="m-field"><span>Go-live token (write-only)</span><span>••••••••••••••••</span></div>
+							<div class="m-row"><span class="grow m-sub">Saved to sites/example/.env · never returned or logged</span><span class="m-btn pri">Save</span></div>
+						</div>
+					</figure>
+				</li>
+
+				<li>
+					<div class="walk-text">
+						<h3>Launch with the owner’s approval</h3>
+						<p>The Launch cockpit shows the cutover preflight, the runbook and each step: go live, alias redirects and rollback. “Show plan” lists exactly what will change and changes nothing.</p>
+						<p>A step runs only after you type the production domain, tick that the owner approved it in writing and record who approved it and when. It runs the same <code>golive</code> command as the terminal. DNS is never changed.</p>
+					</div>
+					<figure class="mock" aria-label="Illustration: the launch cockpit asking for the typed domain and the owner's written approval">
+						<div class="mock-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="mock-url">127.0.0.1:53480/#/site/example/launch</span></div>
+						<div class="mock-tabs" aria-hidden="true"><span>Overview</span><span>Visual diff</span><span>Inspector</span><span>Approvals</span><span>Secrets</span><span>Checklist</span><span class="on-tab">Launch</span><span>Runs</span></div>
+						<div class="mock-body" aria-hidden="true">
+							<div class="m-row"><span class="m-ring full">100</span><div class="grow"><b style="color:var(--text-strong)">Go live (routes for the domain)</b><br><span class="m-sub">Preflight passed · 11 of 11 launch checks</span></div><span class="m-btn">Show plan</span></div>
+							<div class="m-grid2">
+								<div class="m-field"><span>Type the production domain</span><span>example.com</span></div>
+								<div class="m-field"><span>Approved by, when, where</span><span>Owner · 3 Dec, by email</span></div>
+							</div>
+							<div class="m-check">The owner approved this in writing</div>
+							<div class="m-row"><span class="grow m-sub">Recorded in decisions.md and cutover/golive.json</span><span class="m-btn pri">Go live</span></div>
+						</div>
+					</figure>
+				</li>
+			</ol>
+			<p class="note walk-foot"><strong>After launch:</strong> the Fleet page lists every site with the kit version it was built with, its last change, its last upgrade check and open owner to-dos. The dashboard writes only what you decide in it: decisions, approved proposals, keys and the owner-approved launch steps. It never accepts a gate and never changes DNS.</p>
+		</div>
+	</section>
+
 	<section class="block" id="migrates" aria-labelledby="migrates-h">
 		<div class="wrap">
 			<div class="sec-head">
@@ -547,7 +814,9 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 						<tr><td>Settings, site code</td><td><span class="status s-ok">Supported</span></td><td>EmDash settings prefilled from WordPress; tracking, chat and review widgets recognised from 46 known providers. Unknown code is never carried automatically.</td></tr>
 						<tr><td>Header, menus, popups</td><td><span class="status s-ok">Supported</span></td><td>Header layout and burger-menu motion measured from the live site; popups with their triggers; announcement bars as an editable site part; every menu, classic widget areas, a search page, breadcrumbs and the old 404 page.</td></tr>
 						<tr><td>Other builders</td><td><span class="status s-built">Built</span></td><td>Avada, Beaver Builder, Oxygen, Breakdance, Thrive, SiteOrigin, Flatsome and plain themes: pages rebuilt from the rendered HTML and held for a visual review. Not yet run on a real site.</td></tr>
-						<tr><td>Shops, memberships</td><td><span class="status s-no">Not yet</span></td><td>Detected by the audit, which stops for a decision.</td></tr>
+						<tr><td>WooCommerce catalogue</td><td><span class="status s-built">Built</span></td><td>Small shops by owner decision: products at their WordPress addresses with price, sale price, gallery and variations, a Buy button to an external checkout, Stripe Payment Links or the contact form, a product grid section, and Product structured data. Not yet run on a real shop.</td></tr>
+						<tr><td>Multilingual (WPML, Polylang)</td><td><span class="status s-built">Built</span></td><td>Every language keeps its address (<code>/fr/…</code> directories), with hreflang links, a language switcher and menus per language. Not yet run on a real multilingual site.</td></tr>
+						<tr><td>Carts, memberships, courses</td><td><span class="status s-no">Not yet</span></td><td>Full checkout, subscriptions, memberships, courses and multisite are detected by the audit, which stops for a decision.</td></tr>
 					</tbody>
 				</table>
 			</div>
@@ -568,15 +837,15 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 					<caption class="sr-only">Plugins shipped with every migrated site</caption>
 					<thead><tr><th scope="col">Plugin</th><th scope="col">What the client sees</th><th scope="col">Admin page</th><th scope="col">Default</th></tr></thead>
 					<tbody>
-						<tr><td>SEO &amp; Analytics<span class="pkg">@wp2emdash/seo</span></td><td>A score, Google preview and plain-words checklist next to every page; Search Console, IndexNow, tracking codes by ID and Cloudflare Web Analytics visits.</td><td><span>Page editor</span> · Plugins → SEO &amp; Analytics</td><td><span class="on">On</span></td></tr>
+						<tr><td>SEO &amp; Analytics<span class="pkg">@wp2emdash/seo</span></td><td>A score, Google preview and plain-words checklist next to every page; Search Console, IndexNow, tracking codes by ID (loaded after the page has drawn) and Cloudflare Web Analytics visits. SEO fix-it drafts missing descriptions and focus keywords with Workers AI, for an editor to approve.</td><td><span>Page editor</span> · Plugins → SEO &amp; Analytics</td><td><span class="on">On</span></td></tr>
 						<tr><td>Sharing images<span class="pkg">@wp2emdash/og</span></td><td>A branded og:image per page, drawn in the Worker from the site’s logo, colours and fonts, stored in R2.</td><td>Plugins → Sharing images</td><td><span class="on">On</span></td></tr>
-						<tr><td>Site health<span class="pkg">@wp2emdash/health</span></td><td>Scheduled checks for uptime, indexability, broken links, form email, mail DNS and speed; a branded monthly report.</td><td>Plugins → Site health</td><td><span class="on">On</span></td></tr>
+						<tr><td>Site health<span class="pkg">@wp2emdash/health</span></td><td>Scheduled checks for uptime, indexability, broken links, form email, mail DNS and speed; a weekly PageSpeed score; a weekly visual and accessibility check of the main pages; warnings for past dates and pages left untouched; “What to improve this month” in the branded monthly report.</td><td>Plugins → Site health</td><td><span class="on">On</span></td></tr>
 						<tr><td>Privacy &amp; consent<span class="pkg">@wp2emdash/consent</span></td><td>A cookie banner (opt-in for EU/UK, notice elsewhere) that trackers follow, with Google Consent Mode v2.</td><td>Plugins → Privacy &amp; consent</td><td><span class="on">On</span></td></tr>
-						<tr><td>Backups &amp; restore<span class="pkg">@wp2emdash/backups</span></td><td>Nightly content backups to the site’s own storage; restore settings, menus or a single page with a preview of every change.</td><td>Plugins → Backups</td><td><span class="on">On</span></td></tr>
+						<tr><td>Backups &amp; restore<span class="pkg">@wp2emdash/backups</span></td><td>Nightly content backups to the site’s own storage; restore settings, menus or a single page with a preview of every change. A monthly restore test proves the newest backup can actually be restored.</td><td>Plugins → Backups</td><td><span class="on">On</span></td></tr>
 						<tr><td>Media assistant<span class="pkg">@wp2emdash/media</span></td><td>Media health, optimizing with undo, alt-text suggestions a person reviews, focal points and a 30-day trash.</td><td>Plugins → Media</td><td><span class="on">On</span></td></tr>
 						<tr><td>Change requests<span class="pkg">@wp2emdash/change-requests</span></td><td>Ask for a change from inside the admin, with page, priority and screenshots; follow its status and replies.</td><td>Plugins → Change requests</td><td><span class="on">On</span></td></tr>
 						<tr><td>Motion<span class="pkg">@wp2emdash/motion</span></td><td>First-visit logo preloader, page transitions, entrance animations, hover lift, smooth scrolling. Every effect off until the owner switches it on; reduced motion always respected.</td><td>Plugins → Motion</td><td><span class="on">Panel on, motion off</span></td></tr>
-						<tr><td>Form messages<span class="pkg">@wp2emdash/forms</span></td><td>An outbox that holds form messages until email works, with inbox, search, export and editable recipients.</td><td>Plugins → Form messages</td><td><span class="on">On</span><span class="on-note">Off on sensitive-data sites</span></td></tr>
+						<tr><td>Form messages<span class="pkg">@wp2emdash/forms</span></td><td>An outbox that holds form messages until email works, with inbox, search, export and editable recipients. Optional lead sync to Brevo, HubSpot or Mailchimp, field by field and with consent.</td><td>Plugins → Form messages</td><td><span class="on">On</span><span class="on-note">Off on sensitive-data sites</span></td></tr>
 					</tbody>
 				</table>
 			</div>
@@ -604,9 +873,29 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 
 			<dl class="defs three" style="margin-top:48px">
 				<div><dt>Publish to the client’s repo</dt><dd><code>publish</code> scans for secrets, creates a private GitHub repository and pushes the project; its CI deploys it.</dd></div>
-				<div><dt>Launch cockpit</dt><dd>Readiness per site, live runs, visual review, environments and Worker secrets. Go-live needs the domain typed and the owner’s written approval.</dd></div>
+				<div><dt>Launch cockpit</dt><dd>Readiness per site, live runs, visual review, environments and Worker secrets. Go-live needs the domain typed and the owner’s written approval (<a href="#dashboard">see the dashboard</a>).</dd></div>
 				<div><dt>Bookmarks before writes</dt><dd>Every load into a live site and every go-live records a D1 Time Travel bookmark, with its restore command.</dd></div>
 			</dl>
+		</div>
+	</section>
+
+	<section class="block" id="operations" aria-labelledby="operations-h">
+		<div class="wrap">
+			<div class="sec-head">
+				<div>
+					<p class="kicker">Operations</p>
+					<h2 id="operations-h">Built for an agency with many sites<a class="anchor" href="#operations" aria-label="Link to this section">#</a></h2>
+				</div>
+				<p>From the first quote to years of updates: each tool reads before it writes, and nothing touches production without the owner’s approval.</p>
+			</div>
+			<ul class="opsgrid">
+				<li><code class="verb">estimate &lt;url&gt;</code><h3>Quote a prospect</h3><p>Reads a prospect’s public WordPress site politely (no login) and writes a branded client report plus an internal effort sheet: builder, plugins, forms, speed, blockers and an hours range from rules you tune.</p></li>
+				<li><code class="verb">deploy check</code><h3>Roll back a bad deploy</h3><p>After every deploy the site is checked like a visitor would: every page, its fonts, stylesheets, scripts and hero picture. If anything is broken, the Worker is rolled back to the version that was live before.</p></li>
+				<li><code class="verb">upgrade &lt;slug&gt;</code><h3>Upgrade with proof</h3><p>Captures every live page, rebuilds on the new kit, deploys staging if you ask, and compares page by page. It prints the production command for the owner and never runs it; <code>--verify</code> checks production afterwards.</p></li>
+				<li><code class="verb">fleet</code><h3>Every site at a glance</h3><p>One table with the kit version each site was built with, its last change, its last upgrade check, live status and owner to-dos. <code>fleet upgrade-prs</code> opens upgrade pull requests on a separate branch, never on main.</p></li>
+				<li><code class="verb">monitor</code><h3>Watch from the outside</h3><p>One small Worker loads every site’s home page every 5 minutes and checks certificate and domain expiry daily. It alerts by email, Telegram or Slack, even when a site’s own Worker or account is down.</p></li>
+				<li><code class="verb">sync-staging &lt;slug&gt;</code><h3>Test on real content</h3><p>Copies production’s content to staging from an explicit list of tables, without users, form messages or secrets. It shows a plan first and bookmarks staging before writing.</p></li>
+			</ul>
 		</div>
 	</section>
 
@@ -641,7 +930,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 0 56px; font-size: 14p
 			</div>
 			<dl class="defs three">
 				<div><dt>Terminal</dt><dd>A guided wizard: create a site, run each phase, record gates. <code>--json</code> on every command for scripts and CI.</dd></div>
-				<div><dt>Browser dashboard</dt><dd>Local on 127.0.0.1, token-protected. Reviews, approves, takes secrets in a write-only form and shows only their fingerprint.</dd></div>
+				<div><dt>Browser dashboard</dt><dd>Local on 127.0.0.1, token-protected. Reviews, approves, takes secrets in a write-only form and shows only their fingerprint. <a href="#dashboard">See it step by step</a>.</dd></div>
 				<div><dt>Claude Code</dt><dd>An MCP server and four skills run phases and explain red gates. Proposed changes wait in an approval queue for a person.</dd></div>
 			</dl>
 		</div>
