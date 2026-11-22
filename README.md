@@ -246,6 +246,8 @@ Run as `pnpm wp2emdash <command>`; `pnpm wp2emdash <command> --help` lists every
 | `golive <slug> [--yes]` | The owner-approved traffic switch (see [Launch](#launch)). Plan only without `--yes` |
 | `golive <slug> --aliases [--yes]` | Separate step once the primary is live: one Single Redirect rule per alias domain |
 | `golive <slug> --rollback [--aliases] [--yes]` | Delete exactly the routes / rules recorded in `cutover/golive.json`; `production.live = false` |
+| `upgrade <slug> [--deploy-staging] [--json]` | Move a delivered site to the current kit version: snapshot every live page (sitemap of the address the client is live on) → `reports/upgrade/<timestamp>/before.json`, rerun `scaffold` (stops on a failed gate), and on opt-in staging sites with `--deploy-staging` run `ci:deploy:staging` and compare staging page by page (status, title, description, h1, `lang`, hreflang count, visible text, links, images, forms, fonts; asset hashes, cache-busting strings, copyright year and kit version ignored). Never deploys production: prints the command for the owner. Exit 0 identical · 2 differences or scaffold failed · 1 error |
+| `upgrade <slug> --verify [production\|staging\|<url>]` | After the owner's production deploy: snapshot the address now and compare it with the latest `before.json` (`compare-<target>.md` / `.json`). A URL compares e.g. a Workers version preview (`pnpm versions:upload`) before production |
 | `publish <slug> [--repo owner/name] [--yes]` | Project → private GitHub repository: secret scan (file names only), commit, `gh repo create --private`, push, `CLOUDFLARE_ACCOUNT_ID` variable. Never sets the token secret. Plan only without `--yes` |
 | `proposals <slug> [approve\|reject <id>] --by "…"` | Approval queue for proposed `overrides.ts` / `decisions.md` changes |
 | `ui [--no-open] [--port <n>]` | Local dashboard on 127.0.0.1 |
@@ -766,7 +768,7 @@ The kit ships a stdio MCP server and four skills, so Claude Code can drive the p
 decision.
 
 **MCP server** — `pnpm wp2emdash mcp`. Tools: `status`, `run_phase`, `read_report`, `list_diagnostics`, `explain_gate`,
-`propose_override`. `run_phase` runs init → verify and any preview run; `load`/`verify` only against `local` or
+`propose_override`, `upgrade_verify` (read-only: compares production or staging with the latest pre-upgrade snapshot). `run_phase` runs init → verify and any preview run; `load`/`verify` only against `local` or
 `staging` (a single-environment site's default target, production, falls back to `local` there); `cutover` only as its
 read-only preflight. Anything that would deploy to production or change DNS / Worker
 routes is refused. Results never include `.env` contents, and values from the kit and site `.env` are scrubbed out.

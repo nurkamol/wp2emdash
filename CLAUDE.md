@@ -14,6 +14,7 @@ pnpm wp2emdash status     # phase timeline for all sites (--json for machines)
 pnpm wp2emdash run <slug> <phase> [--json]   # exit 0 pass · 2 gate failed · 3 not built yet · 1 error
 pnpm wp2emdash accept <slug> <phase> --reason "…" --by "…"
 pnpm wp2emdash doctor
+pnpm wp2emdash upgrade <slug> [--deploy-staging]   # delivered site → current kit: snapshot live pages, rerun scaffold, compare; prints (never runs) the production deploy; then --verify
 pnpm wp2emdash run <slug> load      # single environment (default): production on workers.dev once provisioned, else local; live production needs --force (D1 bookmark first)
 WP2EMDASH_LOAD_TARGET=staging pnpm wp2emdash run <slug> load   # sites that opted into staging (target.staging: true)
 pnpm test && pnpm typecheck   # run both before saying a change is done

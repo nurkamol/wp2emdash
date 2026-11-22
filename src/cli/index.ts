@@ -211,6 +211,35 @@ program
 	});
 
 program
+	.command("upgrade")
+	.description("Move a delivered site to the current kit version: snapshot every live page, rerun scaffold, (opt-in staging) deploy staging and compare page by page; prints the production deploy command, never runs it. --verify afterwards compares production with the saved snapshot")
+	.argument("<slug>")
+	.option("--deploy-staging", "sites with staging (target.staging): run the project's ci:deploy:staging, then compare staging with the snapshot")
+	.option("--verify [where]", "compare an address with the latest before.json now: production (default), staging, or a URL (e.g. a Workers version preview)")
+	.option("--limit <n>", "snapshot at most n pages (default 300)")
+	.option("--json", "print the result as JSON")
+	.action(async (slug: string, o: { deployStaging?: boolean; verify?: string | boolean; limit?: string; json?: boolean }) => {
+		const { upgrade } = await import("../commands/upgrade.js");
+		if (o.verify !== undefined && o.deployStaging) fail("--verify and --deploy-staging are separate steps");
+		const limit = o.limit ? Number(o.limit) : undefined;
+		if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) fail("--limit must be a positive whole number");
+		try {
+			const r = await upgrade(slug, { ...(o.verify !== undefined ? { verify: o.verify === true ? "production" : String(o.verify) } : {}), ...(o.deployStaging ? { deployStaging: true } : {}), ...(limit ? { limit } : {}), ...(o.json ? {} : { log: (l: string) => console.log(pc.dim(l)) }) });
+			if (o.json) console.log(JSON.stringify(r, null, 2));
+			else {
+				if (r.scaffold) console.log(`${r.scaffold.ok ? pc.green("✔") : pc.red("✖")} scaffold gate${r.scaffold.failing.length ? pc.dim(` — failing: ${r.scaffold.failing.map((c) => c.id).join(", ")}`) : ""}`);
+				if (r.stagingDeploy?.ran) console.log(`${r.stagingDeploy.ok ? pc.green("✔") : pc.red("✖")} staging deploy${r.stagingDeploy.reason ? pc.dim(` — ${r.stagingDeploy.reason}`) : ""}`);
+				for (const c of r.comparisons) console.log(`${c.identical ? pc.green("✔") : pc.red("✖")} ${c.label}: ${c.identical ? "identical (only expected changes)" : `${c.pagesWithDifferences} page(s) with differences`} · ${c.pagesCompared} compared${c.pagesWithNotices ? pc.dim(` · ${c.pagesWithNotices} with expected changes`) : ""}\n  ${pc.dim(`Report: ${c.md}`)}`);
+				if (r.error) console.log(pc.red(r.error));
+				if (r.next.length) console.log(`\nNext:\n${r.next.map((n) => `  - ${n}`).join("\n")}`);
+			}
+			process.exit(r.exitCode);
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
 	.command("phases")
 	.description("List pipeline phases")
 	.action(() => {
@@ -264,7 +293,7 @@ program
 
 program
 	.command("mcp")
-	.description("MCP server on stdio for Claude Code: status, run_phase, read_report, list_diagnostics, explain_gate, propose_override")
+	.description("MCP server on stdio for Claude Code: status, run_phase, read_report, list_diagnostics, explain_gate, propose_override, upgrade_verify")
 	.action(async () => {
 		const { serveMcp } = await import("../mcp/server.js");
 		await serveMcp();

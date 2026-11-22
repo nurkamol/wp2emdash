@@ -336,3 +336,20 @@ export function proposeOverrideTool(input: { slug: string; summary: string; file
 		throw new ToolError(`Proposal not written: ${(e as Error).message}`);
 	}
 }
+
+// ── upgrade_verify ─────────────────────────────────────────────────────────────────────────────────────
+/**
+ * Read-only part of `wp2emdash upgrade`: snapshot production (or staging) now and compare it with the latest
+ * before.json. Only GET requests to the public site; writes the comparison under reports/upgrade/. It never rebuilds,
+ * deploys or takes the before snapshot (the operator's `wp2emdash upgrade <slug>`).
+ */
+export async function upgradeVerifyTool(input: { slug: string; against?: "production" | "staging" | undefined }, env: ToolEnv & { fetcher?: typeof fetch }) {
+	assertSite(input.slug, env);
+	const { upgrade } = await import("../commands/upgrade.js");
+	try {
+		const r = await upgrade(input.slug, { sitesDir: env.sitesDir, verify: input.against ?? "production" }, env.fetcher ? { fetcher: env.fetcher } : {});
+		return JSON.parse(scrubFor(input.slug, JSON.stringify(r), env)) as typeof r;
+	} catch (e) {
+		throw new ToolError(scrubFor(input.slug, (e as Error).message, env));
+	}
+}

@@ -161,13 +161,13 @@ describe("kit MCP tools", () => {
 		expect(out).toContain("staging 1");
 	});
 
-	it("the server registers the six tools over MCP", async () => {
+	it("the server registers the seven tools over MCP", async () => {
 		const server = createMcpServer(env);
 		const [a, b] = InMemoryTransport.createLinkedPair();
 		const client = new Client({ name: "test", version: "0" });
 		await Promise.all([server.connect(a), client.connect(b)]);
 		const { tools } = await client.listTools();
-		expect(tools.map((t) => t.name).sort()).toEqual(["explain_gate", "list_diagnostics", "propose_override", "read_report", "run_phase", "status"]);
+		expect(tools.map((t) => t.name).sort()).toEqual(["explain_gate", "list_diagnostics", "propose_override", "read_report", "run_phase", "status", "upgrade_verify"]);
 		const r = await client.callTool({ name: "run_phase", arguments: { slug, phase: "load", target: "production" } });
 		expect(JSON.stringify(r.content)).toMatch(/Refused/);
 		const bad = await client.callTool({ name: "read_report", arguments: { slug, report: "../.env" } });
