@@ -14,14 +14,20 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   analytics tags (the page carries the codes switched on in SEO & Analytics), backups (the backups plugin's heartbeat, plus its last restore test from one D1 row: a failed test is a warning)
   and media (the Media Assistant's daily counts: images on pages without alt text, oversized originals, broken image
   references; one D1 read, never an alert). Cadence and limits: `src/schedule.ts`.
-- **Missing pages** (hourly, one D1 read of EmDash's `_emdash_404_log`): the addresses asked for in the last 7 days,
-  most requested first, each with a suggested redirect from the sitemap; bot probes (wp-login.php, .env…) counted, not
-  listed. Its own tab and a dashboard hint; never an alert. **Create redirect** on a row (on by default; capability
+- **Missing pages** (hourly, one D1 read of EmDash's `_emdash_404_log`: path, count, time and the referrer, whose host
+  only is kept — never EmDash's IP or user-agent columns): the addresses asked for in the last 7 days, most requested
+  first, both trailing-slash forms counted as one, each with a suggested redirect and why — the old WordPress address
+  list scaffold writes into the options (`oldUrls`: addresses that moved or were not carried over at the migration),
+  then the same address in other spelling (capitals, `.html`, `/page/2/`), a dated post address (`/2024/05/slug/`) by
+  its slug, the same last part, similar words; targets are sitemap pages. Bot probes and junk (wp-login.php, xmlrpc,
+  `.php` / `.env` / backups, device probes, markup) counted, not listed. **Dismiss** (3 months, a year, for good; KV
+  `notfound:dismissed`, ≤ 200) for addresses that need nothing. Its own tab and a dashboard hint; never an alert. **Create redirect** on a row (on by default; capability
   `redirects:write`): one click to the suggested page, or a small form (the sitemap's pages, or a path / full https
   address on this site) → a 301 in EmDash's own redirects (`ctx.redirects.create`, group `site-health`, editable in
   Redirects). Validated first: the source is a path that is not a page of the site, the target a page in the
   sitemap, not the same address, no redirect from the source yet, the target not redirected itself (EmDash checks loops
-  and duplicates again). EmDash stores site-relative destinations only, so another website cannot be a target. The row
+  and duplicates again), and the site itself is asked once (SELF) whether the address answers now — a page left out of
+  the sitemap or an existing redirect is refused. EmDash stores site-relative destinations only, so another website cannot be a target. The row
   leaves the list (KV key `notfound:redirected`, 8 days; the hourly read also leaves out every redirect source), the
   cached pages are purged. Logs carry counts, never addresses.
 - **Coming-soon mode** (Settings tab): stored as the KV key `maintenance` (EmDash `options` row

@@ -6,6 +6,14 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **After-launch 404 watcher** (Site health → Missing pages, `@wp2emdash/health` 0.9.0): the missing addresses of the last 7 days (EmDash's 404 log, still one D1 read an hour) now come with a suggested page **and why**: first the **old WordPress address list** scaffold writes into the plugin options (`oldUrls`: every audited or discovered page, post or entry whose address changed at the migration, or that was not carried over — at most 2,000, client data in the generated project only), then the same address in other spelling (capitals, `.html`, `/page/2/`), an old dated post address (`/2024/05/slug/`) by its slug, the same last part, similar words. Targets are pages of the sitemap. Both trailing-slash forms of an address count as one row (one redirect covers both). Bot probes and junk (WordPress logins and internals also under a sub-directory, `.php` / `.env` / backups, device and framework probes, markup) are counted, not listed.
+- **Dismiss** a missing address for 3 months, a year or for good (KV `notfound:dismissed`, at most 200): it leaves the list, the tab count, the Overview check and What to improve at once; **Show again** brings it back at the next hourly read.
+- **Create redirect** asks the site itself first (one request through the `SELF` binding): an address that answers as a page (one left out of the sitemap) or redirects already is refused, so a redirect never hides a page; EmDash's own duplicate and loop checks still follow. What to improve says how many of the frequent addresses have a suggested page.
+
+### Changed
+- Missing pages keeps only the referrer's host (it kept the full referring address before); it never reads EmDash's IP or user-agent columns. Verified in EmDash 1.5.0 that the 404 log records the path without the query string, so `?p=` / `?page_id=` links never reach it (the starter already redirects migrated ids) — docs/spikes/health-findings.md.
+
 ## [1.9.0] — 2026-11-22
 
 ### Added

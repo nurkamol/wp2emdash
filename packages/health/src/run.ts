@@ -11,7 +11,7 @@ import { analyticsCheck, expectedTrackers } from "./checks/analytics.js";
 import { backupsCheck, readBackupBeat, readDrillSummary } from "./checks/backups.js";
 import { compareMail, dnsCheck } from "./checks/dns.js";
 import { mediaCheck, readMediaSummary } from "./checks/media.js";
-import { NOTFOUND_WINDOW, notFoundCheck, readNotFound, summarizeNotFound } from "./checks/notfound.js";
+import { NOTFOUND_WINDOW, notFoundCheck, notFoundId, readNotFound, summarizeNotFound } from "./checks/notfound.js";
 import { formsCheck, readForms } from "./checks/forms.js";
 import { homeIndexing, indexabilityCheck, parseSiteFiles, sitemapLocs, sitemapPaths } from "./checks/indexability.js";
 import { linksCheck, type LinkJob, resultOf, startJob, stepJob, updateLedger } from "./checks/links.js";
@@ -30,7 +30,7 @@ import { type ReportSources, reportSources } from "./sources.js";
 import { parseSeoSummary, readSeoSummary, type SeoSummary } from "@wp2emdash/seo/summary";
 import { type Improvement, improvements } from "./improve.js";
 import { needsLook, readVisual } from "./checks/visual.js";
-import { activeReview, readDismissed, readReview } from "./review.js";
+import { activeReview, isDismissed, readDismissed, readReview } from "./review.js";
 import type { NotFoundSummary } from "./checks/notfound.js";
 import { EXTERNAL_SAMPLE, externalDue, LINK_BUDGET, LINK_CONCURRENCY, LOCK_MS, MANUAL_EVERY, planRun, reportDue } from "./schedule.js";
 import { CHECK_IDS, type CheckId, type CheckState, type Cwv, type DayRow, type HealthState, type Incident, KEYS, type Kv, type LinkLedger, type LinksResult, MAX_REPORTS, pruneIncidents, readState, rollDay, type Settings, type Today, upsertDay } from "./store.js";
@@ -204,7 +204,8 @@ async function run(d: RunDeps, state: HealthState, mode: { manual?: boolean }): 
 		// on the Missing pages tab, and any redirect source in Redirects.
 		const redirected = Object.keys((await kv.get<Redirected>(KEYS.redirected)) ?? {});
 		const sources = d.redirects ? await redirectSources(d.redirects).catch(() => [] as string[]) : [];
-		const summary = rows ? summarizeNotFound(withoutRedirected({ at, top: rows, probes: 0 }, [...redirected, ...sources]).top, state.sitemap?.paths ?? [], at) : undefined;
+		const dismissed = readDismissed(await kv.get(KEYS.notFoundDismissed));
+		const summary = rows ? summarizeNotFound(withoutRedirected({ at, top: rows, probes: 0 }, [...redirected, ...sources]).top, state.sitemap?.paths ?? [], at, { ...(o.oldUrls ? { oldUrls: o.oldUrls } : {}), skip: (path) => isDismissed(dismissed, notFoundId(path), now) }) : undefined;
 		if (summary) await kv.set(KEYS.notFound, summary);
 		checks.notfound = notFoundCheck(summary, at);
 		jobs.notfound = at;
@@ -392,7 +393,10 @@ export async function latestSeoSummary(d: Pick<RunDeps, "kv" | "env">, fresh?: S
 export async function currentImprovements(d: Pick<RunDeps, "kv" | "options" | "env">, o: { seo?: SeoSummary; forms?: { total: number; previous?: number }; now?: number } = {}): Promise<Improvement[]> {
 	const opt = d.options;
 	const visualOff = opt.visualPages === 0;
-	const [state, notFound, cwv, media, seo, visualRaw, reviewRaw, dismissedRaw] = await Promise.all([readState(d.kv), d.kv.get<NotFoundSummary>(KEYS.notFound), d.kv.get<Cwv>(KEYS.cwv), opt.media ? readMediaSummary(d.env.DB) : undefined, opt.seo ? latestSeoSummary(d, o.seo) : undefined, visualOff ? null : d.kv.get<unknown>(KEYS.visual), visualOff ? null : d.kv.get<unknown>(KEYS.review), visualOff ? null : d.kv.get<unknown>(KEYS.reviewDismissed)]);
+	const [state, notFoundRaw, cwv, media, seo, visualRaw, reviewRaw, dismissedRaw, nfDismissedRaw] = await Promise.all([readState(d.kv), d.kv.get<NotFoundSummary>(KEYS.notFound), d.kv.get<Cwv>(KEYS.cwv), opt.media ? readMediaSummary(d.env.DB) : undefined, opt.seo ? latestSeoSummary(d, o.seo) : undefined, visualOff ? null : d.kv.get<unknown>(KEYS.visual), visualOff ? null : d.kv.get<unknown>(KEYS.review), visualOff ? null : d.kv.get<unknown>(KEYS.reviewDismissed), d.kv.get<unknown>(KEYS.notFoundDismissed)]);
+	// Missing addresses an admin dismissed since the last hourly read stay out too.
+	const nfDismissed = readDismissed(nfDismissedRaw);
+	const notFound = notFoundRaw ? { ...notFoundRaw, top: notFoundRaw.top.filter((r) => !isDismissed(nfDismissed, notFoundId(r.path), o.now ?? Date.now())) } : notFoundRaw;
 	const look = needsLook(readVisual(visualRaw).runs.at(-1));
 	// Accessibility and freshness (review.ts) without what an admin dismissed; an option switched off since the last run hides its part.
 	const review = activeReview(readReview(reviewRaw), readDismissed(dismissedRaw), o.now ?? Date.now());

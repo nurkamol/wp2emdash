@@ -119,6 +119,45 @@ from the tab (KV `notfound:redirected`, 8 days) and every non-pattern redirect s
 Purging the page cache after a redirect is not needed for the redirect itself (404s are not cached) but is done, as
 for the other admin saves, so a page that linked there is rebuilt.
 
+## After-launch 404 watcher: suggestions, Dismiss, shadow check (2026-11-22, @wp2emdash/health 0.9.0)
+
+Re-read in the installed **EmDash 1.5.0** (`spikes/m0-site/node_modules/emdash`, unchanged); nothing deployed, no live
+site requested; unit-tested with a mocked ctx (`test/health-missing.test.ts`).
+
+- **What the 404 log holds** (`dist/astro/middleware/redirect.mjs`, `RedirectRepository.log404` in
+  `redirect-*.mjs`): the middleware logs `context.url.pathname` — **never the query string** — with the referer and
+  user agent headers (`ip` is not passed, stays null), upserting one row per path (`hits + 1`, latest referrer and
+  user agent); maintenance keeps at most 10,000 rows (`MAX_404_LOG_ROWS`). Consequences: `?p=ID` / `?page_id=ID`
+  links can never appear in the log (the starter's middleware already 301s every migrated id from site.config
+  `wpIds`, unknown ids answer 404 as WordPress did), so no id mapping is needed in Site health. Requests for asset
+  extensions skip the middleware and are not logged.
+- **Privacy**: the read selects `path, hits, last_seen, referrer` only (never `user_agent` / `ip`); the stored summary
+  keeps the referrer's **host** (summaries from 0.8 kept the full referrer; read for the host only). Dismissals store
+  the path, period and time. Logs carry periods and counts, never addresses.
+- **Grouping**: EmDash's redirect match is exact, then the other trailing-slash form (`matchRedirect`), and
+  case-sensitive (a `Map` lookup). So the two trailing-slash forms are one row (hits added) and one redirect covers
+  both; capital-letter variants stay separate rows (each needs its own redirect) and get the lower-case page as a
+  "spelling" suggestion.
+- **Old WordPress address list**: the kit had no such list in the generated project before (site.config `wpIds` is
+  id → new path for the middleware; the redirect export becomes EmDash redirects at load; `overrides.routes` moves
+  were not redirected). Scaffold now writes `oldUrls` into the plugin options in astro.config: for every page / post /
+  entry the audit (snapshot/urls.json, answered 200, with a WordPress id) or REST discovery (discovery.json items)
+  found, the old path → its migrated path (`wpIds`) when it differs, or `""` when it was not carried over. Attachments,
+  feeds, archives and query forms are the starter's WordPress-URL rules and stay out. At most 2,000 entries, moved
+  ones first. Client site structure: only in the generated project, never in the kit repo.
+- **Order of suggestions** (`checks/notfound.ts` `suggestTarget`): the old list (normalized: decoded, lower case, no
+  `.html` / `.php`, `/page/N`, `/amp`, `/feed` or trailing slash; a moved page renamed again since launch is found by
+  its launch path's last segment) → the same normalized address (spelling) → a WordPress date permalink
+  (`[/base]/YYYY/MM[/DD]/slug`) by slug → the shallowest page with the same last segment → most shared words (Jaccard
+  ≥ 0.5). Targets are always sitemap pages (published content); never the address itself.
+- **Shadow check**: the sitemap lists published, indexable pages only, so before Create redirect the admin route asks
+  the site itself once (`env.SELF`, `redirect: "manual"`, 8 s): a 200 means a real page a redirect would hide
+  (refused), a 3xx an existing redirect or WordPress rule (refused); 404 / 410, no binding or a failed request go on to
+  EmDash's own checks (duplicate, loop). That request adds one hit to the address in EmDash's log.
+- **Cadence**: the log is still read hourly (one D1 read), over the last 7 days — more often than the weekly run the
+  brief asked for, at no request cost; the weekly view is the 7-day window. Dismissed addresses leave the stored list,
+  the tab count, the Overview check and What to improve at once; **Show again** brings one back at the next hourly read.
+
 ## Scheduled coming-soon — purge at the boundaries
 
 - The middleware evaluates `maintenanceActive(state, now)` on every rendered request (the row is read each time,

@@ -175,6 +175,8 @@ export const KEYS = {
 	maintenanceApplied: "maintenance:applied",
 	/** Missing addresses redirected from the Missing pages tab: path → target and when (left out of the list). */
 	redirected: "notfound:redirected",
+	/** Missing addresses an admin dismissed: id (notFoundId) → until / when / the path (review.ts Dismissed, ≤ 200). */
+	notFoundDismissed: "notfound:dismissed",
 	/** The SEO summary the last monthly report calculated (@wp2emdash/seo/summary), for "What to improve" (improve.ts). */
 	seoSummary: "improve:seo",
 	/** Weekly PageSpeed Insights lab runs, 26 weeks (checks/lab.ts). */

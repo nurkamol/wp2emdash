@@ -1,6 +1,6 @@
 {
   "name": "@wp2emdash/health",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Site health and the monthly report for EmDash on Cloudflare Workers: scheduled uptime, indexability, form, broken-link, mail-DNS, certificate, speed and analytics checks, email alerts and a branded monthly report (admins only)",
   "license": "MIT",
   "private": true,
