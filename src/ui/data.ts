@@ -336,6 +336,17 @@ export async function portfolio(sitesDir = SITES_DIR): Promise<SiteSummary[]> {
 	return Promise.all(listSites(sitesDir).map((s) => siteSummary(s, sitesDir)));
 }
 
+// ── Handover pack ──────────────────────────────────────────────────────────────────────────────────────────
+/** The client handover pack (wp2emdash handover) in its default place, sites/<slug>/handover/handover.html. */
+export const HANDOVER_FILE = join("handover", "handover.html");
+
+export function handoverStatus(slug: string, sitesDir = SITES_DIR): { available: boolean; generatedAt?: string; url?: string; command: string } {
+	const file = join(sitePaths(slug, sitesDir).root, HANDOVER_FILE);
+	const command = `pnpm wp2emdash handover ${slug}`;
+	if (!existsSync(file)) return { available: false, command };
+	return { available: true, generatedAt: statSync(file).mtime.toISOString(), url: fileUrl(slug, HANDOVER_FILE), command };
+}
+
 // ── Visual diff viewer ───────────────────────────────────────────────────────────────────────────────────
 /** Files the dashboard may serve, relative to the site root. Everything else is refused. */
 export const SERVABLE_ROOTS = ["reports", join("snapshot", "screens")];

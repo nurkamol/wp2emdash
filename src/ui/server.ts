@@ -23,7 +23,7 @@
  */
 import { spawn } from "node:child_process";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { closeSync, createReadStream, existsSync, openSync, readSync, realpathSync, statSync } from "node:fs";
+import { closeSync, createReadStream, existsSync, lstatSync, openSync, readFileSync, readSync, realpathSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
@@ -34,7 +34,7 @@ import { scrubSecrets } from "../extract/credentials.js";
 import { type ActionDeps, BusyError, defaultDeps, mergedEnv, SiteLocks } from "./actions.js";
 import { checklistView, cockpitView } from "./cockpit.js";
 import { fleet } from "../commands/fleet.js";
-import { appendVisualDecision, isRunId, isSiteSlug, listRuns, portfolio, readiness, runFile, runHistory, SERVABLE_ROOTS, siteMeta, siteSummary, UserError, visualReport } from "./data.js";
+import { appendVisualDecision, HANDOVER_FILE, handoverStatus, isRunId, isSiteSlug, listRuns, portfolio, readiness, runFile, runHistory, SERVABLE_ROOTS, siteMeta, siteSummary, UserError, visualReport } from "./data.js";
 import { environmentView, environmentViewLive, startSecretPut, workerSecretsView } from "./environment.js";
 import { inspectorView, proposeSectionChange } from "./inspector.js";
 import { golivePlan, isGoliveMode, launchView, siteContext, startGolive } from "./launch.js";
@@ -334,7 +334,7 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 				if (!isSiteSlug(slug, sitesDir)) return json(res, 404, { error: "Unknown site" });
 				// Everything a site route returns passes through the site's secret scrubber (values from .env never leave).
 				const out = (data: unknown) => json(res, 200, scrubFor(slug)(data));
-				if (parts.length === 3) return out({ summary: await siteSummary(slug, sitesDir), readiness: readiness(slug, sitesDir) });
+				if (parts.length === 3) return out({ summary: await siteSummary(slug, sitesDir), readiness: readiness(slug, sitesDir), handover: handoverStatus(slug, sitesDir) });
 				if (parts.length === 4 && parts[3] === "visual") return out(await visualReport(slug, sitesDir));
 				if (parts.length === 4 && parts[3] === "runs") return out(runHistory(slug, sitesDir));
 				if (parts.length === 4 && parts[3] === "proposals") return out(proposalsView(slug, sitesDir));
@@ -389,6 +389,15 @@ export function startUiServer(opts: UiServerOptions = {}): Promise<UiServer> {
 			if (!isSiteSlug(slug, sitesDir)) return text(res, 404, "Not found");
 			const rel = parts.slice(2);
 			if (rel.some((s) => s === ".." || s === "." || s.includes("/") || s.includes("\\") || s.includes("\0"))) return text(res, 403, "Refused");
+			// The handover pack (wp2emdash handover): exactly one generated page, self-contained, served sandboxed with its own
+			// CSP (inline styles only, no scripts, no requests).
+			if (rel.join("/") === HANDOVER_FILE.split(/[\\/]/).join("/")) {
+				const root = sitePaths(slug, sitesDir).root;
+				const file = join(root, HANDOVER_FILE);
+				if (!existsSync(file) || lstatSync(file).isSymbolicLink() || !statSync(file).isFile() || !realpathSync(file).startsWith(realpathSync(root))) return text(res, 404, "Not found");
+				const body = readFileSync(file);
+				return send(res, 200, body, "text/html; charset=utf-8", { "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; sandbox" });
+			}
 			const file = resolveServable(sitePaths(slug, sitesDir).root, join(...rel));
 			if (!file) return text(res, 404, "Not found");
 			const size = statSync(file).size;
