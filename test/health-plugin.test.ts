@@ -89,7 +89,7 @@ describe("Site health plugin", () => {
 		expect(overview[0]).toMatchObject({ type: "banner", title: "Healthy" });
 		const table = overview.find((b) => b.block_id === "checks");
 		expect(table?.rows.map((x: B) => x.check)).toEqual(["Uptime", "Search engines", "Form messages", "Broken links", "Email DNS records", "Security certificate", "Speed", "Analytics tags", "Backups", "Media", "Missing pages (404)", "Security headers"]);
-		expect(tabs(r).map((p) => p.label)).toEqual(["Overview", "Incidents", "Broken links", "Missing pages", "Speed", "Security", "Reports", "Settings"]);
+		expect(tabs(r).map((p) => p.label)).toEqual(["Overview", "Incidents", "Broken links", "Missing pages", "Speed", "Visual check", "Security", "Reports", "Settings"]);
 		const w = await call({}, 50, { ui: { surface: "dashboard-widget" } });
 		expect(w.blocks[0]).toMatchObject({ type: "banner", title: "Healthy" });
 	});
@@ -150,7 +150,7 @@ describe("Site health plugin", () => {
 describe("kit side", () => {
 	const config = (extra: Record<string, unknown> = {}) => kitConfigSchema.parse({ slug: "acme", name: "Acme", source: { url: ORIGIN }, target: { productionUrl: ORIGIN }, email: { to: ["owner@acme.example"], stagingTo: ["team@agency.example"] }, ...extra });
 	it("kit.config: on by default, health: false turns it off, recipients default to email.to / stagingTo", () => {
-		expect(config().health).toEqual({ brand: "Prepared by PixelKraft", monthlyReport: true, externalLinks: true, cspReports: true });
+		expect(config().health).toEqual({ brand: "Prepared by PixelKraft", monthlyReport: true, externalLinks: true, cspReports: true, visualPages: 10 });
 		expect(config({ health: false }).health).toBe(false);
 		const o = healthOptions({ config: config(), productionUrl: ORIGIN, live: false, logo: "/brand/logo.png", colors: { accent: "#123456" } });
 		expect(o).toMatchObject({ alertsTo: ["team@agency.example"], reportTo: ["owner@acme.example"], brand: { footer: "Prepared by PixelKraft", logo: `${ORIGIN}/brand/logo.png` }, live: false });

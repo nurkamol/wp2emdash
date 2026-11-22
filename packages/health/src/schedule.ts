@@ -18,6 +18,9 @@
  *          ssl        daily from 06 UTC   certificate packs (Cloudflare API, optional token)    ≤ 2 requests
  *          speed      daily from 07 UTC   Chrome UX Report (optional key)                       1 request
  *
+ * After the checks (own locks, outside this plan): the weekly PageSpeed test (lab.ts, 2 requests to Google) or, in a tick
+ * without it, the next step of the weekly visual check (visual.ts, ≤ 8 requests, resumable).
+ *
  * Worst case per tick ≈ 3 + 5 + 12 + 3 alert emails ≈ 23 subrequests (Workers: 50 on Free, 10,000 on Paid) and well
  * under a second of CPU (regular-expression parsing of ≤ 12 pages). A heavy job that is due waits for the next tick
  * when another one ran. All times UTC.

@@ -6,6 +6,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Visual check** (Site health → Visual check, `@wp2emdash/health` 0.6.0): once a week the plugin reads the home page and the sitemap's main pages (default 10; kit.config `health.visualPages`, 0–25, 0 = off) through the Worker itself and keeps a structural fingerprint — status, title, main heading, the starter's sections in order, pictures (each checked for 200 + image/*; EmDash `/_image` variants checked as their original file, so no Images transformations), stylesheets, `@font-face` / Google Fonts families, visible words, footer. The first run is the baseline; later runs report a page that errors, a picture, stylesheet or font that no longer loads, a missing footer or an empty page, and changes beyond tolerance (text ±30 %, fewer pictures, a section type gone, title or heading changed) — whatever caused them (deploy, admin edit, settings, outside services). One alert email through the normal alert path and a "What to improve" item; the tab explains each difference in plain words, with **Accept current as new baseline** (all pages or one, admins only) and **Check now**. A page saved in the editor since its baseline takes its new look automatically unless something is broken (EmDash content `updatedAt`). Runs resumably in the existing 5-minute cron (≤ 8 requests a tick, never in the PageSpeed test's tick), keeps the last 8 runs in plugin KV, not on staging, paused in coming-soon mode. No screenshots: Cloudflare Browser Rendering would need a new binding (not added). Findings: `docs/spikes/health-findings.md`.
+
 ## [1.5.0] — 2026-11-22
 
 ### Added

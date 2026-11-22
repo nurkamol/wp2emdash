@@ -305,6 +305,11 @@ export const kitConfigSchema = z.object({
 				 * admin switch on the page only stops storing and alerts. false = the CSP names no report endpoint.
 				 */
 				cspReports: z.boolean().default(true),
+				/**
+				 * Weekly visual check: how many main pages (home + the sitemap's shallowest pages) Site health fingerprints and
+				 * compares with a baseline (status, title, heading, sections, pictures, stylesheets, fonts, text, footer). 0 = off.
+				 */
+				visualPages: z.number().int().min(0).max(25).default(10),
 			}),
 		])
 		.prefault({}),

@@ -12,6 +12,7 @@
  *   notfound     the week's missing addresses without a redirect (EmDash's 404 log)    every site
  *   speed        Chrome UX Report p75 (poor or needs improvement)                     when Google has data
  *   forms        form message COUNTS of the month against the month before            sites with the form outbox
+ *   visual       the weekly visual check's last run: main pages broken or changed      every site (when it ran)
  *
  * Form messages: only the two monthly totals are compared; no message is read. Pure (`improvements`), so ranking, caps
  * and wording are unit-tested.
@@ -29,7 +30,7 @@ export const MAX_NAMED = 3;
 /** Form messages "dropped": at most half of the month before, which had at least this many. */
 export const FORMS_DROP_MIN = 5;
 
-export type ImproveId = "backups" | "broken-images" | "speed" | "notfound" | "forms" | "thin" | "description" | "alt" | "oversized" | "keyword";
+export type ImproveId = "visual" | "backups" | "broken-images" | "speed" | "notfound" | "forms" | "thin" | "description" | "alt" | "oversized" | "keyword";
 
 /** Where an item is fixed: a plugin's admin page (`/_emdash/admin/plugins/<plugin><path>`), on Site health a tab. */
 export interface ImproveLink {
@@ -37,7 +38,7 @@ export interface ImproveLink {
 	path: string;
 	label: string;
 	/** Site health's own tab (the admin switches to it instead of opening a new page). */
-	tab?: "missing" | "speed";
+	tab?: "missing" | "speed" | "visual";
 }
 
 export interface Improvement {
@@ -63,6 +64,8 @@ export interface ImproveInputs {
 	cwv?: Cwv | null;
 	/** Form message counts: the month and the month before (counts only); undefined: no form outbox. */
 	forms?: { total: number; previous?: number };
+	/** The visual check's latest run: paths of pages with something broken, and of pages that changed (checks/visual.ts). */
+	visual?: { problems: string[]; changes: string[] } | null;
 }
 
 export const LINKS = {
@@ -106,6 +109,9 @@ export function improvements(i: ImproveInputs): Improvement[] {
 	const out: Improvement[] = [];
 	const b = i.backups;
 	if (b && (b.status === "fail" || b.status === "warn")) out.push({ id: "backups", impact: 100, text: "Backups are not working: recent changes to the site are not safely copied. Check the Backups page, or ask your developer.", count: 1, link: LINKS.backups });
+	const v = i.visual;
+	if (v?.problems.length) out.push({ id: "visual", impact: 95, text: `${plural(v.problems.length, "main page")} ${these(v.problems.length, "looks", "look")} broken: an error, pictures or styles that do not load, a missing font or an empty page (the weekly visual check). Have ${these(v.problems.length, "it", "them")} fixed.`, count: v.problems.length, names: names("Pages", v.problems), link: LINKS.health("visual", "See Visual check") });
+	else if (v?.changes.length) out.push({ id: "visual", impact: 55, text: `${plural(v.changes.length, "main page")} ${these(v.changes.length, "looks", "look")} different from before (sections, pictures, text or headings changed). Check ${these(v.changes.length, "it", "them")}; if the change was intended, accept the new look on the Visual check tab.`, count: v.changes.length, names: names("Pages", v.changes), link: LINKS.health("visual", "See Visual check") });
 	const m = i.media;
 	if (m?.broken) out.push({ id: "broken-images", impact: 90, text: `${plural(m.broken, "place")} on the site ${these(m.broken, "shows a picture", "show pictures")} that no longer ${these(m.broken, "exists", "exist")}. Replace or remove ${these(m.broken, "it", "them")}.`, count: m.broken, link: LINKS.media });
 	const speed = speedItem(i.cwv);

@@ -52,6 +52,20 @@ builds (`health: false` in `kit.config.ts` turns it off). Admins only.
   (one Google Cloud key can have both APIs enabled). Without a key nothing is called: Google's anonymous quota is
   effectively zero (HTTP 429). Production only (a staging Worker tests nothing); runs before go-live are kept, marked
   "old site". Alert: mobile performance down 15 points or more from the previous run (issue `lab-drop`).
+- **Visual check** (own tab, `src/checks/visual.ts`, `src/visual.ts`): weekly (from 10:00 UTC; the first run at once is
+  the baseline) the home page and the sitemap's shallowest pages (option `visualPages`, default 10, at most 25, 0 = off)
+  are read through `SELF` and fingerprinted without a browser: status, `<title>`, first `<h1>`, the starter's section
+  types in order (`section--<type>`), pictures (up to 8 per page checked for 200 + `image/*`; `/_image` variants as
+  their original media file), stylesheets (a 404 is retried through Astro's `ASSETS` binding), `@font-face` and Google
+  Fonts families, visible words of `<main>`, footer. Compared with the baseline: problems (error status, broken
+  picture / stylesheet, lost font, missing footer, empty page) and changes (words ±30 % on pages with ≥ 50 words, fewer
+  pictures, a section type gone or two fewer, title or h1 changed) → one alert (issue `visual-change`) and a "What to
+  improve" item. A page saved in the editor since its baseline (`ctx.content.list` sorted by `updatedAt`) takes its new
+  look unless something is broken. **Accept current as new baseline** (all, or one page) and **Check now** (stored
+  request, at most every 10 minutes). Resumable job (KV `visual:job`, lock `visual:lock`), ≤ 8 requests a tick and
+  only in ticks without the PageSpeed test; KV `visual` keeps baselines, the latest fingerprints and the last 8 runs (no
+  page text). Not on staging, paused in coming-soon mode, alerts held before go-live. No screenshots (Browser Rendering
+  would need a new binding).
 - **Page cache refill** (Speed tab; kit.config `performance.rewarmMinutes`, option `rewarm`): on/off and every 15, 30 or
   60 minutes (KV key `rewarm`, absent = on at the kit's interval), the last run (KV key `rewarm:last`: pages checked,
   built again, failed, each page's state) and **Refresh all pages now** (purges the page cache and leaves `rewarm:request`;

@@ -2,16 +2,18 @@
  * Alerts: an email when the site goes down or comes back, when a page keeps failing, when new broken links are found,
  * when search-engine access, form email, the mail DNS records, the certificate, the analytics tags or the security
  * policy start failing, when visitors' browsers report a new kind of blocked script (csp.ts), and when the weekly
- * PageSpeed test's mobile performance score drops by 15 points or more (checks/lab.ts).
+ * PageSpeed test's mobile performance score drops by 15 points or more (checks/lab.ts), and when the weekly visual check
+ * finds a main page broken or changed against its baseline (checks/visual.ts).
  *
  * Rate limit: at most ONE email per issue per day (an issue = what happened, e.g. "site down", "site back up", "new
  * broken links"), and at most MAX_PER_DAY alert emails a day in total; the Site health page always shows the current
  * state. Sent only when the site is live, alerts are on, and never from a staging Worker. Alerts carry what failed,
  * where (paths of the site) and when — never form contents or anyone's personal data.
  */
+import type { PageResult } from "./checks/visual.js";
 import type { CheckId, CheckState, Incident, Status } from "./store.js";
 import { CHECK_LABELS } from "./store.js";
-import { DAY, dayOf, esc, shortTime } from "./util.js";
+import { DAY, dayOf, esc, plural, shortTime } from "./util.js";
 
 export const MAX_PER_DAY = 6;
 
@@ -99,6 +101,28 @@ export function labAlertEvents(siteName: string, drop: { from: number; to: numbe
 			severity: "problem",
 			subject: `${siteName}: the mobile speed score dropped to ${drop.to}`,
 			lines: [`Google's PageSpeed test scored the home page ${drop.to} for mobile performance, down from ${drop.from} at the previous test.`, "A new large image, video, font or script on the home page is the usual cause. The Speed tab of Site health shows which element loads last (LCP) and the scores over time.", "This is a lab test from one location; one low result can be noise, so check the next test or run one again from the Speed tab."],
+		},
+	];
+}
+
+/** The weekly visual check found pages that are broken or look different from their baseline (checks/visual.ts needsLook). Pure. */
+export function visualAlertEvents(siteName: string, look: { problems: PageResult[]; changes: PageResult[] }): AlertEvent[] {
+	const pages = [...look.problems, ...look.changes];
+	if (!pages.length) return [];
+	const n = pages.length;
+	const broken = look.problems.length;
+	const lines = pages.slice(0, 10).map((p) => `${p.path}: ${p.diffs.map((d) => d.text).join(" ")}`);
+	return [
+		{
+			issue: "visual-change",
+			severity: "problem",
+			subject: broken ? `${siteName}: ${plural(broken, "page")} ${broken === 1 ? "looks" : "look"} broken` : `${siteName}: ${plural(n, "page")} ${n === 1 ? "looks" : "look"} different`,
+			lines: [
+				`The weekly visual check compared the site's main pages with how they looked before and found ${broken ? `${plural(broken, "page")} with something broken` : "changes"}${broken && look.changes.length ? ` and ${plural(look.changes.length, "page")} that changed` : ""}:`,
+				...lines,
+				...(n > 10 ? [`…and ${n - 10} more on the Visual check tab.`] : []),
+				"If a change was intended (you edited the menu, the settings or a page), open Site health → Visual check and choose Accept as new baseline. Broken pictures, stylesheets, fonts and error pages need a fix: ask your developer if you are unsure.",
+			],
 		},
 	];
 }

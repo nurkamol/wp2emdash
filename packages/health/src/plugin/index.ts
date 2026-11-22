@@ -5,7 +5,8 @@
  * - `cron` hook, task `tick` every 5 minutes (EmDash plugin cron, run by the Worker's scheduled handler through
  *   EmDash's `runScheduledTasks`): runs the checks that are due (schedule.ts), sends alerts, makes the monthly report.
  *   Scheduled on install/activate and re-checked whenever an admin opens the page. After the checks the same tick
- *   runs the weekly PageSpeed lab test when due or asked for (lab.ts; up to 90 s waiting on Google).
+ *   runs the weekly PageSpeed lab test when due or asked for (lab.ts; up to 90 s waiting on Google); in a tick without
+ *   it, the weekly visual check takes its next step (visual.ts; ≤ 8 requests, ≤ ~24 s).
  * - `admin` route (EmDash's default `plugins:manage`, admins only; checked again here): the Site health page and the
  *   dashboard widget; "Run checks now" (single flight, at most every 2 minutes), settings, reports.
  * - `report` route (public GET, raw): a report as a print-friendly HTML file, only for a random token an admin's
@@ -30,6 +31,8 @@ import { renderReportHtml, type ReportData } from "../report.js";
 import { adminUrl, alertRecipients, currentImprovements, emailReport, type HealthEnv, makeReport, reportFormsTrend, type RunDeps, runChecks, settingsOf, storeReport } from "../run.js";
 import { TICK_SCHEDULE, TICK_TASK } from "../schedule.js";
 import { runLab } from "../lab.js";
+import { runVisual } from "../visual.js";
+import { acceptBaseline, readJob, readVisual, VISUAL_MANUAL_EVERY } from "../checks/visual.js";
 import { LAB_MANUAL_EVERY, labKey, type LabRequest, readLab } from "../checks/lab.js";
 import { parseRewarmSetting, REWARM_INTERVALS, REWARM_KEYS, type RewarmLast } from "../cache.js";
 import { type Cwv, type DayRow, type Incident, KEYS, type Kv, type LinksResult, readState, type Settings, type Today } from "../store.js";
@@ -59,6 +62,8 @@ const REFRESH_EVERY = 5 * 60_000;
 
 interface WorkerEnv extends HealthEnv {
 	SELF?: { fetch(r: Request): Promise<Response> };
+	/** Astro's static assets binding (the Cloudflare adapter adds it): the visual check reads stylesheets through it when SELF answers 404. */
+	ASSETS?: { fetch(r: Request): Promise<Response> };
 }
 interface CronAccess {
 	schedule(name: string, o: { schedule: string }): Promise<void>;
@@ -118,7 +123,8 @@ function deps(ctx: Ctx, env: WorkerEnv, o: HealthOptions): RunDeps | undefined {
 
 async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Partial<PageData> = {}): Promise<PageData> {
 	const kv = ctx.kv;
-	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance, csp, security, lab, labRequest] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance), kv.get<CspStore>(KEYS.csp), kv.get<SecurityFacts>(KEYS.security), kv.get<unknown>(KEYS.lab), kv.get<LabRequest>(KEYS.labRequest)]);
+	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance, csp, security, lab, labRequest, visual, visualJob, visualRequest] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance), kv.get<CspStore>(KEYS.csp), kv.get<SecurityFacts>(KEYS.security), kv.get<unknown>(KEYS.lab), kv.get<LabRequest>(KEYS.labRequest), kv.get<unknown>(KEYS.visual), kv.get<unknown>(KEYS.visualJob), kv.get<{ at: string; done?: string }>(KEYS.visualRequest)]);
+	const vj = readJob(visualJob);
 	// "What to improve": the same list the monthly report carries, from what is stored now (never fails the page).
 	const improve = await reportFormsTrend(kv)
 		.then((forms) => currentImprovements({ kv, options: o, env }, forms ? { forms } : {}))
@@ -147,6 +153,7 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 		secrets: { crux: !!env.CRUX_API_KEY?.trim(), pagespeed: !!env.PAGESPEED_API_KEY?.trim(), zone: !!env.CF_ZONE_READ_TOKEN?.trim(), analytics: !!env.CF_ANALYTICS_TOKEN?.trim() },
 		lab: readLab(lab),
 		labRequest,
+		visual: { on: (o.visualPages ?? 1) > 0, store: readVisual(visual), ...(vj ? { job: { pages: vj.paths.length, done: vj.pi } } : {}), ...(visualRequest ? { request: visualRequest } : {}) },
 		selfBinding: !!env.SELF,
 		productionUrl: o.productionUrl,
 		...(cache ? { cache } : {}),
@@ -224,7 +231,14 @@ export function createPlugin(options: HealthOptions) {
 		const r = await runChecks(d);
 		if (r.ran.length) ctx.log?.info("health run", { ran: r.ran.join(","), alertsSent: r.alerts.sent, ...(r.skipped ? { skipped: r.skipped } : {}) });
 		// The weekly / asked-for PageSpeed test, after the checks (one KV read when nothing is due; lab.ts).
-		await runLab({ ...d, now: Date.now() }).catch((e: unknown) => ctx.log?.warn?.("health pagespeed failed", { error: e instanceof Error ? e.name : "error" }));
+		const lab = await runLab({ ...d, now: Date.now() }).catch((e: unknown) => {
+			ctx.log?.warn?.("health pagespeed failed", { error: e instanceof Error ? e.name : "error" });
+			return undefined;
+		});
+		// The visual check's next step, only in a tick without a PageSpeed test (both together could outlast the hook timeout).
+		if (lab?.ran) return;
+		const assets = env.ASSETS;
+		await runVisual({ ...d, now: Date.now(), ...(assets ? { assets: (url: string, init?: RequestInit) => assets.fetch(new Request(url, init)) } : {}) }).catch((e: unknown) => ctx.log?.warn?.("health visual check failed", { error: e instanceof Error ? e.name : "error" }));
 	};
 	return definePlugin({
 		...HEALTH_PLUGIN,
@@ -279,6 +293,27 @@ export function createPlugin(options: HealthOptions) {
 						await ctx.kv.set(KEYS.labRequest, { at: new Date(now).toISOString() });
 						ctx.log?.info("health pagespeed asked", {});
 						return { blocks: await show(TABS.speed), toast: { message: "PageSpeed test asked for: results within about 5 minutes (Google needs up to a minute per test).", type: "success" } };
+					}
+					// ── Visual check: accept the current look as the new baseline (all pages, or one), and "Check now".
+					if (i.type === "block_action" && act === "visual-accept") {
+						const path = typeof i.value === "string" && i.value.startsWith("/") && i.value.length <= 600 ? i.value : undefined;
+						const store = readVisual(await ctx.kv.get(KEYS.visual));
+						if (!Object.keys(store.current).length) return { blocks: await show(TABS.visual), toast: { message: "Nothing to accept yet: the first visual check has not finished.", type: "info" } };
+						const r = acceptBaseline(store, Date.now(), path);
+						await ctx.kv.set(KEYS.visual, r.store);
+						// Counts only: never page text.
+						ctx.log?.info("health visual baseline accepted", { pages: r.accepted, one: path !== undefined });
+						return { blocks: await show(TABS.visual), toast: r.accepted ? { message: path ? `Accepted: ${path} now looks as expected.` : `Accepted: ${r.accepted} page${r.accepted === 1 ? "" : "s"} now look as expected. Later checks compare with this look.`, type: "success" } : { message: "Nothing accepted: a page that shows an error cannot be a baseline.", type: "info" } };
+					}
+					if (i.type === "block_action" && act === "visual-run") {
+						if (env.STAGING === "1") return { blocks: await show(TABS.visual), toast: { message: "The visual check runs on the production site only.", type: "info" } };
+						if ((o.visualPages ?? 1) <= 0) return { blocks: await show(TABS.visual), toast: { message: "The visual check is switched off for this site.", type: "info" } };
+						const now = Date.now();
+						const asked = await ctx.kv.get<{ at: string; done?: string }>(KEYS.visualRequest);
+						if (asked?.at && now - Date.parse(asked.at) < VISUAL_MANUAL_EVERY) return { blocks: await show(TABS.visual), toast: { message: asked.done ? "A check ran less than 10 minutes ago." : "A check is already on its way.", type: "info" } };
+						await ctx.kv.set(KEYS.visualRequest, { at: new Date(now).toISOString() });
+						ctx.log?.info("health visual check asked", {});
+						return { blocks: await show(TABS.visual), toast: { message: "Visual check asked for: it starts within 5 minutes and reads a few pages every 5 minutes.", type: "success" } };
 					}
 					if (i.type === "form_submit" && act === "save-settings") {
 						const v = i.values ?? {};
@@ -426,7 +461,7 @@ export function createPlugin(options: HealthOptions) {
 						return { blocks: reportView(data, true), toast: ok ? { message: "Report emailed.", type: "success" } : { message: "Not emailed: email is not available right now (see Settings).", type: "error" } };
 					}
 					// "What to improve" rows that are fixed on one of Site health's own tabs.
-					if (i.type === "block_action" && act === "improve-tab" && (i.value === "missing" || i.value === "speed")) return { blocks: await show(TABS[i.value]) };
+					if (i.type === "block_action" && act === "improve-tab" && (i.value === "missing" || i.value === "speed" || i.value === "visual")) return { blocks: await show(TABS[i.value]) };
 					const tab = act === "back" ? TABS.reports : TABS.overview;
 					return { blocks: await show(tab) };
 				},
