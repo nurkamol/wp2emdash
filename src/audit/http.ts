@@ -24,6 +24,8 @@ export interface HttpOptions {
 	headers?: Record<string, string>;
 	/** Do not read the body (link checks). */
 	headOnly?: boolean;
+	/** Overrides USER_AGENT (the estimate identifies as itself; always generic, never personal details). */
+	userAgent?: string;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -43,7 +45,7 @@ export async function fetchUrl(url: string, opts: HttpOptions = {}): Promise<Fet
 				res = await fetch(current, {
 					method: opts.headOnly ? "HEAD" : "GET",
 					redirect: "manual",
-					headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8", ...opts.headers },
+					headers: { "User-Agent": opts.userAgent ?? USER_AGENT, Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8", ...opts.headers },
 					signal: AbortSignal.timeout(timeoutMs),
 				});
 				if ((res.status === 429 || res.status === 503) && attempt < retries) {

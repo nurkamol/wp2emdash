@@ -41,9 +41,18 @@ export async function wizard(): Promise<void> {
 		options: [
 			...sites.map((s) => ({ value: s, label: s })),
 			{ value: "__new", label: pc.green("+ New site") },
+			{ value: "__estimate", label: "Estimate a prospect's site", hint: "sales report from the public site only; no workspace created" },
 		],
 	});
 	if (cancelled(choice)) return p.cancel("Bye.");
+	if (choice === "__estimate") {
+		const url = await p.text({ message: "Prospect's website", placeholder: "https://example.com", validate: (v) => validateUrl(/^https?:\/\//i.test(v ?? "") ? (v ?? "") : `https://${v ?? ""}`) });
+		if (cancelled(url)) return p.cancel("Bye.");
+		const { runEstimate } = await import("../commands/estimate.js");
+		const r = await runEstimate(url);
+		p.note(r.files.map((f) => f.slice(r.dir.length + 1)).join("\n"), r.dir);
+		return p.outro(`${r.estimate.effort.size}: ${r.estimate.effort.total[0]}–${r.estimate.effort.total[1]} hours ${pc.dim("(report.html is the client copy)")}`);
+	}
 
 	let slug = choice as string;
 	if (slug === "__new") {

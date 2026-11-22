@@ -380,6 +380,37 @@ program
 	});
 
 program
+	.command("estimate <url>")
+	.description("Sales estimate for a prospect's public WordPress site (no login, no init): client report + internal effort sheet in estimates/<host>-<date>/ (gitignored). Read-only, robots.txt respected, ≤ 4 requests at a time")
+	.option("--rate <n>", "multiply the hours by this hourly rate (no pricing without it)")
+	.option("--currency <code>", "label for --rate amounts, e.g. USD")
+	.option("--lab", "add Google PageSpeed Insights for the home page (PAGESPEED_API_KEY or CRUX_API_KEY in the kit .env)")
+	.option("--agency <name>", "agency name on the client report (default PixelKraft, or WP2EMDASH_AGENCY_NAME)")
+	.option("--agency-url <url>", "agency link on the client report (or WP2EMDASH_AGENCY_URL)")
+	.option("--contact <text>", "contact line on the client report (or WP2EMDASH_AGENCY_CONTACT)")
+	.option("--rules <file>", "JSON file deep-merged over the effort rules (src/estimate/rules.ts)")
+	.option("--out <dir>", "parent folder for the estimate (default <kit>/estimates or WP2EMDASH_ESTIMATES_DIR)")
+	.option("--json", "print estimate.json to stdout (no progress output)")
+	.action(async (url: string, o: { rate?: string; currency?: string; lab?: boolean; agency?: string; agencyUrl?: string; contact?: string; rules?: string; out?: string; json?: boolean }) => {
+		const err = validateUrl(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+		if (err) fail(err);
+		const rate = o.rate !== undefined ? Number(o.rate) : undefined;
+		if (rate !== undefined && !(rate > 0)) fail("--rate must be a positive number");
+		const { runEstimate } = await import("../commands/estimate.js");
+		try {
+			const r = await runEstimate(url, { ...(rate ? { rate } : {}), ...(o.currency ? { currency: o.currency } : {}), lab: !!o.lab, ...(o.agency ? { agency: o.agency } : {}), ...(o.agencyUrl ? { agencyUrl: o.agencyUrl } : {}), ...(o.contact ? { contact: o.contact } : {}), ...(o.rules ? { rulesFile: o.rules } : {}), ...(o.out ? { outRoot: o.out } : {}), quiet: !!o.json });
+			if (o.json) return console.log(JSON.stringify(r.estimate, null, 2));
+			const e = r.estimate;
+			console.log(`\n${pc.bold(e.detections.host)}: ${e.effort.size}, ${pc.bold(`${e.effort.total[0]}–${e.effort.total[1]} h`)}${e.effort.cost ? ` (${e.effort.cost[0]}–${e.effort.cost[1]}${e.effort.currency ? ` ${e.effort.currency}` : ""})` : ""}`);
+			for (const f of e.findings.filter((x) => x.level !== "info")) console.log(`  ${f.level === "blocker" ? pc.red("✖") : f.level === "decision" ? pc.yellow("!") : pc.cyan("•")} ${f.title}`);
+			console.log(`\n${pc.dim(r.dir)}`);
+			for (const f of r.files) console.log(`  ${f.slice(r.dir.length + 1)}`);
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
 	.command("doctor")
 	.description("Check local prerequisites")
 	.option("--json")
