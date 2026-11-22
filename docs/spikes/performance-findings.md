@@ -148,7 +148,7 @@ one request every 1.5 s, ~25 per minute), same runner:
 | No placement (same build), 6 minutes | 588–639 ms | 249–265 ms | — |
 
 Smart Placement kept the Worker in Europe (its analysis never chose the database's region), so uncached renders
-were no faster; for this site's real visitors (Houston) the Worker already runs next to the ENAM database, and
+were no faster; for this site's real visitors (US East) the Worker already runs next to the ENAM database, and
 cached pages do not run the Worker at all. The staging Worker had been left with placement from an earlier manual
 experiment (`cf-placement: local-FRA` on the first measurement); the kit's deploy removes it. A site whose visitors
 are far from its database and whose pages are mostly uncached could try `performance: { smartPlacement: true }` and
@@ -270,5 +270,5 @@ cached, or evicted by Cloudflare) still renders once — preloading moves that r
   / Typekit link). On a failure: `wrangler deployments list --json` → the newest version other than the current one →
   `wrangler rollback <id> -y -m …`, exit 1. Run in the project right after `wrangler deploy`, so Wrangler resolves the
   same Worker (staging builds via .wrangler/deploy/config.json → dist/server/wrangler.json). Wrangler 4.163.0:
-  `rollback [version-id] -y -m <message>`. Measured on live sites: Priority Pilates 11 pages, M Wellness staging 10
+  `rollback [version-id] -y -m <message>`. Measured on two delivered sites (one live, one staging), 11 and 10
   pages, both pass; a booking-widget page (heading + script embed) counts as content.

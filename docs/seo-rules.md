@@ -26,7 +26,7 @@ new text in the site's `overrides.ts` with the reason, and a line in `decisions.
 ```ts
 seo: {
   "/account/": {
-    title: "Member Login – Example Studio Houston",
+    title: "Member Login – Example Studio",
     description: "Sign in to your account to book sessions, manage your membership and see your visits.",
     reason: "SEO audit 2026-11-20: title 12 characters, description 38",
   },

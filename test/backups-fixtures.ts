@@ -63,7 +63,7 @@ export function seed(db: DatabaseSync): void {
 	ins("_emdash_future_feature", { id: "f1", v: "unclassified" });
 	for (const [name, value] of Object.entries({
 		"site:title": "Acme Studio",
-		"site:tagline": "Pilates in Houston",
+		"site:tagline": "Pottery in Portland",
 		"site:url": "https://acme.example",
 		"site:staging": false,
 		"site:logo": { mediaId: "med1", alt: "Acme" },
@@ -80,7 +80,7 @@ export function seed(db: DatabaseSync): void {
 	ins("_emdash_migrations", { name: "092_plugin_kv_options", timestamp: "2026-11-01" });
 	ins("_emdash_collections", { id: "col1", slug: "pages", label: "Pages" });
 	for (const [id, slug] of [["fl1", "title"], ["fl2", "body"], ["fl3", "hero"]]) ins("_emdash_fields", { id, collection_id: "col1", slug, type: slug === "title" ? "string" : "portableText" });
-	ins("ec_pages", { id: "p1", slug: "about", status: "published", created_at: "2026-10-01T00:00:00Z", updated_at: "2026-11-01T00:00:00Z", published_at: "2026-10-01T00:00:00Z", version: 3, locale: "en", translation_group: "p1", title: "About us", body: JSON.stringify([{ _type: "block", children: [{ text: "We teach Pilates." }] }]), hero: JSON.stringify({ heading: "Hello" }) });
+	ins("ec_pages", { id: "p1", slug: "about", status: "published", created_at: "2026-10-01T00:00:00Z", updated_at: "2026-11-01T00:00:00Z", published_at: "2026-10-01T00:00:00Z", version: 3, locale: "en", translation_group: "p1", title: "About us", body: JSON.stringify([{ _type: "block", children: [{ text: "We teach pottery." }] }]), hero: JSON.stringify({ heading: "Hello" }) });
 	ins("ec_pages", { id: "p2", slug: "draft-page", status: "draft", created_at: "2026-11-02T00:00:00Z", updated_at: "2026-11-02T00:00:00Z", version: 1, locale: "en", translation_group: "p2", title: "Draft page", body: "[]" });
 	ins("ec_pages", { id: "p3", slug: "old", status: "published", created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z", deleted_at: "2026-11-03T00:00:00Z", version: 2, locale: "en", translation_group: "p3", title: "Old page", body: "[]" });
 	ins("_emdash_seo", { collection: "pages", content_id: "p1", seo_title: "About Acme", seo_description: "Who we are", seo_no_index: 0 });

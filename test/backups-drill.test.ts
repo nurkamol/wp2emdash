@@ -145,7 +145,7 @@ describe("restore into the scratch database", () => {
 		expect((await readDrill(kv)).running).toBeUndefined();
 		// Logs and the stored result: counts only — no content, no secrets.
 		const out = JSON.stringify([logs, await readDrill(kv)]);
-		for (const s of [...Object.values(SECRETS), "About us", "We teach Pilates", "Pilates in Houston"]) expect(out).not.toContain(s);
+		for (const s of [...Object.values(SECRETS), "About us", "We teach pottery", "Pottery in Portland"]) expect(out).not.toContain(s);
 		expect(mails()).toHaveLength(0);
 	});
 	it("splits a run across ticks within the statement budget, under its own lock", async () => {

@@ -237,7 +237,7 @@ describe("restore planner", () => {
 		const p = planEntry(b, now);
 		expect(p.changes.map((c) => c.what)).toEqual(["trash", "title", "SEO title", "SEO description", "status"]);
 		expect(p.notes.join(" ")).toContain('Field "hero" no longer exists');
-		expect(p.write).toMatchObject({ slug: "about", publish: true, fromTrash: true, create: false, data: { title: "About us", body: [{ _type: "block", children: [{ text: "We teach Pilates." }] }] } });
+		expect(p.write).toMatchObject({ slug: "about", publish: true, fromTrash: true, create: false, data: { title: "About us", body: [{ _type: "block", children: [{ text: "We teach pottery." }] }] } });
 		expect(p.write?.data).not.toHaveProperty("hero");
 		expect(planEntry(b, { fields: ["title", "body", "hero"] }).write).toMatchObject({ create: true });
 		expect(planEntry({}, { fields: [] }).changes).toEqual([]);
@@ -359,7 +359,7 @@ describe("Backups plugin (routes)", () => {
 		expect(pick.blocks[0]?.text).toMatch(/^Restore from back up now backup/);
 		const prev = await call({ type: "block_action", action_id: "preview-settings", value: entry?.id });
 		const table = prev.blocks.find((b) => b.block_id === "changes");
-		expect(table?.rows).toEqual([{ what: "tagline", now: "Changed by mistake", backup: "Pilates in Houston" }]);
+		expect(table?.rows).toEqual([{ what: "tagline", now: "Changed by mistake", backup: "Pottery in Portland" }]);
 		const confirm = btn(prev.blocks, "restore-confirm");
 		expect(confirm?.confirm).toMatchObject({ confirm: "Restore" });
 		vi.useFakeTimers({ now: Date.now() + 5 * 60_000 });
