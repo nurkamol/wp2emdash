@@ -93,6 +93,20 @@ export const ML_TAXONOMIES = ["language", "post_translations", "term_language", 
 /** Post types whose translations are site chrome (headers, footers, popups, templates): only the default language is migrated. */
 export const TEMPLATE_TYPES = new Set(["salient_g_sections", "popup", "bricks_template", "elementor_library", "et_template", "et_header_layout", "et_body_layout", "et_footer_layout", "et_pb_layout", "wp_block", "nectar_slider", "home_slider", "popup_theme", "pum_cta"]);
 
+/**
+ * Post types whose published entries must have a language (extract `languages` gate): the ones with an address.
+ * Templates and WooCommerce variations (they follow their product) never have one of their own; with WordPress's type
+ * registrations at hand (`wp/v2/types`), types it does not list as viewable — form definitions such as
+ * `wpcf7_contact_form`, plugin internals — are left out too. Transform's own language gates check every migrated page
+ * and post again.
+ */
+export function languageChecked(type: string, wpTypes?: Record<string, unknown>): boolean {
+	if (TEMPLATE_TYPES.has(type) || type === "product_variation") return false;
+	if (!wpTypes) return true;
+	const t = wpTypes[type] as { viewable?: boolean } | undefined;
+	return !!t && t.viewable !== false;
+}
+
 const NATIVE: Record<string, string> = {
 	ar: "العربية", bg: "Български", ca: "Català", cs: "Čeština", da: "Dansk", de: "Deutsch", el: "Ελληνικά", en: "English", es: "Español", et: "Eesti", fa: "فارسی", fi: "Suomi", fr: "Français", he: "עברית", hi: "हिन्दी", hr: "Hrvatski", hu: "Magyar", id: "Bahasa Indonesia", it: "Italiano", ja: "日本語", ka: "ქართული", kk: "Қазақ", ko: "한국어", lt: "Lietuvių", lv: "Latviešu", nb: "Norsk bokmål", nl: "Nederlands", pl: "Polski", pt: "Português", "pt-br": "Português (Brasil)", "pt-pt": "Português (Portugal)", ro: "Română", ru: "Русский", sk: "Slovenčina", sl: "Slovenščina", sr: "Српски", sv: "Svenska", th: "ไทย", tr: "Türkçe", uk: "Українська", uz: "O‘zbekcha", vi: "Tiếng Việt", zh: "中文", "zh-hans": "简体中文", "zh-hant": "繁體中文",
 };

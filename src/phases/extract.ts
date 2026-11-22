@@ -24,7 +24,7 @@ import { hashPassword, PROTECTED_FILE, type ProtectedEntry } from "../transform/
 import { findMediaRefs, type MediaRef, uploadsKey } from "../extract/refs.js";
 import { type CustomCss, customCssFromHtml } from "../transform/custom-css.js";
 import type { PhaseContext } from "./index.js";
-import { buildPlan, ML_FILE, type MlRaw, TEMPLATE_TYPES } from "../transform/multilingual.js";
+import { buildPlan, languageChecked, ML_FILE, type MlRaw } from "../transform/multilingual.js";
 
 export const MIN_EXPORTER = "1.2.0";
 
@@ -291,7 +291,7 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 		const items = [...byType.values()].flat();
 		const built = buildPlan({ raw: { ...mlRaw, ...(probeI18n ? { probe: probeI18n } : {}) }, posts: items, ...(probe.site?.language ? { siteLanguage: probe.site.language } : {}) });
 		if (built) {
-			const missing = items.filter((p) => p.status === "publish" && !TEMPLATE_TYPES.has(p.post_type) && !built.entries.get(p.id)?.lang);
+			const missing = items.filter((p) => p.status === "publish" && languageChecked(p.post_type, wpTypes) && !built.entries.get(p.id)?.lang);
 			check("languages", `Language of every published entry read (${built.plan.plugin === "wpml" ? "WPML" : "Polylang"})`, missing.length === 0, missing.length ? `${missing.length} without a language (e.g. ${missing.slice(0, 4).map((p) => `${p.post_type}:${p.slug}`).join(", ")}): update the EmDash Exporter, or put a database backup in sites/<slug>/dump/ and run import-dump (WPML's translations table), then extract again` : `${built.plan.languages.map((l) => l.code).join(", ")}; default ${built.plan.defaultLang}`);
 			notes.push(`Multilingual site (${built.plan.plugin}): ${built.plan.languages.length} languages (${built.plan.languages.map((l) => l.code).join(", ")}), URL mode ${built.plan.urlMode} (from ${built.plan.modeSource}; the audit's hreflang links and a database dump refine it). Planned in transform (coverage report → Languages).`);
 		}

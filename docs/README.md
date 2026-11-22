@@ -12,6 +12,7 @@ Astro, Wrangler and Cloudflare versions before code depended on it — check the
 | [seo-rules.md](seo-rules.md) | The kit's on-page SEO rules and the scenario for handling an SEO audit of a live site |
 | [WordPress → EmDash parity](parity/wp-to-emdash.md) | 110-feature matrix: where each WordPress feature lives in EmDash 1.5, what the kit does with it, the gap and its priority ([JSON](parity/wp-to-emdash.json), same data) |
 | [Environment setup](staging-setup.md) | Production on `workers.dev` (the default) and opt-in staging: resources, build → migrate → deploy, first admin sign-in (passkeys), load token, client CI, go-live and after it, troubleshooting |
+| [WordPress end-to-end test](e2e.md) | A real WordPress in Docker with pinned Elementor, WooCommerce, Polylang, Contact Form 7, Fluent Forms and the EmDash Exporter, seeded with synthetic content and migrated by the kit up to load and verify on a local dev server: what it proves, running it locally, reading the report, known failures |
 | [Outside-in monitor](monitor.md) | One Worker in the agency's account that checks every delivered site from outside (uptime, certificate and domain expiry), alerts by email / Telegram / Slack, private status page: setup, secrets, deploy, limits |
 | [Cloudflare API tokens](cloudflare-api-token.md) | The reusable build token (kit `.env`) and the separate, zone-scoped go-live token used only at cutover; permission sets and where each token goes |
 | [Site workspaces](../sites/README.md) | What lives in `sites/<slug>/` and why none of it is ever committed |

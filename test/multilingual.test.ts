@@ -15,7 +15,7 @@ import type { IrPage, IrSite } from "../src/ir/schema.js";
 import { runTransform } from "../src/phases/transform.js";
 import { seedLanguages } from "../src/scaffold/seed.js";
 import { emdashMenuNames } from "../src/transform/menus.js";
-import { buildPlan, codesFor, entryLanguages, hreflangAlternates, inheritMenuRoles, langOfPath, localizeRoute, matchCode, menuLanguage, type MlDoc, type MlPlan, multilingualChecks, urlModeFromHreflang, urlModeFromOptions } from "../src/transform/multilingual.js";
+import { buildPlan, codesFor, entryLanguages, hreflangAlternates, inheritMenuRoles, langOfPath, languageChecked, localizeRoute, matchCode, menuLanguage, type MlDoc, type MlPlan, multilingualChecks, urlModeFromHreflang, urlModeFromOptions } from "../src/transform/multilingual.js";
 import { hreflangParity, reciprocityProblems } from "../src/verify/hreflang.js";
 import * as starter from "../starter/src/utils/i18n.js";
 
@@ -355,5 +355,18 @@ describe("starter wiring", () => {
 		const sw = read("components/LanguageSwitcher.astro");
 		expect(sw).toContain('aria-current={l.current ? "true" : undefined}');
 		expect(sw).not.toContain("<script");
+	});
+});
+
+describe("extract: which entries need a language", () => {
+	const wpTypes = { page: { viewable: true }, post: { viewable: true }, product: { viewable: true }, wp_navigation: { viewable: false } };
+	it("checks routable types only: not templates, variations, non-viewable or unlisted types (CF7 forms)", () => {
+		expect(["page", "post", "product"].map((t) => languageChecked(t, wpTypes))).toEqual([true, true, true]);
+		expect(["product_variation", "elementor_library", "wp_navigation", "wpcf7_contact_form"].map((t) => languageChecked(t, wpTypes))).toEqual([false, false, false, false]);
+	});
+	it("without WordPress's type list: every type but templates and variations", () => {
+		expect(languageChecked("wpcf7_contact_form")).toBe(true);
+		expect(languageChecked("product_variation")).toBe(false);
+		expect(languageChecked("elementor_library")).toBe(false);
 	});
 });

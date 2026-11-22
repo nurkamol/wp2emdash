@@ -857,6 +857,7 @@ The full index, with a line on every document, is [docs/README.md](docs/README.m
 - [WordPress → EmDash parity](docs/parity/wp-to-emdash.md): what is migrated, partial or missing, feature by feature
 - [Environment setup](docs/staging-setup.md): production on `workers.dev` (default) and opt-in staging, first admin sign-in, CI, go-live, troubleshooting
 - [Cloudflare API tokens](docs/cloudflare-api-token.md): the reusable build token and the per-launch go-live token
+- [WordPress end-to-end test](docs/e2e.md): a real WordPress in Docker (Elementor, WooCommerce, Polylang, Contact Form 7, Fluent Forms) with synthetic content, migrated by the kit and checked; manual and nightly in GitHub Actions, `e2e/run.sh` locally
 - [Spike findings](docs/README.md#spike-findings-verified-facts): every EmDash and Cloudflare behaviour the kit relies on, checked against the installed versions
 - Package READMEs: [forms](packages/forms/README.md) · [og](packages/og/README.md) · [seo](packages/seo/README.md) · [health](packages/health/README.md) · [consent](packages/consent/README.md) · [backups](packages/backups/README.md) · [media](packages/media/README.md) · [change-requests](packages/change-requests/README.md)
 - [Site workspaces](sites/README.md) · [Changelog](CHANGELOG.md) · [Agent rules](CLAUDE.md)
