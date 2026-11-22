@@ -1,17 +1,18 @@
 {
-	"$comment": "What the WordPress end-to-end run must prove (e2e/lib/pipeline.ts, Expectations). A failed gate check in a requiredPhase fails the run unless it is listed in knownFailures as \"<phase>:<checkId>\" with a reason (keep the list short and dated; entries that no longer fail are reported as stale). optionalPhases run and are reported only: move load and verify to requiredPhases once they pass in CI. requiredAssertions likewise; the rendered-page assertions (html-hreflang, html-products) need load.",
+	"$comment": "What the WordPress end-to-end run must prove (e2e/lib/pipeline.ts, Expectations). A failed gate check in a requiredPhase fails the run unless it is listed in knownFailures as \"<phase>:<checkId>\" with a reason (keep the list short and dated; entries that no longer fail are reported as stale). optionalPhases run and are reported only. requiredAssertions likewise; the rendered-page assertions (html-hreflang, html-products) need load.",
 	"requiredPhases": [
 		"init",
 		"audit",
 		"extract",
 		"transform",
 		"scaffold",
-		"load"
-	],
-	"optionalPhases": [
+		"load",
 		"verify"
 	],
-	"knownFailures": {},
+	"optionalPhases": [],
+	"knownFailures": {
+		"verify:visual": "2026-11-22: not an environment artifact but a design-fidelity gap in the kit — the stock theme (Twenty Twenty-One page layout) and Elementor's default kit (Roboto, the default global colours, gallery columns and container widths) are not reproduced within 3% per section by the section library (89 section × viewport pairs over on the first runs). Follow-up work, see docs/spikes/verify-e2e-findings.md; remove this entry when it passes."
+	},
 	"allowedElementorDiagnostics": [],
 	"requiredAssertions": [
 		"routes",

@@ -140,7 +140,10 @@ export function buildTokens(designs: DesignCapture[]): Tokens {
 	const text = toHex(body?.color) ?? "#111111";
 	const btn = desktop.buttons.find((b) => b.styles.background && !/rgba\(0, 0, 0, 0\)|transparent/.test(b.styles.background));
 	const accent = toHex(btn?.styles.background) ?? toHex(desktop.colors.find((c) => c.usage === "text" && !["#000000", "#ffffff", text].includes(toHex(c.value) ?? ""))?.value) ?? text;
-	const accentContrast = toHex(btn?.styles.color) ?? (luminance(accent) > 0.45 ? "#000000" : "#ffffff");
+	// Text on the accent (search, form and header buttons): the source button's text colour when it is readable there,
+	// else raised to meet WCAG AA like the content buttons' (white on Elementor's default green #61ce70 is 1.98:1;
+	// WordPress e2e test, 2026-11-22).
+	const accentContrast = readableOn(accent, toHex(btn?.styles.color) ?? (luminance(accent) > 0.45 ? "#000000" : "#ffffff"), text).color;
 	const surface = toHex(desktop.footer?.background) && toHex(desktop.footer?.background) !== bg ? (toHex(desktop.footer?.background) as string) : (bgCandidates.find((c) => c !== bg) ?? bg);
 	const bodyFont = familyName(body?.fontFamily ?? desktop.fonts[0]?.family) ?? "system-ui";
 	const displayFont = familyName(t.h1?.fontFamily ?? t.h2?.fontFamily) ?? bodyFont;

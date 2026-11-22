@@ -168,6 +168,20 @@ describe("form field tokens", () => {
 	});
 });
 
+describe("text on the accent colour", () => {
+	const design = (button: { background: string; color: string }) =>
+		["desktop", "mobile"].map((viewport) => ({ url: "https://x.test/", viewport, fonts: [], colors: [{ value: "rgb(209, 228, 221)", count: 9, usage: "background" }], typography: { body: { fontFamily: "Roboto", fontSize: "16px", fontWeight: "400", lineHeight: "24px", letterSpacing: "normal", color: "rgb(40, 48, 61)" } }, buttons: [{ text: "Send", styles: button }], containerWidths: [], breakpoints: [], header: null, footer: null, cssVariables: {} })) as never;
+
+	it("keeps the source button's text colour when it is readable, raises it to WCAG AA when not", async () => {
+		const { buildTokens } = await import("../src/scaffold/generate.js");
+		// White on Elementor's default green (#61ce70) is 1.98:1: the search and form buttons get the most readable of the site text colour, white and black.
+		const green = buildTokens(design({ background: "rgb(97, 206, 112)", color: "rgb(255, 255, 255)" }));
+		expect(green.colors.accentContrast).toBe("#000000");
+		expect(green.css).toContain("--color-accent-contrast: #000000;");
+		expect(buildTokens(design({ background: "rgb(20, 40, 90)", color: "rgb(255, 255, 255)" })).colors.accentContrast).toBe("#ffffff");
+	});
+});
+
 describe("gutter tokens", () => {
 	const designs = (g: Record<string, number>) => Object.entries(g).map(([viewport, gutter]) => ({ url: "https://x.test/", viewport, fonts: [], colors: [{ value: "rgb(244, 236, 226)", count: 9, usage: "background" }], typography: {}, buttons: [], containerWidths: [], breakpoints: [], header: null, footer: null, cssVariables: {}, gutter })) as never;
 

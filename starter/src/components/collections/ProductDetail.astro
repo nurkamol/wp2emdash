@@ -109,7 +109,8 @@ const money = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? for
 	.product__buy[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
 	.product__sku { font-size: 0.9em; opacity: 0.75; }
 	.container--narrow { max-width: min(100% - 2 * var(--gutter), 46rem); }
-	.product-details .container { display: grid; gap: clamp(1.5rem, 4vw, 2.5rem); }
+	/* One column that never grows past the screen: a wide options table scrolls inside its box instead of widening the page. */
+	.product-details .container { display: grid; grid-template-columns: minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 2.5rem); }
 	.product-details h2 { margin: 0 0 0.75rem; }
 	.product-details__attributes { display: grid; gap: 0.5rem 1.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); margin: 0; }
 	.product-details__attributes dt { font-size: 0.85em; opacity: 0.75; }
