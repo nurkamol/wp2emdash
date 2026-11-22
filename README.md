@@ -12,7 +12,7 @@
   <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-F6821F"></a>
   <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
-  <img alt="Tests: 1559 passing" src="https://img.shields.io/badge/tests-1559%20passing-1F9D6B">
+  <img alt="Tests: 1587 passing" src="https://img.shields.io/badge/tests-1587%20passing-1F9D6B">
 </p>
 
 wp2emdash is an open-source kit, built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net), that migrates WordPress sites to
@@ -252,6 +252,8 @@ Run as `pnpm wp2emdash <command>`; `pnpm wp2emdash <command> --help` lists every
 | `proposals <slug> [approve\|reject <id>] --by "…"` | Approval queue for proposed `overrides.ts` / `decisions.md` changes |
 | `ui [--no-open] [--port <n>]` | Local dashboard on 127.0.0.1 |
 | `mcp` | MCP server on stdio for Claude Code |
+| `monitor init [--dir <path>]` | Create the agency monitor's `monitor.config.json` (alert addresses, extra URLs) in `monitor/` (gitignored) or `--dir` — see [docs/monitor.md](docs/monitor.md) |
+| `monitor build [--dir <path>] [--json]` | Regenerate the outside-in monitor Worker: every deployed site (its domain once live, else workers.dev) + extra URLs, 5-minute cron, KV state, email / Telegram / Slack alerts, certificate and domain expiry, token-protected status page. Never deploys: prints `npx wrangler deploy` for the operator |
 
 Load and verify targets: `WP2EMDASH_LOAD_TARGET` / `WP2EMDASH_TARGET` = `local`, `staging` or `production`.
 

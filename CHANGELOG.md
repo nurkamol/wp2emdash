@@ -6,6 +6,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Outside-in monitor** (`wp2emdash monitor init|build`, `@wp2emdash/monitor` 0.1.0, [docs/monitor.md](docs/monitor.md)): Site health runs inside each site's Worker, so a broken Worker, account, DNS or domain alerted no one. The monitor is ONE Cloudflare Worker the agency deploys once (ideally in its own account, `accountId`) with a 5-minute cron: every deployed site's home page (its domain once `cloudflare.json` says `production.live`, else workers.dev) plus `extraUrls`, checked from outside with `global_fetch_strictly_public` — 2xx within 10 s, same-site redirects only, a `<title>`, no Cloudflare error / 52x / challenge page, optional keyword. Two failures in a row open an incident, the first good check closes it; one message per tick on email (the forms' providers, Brevo by default, `EMAIL_API_KEY` secret), Telegram and Slack, ≤ 20 a day, retried when no channel delivers. Daily certificate expiry from Certificate Transparency (Cert Spotter) and domain expiry from RDAP, warned at ≤ 14 days, spread over the day by slot. Weekly summary (off by default). Optional `HEARTBEAT_URL` dead-man's switch. State in one KV key written only on change plus a daily heartbeat (≤ 288 writes/day by construction, typically 1–3). Status page at the Worker's URL, 404 without `?token=<STATUS_TOKEN>`. Generated into `monitor/` (gitignored) or `--dir`; URLs and addresses only, secrets via `wrangler secret put`; the kit never deploys it. GitHub Actions schedules were rejected (delayed or dropped under load, disabled after 60 inactive days); crt.sh answered 502 throughout. Findings: `docs/spikes/monitor-findings.md`.
+
 ## [1.6.0] — 2026-11-22
 
 ### Added
