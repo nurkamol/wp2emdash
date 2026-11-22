@@ -198,3 +198,7 @@ Cloudflare resource created, no client data:
 - Whether a `batch()` counts as one query toward the 1,000-per-invocation limit (budgeted as if not).
 - Very large sites (tens of thousands of revisions): the run spans many ticks and reloads the backup from R2 each
   tick; CPU time per tick for gunzip + JSON.parse of a multi-MB file was not measured on workerd.
+
+## Restore test: first live run (2026-11-22, a live client site, dry run)
+
+- "Run restore test now" on a deployed Worker without `RESTORE_DRILL_DB`: passed, 247 rows across 30 tables, 12 media files sampled in R2 (`head()` works on the real binding), within the admin request. The scratch-database path (b) is still unverified until a site is provisioned with it.

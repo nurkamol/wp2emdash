@@ -277,3 +277,7 @@ logs or emails after a full run. Settings logs carry recipient counts, never add
 - The cron's boundary purge on a deployed Worker (see "Scheduled coming-soon").
 - The visual check on a deployed Worker: whether `SELF` serves `/_astro/*.css` and other static files or the `ASSETS`
   fallback is needed, and `ctx.content.list` with `orderBy: { updatedAt: "desc" }` against D1 (source-read only).
+
+## Visual check: first live run (2026-11-22, a live client site)
+
+- Verified on a deployed Worker: the first run took the baseline at 04:40 UTC without errors; page reads through the SELF binding worked and both `@font-face` families were found in the site's stylesheets, so stylesheet reads (SELF, or the ASSETS fallback) work. The view reported "All checked pages look as expected". Next weekly comparison 7 days later.
