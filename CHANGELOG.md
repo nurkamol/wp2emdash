@@ -6,6 +6,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Product grid section** (WooCommerce catalogue mode only; PLAN §8b, `docs/spikes/shop-findings.md`): editors can place a grid of products on any page ("Featured products" on the home page): heading, intro, which products (newest, on sale, product categories, hand-picked product addresses), how many (default 4, max 12), products per row, show price, button label (empty = the product's own Buy wording, else "View product"). It reuses the shop's product cards, reads the products server-side (cached pages, purged by the `products` tag) and adds an ItemList of the product pages (no duplicate Product JSON-LD). The transform maps WooCommerce blocks (hand-picked, product category, on sale, newest, Product Collection), the shortcodes `[products]`, `[featured_products]`, `[sale_products]`, `[recent_products]`, `[product_category]`, Salient's WooCommerce products element and Elementor Pro's Products widget; product ids become product addresses and WordPress's featured products a hand-picked list. Best sellers, top rated, attribute/tag filters, add-to-cart and single-product shortcodes are reported in the coverage report. Sites without a shop are unchanged: no new block type, allowed section, editor-guide entry or output (`test/product-grid-noshop.test.ts`); a grid found on such a site is reported, not kept. The editor guide explains the section on shop sites.
+
 ## [1.5.0] — 2026-11-22
 
 ### Added
