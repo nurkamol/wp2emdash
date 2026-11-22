@@ -6,6 +6,8 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-11-22
+
 ### Added
 - **SEO fix-it** (`@wp2emdash/seo` 0.6.0, SEO & Analytics → **SEO fix-it**, editors and admins): drafts the missing meta descriptions (120–160 characters) and focus keywords (2–4 words found in the page text), and optionally SEO titles that are too long or short (≤ 60), with Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`, JSON mode, the site's language) from each published, indexable page's own title and visible text. Drafts are validated and cleaned (plain text; phone numbers, prices, emails and links not on the page removed; unsupported claims removed or flagged). Review table per page: current vs suggested values, editable, **Approve** / **Discard**, **Approve all shown**. Approval writes the SEO fields with `content.update(…, { seo })` (new capability `content:write`, SEO fields only) — not versioned, so live at once on a published page, as the page says — and the keyword to the panel's KV, refuses values changed since the draft, then purges the cached pages. 10 pages per press, 100 drafts per UTC day by default (about half the free daily neurons). Pending suggestions in plugin KV (≤ 200, 30 days, never the page text). Without the AI binding the page explains how to add it. Options `fixit: { model, dailyLimit, titles }` or `fixit: false`. Findings: `docs/spikes/seo-fixit-findings.md`.
 - **Scaffold:** the Worker gets the Workers AI binding when the SEO panel is on (as before also with Media AI alt text), except on `sensitiveData` sites.
