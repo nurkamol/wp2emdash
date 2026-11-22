@@ -11,6 +11,7 @@ import { folderSourcesFromDump } from "../extract/media-folders.js";
 import { phpUnserialize, readOptionsFromDump, readTablesFromDump } from "../extract/sql-options.js";
 import { rankMathTermMeta, SEO_TERMMETA_FILE } from "../transform/term-meta.js";
 import { ML_FILE } from "../transform/multilingual.js";
+import { ACF_OPTIONS_FILE, isAcfOptionName } from "../transform/acf.js";
 
 /** WPML and Polylang settings (language URL mode, default language): src/transform/multilingual.ts. */
 export const ML_OPTIONS = ["icl_sitepress_settings", "polylang"];
@@ -45,7 +46,7 @@ export function withoutSecrets(v: unknown, dropped: string[] = [], path = "", se
 	return v;
 }
 
-export async function importOptions(slug: string, dump: string, sitesDir?: string): Promise<{ file: string; found: string[]; missing: string[]; dropped: string[]; folders: string[]; termSeo: number }> {
+export async function importOptions(slug: string, dump: string, sitesDir?: string): Promise<{ file: string; found: string[]; missing: string[]; dropped: string[]; folders: string[]; termSeo: number; acfOptions: number }> {
 	if (!existsSync(dump)) throw new Error(`No such file: ${dump}`);
 	const paths = sitesDir ? sitePaths(slug, sitesDir) : sitePaths(slug);
 	const all = await readOptionsFromDump(dump, [...BRICKS_OPTIONS, ...SEO_OPTIONS, ...DISCUSSION_OPTIONS]);
@@ -81,5 +82,17 @@ export async function importOptions(slug: string, dump: string, sitesDir?: strin
 	// FileBird / Real Media Library folders (their own tables; folder names, parents and attachment ids only).
 	const folders = await folderSourcesFromDump(dump);
 	if (folders.length) writeFileSync(join(paths.raw, "media-folders-dump.json"), `${JSON.stringify({ sources: folders }, null, 2)}\n`);
-	return { file, found: Object.keys(clean), missing: BRICKS_OPTIONS.filter((k) => !(k in clean)), dropped, folders: folders.map((f) => `${f.plugin} (${f.folders.length} folders)`), termSeo: Object.keys(termmeta).length };
+	// ACF options pages: ACF stores each value as an option `options_<field name>` (repeater rows `options_<name>_<i>_<sub>`;
+	// docs/spikes/acf-findings.md). Credential-looking names (an API key field on a settings page) are left out.
+	const acfRaw = await readOptionsFromDump(dump, isAcfOptionName);
+	const acfValues: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(acfRaw)) {
+		if (SEO_SECRETISH.test(k.slice("options_".length))) {
+			dropped.push(k);
+			continue;
+		}
+		acfValues[k] = withoutSecrets(v, dropped, k, SEO_SECRETISH);
+	}
+	if (Object.keys(acfValues).length) writeFileSync(join(paths.raw, ACF_OPTIONS_FILE), `${JSON.stringify({ values: acfValues }, null, 2)}\n`);
+	return { file, found: Object.keys(clean), missing: BRICKS_OPTIONS.filter((k) => !(k in clean)), dropped, folders: folders.map((f) => `${f.plugin} (${f.folders.length} folders)`), termSeo: Object.keys(termmeta).length, acfOptions: Object.keys(acfValues).length };
 }

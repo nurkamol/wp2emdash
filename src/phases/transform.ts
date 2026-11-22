@@ -30,8 +30,10 @@ import { buildSettings, irSettings, settingsReport } from "../transform/settings
 import { contentInventory, HANDLED_TYPES, INTERNAL_TAXONOMIES, INTERNAL_TYPES, inventoryDetail, inventoryReport } from "../transform/content-types.js";
 import { type AnalyzeType, completeOptions, type ContentTypeDecision, type CptEntrySource, type CptPlan, cptReport, entryData, planCollections, proposal, type WpRestType } from "../transform/cpt.js";
 import { fieldGroups } from "../transform/cpt-sources.js";
+import { ACF_OPTIONS_FILE, type AcfPostField, type AcfReportInput, acfOptionsPlan, acfOtherValues, acfReport, acfValue, collectPostField } from "../transform/acf.js";
+import { type FlexContext, flexibleSections } from "../transform/acf-flexible.js";
 import { exporterFacts, extensionsOf, PRODUCT_TAXONOMIES, PRODUCT_TYPE, PRODUCTS_COLLECTION, type ProductPost, productFields, productMeta, type ShopFacts, shopDecisions, shopGate, shopReport, type WooPageRole, wooPageRole } from "../transform/shop.js";
-import { fieldsForType } from "../transform/cpt-fields.js";
+import { acfDisabledRows, fieldKind, fieldsForType, type WpFieldGroup } from "../transform/cpt-fields.js";
 import { type CustomCss, customCssFromHtml, customCssReport, describeCss } from "../transform/custom-css.js";
 import { baseOf, buildWpUrlPlan, type WpUrlInput, wpUrlsReport } from "../transform/wp-urls.js";
 import { type CommentsPlan, type CommentTarget, commentsGate, commentsReport, discussionSettings, planComments, type WpComment } from "../transform/comments.js";
@@ -346,9 +348,10 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		return reason ? { reason, ...(html ? { html } : {}) } : undefined;
 	};
 	/** `elements`: a Bricks template's element list (its meta key depends on the template type). */
-	const adapt = (p: ExporterPost, kind: Exclude<IrPage["kind"], "entry">, elements?: BricksElement[], role?: "header" | "footer") => {
+	/** `noFallback`: the page's content is rebuilt another way (every ACF flexible content row maps to a section). */
+	const adapt = (p: ExporterPost, kind: Exclude<IrPage["kind"], "entry">, elements?: BricksElement[], role?: "header" | "footer", noFallback = false) => {
 		let builder: Builder = elements ? "bricks" : detectBuilder(p.content ?? "", p.meta);
-		const fallback = !elements && !role && (kind === "page" || kind === "post") ? domFallbackFor(p, builder) : undefined;
+		const fallback = !elements && !role && !noFallback && (kind === "page" || kind === "post") ? domFallbackFor(p, builder) : undefined;
 		if (fallback?.html) builder = "dom-fallback";
 		const keys = new Keys(`${p.id.toString(36)}_`);
 		const common = { kind, keys, popupFor, postCount: posts.filter((x) => x.status === "publish").length, rowOverrides: rowOverridesFor(p.slug) };
@@ -482,6 +485,45 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		protectedDocs.push({ slug: p.slug || String(p.id), type: p.post_type, kind, as, hash: !!protectedRaw.get(`${p.post_type}:${p.id}`)?.hash });
 		return as === "skip" ? "skip" : { kind, as };
 	};
+	// ── ACF on pages and posts (src/transform/acf.ts, acf-flexible.ts): flexible content → sections; other values reported ──
+	const analyzeAll = readJson<{ post_types?: AnalyzeType[]; acf?: unknown }>(join(exp, "analyze.json")) ?? {};
+	let fieldGroupsCache: WpFieldGroup[] | undefined;
+	const allFieldGroups = () => (fieldGroupsCache ??= fieldGroups({ raw: paths.raw, content: (t) => content(t), analyzeAcf: analyzeAll.acf }));
+	const acfDefsFor = (postType: string) => fieldsForType(allFieldGroups(), postType).fields.filter((d) => d.source === "acf");
+	const acfLayoutUses: AcfReportInput["layouts"] = [];
+	const acfPostFields: AcfPostField[] = [];
+	const flexContext = (p: ExporterPost) => ({ mediaIdForUrl, href: relHref, keys: new Keys(`${p.id.toString(36)}_acf`), decisions: overrides.acfLayouts as FlexContext["decisions"] });
+	const acfFlexFor = (p: ExporterPost) => {
+		const meta = (p.meta ?? {}) as Record<string, unknown>;
+		const acf = (p as { acf?: Record<string, unknown> }).acf;
+		const ctx = flexContext(p);
+		return acfDefsFor(p.post_type)
+			.filter((d) => fieldKind(d) === "flexible" && d.layouts?.length && (meta[d.name] !== undefined || acf?.[d.name] !== undefined))
+			.map((def) => ({ def, out: flexibleSections(def, acfValue(def, { meta, ...(acf ? { acf } : {}) }), ctx, { path: "acf", disabled: acfDisabledRows(def.name, meta).length }) }));
+	};
+	/** After a page/post is adapted: its flexible content sections (unless rebuilt from HTML) and the report rows. */
+	const acfAfterAdapt = (p: ExporterPost, kind: "page" | "post", builder: Builder, flex: ReturnType<typeof acfFlexFor>, sections: Section[], diagnostics: Diagnostic[]) => {
+		const rendered = builder === "dom-fallback";
+		const where = `${kind} ${p.slug || p.id}`;
+		for (const { def, out } of flex) {
+			acfLayoutUses.push(...out.layouts.map((u) => ({ ...u, where, ...(rendered ? { rendered: true } : {}) })));
+			if (out.disabled) diagnostics.push({ level: "info", code: "flagged", message: `ACF flexible content ${def.name}: ${out.disabled} row(s) disabled in ACF (hidden on the live site), not carried`, path: `acf.${def.name}` });
+			if (rendered) {
+				diagnostics.push({ level: "info", code: "flagged", message: `ACF flexible content ${def.name} (${out.layouts.reduce((n, u) => n + u.rows, 0)} rows): the page was rebuilt from its rendered HTML, which shows them`, path: `acf.${def.name}` });
+				continue;
+			}
+			if (kind === "post") {
+				// Posts keep Portable Text bodies; their flexible content is reported, not rebuilt.
+				diagnostics.push({ level: "warn", code: "lossy", message: `ACF flexible content ${def.name} (${out.layouts.map((u) => `${u.layout} ×${u.rows}`).join(", ")}): not carried on posts`, path: `acf.${def.name}` });
+				continue;
+			}
+			sections.push(...out.sections);
+			diagnostics.push(...out.diagnostics.map((d) => (d.code === "unmapped" ? { ...d, level: "error" as const, carriesContent: true, message: `${d.message} — map it with overrides.ts acfLayouts (a section type, or "skip" with the owner's reason)` } : d)));
+		}
+		const others = acfOtherValues(acfDefsFor(p.post_type), { meta: p.meta as Record<string, unknown>, ...((p as { acf?: Record<string, unknown> }).acf ? { acf: (p as { acf?: Record<string, unknown> }).acf } : {}) });
+		for (const { def, value } of others) collectPostField(acfPostFields, kind, p.slug || String(p.id), rendered, def, value);
+		if (others.length) diagnostics.push({ level: rendered ? "info" : "warn", code: "lossy", message: `ACF field(s) ${others.map((o) => o.def.name).join(", ")}: ${rendered ? "shown through the rendered page" : `not carried (${kind}s have no custom fields; coverage report → ACF fields on pages and posts)`}`, path: "acf" });
+	};
 	// WooCommerce catalogue mode (src/transform/shop.ts): the shop page is the products listing; cart, checkout and
 	// my-account are not rebuilt (their addresses 301 to the listing: wpUrls `shop`).
 	const wooPages = new Map<number, { role: WooPageRole; path: string }>();
@@ -500,9 +542,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			notTransformed.push(`page ${p.slug}: ${p.status === "private" ? "private" : "password-protected"}, skipped by decision (overrides.ts protectedContent)`);
 			continue;
 		}
-		const { builder, sections, diagnostics } = adapt(p, "page");
+		// ACF flexible content (a theme's "page sections"): every row mapped → the page is built from them (no DOM
+		// fallback); otherwise the rendered page is the fallback and the rows are reported.
+		const flex = acfFlexFor(p);
+		const allMapped = flex.length > 0 && flex.every((f) => !f.out.unmapped.length) && flex.some((f) => f.out.sections.length);
+		const { builder, sections, diagnostics } = adapt(p, "page", undefined, undefined, allMapped);
+		acfAfterAdapt(p, "page", builder, flex, sections, diagnostics);
 		// Audit section boxes are paired by builder row; rows found in rendered HTML have no such pairing.
-		if (builder !== "dom-fallback") paddedEdges += applyMeasuredPadding(sections, boxesFor(routeOf(p)), false);
+		if (builder !== "dom-fallback") paddedEdges += applyMeasuredPadding(sections.filter((s) => s.sourceRef.adapter !== "acf"), boxesFor(routeOf(p)), false);
 		const template = typeof p.meta._wp_page_template === "string" && p.meta._wp_page_template !== "default" ? p.meta._wp_page_template : undefined;
 		const parentPath = p.parent && byId.get(p.parent) ? routeOf(byId.get(p.parent) as ExporterPost) : undefined;
 		// Order, parent and excerpt when the page has them (src/transform/pages.ts); a parent skipped by decision is not linked.
@@ -518,7 +565,9 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const contentTypesOnDisk = existsSync(join(exp, "content")) ? readdirSync(join(exp, "content")).filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, "")).sort() : [];
 	for (const t of contentTypesOnDisk.filter((x) => x !== "page" && asPages(x))) {
 		for (const p of content(t)) {
-			const { builder, sections, diagnostics } = adapt(p, "page");
+			const flex = acfFlexFor(p);
+			const { builder, sections, diagnostics } = adapt(p, "page", undefined, undefined, flex.length > 0 && flex.every((f) => !f.out.unmapped.length) && flex.some((f) => f.out.sections.length));
+			acfAfterAdapt(p, "page", builder, flex, sections, diagnostics);
 			emit({ version: IR_VERSION, kind: "page", source: { wpId: p.id, type: p.post_type, status: p.status, slug: p.slug, builder, modifiedGmt: p.modified_gmt }, route: { path: routeOf(p) }, title: p.title, seo: seoOf(p), ...(p.featured_image?.id ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}), sections, diagnostics }, `pages/${t}-${p.slug}.json`, p.status === "publish");
 		}
 	}
@@ -624,6 +673,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 			...(postAccess && postAccess !== "skip" ? { access: postAccess } : {}),
 			diagnostics: [...(adapted?.diagnostics ?? []), ...(converted?.diagnostics ?? [])],
 		};
+		acfAfterAdapt(p, "post", doc.source.builder, acfFlexFor(p), doc.sections, doc.diagnostics);
 		emit(doc, `posts/${p.slug || `post-${p.id}`}.json`, p.status === "publish" && (visibility === "public" || (postAccess !== "skip" && postAccess?.as !== "draft")));
 	}
 	const blogPlan: BlogPlan | undefined = blogOn
@@ -682,7 +732,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		: undefined;
 	const cpt = buildCollections();
 	function buildCollections() {
-		const analyzeFull = readJson<{ post_types?: AnalyzeType[]; acf?: unknown }>(join(exp, "analyze.json")) ?? {};
+		const analyzeFull = analyzeAll;
 		const restTypes = readJson<Record<string, WpRestType>>(join(exp, "types.json")) ?? {};
 		const candidates = contentTypesOnDisk.filter((t) => t !== "page" && t !== "post" && !HANDLED_TYPES[t] && !INTERNAL_TYPES[t] && overrides.contentTypes[t]?.as !== "skip" && !asPages(t));
 		const decisions: Record<string, ContentTypeDecision | undefined> = Object.fromEntries(candidates.map((t) => [t, overrides.contentTypes[t]]));
@@ -693,7 +743,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		const proposals = Object.fromEntries(candidates.map((t) => [t, proposal(t, (analyzeFull.post_types ?? []).find((a) => a.name === t))]));
 		const empty = { plan: undefined, docs: [] as IrPage[], proposals, unknownMeta: [] as string[] };
 		if (!candidates.length) return empty;
-		const groups = fieldGroups({ raw: paths.raw, content: (t) => content(t), analyzeAcf: analyzeFull.acf });
+		const groups = allFieldGroups();
 		const typeOfIdMap = new Map<number, string>();
 		for (const t of contentTypesOnDisk) for (const p of content(t)) typeOfIdMap.set(p.id, t);
 		const entriesOf = new Map(candidates.map((t) => [t, content(t) as CptEntrySource[]]));
@@ -746,11 +796,14 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 				const isBuilder = builder === "wpbakery" || builder === "bricks" || builder === "gutenberg" || builder === "divi";
 				const adapted = isBuilder ? adapt(p, "page") : undefined;
 				const converted = !isBuilder && builder !== "empty" ? convertPostBody(p.content ?? "", "classic", { keyPrefix: `${p.id.toString(36)}_b`, mediaIdForUrl, reusable: (id) => reusable.get(id) }) : undefined;
-				const { entry, diagnostics } = entryData(p as unknown as CptEntrySource, col, {
+				const flexCtx = flexContext(p);
+				const { entry, diagnostics, sections: flexSections, layouts } = entryData(p as unknown as CptEntrySource, col, {
 					mediaIdForUrl,
 					typeOfId: (id) => typeOfIdMap.get(id),
 					html: (h, k) => convertPostBody(h, "classic", { keyPrefix: k, mediaIdForUrl, reusable: (id) => reusable.get(id) }),
+					flexible: (def, rows, o) => flexibleSections(def, rows, flexCtx, o),
 				}, defs);
+				acfLayoutUses.push(...layouts.map((u) => ({ ...u, where: `${col.slug} ${p.slug || p.id}` })));
 				// Links to the WordPress site in URL fields become site paths (the same pages on the new site).
 				for (const f of col.fields) {
 					const v = entry.fields[f.slug];
@@ -781,13 +834,15 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 					title: p.title,
 					seo: seoOf(p),
 					...(p.featured_image?.id && col.core.featuredImage ? { featuredImage: { wpId: p.featured_image.id, kind: "image" as const } } : {}),
-					sections: adapted?.sections ?? [],
+					sections: [...(adapted?.sections ?? []), ...flexSections],
 					entry: { ...entry, body: (converted?.body ?? []) as IrEntry["body"] },
 					diagnostics: [...(adapted?.diagnostics ?? []), ...(converted?.diagnostics ?? []), ...diagnostics, ...(product?.notes ?? []).map((m) => ({ level: "warn" as const, code: "lossy" as const, message: m, path: "shop" }))],
 				};
 				built.push({ p, doc });
 			}
 			completeOptions(col, built.map((b) => b.doc.entry as never));
+			// ACF flexible content rows became sections: the collection needs its sections field.
+			if (built.some((b) => b.doc.sections.some((s) => s.sourceRef.adapter === "acf"))) col.core.sections = true;
 			for (const { p, doc } of built) {
 				emit(doc, `entries/${col.slug}/${doc.source.slug}.json`, p.status === "publish");
 				docs.push(doc);
@@ -1383,7 +1438,10 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	const shortcodes = shortcodeSummary(results);
 	rmSync(join(paths.ir, "shortcodes.json"), { force: true });
 	if (shortcodes.used.length) write(join(paths.ir, "shortcodes.json"), shortcodes);
-	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...(shopFacts ? ["", ...shopReport(shopFacts, config.shop, "## Shop (WooCommerce)")] : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...termSeoReport(termSeo, termSeoDumpMissing), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...mediaFoldersReport(folderPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode), ...(ml ? multilingualReport(ml.plan, mlDocs, [...mlSkipped.values()]) : [])]));
+	// ACF options pages (site-wide settings): values from a database backup when import-options read one.
+	const acfOptions = acfOptionsPlan(allFieldGroups(), readJson<{ values?: Record<string, unknown> }>(join(paths.raw, ACF_OPTIONS_FILE))?.values);
+	if (acfOptions) write(join(paths.ir, "acf-options.json"), acfOptions);
+	writeFileSync(join(reportDir, "coverage.md"), transformReport(config.name, results, checks, notTransformed, site, announcementReport, siteSnippets, [...domReport, ...shortcodesReport(shortcodes), ...settingsReport(settings), ...inventoryReport(inventory), ...(blogPlan ? blogReport(blogPlan, results.filter((r) => r.doc.kind === "post").map((r) => r.doc), overrides.protectedPosts) : []), ...(cpt.plan ? cptReport(cpt.plan, cpt.docs) : []), ...acfReport({ layouts: acfLayoutUses, postFields: acfPostFields, ...(acfOptions ? { options: acfOptions } : {}) }), ...(shopFacts ? ["", ...shopReport(shopFacts, config.shop, "## Shop (WooCommerce)")] : []), ...pageAttributesReport(results.filter((r) => r.doc.kind === "page").map((r) => r.doc), snapshotHtml.filter((h) => showsFeaturedImage(h.html)).length), ...sectionsReport(sectionsPlan), ...usersReport(userCounts), ...termSeoReport(termSeo, termSeoDumpMissing), ...customCssReport(customCss?.css ? customCss : undefined, overrides.customCss), ...(commentsPlan ? commentsReport(commentsPlan) : []), ...wpUrlsReport(wpUrlPlan), ...menusReport(site.menus), ...widgetsReport(widgetPlan), ...mediaFoldersReport(folderPlan), ...siteFeaturesReport(features), ...consentReport(consentPlan, config.consent === false ? false : config.consent.mode), ...(ml ? multilingualReport(ml.plan, mlDocs, [...mlSkipped.values()]) : [])]));
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "coverage.md")}` });
 	return checks;
 }

@@ -288,7 +288,13 @@
 				{
 					"slug": "profile_link",
 					"label": "Profile link",
-					"type": "json"
+					"type": "url"
+				},
+				{
+					"slug": "profile_link_label",
+					"label": "Profile link (text)",
+					"type": "string",
+					"searchable": true
 				},
 				{
 					"slug": "legacy_code",
@@ -572,11 +578,8 @@
 							}
 						}
 					],
-					"profile_link": {
-						"title": "Profile",
-						"url": "https://example.org/jane",
-						"target": ""
-					},
+					"profile_link": "https://example.org/jane",
+					"profile_link_label": "Profile",
 					"legacy_code": "JD-01"
 				},
 				"taxonomies": {

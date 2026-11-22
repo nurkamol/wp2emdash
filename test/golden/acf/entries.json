@@ -1,0 +1,279 @@
+{
+	"city-site.json": {
+		"version": 1,
+		"kind": "entry",
+		"source": {
+			"wpId": 202,
+			"type": "project",
+			"status": "publish",
+			"slug": "city-site",
+			"builder": "empty",
+			"modifiedGmt": "2024-06-05 10:00:00"
+		},
+		"route": {
+			"path": "/project/city-site/"
+		},
+		"title": "City site",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"sections": [
+			{
+				"type": "rich_text",
+				"theme": {
+					"tone": "light"
+				},
+				"spacing": "normal",
+				"sourceRef": {
+					"adapter": "acf",
+					"path": "acf.blocks[0]",
+					"rawHash": "35ccf3968b"
+				},
+				"fields": {
+					"body": [
+						{
+							"_type": "block",
+							"_key": "5m_acf0",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "5m_acf1",
+									"text": "Fast and calm.",
+									"marks": []
+								}
+							],
+							"markDefs": []
+						}
+					],
+					"width": "normal",
+					"align": "left",
+					"buttons": []
+				}
+			}
+		],
+		"entry": {
+			"collection": "project",
+			"fields": {
+				"cover": {
+					"wpId": 57,
+					"kind": "image",
+					"alt": "City skyline"
+				},
+				"wp_status": "planning",
+				"featured": false,
+				"services": [
+					"web"
+				],
+				"website": "https://city.example.org/",
+				"milestones": [
+					{
+						"title": "Discovery",
+						"due": "2025-01-10T00:00:00.000Z"
+					}
+				],
+				"blocks": [
+					{
+						"acf_fc_layout": "poll_widget",
+						"question": "Which colour?"
+					}
+				]
+			},
+			"references": {
+				"related_projects": [
+					"project:201"
+				]
+			},
+			"body": [],
+			"publishedAt": "2024-06-05T10:00:00.000Z",
+			"modifiedAt": "2024-06-05T10:00:00.000Z",
+			"terms": {},
+			"bylines": []
+		},
+		"diagnostics": [
+			{
+				"level": "warn",
+				"code": "lossy",
+				"message": "ACF layout \"quote\" → rich_text: not carried: author",
+				"path": "acf.blocks[0]"
+			},
+			{
+				"level": "warn",
+				"code": "unmapped",
+				"message": "ACF flexible content row 2 uses layout \"poll_widget\", which no field definition describes: kept as data, not as a section",
+				"path": "acf.blocks[1]"
+			}
+		]
+	},
+	"harbor-rebrand.json": {
+		"version": 1,
+		"kind": "entry",
+		"source": {
+			"wpId": 201,
+			"type": "project",
+			"status": "publish",
+			"slug": "harbor-rebrand",
+			"builder": "empty",
+			"modifiedGmt": "2024-06-05 10:00:00"
+		},
+		"route": {
+			"path": "/project/harbor-rebrand/"
+		},
+		"title": "Harbor rebrand",
+		"seo": {
+			"jsonLdTypes": []
+		},
+		"sections": [
+			{
+				"type": "gallery",
+				"theme": {
+					"tone": "light"
+				},
+				"spacing": "normal",
+				"sourceRef": {
+					"adapter": "acf",
+					"path": "acf.blocks[0]",
+					"rawHash": "28be7fb912"
+				},
+				"fields": {
+					"images": [
+						{
+							"wpId": 55,
+							"kind": "image"
+						},
+						{
+							"wpId": 56,
+							"kind": "image"
+						}
+					],
+					"layout": "grid",
+					"lightbox": true
+				}
+			},
+			{
+				"type": "rich_text",
+				"theme": {
+					"tone": "light"
+				},
+				"spacing": "normal",
+				"sourceRef": {
+					"adapter": "acf",
+					"path": "acf.blocks[1]",
+					"rawHash": "a2e9af515f"
+				},
+				"fields": {
+					"body": [
+						{
+							"_type": "block",
+							"_key": "5l_acf0",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "5l_acf1",
+									"text": "Best harbour ever.",
+									"marks": []
+								}
+							],
+							"markDefs": []
+						}
+					],
+					"width": "normal",
+					"align": "left",
+					"buttons": []
+				}
+			},
+			{
+				"type": "map",
+				"theme": {
+					"tone": "light"
+				},
+				"spacing": "normal",
+				"sourceRef": {
+					"adapter": "acf",
+					"path": "acf.blocks[2]",
+					"rawHash": "593135c16f"
+				},
+				"fields": {
+					"address": "1 Pier Road, Example City"
+				}
+			}
+		],
+		"entry": {
+			"collection": "project",
+			"fields": {
+				"cover": {
+					"wpId": 54,
+					"kind": "image"
+				},
+				"summary": [
+					{
+						"_type": "block",
+						"_key": "5l_summary_1",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "5l_summary_0",
+								"text": "A rebrand for a harbour."
+							}
+						]
+					}
+				],
+				"wp_status": "live",
+				"featured": true,
+				"services": [
+					"brand",
+					"web"
+				],
+				"launched_at": "2024-06-01T09:30:00.000Z",
+				"opening_time": "09:00:00",
+				"website": "https://harbor.example.org/",
+				"website_label": "Visit the site",
+				"brochure": {
+					"wpId": 60,
+					"kind": "file"
+				},
+				"contact_email": "hi@harbor.example.org",
+				"contact_phone": "+1 555 0101",
+				"milestones": [
+					{
+						"title": "Kickoff",
+						"due": "2024-01-05T00:00:00.000Z",
+						"link": "/notes/",
+						"link_label": "Notes",
+						"details_budget": 1000,
+						"details_owner": "Sam"
+					},
+					{
+						"title": "Launch",
+						"due": "2024-06-01T00:00:00.000Z",
+						"details_budget": 5000,
+						"details_owner": "Alex"
+					}
+				]
+			},
+			"references": {
+				"lead_page": [
+					"page:11"
+				],
+				"related_projects": [
+					"project:202"
+				]
+			},
+			"body": [],
+			"publishedAt": "2024-06-05T10:00:00.000Z",
+			"modifiedAt": "2024-06-05T10:00:00.000Z",
+			"terms": {},
+			"bylines": []
+		},
+		"diagnostics": [
+			{
+				"level": "warn",
+				"code": "lossy",
+				"message": "ACF layout \"quote\" → rich_text: not carried: author",
+				"path": "acf.blocks[1]"
+			}
+		]
+	}
+}

@@ -16,7 +16,7 @@
 	"acf radio → select → f:select",
 	"acf button_group → select → f:select",
 	"acf true_false → boolean → f:boolean",
-	"acf link → link → f:json",
+	"acf link → link → f:url f_label:string",
 	"acf post_object → reference → f:reference→team",
 	"acf page_link → url → f:url",
 	"acf relationship → reference → f:reference→team",

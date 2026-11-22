@@ -348,12 +348,30 @@
 					"wp": {
 						"source": "acf",
 						"name": "profile_link",
-						"type": "link"
+						"type": "link",
+						"path": [
+							"profile_link",
+							"url"
+						]
 					},
 					"kind": "link",
-					"type": "json",
-					"note": "link (title, URL, target): kept as JSON",
-					"warn": true
+					"type": "url",
+					"note": "link URL (ACF link; opens-in-new-tab not kept)"
+				},
+				{
+					"slug": "profile_link_label",
+					"label": "Profile link (text)",
+					"type": "string",
+					"kind": "string",
+					"wp": {
+						"source": "acf",
+						"name": "profile_link",
+						"type": "link",
+						"path": [
+							"profile_link",
+							"title"
+						]
+					}
 				},
 				{
 					"slug": "legacy_code",

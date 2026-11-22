@@ -1,0 +1,317 @@
+{
+	"collections": [
+		{
+			"type": "project",
+			"slug": "project",
+			"label": "Projects",
+			"labelSingular": "Project",
+			"description": "Migrated from the WordPress post type \"project\"",
+			"hierarchical": false,
+			"routable": true,
+			"base": "/project/",
+			"archive": "/project/",
+			"perPage": 10,
+			"core": {
+				"excerpt": false,
+				"featuredImage": false,
+				"body": false,
+				"sections": true,
+				"menuOrder": false,
+				"ordered": false,
+				"parent": false,
+				"bylines": false
+			},
+			"fields": [
+				{
+					"slug": "cover",
+					"label": "Cover",
+					"wp": {
+						"source": "acf",
+						"name": "cover",
+						"type": "image"
+					},
+					"kind": "image",
+					"type": "image"
+				},
+				{
+					"slug": "summary",
+					"label": "Summary",
+					"wp": {
+						"source": "acf",
+						"name": "summary",
+						"type": "wysiwyg"
+					},
+					"kind": "html",
+					"type": "portableText"
+				},
+				{
+					"slug": "wp_status",
+					"label": "Status",
+					"wp": {
+						"source": "acf",
+						"name": "status",
+						"type": "select"
+					},
+					"kind": "select",
+					"type": "select",
+					"options": [
+						"planning",
+						"live"
+					]
+				},
+				{
+					"slug": "featured",
+					"label": "Featured",
+					"wp": {
+						"source": "acf",
+						"name": "featured",
+						"type": "true_false"
+					},
+					"kind": "boolean",
+					"type": "boolean"
+				},
+				{
+					"slug": "services",
+					"label": "Services",
+					"wp": {
+						"source": "acf",
+						"name": "services",
+						"type": "checkbox"
+					},
+					"kind": "multiSelect",
+					"type": "multiSelect",
+					"options": [
+						"brand",
+						"web",
+						"print"
+					]
+				},
+				{
+					"slug": "launched_at",
+					"label": "Launched",
+					"wp": {
+						"source": "acf",
+						"name": "launched_at",
+						"type": "date_time_picker"
+					},
+					"kind": "datetime",
+					"type": "datetime"
+				},
+				{
+					"slug": "opening_time",
+					"label": "Office opens",
+					"wp": {
+						"source": "acf",
+						"name": "opening_time",
+						"type": "time_picker"
+					},
+					"kind": "time",
+					"type": "string",
+					"note": "time of day kept as text (EmDash has no time field)"
+				},
+				{
+					"slug": "website",
+					"label": "Website",
+					"wp": {
+						"source": "acf",
+						"name": "website",
+						"type": "link",
+						"path": [
+							"website",
+							"url"
+						]
+					},
+					"kind": "link",
+					"type": "url",
+					"note": "link URL (ACF link; opens-in-new-tab not kept)"
+				},
+				{
+					"slug": "website_label",
+					"label": "Website (text)",
+					"type": "string",
+					"kind": "string",
+					"wp": {
+						"source": "acf",
+						"name": "website",
+						"type": "link",
+						"path": [
+							"website",
+							"title"
+						]
+					}
+				},
+				{
+					"slug": "brochure",
+					"label": "Brochure",
+					"wp": {
+						"source": "acf",
+						"name": "brochure",
+						"type": "file"
+					},
+					"kind": "file",
+					"type": "file"
+				},
+				{
+					"slug": "lead_page",
+					"label": "Landing page",
+					"wp": {
+						"source": "acf",
+						"name": "lead_page",
+						"type": "post_object"
+					},
+					"kind": "reference",
+					"type": "reference",
+					"targets": [
+						"page"
+					],
+					"targetCollection": "pages",
+					"multiple": false
+				},
+				{
+					"slug": "related_projects",
+					"label": "Related projects",
+					"wp": {
+						"source": "acf",
+						"name": "related_projects",
+						"type": "relationship"
+					},
+					"kind": "reference",
+					"type": "reference",
+					"targets": [
+						"project"
+					],
+					"targetCollection": "project",
+					"multiple": true
+				},
+				{
+					"slug": "contact_email",
+					"label": "E-mail",
+					"wp": {
+						"source": "acf",
+						"name": "email",
+						"type": "email",
+						"path": [
+							"contact",
+							"email"
+						]
+					},
+					"kind": "email",
+					"type": "string",
+					"note": "e-mail address kept as text (EmDash has no e-mail field)"
+				},
+				{
+					"slug": "contact_phone",
+					"label": "Phone",
+					"wp": {
+						"source": "acf",
+						"name": "phone",
+						"type": "text",
+						"path": [
+							"contact",
+							"phone"
+						]
+					},
+					"kind": "string",
+					"type": "string"
+				},
+				{
+					"slug": "milestones",
+					"label": "Milestones",
+					"wp": {
+						"source": "acf",
+						"name": "milestones",
+						"type": "repeater"
+					},
+					"kind": "repeater",
+					"type": "repeater",
+					"subFields": [
+						{
+							"slug": "title",
+							"label": "Title",
+							"type": "string",
+							"kind": "string",
+							"wpName": "title"
+						},
+						{
+							"slug": "due",
+							"label": "Due",
+							"type": "datetime",
+							"kind": "date",
+							"wpName": "due"
+						},
+						{
+							"slug": "link",
+							"label": "Link",
+							"type": "url",
+							"kind": "url",
+							"wpName": "link",
+							"wpPath": [
+								"link",
+								"url"
+							]
+						},
+						{
+							"slug": "link_label",
+							"label": "Link (text)",
+							"type": "string",
+							"kind": "string",
+							"wpName": "link",
+							"wpPath": [
+								"link",
+								"title"
+							]
+						},
+						{
+							"slug": "details_budget",
+							"label": "Budget",
+							"type": "number",
+							"kind": "number",
+							"wpName": "budget",
+							"wpPath": [
+								"details",
+								"budget"
+							]
+						},
+						{
+							"slug": "details_owner",
+							"label": "Owner",
+							"type": "string",
+							"kind": "string",
+							"wpName": "owner",
+							"wpPath": [
+								"details",
+								"owner"
+							]
+						}
+					]
+				},
+				{
+					"slug": "blocks",
+					"label": "Blocks",
+					"wp": {
+						"source": "acf",
+						"name": "blocks",
+						"type": "flexible_content"
+					},
+					"kind": "flexible",
+					"type": "json",
+					"note": "flexible content: rows whose layout maps to a kit section become the entry's sections; rows of other layouts kept here as JSON (coverage report → ACF flexible content)"
+				}
+			],
+			"taxonomies": [],
+			"definitions": [
+				"Project (acf export acf-export-2024-06-01.json)"
+			],
+			"unknownMeta": [],
+			"notCarried": [],
+			"decision": {
+				"by": "default"
+			},
+			"entries": 2,
+			"published": 2,
+			"sortOrder": 3
+		}
+	],
+	"taxonomies": [],
+	"bylines": []
+}

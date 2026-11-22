@@ -37,6 +37,15 @@ export interface WpFieldDef {
 	targets?: string[];
 	/** Pods file fields: "images" | "any"… */
 	fileType?: string;
+	/** ACF flexible content: its layouts (name, label, sub-fields). */
+	layouts?: WpLayout[];
+}
+
+/** One layout of an ACF flexible content field. */
+export interface WpLayout {
+	name: string;
+	label: string;
+	subFields: WpFieldDef[];
 }
 
 export interface WpFieldGroup {
@@ -46,6 +55,8 @@ export interface WpFieldGroup {
 	fields: WpFieldDef[];
 	/** Where the definition came from (report). */
 	from: string;
+	/** ACF options pages the group is shown on (location `options_page == <slug>`): site-wide settings, not entries. */
+	optionsPages?: string[];
 }
 
 /** EmDash field types (emdash 1.5 schema/types.ts FIELD_TYPES). */
@@ -63,7 +74,8 @@ export interface CptField {
 	/** How the value is read (src kind; see `fieldKind`). */
 	kind: FieldKind;
 	options?: string[];
-	subFields?: { slug: string; label: string; type: EmDashFieldType; options?: string[]; kind: FieldKind; wpName: string }[];
+	/** `wpPath`: where the value sits inside a row when it is not the row's own `wpName` key (a link's URL, a group's sub-field). */
+	subFields?: { slug: string; label: string; type: EmDashFieldType; options?: string[]; kind: FieldKind; wpName: string; wpPath?: string[] }[];
 	/** reference: WordPress post types it points at; the EmDash collection once known; one or many. */
 	targets?: string[];
 	targetCollection?: string;
@@ -110,6 +122,7 @@ const ACF_KIND: Record<string, FieldKind> = {
 	message: "layout",
 	accordion: "layout",
 	tab: "layout",
+	separator: "layout",
 	group: "group",
 	repeater: "repeater",
 	flexible_content: "flexible",
@@ -307,12 +320,7 @@ export function mapField(def: WpFieldDef, ctx: { collectionFor: (postType: strin
 			return field("json", { targets, multiple, note: targets.length ? `points at ${targets.join(", ")}: ${cols.includes(undefined) ? "a type that is not a collection" : "several collections"}; kept as WordPress ids` : "relationship target unknown (no definition with post types); kept as WordPress ids", warn: true });
 		}
 		case "repeater": {
-			const subs = (def.subFields ?? []).flatMap((s) => {
-				const k = fieldKind(s);
-				if (k === "layout" || k === "password") return [];
-				const t = subType(k);
-				return [{ slug: fieldSlug(s.name), label: s.label || labelOf(s.name), type: t ?? ("json" as EmDashFieldType), kind: k, wpName: s.name, ...(k === "select" ? { options: s.choices ?? [] } : {}), ok: !!t }];
-			});
+			const subs = repeaterSubs(def.subFields ?? []);
 			if (!subs.length) return json("repeater whose rows are not described (no sub-field definitions): kept as JSON");
 			const bad = subs.filter((s) => !s.ok);
 			if (bad.length) return json(`repeater with ${bad.map((s) => `${s.wpName} (${s.kind})`).join(", ")}: EmDash repeater rows hold only flat text, number, date, select and image values; kept as JSON`);
@@ -323,9 +331,18 @@ export function mapField(def: WpFieldDef, ctx: { collectionFor: (postType: strin
 			return def.subFields.flatMap((s) => mapField(s, ctx, wpPath));
 		}
 		case "flexible":
-			return json("flexible content (layouts of rows): kept as JSON; rebuild as sections if editors need it");
-		case "link":
-			return json("link (title, URL, target): kept as JSON");
+			// Rows whose layout maps to a kit section become the entry's sections (src/transform/acf-flexible.ts); rows of
+			// other layouts stay here as JSON and are listed in the coverage report.
+			return def.layouts?.length ? field("json", { note: `flexible content: rows whose layout maps to a kit section become the entry's sections; rows of other layouts kept here as JSON (coverage report → ACF flexible content)` }) : json("flexible content whose layouts are not described (no field definition with layouts): kept as JSON");
+		case "link": {
+			// ACF link: { title, url, target }. The URL and the link text become their own fields (the target is not kept).
+			const url = field("url", { wp: { ...wp, path: [...wpPath, "url"] }, note: "link URL (ACF link; opens-in-new-tab not kept)" });
+			const textBase = fieldSlug(`${slugBase}_label`);
+			let textSlug = textBase;
+			for (let i = 2; ctx.taken.has(textSlug); i++) textSlug = `${textBase}_${i}`;
+			ctx.taken.add(textSlug);
+			return [...url, { slug: textSlug, label: `${label} (text)`, type: "string", kind: "string", wp: { ...wp, path: [...wpPath, "title"] } }];
+		}
 		case "taxonomy":
 			return json("taxonomy field: term ids kept as JSON (the entry's own terms are migrated as EmDash taxonomies)");
 		case "user":
@@ -335,6 +352,26 @@ export function mapField(def: WpFieldDef, ctx: { collectionFor: (postType: strin
 		default:
 			return json(`${def.source} ${def.type}: no EmDash field type, kept as JSON`);
 	}
+}
+
+type RepeaterSub = NonNullable<CptField["subFields"]>[number] & { ok: boolean };
+
+/**
+ * A repeater's row fields as EmDash repeater sub-fields. A link becomes its URL and its text, a group (and a group in a
+ * group) one sub-field per field (`<group>_<sub>`): EmDash rows are flat. Anything else that is not flat is `ok: false`.
+ */
+function repeaterSubs(defs: WpFieldDef[], path: string[] = []): RepeaterSub[] {
+	return defs.flatMap((s): RepeaterSub[] => {
+		const k = fieldKind(s);
+		if (k === "layout" || k === "password") return [];
+		const p = [...path, s.name];
+		const slug = fieldSlug(p.join("_"));
+		const label = s.label || labelOf(s.name);
+		if (k === "link") return [{ slug, label, type: "url", kind: "url", wpName: s.name, wpPath: [...p, "url"], ok: true }, { slug: fieldSlug(`${slug}_label`), label: `${label} (text)`, type: "string", kind: "string", wpName: s.name, wpPath: [...p, "title"], ok: true }];
+		if (k === "group" && s.subFields?.length) return repeaterSubs(s.subFields, p);
+		const t = subType(k);
+		return [{ slug, label, type: t ?? ("json" as EmDashFieldType), kind: k, wpName: s.name, ...(path.length ? { wpPath: p } : {}), ...(k === "select" ? { options: s.choices ?? [] } : {}), ok: !!t }];
+	});
 }
 
 function subType(k: FieldKind): EmDashFieldType | undefined {
@@ -373,15 +410,41 @@ const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : v && typeof v ==
 const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
 const truthy = (v: unknown) => v === true || v === 1 || v === "1" || v === "true";
 
-/** Post types an ACF group's location rules assign it to (`post_type == x`). */
+/** ACF location params that only match pages (page template, front page, a given page…) or only posts. */
+const PAGE_PARAMS = new Set(["page_template", "page_type", "page_parent", "page"]);
+const POST_PARAMS = new Set(["post_template", "post_category", "post_format"]);
+
+/**
+ * Post types an ACF group's location rules assign it to: `post_type == x`, and `page`/`post` for rules that only match
+ * those (`page_template == templates/home.php`, `page_type == front_page`, `post_category == …`). Such a rule may match
+ * fewer entries than the whole type: the stored values tell which entries have the fields.
+ */
 export function acfLocationPostTypes(location: unknown): string[] {
 	const out = new Set<string>();
 	for (const or of list(location)) for (const rule of list(or)) {
 		const r = o(rule);
-		if (r.param === "post_type" && r.operator === "==" && typeof r.value === "string") out.add(r.value);
+		if (r.operator !== "==") continue;
+		if (r.param === "post_type" && typeof r.value === "string") out.add(r.value);
+		else if (PAGE_PARAMS.has(str(r.param))) out.add("page");
+		else if (POST_PARAMS.has(str(r.param))) out.add("post");
 	}
 	return [...out];
 }
+
+/** ACF options pages an ACF group is shown on (`options_page == <menu slug>`). */
+export function acfLocationOptionsPages(location: unknown): string[] {
+	const out = new Set<string>();
+	for (const or of list(location)) for (const rule of list(or)) {
+		const r = o(rule);
+		if (r.param === "options_page" && r.operator === "==" && typeof r.value === "string") out.add(r.value);
+	}
+	return [...out];
+}
+
+const optionsPagesOf = (location: unknown): { optionsPages?: string[] } => {
+	const pages = acfLocationOptionsPages(location);
+	return pages.length ? { optionsPages: pages } : {};
+};
 
 function acfChoices(v: unknown): string[] | undefined {
 	if (Array.isArray(v)) return v.map(str).filter(Boolean);
@@ -394,6 +457,9 @@ export function acfField(f: Obj): WpFieldDef {
 	const type = str(f.type);
 	const subs = list(f.sub_fields).map((s) => acfField(o(s)));
 	const targets = list(f.post_type).map(str).filter(Boolean);
+	// Flexible content: `layouts` keyed by layout key (export JSON: each with its `sub_fields`; acf-field posts: without
+	// them, the sub-fields are child posts naming their layout in `parent_layout`).
+	const layouts = type === "flexible_content" ? list(f.layouts).map(o).filter((l) => str(l.name)).map((l) => ({ name: str(l.name), label: str(l.label) || str(l.name), subFields: list(l.sub_fields).map((s) => acfField(o(s))) })) : [];
 	return {
 		source: "acf",
 		name: str(f.name),
@@ -404,6 +470,7 @@ export function acfField(f: Obj): WpFieldDef {
 		...(acfChoices(f.choices) ? { choices: acfChoices(f.choices) } : {}),
 		...(subs.length ? { subFields: subs } : {}),
 		...(targets.length ? { targets } : {}),
+		...(layouts.length ? { layouts } : {}),
 	};
 }
 
@@ -413,7 +480,7 @@ export function acfGroupsFromExport(json: unknown, from: string): WpFieldGroup[]
 	return groups
 		.map(o)
 		.filter((g) => /^group_/.test(str(g.key)) && Array.isArray(g.fields))
-		.map((g) => ({ source: "acf" as const, title: str(g.title), postTypes: acfLocationPostTypes(g.location), fields: list(g.fields).map((f) => acfField(o(f))), from }));
+		.map((g) => ({ source: "acf" as const, title: str(g.title), postTypes: acfLocationPostTypes(g.location), ...optionsPagesOf(g.location), fields: list(g.fields).map((f) => acfField(o(f))), from }));
 }
 
 /** Whether a JSON file is an ACF field group export. */
@@ -423,7 +490,7 @@ export function isAcfExport(json: unknown): boolean {
 
 /** The Exporter's analyze `acf` list: top-level fields with their types (no sub-fields, choices or targets). */
 export function acfGroupsFromAnalyze(acf: unknown): WpFieldGroup[] {
-	return list(acf).map((g) => ({ source: "acf" as const, title: str(o(g).title), postTypes: acfLocationPostTypes(o(g).location), fields: list(o(g).fields).map((f) => ({ source: "acf" as const, name: str(o(f).name), label: str(o(f).label), type: str(o(f).type), ...(truthy(o(f).required) ? { required: true } : {}) })), from: "Exporter analyze (ACF top-level fields)" }));
+	return list(acf).map((g) => ({ source: "acf" as const, title: str(o(g).title), postTypes: acfLocationPostTypes(o(g).location), ...optionsPagesOf(o(g).location), fields: list(o(g).fields).map((f) => ({ source: "acf" as const, name: str(o(f).name), label: str(o(f).label), type: str(o(f).type), ...(truthy(o(f).required) ? { required: true } : {}) })), from: "Exporter analyze (ACF top-level fields)" }));
 }
 
 /**
@@ -439,16 +506,26 @@ export function acfGroupsFromPosts(groupPosts: { id: number; slug: string; title
 			return {};
 		}
 	};
-	const children = (parent: number): WpFieldDef[] =>
+	type Child = WpFieldDef & { parentLayout?: string };
+	const strip = ({ parentLayout: _p, ...d }: Child): WpFieldDef => d;
+	const children = (parent: number): Child[] =>
 		fieldPosts
 			.filter((f) => f.parent === parent)
 			.sort((a, b) => a.menu_order - b.menu_order)
-			.map((f) => {
+			.map((f): Child => {
 				const s = settings(f.content);
 				const sub = children(f.id);
-				return { ...acfField({ ...s, name: f.excerpt, label: f.title, key: f.slug }), ...(sub.length ? { subFields: sub } : {}) };
+				const def = acfField({ ...s, name: f.excerpt, label: f.title, key: f.slug });
+				const own = str(s.parent_layout) ? { parentLayout: str(s.parent_layout) } : {};
+				if (def.type !== "flexible_content") return { ...def, ...(sub.length ? { subFields: sub.map(strip) } : {}), ...own };
+				// Flexible content: the layouts are in its settings, their sub-fields are its child posts, each naming its
+				// layout by key (`parent_layout`; ACF puts a sub-field without one in the first layout).
+				const layouts = list(s.layouts).map(o).filter((l) => str(l.name));
+				const firstKey = str(layouts[0]?.key);
+				const mapped = layouts.map((l) => ({ name: str(l.name), label: str(l.label) || str(l.name), subFields: sub.filter((x) => (x.parentLayout || firstKey) === str(l.key)).map(strip) }));
+				return { ...def, ...(mapped.length ? { layouts: mapped } : {}), ...own };
 			});
-	return groupPosts.filter((g) => g.status !== "trash").map((g) => ({ source: "acf" as const, title: g.title, postTypes: acfLocationPostTypes(settings(g.content).location), fields: children(g.id), from: "ACF field groups (acf-field posts)" }));
+	return groupPosts.filter((g) => g.status !== "trash").map((g) => ({ source: "acf" as const, title: g.title, postTypes: acfLocationPostTypes(settings(g.content).location), ...optionsPagesOf(settings(g.content).location), fields: children(g.id).map(strip), from: "ACF field groups (acf-field posts)" }));
 }
 
 function metaBoxField(f: Obj): WpFieldDef {
@@ -678,7 +755,7 @@ export function convertValue(field: Pick<CptField, "kind" | "type" | "subFields"
 			const out = rows.map((row, i) => {
 				const r: Record<string, unknown> = {};
 				for (const s of field.subFields ?? []) {
-					const c = convertValue({ kind: s.kind, type: s.type, slug: `${field.slug}[${i}].${s.slug}` }, row[s.wpName], undefined, { ...ctx, keyPrefix: `${ctx.keyPrefix}${i}_` });
+					const c = convertValue({ kind: s.kind, type: s.type, slug: `${field.slug}[${i}].${s.slug}` }, valueAt(row, s.wpPath ?? [s.wpName]), undefined, { ...ctx, keyPrefix: `${ctx.keyPrefix}${i}_` });
 					if (c.value !== undefined) r[s.slug] = c.value;
 					problems.push(...(c.problems ?? []));
 				}
@@ -691,8 +768,18 @@ export function convertValue(field: Pick<CptField, "kind" | "type" | "subFields"
 	}
 }
 
+/** The value at a path inside a stored value (a link's `url`, a group's sub-field), unserializing on the way. */
+export function valueAt(v: unknown, path: string[]): unknown {
+	let at = v;
+	for (const seg of path) {
+		at = jsonSafe(at);
+		at = at && typeof at === "object" ? (at as Obj)[seg] : undefined;
+	}
+	return at;
+}
+
 /** A value for a JSON field: plain data only (images and posts as ids, ACF's arrays as they are). */
-function jsonSafe(v: unknown): unknown {
+export function jsonSafe(v: unknown): unknown {
 	if (isPhpSerialized(v)) {
 		try {
 			return phpUnserialize(v);
@@ -704,8 +791,11 @@ function jsonSafe(v: unknown): unknown {
 }
 
 /**
- * ACF repeater/group values from raw post meta (`<name>` = row count, `<name>_<i>_<sub>` per row; groups as
- * `<name>_<sub>`), for entries the Exporter returned without an `acf` object.
+ * ACF values from raw post meta (or `options_`-prefixed options), as ACF stores them (verified against the plugin
+ * source: docs/spikes/acf-findings.md): a repeater as `<name>` = row count and `<name>_<i>_<sub>` per row; flexible
+ * content as `<name>` = the rows' layout names in order and `<name>_<i>_<sub>` per row (rows listed as disabled in
+ * `_<name>_layout_meta` are hidden on the site and left out, as ACF does); a group as `<name>_<sub>`. Used when the
+ * entry has no Exporter `acf` object, and for flexible content always (only the meta tells which rows are disabled).
  */
 export function acfFromMeta(def: WpFieldDef, meta: Record<string, unknown>, prefix = ""): unknown {
 	const key = `${prefix}${def.name}`;
@@ -715,8 +805,25 @@ export function acfFromMeta(def: WpFieldDef, meta: Record<string, unknown>, pref
 		if (!Number.isInteger(n) || n <= 0) return undefined;
 		return Array.from({ length: n }, (_, i) => Object.fromEntries(def.subFields?.map((s) => [s.name, acfFromMeta(s, meta, `${key}_${i}_`)]) ?? []));
 	}
+	if (kind === "flexible" && def.layouts?.length) {
+		const order = asArray(meta[key]).map((x) => (typeof x === "string" ? x : ""));
+		if (!order.length) return undefined;
+		const disabled = new Set(asArray(o(jsonSafe(meta[`_${key}_layout_meta`])).disabled).map(Number));
+		const rows: Obj[] = [];
+		order.forEach((layout, i) => {
+			if (disabled.has(i)) return;
+			const subs = def.layouts?.find((l) => l.name === layout)?.subFields ?? [];
+			rows.push({ acf_fc_layout: layout, ...Object.fromEntries(subs.map((s) => [s.name, acfFromMeta(s, meta, `${key}_${i}_`)])) });
+		});
+		return rows;
+	}
 	if (kind === "group" && def.subFields?.length) return Object.fromEntries(def.subFields.map((s) => [s.name, acfFromMeta(s, meta, `${key}_`)]));
 	return meta[key];
+}
+
+/** Indexes of an ACF flexible content field's rows that are disabled (hidden on the site), from `_<name>_layout_meta`. */
+export function acfDisabledRows(name: string, meta: Record<string, unknown>): number[] {
+	return asArray(o(jsonSafe(meta[`_${name}_layout_meta`])).disabled).map(Number).filter((n) => Number.isInteger(n));
 }
 
 /** Meta keys that belong to WordPress, plugins or a field definition, not to unmapped content. */

@@ -8,8 +8,9 @@
  * Pure functions of the extract output + overrides: transform writes ir/collections.json and ir/entries/<type>/*.json.
  * Verified EmDash behaviour: docs/spikes/cpt-findings.md.
  */
-import type { Diagnostic } from "../ir/schema.js";
-import { type CptField, convertValue, type EmDashFieldType, fieldKind, fieldSlug, fieldsForType, isInternalMeta, mapField, RESERVED_SLUGS, type WpFieldDef, type WpFieldGroup, acfFromMeta } from "./cpt-fields.js";
+import type { Diagnostic, Section } from "../ir/schema.js";
+import type { FlexOutcome, LayoutUse } from "./acf-flexible.js";
+import { type CptField, convertValue, type EmDashFieldType, fieldKind, fieldSlug, fieldsForType, isInternalMeta, mapField, RESERVED_SLUGS, type WpFieldDef, type WpFieldGroup, acfDisabledRows, acfFromMeta, valueAt } from "./cpt-fields.js";
 import type { CollectionShop, CollectionsConfig } from "../../starter/src/utils/collections.js";
 import { emdashTaxonomyName } from "./blog.js";
 import { INTERNAL_TAXONOMIES } from "./content-types.js";
@@ -246,11 +247,13 @@ export function planCollections(input: PlanInput): CptPlan {
 		}
 		// Meta no definition describes: reported; mapped only when the owner names a type for it.
 		// ACF keeps repeater/flexible rows as `<name>_<i>_<sub>` and group sub-fields as `<name>_<sub>`.
-		const covered = (key: string) => defs.some((d) => key === d.name || (["repeater", "group", "flexible"].includes(fieldKind(d)) && key.startsWith(`${d.name}_`)));
+		// Row keys are covered only when the definition describes the rows (sub-fields, layouts) or the entry's Exporter
+		// `acf` object carries the value: otherwise the rows could not be read back and are reported.
+		const covered = (key: string, e: CptEntrySource) => defs.some((d) => key === d.name || (["repeater", "group", "flexible"].includes(fieldKind(d)) && key.startsWith(`${d.name}_`) && (!!d.subFields?.length || !!d.layouts?.length || (e.acf?.[d.name] !== undefined && e.acf?.[d.name] !== null))));
 		const unknown = new Map<string, { entries: number; sample: string }>();
 		for (const e of entries) {
 			for (const [key, v] of Object.entries(e.meta ?? {})) {
-				if (isInternalMeta(key) || covered(key)) continue;
+				if (isInternalMeta(key) || covered(key, e)) continue;
 				if (v === "" || v === null || v === undefined || (Array.isArray(v) && !v.length)) continue;
 				const u = unknown.get(key) ?? { entries: 0, sample: typeof v === "string" ? v.slice(0, 60) : JSON.stringify(v).slice(0, 60) };
 				u.entries++;
@@ -363,6 +366,8 @@ export interface EntryContext {
 	typeOfId: (id: number) => string | undefined;
 	/** HTML → Portable Text (`_media` marked) with diagnostics. */
 	html: (html: string, keyPrefix: string) => { body: unknown[]; diagnostics: Diagnostic[] };
+	/** ACF flexible content rows → sections (src/transform/acf-flexible.ts); without it flexible content stays JSON. */
+	flexible?: (def: WpFieldDef, rows: unknown, opts: { path: string; disabled: number }) => FlexOutcome;
 }
 
 export interface EntryData {
@@ -378,20 +383,38 @@ export interface EntryData {
 }
 
 /** One entry's field values, references and core data; problems become diagnostics (warn: reported, not blocking). */
-export function entryData(p: CptEntrySource, col: CptCollection, ctx: EntryContext, defsByName: Map<string, WpFieldDef>): { entry: EntryData; diagnostics: Diagnostic[] } {
+export function entryData(p: CptEntrySource, col: CptCollection, ctx: EntryContext, defsByName: Map<string, WpFieldDef>): { entry: EntryData; diagnostics: Diagnostic[]; sections: Section[]; layouts: LayoutUse[] } {
 	const fields: Record<string, unknown> = {};
 	const references: Record<string, string[]> = {};
 	const diagnostics: Diagnostic[] = [];
 	const keyPrefix = `${p.id.toString(36)}_`;
+	const sections: Section[] = [];
+	const layouts: LayoutUse[] = [];
 	for (const f of col.fields) {
 		const top = f.wp.path?.[0] ?? f.wp.name;
 		const def = defsByName.get(top);
+		// Flexible content with known layouts: mapped rows become the entry's sections, the others stay in the JSON field.
+		if (f.kind === "flexible" && def?.layouts?.length && ctx.flexible) {
+			const meta = p.meta ?? {};
+			const rows = meta[top] !== undefined && meta[top] !== "" ? acfFromMeta(def, meta) : p.acf?.[top];
+			const out = ctx.flexible(def, rows, { path: "acf", disabled: meta[top] !== undefined ? acfDisabledRows(top, meta).length : 0 });
+			sections.push(...out.sections);
+			layouts.push(...out.layouts);
+			diagnostics.push(...out.diagnostics.map((d) => ({ ...d, ...(d.code === "unmapped" ? { level: "warn" as const } : {}) })));
+			if (out.unmapped.length) fields[f.slug] = out.unmapped;
+			continue;
+		}
 		// Group sub-fields: the group's ACF object (or `<group>_<sub>` meta); otherwise the field's own key.
 		let acf: unknown = p.acf?.[top];
 		let raw: unknown = def && f.wp.source === "acf" && !p.acf ? acfFromMeta(def, p.meta ?? {}) : p.meta?.[top];
-		for (const seg of f.wp.path?.slice(1) ?? []) {
-			acf = acf && typeof acf === "object" ? (acf as Record<string, unknown>)[seg] : undefined;
-			raw = raw && typeof raw === "object" ? (raw as Record<string, unknown>)[seg] : undefined;
+		// Repeater rows: the stored meta wins over get_fields() when it is there (ACF formats dates in rows for display).
+		if (def && f.wp.source === "acf" && f.kind === "repeater" && f.type === "repeater" && p.acf && p.meta?.[top] !== undefined) {
+			raw = acfFromMeta(def, p.meta);
+			if (raw !== undefined) acf = undefined;
+		}
+		if (f.wp.path) {
+			acf = valueAt(acf, f.wp.path.slice(1));
+			raw = valueAt(raw, f.wp.path.slice(1));
 		}
 		if (f.wp.path && raw === undefined) raw = p.meta?.[f.wp.path.join("_")];
 		const c = convertValue(f, acf, raw, {
@@ -432,6 +455,8 @@ export function entryData(p: CptEntrySource, col: CptCollection, ctx: EntryConte
 			bylines: [],
 		},
 		diagnostics,
+		sections,
+		layouts,
 	};
 }
 

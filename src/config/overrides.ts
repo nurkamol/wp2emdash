@@ -68,6 +68,11 @@ export const overridesSchema = z.object({
 	 */
 	contentTypes: z.record(z.string(), z.union([decision(["skip", "pages"]), collectionDecision])).default({}),
 	/**
+	 * ACF flexible content layouts (coverage report → "ACF flexible content"), by layout name: a section type its rows
+	 * become instead of the kit's guess, or "skip" (rows not carried; record the owner's reason in decisions.md).
+	 */
+	acfLayouts: z.record(z.string(), z.union([z.enum(SECTION_TYPES.filter((t) => t !== "announcement") as [string, ...string[]]), z.literal("skip")])).default({}),
+	/**
 	 * Taxonomies with terms in use that the blog does not migrate (taxonomies of other post types; categories/tags when
 	 * posts are skipped): skip = archives not rebuilt (URLs follow `wpUrls`).
 	 */
