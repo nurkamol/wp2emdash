@@ -80,6 +80,18 @@ export interface HealthOptions {
 	 * structural fingerprint compared with a baseline. Default 10, at most 25; 0 turns the visual check off.
 	 */
 	visualPages?: number;
+	/**
+	 * Weekly accessibility rules on the pages the visual check reads (checks/a11y.ts; Site health → Accessibility and
+	 * "What to improve"). Default on; false turns them off. Needs the visual check (visualPages > 0).
+	 */
+	accessibility?: boolean;
+	/**
+	 * Weekly content freshness (checks/freshness.ts): past event dates and ended year-bound phrases on pages, and pages
+	 * not saved for `staleMonths`. Default on; false turns it off. Needs the visual check (visualPages > 0).
+	 */
+	freshness?: boolean;
+	/** A page not saved in the editor for this many months is "not updated" (default 18; 0 = never). Posts and legal pages never count. */
+	staleMonths?: number;
 	/** Mail DNS records at go-live (cutover/dns-before.json), as hashes: never the record values. */
 	mail?: MailBaseline;
 }

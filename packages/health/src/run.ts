@@ -30,6 +30,7 @@ import { type ReportSources, reportSources } from "./sources.js";
 import { parseSeoSummary, readSeoSummary, type SeoSummary } from "@wp2emdash/seo/summary";
 import { type Improvement, improvements } from "./improve.js";
 import { needsLook, readVisual } from "./checks/visual.js";
+import { activeReview, readDismissed, readReview } from "./review.js";
 import type { NotFoundSummary } from "./checks/notfound.js";
 import { EXTERNAL_SAMPLE, externalDue, LINK_BUDGET, LINK_CONCURRENCY, LOCK_MS, MANUAL_EVERY, planRun, reportDue } from "./schedule.js";
 import { CHECK_IDS, type CheckId, type CheckState, type Cwv, type DayRow, type HealthState, type Incident, KEYS, type Kv, type LinkLedger, type LinksResult, MAX_REPORTS, pruneIncidents, readState, rollDay, type Settings, type Today, upsertDay } from "./store.js";
@@ -371,7 +372,7 @@ export async function makeReport(d: RunDeps, month: string, sources?: ReportSour
 	if (seoSummary) await d.kv.set(KEYS.seoSummary, seoSummary);
 	const before = await d.kv.get<ReportData>(KEYS.report(previousMonth(month)));
 	const forms = s.forms && "total" in s.forms ? { total: s.forms.total, ...(before?.forms ? { previous: before.forms.total } : {}) } : undefined;
-	const improve = await currentImprovements(d, { ...(seoSummary ? { seo: seoSummary } : {}), ...(forms ? { forms } : {}) });
+	const improve = await currentImprovements(d, { ...(seoSummary ? { seo: seoSummary } : {}), ...(forms ? { forms } : {}), now: d.now });
 	return buildReport({ month, site: { name: d.options.siteName, url: d.options.productionUrl }, history: (await d.kv.get<DayRow[]>(KEYS.history)) ?? [], incidents: (await d.kv.get<Incident[]>(KEYS.incidents)) ?? [], cwv: await d.kv.get<Cwv>(KEYS.cwv), ledger: (await d.kv.get<LinkLedger>(KEYS.ledger)) ?? {}, ...(d.options.cspReports !== false ? { csp: cspMonth(readCspStore(await d.kv.get(KEYS.csp)), month) } : {}), ...s, improve, now: d.now });
 }
 
@@ -388,11 +389,15 @@ export async function latestSeoSummary(d: Pick<RunDeps, "kv" | "env">, fresh?: S
  * "What to improve" from what the checks, the visual check and the other plugins keep (improve.ts): a few KV reads and at most two D1
  * reads, no request. Plugins this site does not run (HealthOptions seo / media / backups / formsOutbox) are skipped.
  */
-export async function currentImprovements(d: Pick<RunDeps, "kv" | "options" | "env">, o: { seo?: SeoSummary; forms?: { total: number; previous?: number } } = {}): Promise<Improvement[]> {
+export async function currentImprovements(d: Pick<RunDeps, "kv" | "options" | "env">, o: { seo?: SeoSummary; forms?: { total: number; previous?: number }; now?: number } = {}): Promise<Improvement[]> {
 	const opt = d.options;
-	const [state, notFound, cwv, media, seo, visualRaw] = await Promise.all([readState(d.kv), d.kv.get<NotFoundSummary>(KEYS.notFound), d.kv.get<Cwv>(KEYS.cwv), opt.media ? readMediaSummary(d.env.DB) : undefined, opt.seo ? latestSeoSummary(d, o.seo) : undefined, opt.visualPages === 0 ? null : d.kv.get<unknown>(KEYS.visual)]);
+	const visualOff = opt.visualPages === 0;
+	const [state, notFound, cwv, media, seo, visualRaw, reviewRaw, dismissedRaw] = await Promise.all([readState(d.kv), d.kv.get<NotFoundSummary>(KEYS.notFound), d.kv.get<Cwv>(KEYS.cwv), opt.media ? readMediaSummary(d.env.DB) : undefined, opt.seo ? latestSeoSummary(d, o.seo) : undefined, visualOff ? null : d.kv.get<unknown>(KEYS.visual), visualOff ? null : d.kv.get<unknown>(KEYS.review), visualOff ? null : d.kv.get<unknown>(KEYS.reviewDismissed)]);
 	const look = needsLook(readVisual(visualRaw).runs.at(-1));
-	return improvements({ ...(opt.backups && state.checks.backups ? { backups: state.checks.backups } : {}), media: media ?? null, seo: seo ?? null, notFound, cwv, ...(opt.formsOutbox && o.forms ? { forms: o.forms } : {}), visual: { problems: look.problems.map((p) => p.path), changes: look.changes.map((p) => p.path) } });
+	// Accessibility and freshness (review.ts) without what an admin dismissed; an option switched off since the last run hides its part.
+	const review = activeReview(readReview(reviewRaw), readDismissed(dismissedRaw), o.now ?? Date.now());
+	const shown = review ? { ...review, a11y: opt.accessibility === false ? [] : review.a11y, stale: opt.freshness === false ? [] : review.stale } : null;
+	return improvements({ ...(opt.backups && state.checks.backups ? { backups: state.checks.backups } : {}), media: media ?? null, seo: seo ?? null, notFound, cwv, ...(opt.formsOutbox && o.forms ? { forms: o.forms } : {}), visual: { problems: look.problems.map((p) => p.path), changes: look.changes.map((p) => p.path) }, review: shown });
 }
 
 /** Form message counts of the last stored report and of the month before it (counts only), for the admin's list. */

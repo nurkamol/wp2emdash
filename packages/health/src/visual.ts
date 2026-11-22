@@ -12,9 +12,19 @@
  *
  * Not on staging (the production Worker watches the production site) and paused while coming-soon mode shows the
  * holding page.
+ *
+ * Page review (review.ts): while each page's HTML is in hand, the accessibility rules (checks/a11y.ts) and the
+ * freshness scan (checks/freshness.ts) read it too — no extra request — and the job keeps their short findings. When
+ * the run finishes, one `content.list` pass over the pages adds dates in the pages' text and "not updated" pages, and
+ * the grouped result is stored in KV `review` for the Accessibility and Content freshness tabs and "What to improve".
+ * No email for these (weekly noise).
  */
 import { visualAlertEvents } from "./alerts.js";
-import { finishRun, needsLook, pickVisualPages, readJob, readVisual, startVisual, stepVisual, VISUAL_LOCK_MS, VISUAL_PAGES, visualDue, type VisualRun, type VisualStore } from "./checks/visual.js";
+import { inspectA11y } from "./checks/a11y.js";
+import { inspectFreshness, STALE_MONTHS } from "./checks/freshness.js";
+import { finishRun, needsLook, pickVisualPages, readJob, readVisual, startVisual, stepVisual, VISUAL_LOCK_MS, VISUAL_PAGES, visualDue, type VisualJob, type VisualRun, type VisualStore } from "./checks/visual.js";
+import type { HealthOptions } from "./index.js";
+import { buildReview, FRESHNESS_COLLECTIONS, listEntries, type PageNotes, type ReviewStore } from "./review.js";
 import { maintenanceActive, type MaintenanceSetting } from "./maintenance.js";
 import type { Fetcher } from "./probe.js";
 import { acquireLock, type ContentLister, deliverAlerts, releaseLock, type RunDeps } from "./run.js";
@@ -74,6 +84,29 @@ export async function editedSince(content: ContentLister | undefined, collection
 	return out;
 }
 
+/** What the visual check also reads from each page's HTML (accessibility, freshness); undefined when both are off. */
+export function pageInspector(o: Pick<HealthOptions, "accessibility" | "freshness">, now: number): ((path: string, html: string) => PageNotes) | undefined {
+	const a11y = o.accessibility !== false;
+	const fresh = o.freshness !== false;
+	if (!a11y && !fresh) return undefined;
+	return (_path, html) => ({ ...(a11y ? { a11y: inspectA11y(html) } : {}), ...(fresh ? { stale: inspectFreshness(html, now) } : {}) });
+}
+
+/** The page review of a finished run (review.ts): the job's notes plus one pass over the pages' content. Never throws. */
+export async function reviewOf(d: Pick<RunDeps, "options" | "content" | "log">, job: VisualJob, now: number): Promise<ReviewStore | undefined> {
+	const o = d.options;
+	if (o.accessibility === false && o.freshness === false) return undefined;
+	try {
+		const fresh = o.freshness !== false;
+		const { entries, read } = fresh ? await listEntries(d.content, FRESHNESS_COLLECTIONS, now) : { entries: [], read: false };
+		const notes = Object.fromEntries(Object.entries(job.notes ?? {}).map(([p, n]) => [p, fresh ? n : { ...(n.a11y ? { a11y: n.a11y } : {}) }]));
+		return buildReview({ notes, order: job.paths, entries, contentRead: read, now, staleMonths: fresh ? (o.staleMonths ?? STALE_MONTHS) : 0, accessibility: o.accessibility !== false });
+	} catch (e) {
+		d.log?.warn?.("health page review failed", { error: e instanceof Error ? e.name : "error" });
+		return undefined;
+	}
+}
+
 export async function runVisual(d: VisualDeps): Promise<VisualResult> {
 	const { kv, env, options: o, now } = d;
 	const cap = o.visualPages ?? VISUAL_PAGES;
@@ -92,11 +125,19 @@ export async function runVisual(d: VisualDeps): Promise<VisualResult> {
 	if (!(await acquireLock(kv, now, KEYS.visualLock, VISUAL_LOCK_MS))) return { ran: false, why: "locked" };
 	try {
 		const origin = new URL(o.productionUrl).origin;
-		const step = await stepVisual(job, { self: d.self, external: d.fetch, ...(d.assets ? { assets: d.assets } : {}), origin });
+		const inspect = pageInspector(o, Date.parse(job.startedAt));
+		const step = await stepVisual(job, { self: d.self, external: d.fetch, ...(d.assets ? { assets: d.assets } : {}), origin, ...(inspect ? { inspect } : {}) });
 		const progress = { done: step.job.pi, pages: step.job.paths.length, requests: step.requests };
 		if (!step.done) {
 			await kv.set(KEYS.visualJob, step.job);
 			return { ran: true, progress };
+		}
+		// Page review first (its own content pass), then the visual comparison.
+		const review = await reviewOf(d, step.job, now);
+		if (review) {
+			await d.kv.set(KEYS.review, review satisfies ReviewStore);
+			// Counts only: no page text.
+			d.log?.info("health page review", { pages: review.pages, a11y: review.a11y.length, stale: review.stale.length, content: review.content });
 		}
 		const since = Object.values(store.baseline)
 			.map((b) => b.at)

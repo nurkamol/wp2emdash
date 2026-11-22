@@ -252,6 +252,69 @@ everything below is unit-tested with a mocked site (`test/health-visual.test.ts`
   lists, the last **8** runs (per page: state, plain-language differences, status, words, pictures — no page text).
   Worst case well under 400 KB (asserted in tests), normally ~20 KB. Nothing on the public site is changed or purged.
 
+## Accessibility and content freshness (2026-11-22, @wp2emdash/health 0.8.0)
+
+Checked against the installed **EmDash 1.5.0** and **@emdash-cms/admin 1.5.0** (`spikes/m0-site/node_modules`,
+unchanged). Nothing deployed, no live site requested; unit-tested with synthetic HTML and a mocked content API
+(`test/health-review.test.ts`).
+
+- **No extra request, no browser.** Both read the HTML the visual check already has in hand: `stepVisual` calls an
+  optional `inspect(path, html)` right after parsing a page (`VisualIo.inspect`, set by `runVisual`), and the job (KV
+  `visual:job`) keeps the short findings per page until the run ends. The request count per tick is unchanged (test:
+  identical request lists with and without the inspector). Same schedule, staging / coming-soon rules and page set as
+  the visual check (so `visualPages: 0` turns these off too). CPU: one regex tokenizer pass into a loose tree (cut at
+  600 KB, 20,000 elements, depth 200 — deeper nesting is flattened so the rules' recursion cannot exhaust the stack)
+  plus a few regexes over the text; a few ms for a typical 100 KB page.
+- **Accessibility rule names follow axe-core** (`image-alt`, `page-has-heading-one`, `heading-order`, `link-name`,
+  `button-name`, `label`, `duplicate-id`, `html-has-lang`, `frame-title`), as the kit's verify phase reports them
+  (`src/verify/browser.ts` runs axe; `src/phases/verify.ts` gate `a11y`). Additions without an axe default rule:
+  `image-alt-filename`, `multiple-h1`, `empty-link` (split from `link-name` for a plainer fix). Decisions to keep it
+  quiet: `alt=""` is decorative (fine); a placeholder counts as a field's name (axe's `label` rule accepts
+  `non-empty-placeholder`); `heading-order` only for a jump of two or more levels; ids inside `<svg>` ignored (inline
+  icons repeat their gradient / clip ids); 1×1 pixels ignored; everything under aria-hidden / `hidden` / `<template>` /
+  `<noscript>` and the comments section (`id="comments"`, starter `Comments.astro`) skipped — so the starter's own
+  decorative parts (logo `<img alt="">` inside a link named by aria-label, the form honeypot `_hp` with aria-hidden,
+  `PostCard.astro`'s aria-hidden picture link, the hidden preloader) never appear. Contrast and keyboard focus need a
+  rendered page: left to verify (axe in Playwright). At most 8 findings per rule and 40 per page (the rest counted).
+- **Grouping**: an item is rule + element summary across pages (a footer link on every page = one item); "site-wide"
+  = on 3+ pages or at least half of the pages checked → "What to improve" impact 62 (between form messages 65 and thin
+  pages 60); the rest impact 44. Element summaries come only from the site's markup: tag, first class, a file name, a
+  path (mail / phone links reduced to `mailto:…` / `tel:…`), a field name, an id, a heading text ≤ 50 characters.
+- **Freshness** reads (a) the visual check's HTML — `<main>` (else body without header / nav / footer), with
+  `<time>` (the starter's post dates, `PostMeta.astro`), post cards and comments removed and block ends turned into
+  sentence breaks; the copyright line from the whole body — and (b) the pages' entries: one `ctx.content.list("pages",
+  { limit: 100 })` pass (≤ 3 pages) at the end of the run; EmDash 1.5 `ContentItem` has `status` ("published" /
+  "draft"), `slug`, `data`, `updatedAt` (types `ContentItem`, `ContentListWhere`). Drafts are skipped; string leaves
+  of `data` are scanned (keys such as url, slug, id, style, colour skipped; address-like values skipped). Posts are
+  never listed (old posts are fine, as the owner asked); HTML findings of pages that are not page entries (posts,
+  archives) are dropped once the content was read — except the copyright line, which is site-wide.
+- **Date rules (conservative)**: a full date with a weekday is an event; a full date without one, a numeric date and a
+  month-year need an event word in the same sentence (join us, workshop, class, register, until, through, tickets,
+  sale, offer, a time like "7 pm", and a few German / French / Spanish / Dutch words); history words before the date
+  (since, founded, established, posted, published, updated, effective, award, won …) skip it. Numeric dates only with
+  `/` or `.` (never `-`, so `713-555-0199` cannot match), not preceded by a letter, digit, currency sign or `+` (so
+  `v2.1.2024` and `$1.2.2024` cannot match), and only when every valid reading (US M/D and European D/M) is past.
+  Past = the end of that day (UTC) before now. Year phrases: seasons / holidays with a year (each ends with its
+  period: summer → 31 Aug, winter → end of Feb next year, Black Friday → 30 Nov …), "<year> offer / schedule /
+  pricing / classes / events …", "schedule for <year>", and `©` / `(c)` / "Copyright" lines whose last year is before
+  this year. The starter's footer credit is `© {new Date().getFullYear()}` (`Base.astro`, `SiteHeader.astro`): never
+  stale. Legal and thank-you pages are skipped by slug (privacy, terms, cookies, imprint / impressum, legal, refund,
+  returns, shipping, disclaimer, accessibility statement, waiver, thank-you, confirmation …).
+- **Not updated**: an entry's `updatedAt` older than `staleMonths` calendar months (default 18; kit.config
+  `health.staleMonths`, 0 = never) → impact 20 (low). Past dates and phrases → impact 42 (between missing
+  descriptions 50 and pictures without a description 40). Limit: `updatedAt` also moves on a draft save, so a page
+  with an unpublished edit counts as updated.
+- **Edit links**: the EmDash admin's router (`@emdash-cms/admin` 1.5, TanStack Router with `basepath:
+  "/_emdash/admin"`) has the route `/content/$collection/$id` — so a page's editor is
+  `/_emdash/admin/content/pages/<entry id>`. `ImproveLink.admin` carries such a path; `improveUrl` builds the full
+  address (plugin links unchanged). Used when an item concerns exactly one page whose entry is known.
+- **Storage**: KV `review` — ≤ 60 accessibility and ≤ 60 freshness items, ≤ 25 pages each, strings ≤ 80–120
+  characters, an `edit` map for listed pages (worst case asserted < 100 KB). KV `review:dismissed` — id → until /
+  when / label (≤ 120 characters), ≤ 200 entries, expired ones dropped and the oldest beyond 200 dropped on every write.
+  Dismiss periods: 90, 365 or 1,825 days ("for good"); only ids of listed items are accepted, admin route only (role
+  ≥ 50 checked again), logs carry the kind and period only. **No email alert** for either part (weekly noise); both
+  reach the monthly report through "What to improve".
+
 ## Privacy
 
 Stored, logged, emailed and shown: URLs/paths of the site, page titles, statuses, counts, times, hostnames of
@@ -277,3 +340,6 @@ logs or emails after a full run. Settings logs carry recipient counts, never add
 - The cron's boundary purge on a deployed Worker (see "Scheduled coming-soon").
 - The visual check on a deployed Worker: whether `SELF` serves `/_astro/*.css` and other static files or the `ASSETS`
   fallback is needed, and `ctx.content.list` with `orderBy: { updatedAt: "desc" }` against D1 (source-read only).
+- Accessibility and freshness on a deployed Worker (same path as the visual check), and `ctx.content.list("pages")`
+  item `data` against D1 (types read; mocked in tests). The `/_emdash/admin/content/<collection>/<id>` edit link was
+  read from the admin bundle's route table, not opened in a browser.

@@ -1,6 +1,6 @@
 /**
  * What the plugin keeps (EmDash plugin KV: one D1 `options` row per key, JSON). Compact by design: the current state of
- * each check, today's probe samples, one row per day for 90 days, 26 weeks of PageSpeed lab runs, the visual check's baselines and last 8 runs, the last 100 incidents (90 days), the last link
+ * each check, today's probe samples, one row per day for 90 days, 26 weeks of PageSpeed lab runs, the visual check's baselines and last 8 runs, the weekly accessibility / freshness review and its dismissals, the last 100 incidents (90 days), the last link
  * check, a ledger of broken links (400 days), the alert log (7 days) and 12 monthly reports. No personal data: URLs of
  * the site's own pages, numbers and dates only.
  */
@@ -191,6 +191,10 @@ export const KEYS = {
 	visualRequest: "visual:request",
 	/** Single flight for the visual check. */
 	visualLock: "visual:lock",
+	/** Accessibility and content freshness, built when the visual check finishes (review.ts). */
+	review: "review",
+	/** Review items an admin dismissed, each until a date (≤ 200). */
+	reviewDismissed: "review:dismissed",
 	report: (month: string) => `report:${month}`,
 	download: (token: string) => `dl:${token}`,
 } as const;

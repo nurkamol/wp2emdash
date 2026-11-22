@@ -89,7 +89,8 @@ describe("Site health plugin", () => {
 		expect(overview[0]).toMatchObject({ type: "banner", title: "Healthy" });
 		const table = overview.find((b) => b.block_id === "checks");
 		expect(table?.rows.map((x: B) => x.check)).toEqual(["Uptime", "Search engines", "Form messages", "Broken links", "Email DNS records", "Security certificate", "Speed", "Analytics tags", "Backups", "Media", "Missing pages (404)", "Security headers"]);
-		expect(tabs(r).map((p) => p.label)).toEqual(["Overview", "Incidents", "Broken links", "Missing pages", "Speed", "Visual check", "Security", "Reports", "Settings"]);
+		// The mock home page has no lang and no h1: two accessibility items after the first visual check.
+		expect(tabs(r).map((p) => p.label)).toEqual(["Overview", "Incidents", "Broken links", "Missing pages", "Speed", "Visual check", "Accessibility (2)", "Content freshness", "Security", "Reports", "Settings"]);
 		const w = await call({}, 50, { ui: { surface: "dashboard-widget" } });
 		expect(w.blocks[0]).toMatchObject({ type: "banner", title: "Healthy" });
 	});

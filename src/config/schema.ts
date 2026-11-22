@@ -310,6 +310,15 @@ export const kitConfigSchema = z.object({
 				 * compares with a baseline (status, title, heading, sections, pictures, stylesheets, fonts, text, footer). 0 = off.
 				 */
 				visualPages: z.number().int().min(0).max(25).default(10),
+				/**
+				 * Weekly accessibility rules on the visual check's pages (Site health → Accessibility, "What to improve"):
+				 * missing alt text, headings, unnamed links/buttons, unlabelled fields, embeds, page language. Default on.
+				 */
+				accessibility: z.boolean().optional(),
+				/** Weekly content freshness (Site health → Content freshness): past event dates, ended "Summer 2023"-style phrases, old pages. Default on. */
+				freshness: z.boolean().optional(),
+				/** A page (never a post or legal page) not saved for this many months is "not updated". Default 18; 0 = never. */
+				staleMonths: z.number().int().min(0).max(120).optional(),
 			}),
 		])
 		.prefault({}),

@@ -33,6 +33,9 @@ import { TICK_SCHEDULE, TICK_TASK } from "../schedule.js";
 import { runLab } from "../lab.js";
 import { runVisual } from "../visual.js";
 import { acceptBaseline, readJob, readVisual, VISUAL_MANUAL_EVERY } from "../checks/visual.js";
+import { A11Y_RULES } from "../checks/a11y.js";
+import { STALE_TEXT } from "../checks/freshness.js";
+import { dismiss, parseDismissValue, readDismissed, readReview, restore } from "../review.js";
 import { LAB_MANUAL_EVERY, labKey, type LabRequest, readLab } from "../checks/lab.js";
 import { parseRewarmSetting, REWARM_INTERVALS, REWARM_KEYS, type RewarmLast } from "../cache.js";
 import { type Cwv, type DayRow, type Incident, KEYS, type Kv, type LinksResult, readState, type Settings, type Today } from "../store.js";
@@ -124,6 +127,7 @@ function deps(ctx: Ctx, env: WorkerEnv, o: HealthOptions): RunDeps | undefined {
 async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Partial<PageData> = {}): Promise<PageData> {
 	const kv = ctx.kv;
 	const [state, today, history, incidents, links, job, cwv, reports, settings, notFound, maintenance, csp, security, lab, labRequest, visual, visualJob, visualRequest] = await Promise.all([readState(kv), kv.get<Today>(KEYS.today), kv.get<DayRow[]>(KEYS.history), kv.get<Incident[]>(KEYS.incidents), kv.get<LinksResult>(KEYS.links), kv.get<LinkJob>(KEYS.linkJob), kv.get<Cwv>(KEYS.cwv), kv.get<{ month: string; at: string }[]>(KEYS.reports), settingsOf(kv), kv.get<NotFoundSummary>(KEYS.notFound), kv.get<MaintenanceSetting>(KEYS.maintenance), kv.get<CspStore>(KEYS.csp), kv.get<SecurityFacts>(KEYS.security), kv.get<unknown>(KEYS.lab), kv.get<LabRequest>(KEYS.labRequest), kv.get<unknown>(KEYS.visual), kv.get<unknown>(KEYS.visualJob), kv.get<{ at: string; done?: string }>(KEYS.visualRequest)]);
+	const [review, dismissed] = await Promise.all([kv.get<unknown>(KEYS.review), kv.get<unknown>(KEYS.reviewDismissed)]);
 	const vj = readJob(visualJob);
 	// "What to improve": the same list the monthly report carries, from what is stored now (never fails the page).
 	const improve = await reportFormsTrend(kv)
@@ -153,6 +157,7 @@ async function pageData(ctx: Ctx, env: WorkerEnv, o: HealthOptions, extra: Parti
 		secrets: { crux: !!env.CRUX_API_KEY?.trim(), pagespeed: !!env.PAGESPEED_API_KEY?.trim(), zone: !!env.CF_ZONE_READ_TOKEN?.trim(), analytics: !!env.CF_ANALYTICS_TOKEN?.trim() },
 		lab: readLab(lab),
 		labRequest,
+		review: { store: readReview(review), dismissed: readDismissed(dismissed), accessibility: o.accessibility !== false, freshness: o.freshness !== false },
 		visual: { on: (o.visualPages ?? 1) > 0, store: readVisual(visual), ...(vj ? { job: { pages: vj.paths.length, done: vj.pi } } : {}), ...(visualRequest ? { request: visualRequest } : {}) },
 		selfBinding: !!env.SELF,
 		productionUrl: o.productionUrl,
@@ -304,6 +309,30 @@ export function createPlugin(options: HealthOptions) {
 						// Counts only: never page text.
 						ctx.log?.info("health visual baseline accepted", { pages: r.accepted, one: path !== undefined });
 						return { blocks: await show(TABS.visual), toast: r.accepted ? { message: path ? `Accepted: ${path} now looks as expected.` : `Accepted: ${r.accepted} page${r.accepted === 1 ? "" : "s"} now look as expected. Later checks compare with this look.`, type: "success" } : { message: "Nothing accepted: a page that shows an error cannot be a baseline.", type: "info" } };
+					}
+					// ── Accessibility / Content freshness: dismiss an item for a period, or show it again.
+					if (i.type === "block_action" && act === "review-dismiss") {
+						const v = parseDismissValue(i.value);
+						const review = readReview(await ctx.kv.get(KEYS.review));
+						const a = review?.a11y.find((x) => x.id === v?.id);
+						const st = review?.stale.find((x) => x.id === v?.id);
+						const tab = st ? TABS.freshness : TABS.accessibility;
+						if (!v || (!a && !st)) return { blocks: await show(tab), toast: { message: "That item is no longer listed.", type: "info" } };
+						const label = a ? `${A11Y_RULES[a.r].label}: ${a.el}` : `${STALE_TEXT[st?.k ?? "date"].label}: ${st?.k === "old" ? (st?.pages[0] ?? "") : `“${st?.text ?? ""}”`}`;
+						const now = Date.now();
+						await ctx.kv.set(KEYS.reviewDismissed, dismiss(readDismissed(await ctx.kv.get(KEYS.reviewDismissed)), v.id, v.days, label, now));
+						// Counts only: never the item text.
+						ctx.log?.info("health review item dismissed", { kind: a ? "a11y" : "stale", days: v.days });
+						return { blocks: await show(tab), toast: { message: `Dismissed until ${new Date(now + v.days * 86_400_000).toISOString().slice(0, 10)}. It is no longer listed or counted in What to improve.`, type: "success" } };
+					}
+					if (i.type === "block_action" && act === "review-restore") {
+						const id = typeof i.value === "string" && /^[0-9a-z]{4,16}$/.test(i.value) ? i.value : undefined;
+						const review = readReview(await ctx.kv.get(KEYS.review));
+						const tab = review?.stale.some((x) => x.id === id) ? TABS.freshness : TABS.accessibility;
+						if (!id) return { blocks: await show(tab) };
+						await ctx.kv.set(KEYS.reviewDismissed, restore(readDismissed(await ctx.kv.get(KEYS.reviewDismissed)), id, Date.now()));
+						ctx.log?.info("health review item restored", {});
+						return { blocks: await show(tab), toast: { message: "Shown again.", type: "success" } };
 					}
 					if (i.type === "block_action" && act === "visual-run") {
 						if (env.STAGING === "1") return { blocks: await show(TABS.visual), toast: { message: "The visual check runs on the production site only.", type: "info" } };
@@ -461,7 +490,7 @@ export function createPlugin(options: HealthOptions) {
 						return { blocks: reportView(data, true), toast: ok ? { message: "Report emailed.", type: "success" } : { message: "Not emailed: email is not available right now (see Settings).", type: "error" } };
 					}
 					// "What to improve" rows that are fixed on one of Site health's own tabs.
-					if (i.type === "block_action" && act === "improve-tab" && (i.value === "missing" || i.value === "speed" || i.value === "visual")) return { blocks: await show(TABS[i.value]) };
+					if (i.type === "block_action" && act === "improve-tab" && (i.value === "missing" || i.value === "speed" || i.value === "visual" || i.value === "accessibility" || i.value === "freshness")) return { blocks: await show(TABS[i.value]) };
 					const tab = act === "back" ? TABS.reports : TABS.overview;
 					return { blocks: await show(tab) };
 				},
