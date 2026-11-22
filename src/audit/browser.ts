@@ -212,8 +212,35 @@ export interface ScreenshotResult {
 	overflowBy?: string;
 	/** Images still without a picture when the screenshot was taken (after retries and one reload); omitted when 0. */
 	missingImages?: number;
+	/** The site's own stylesheets and scripts that answered 4xx/5xx while the page loaded (`404 /wp-content/…/style.css`). */
+	brokenAssets?: string[];
 	error?: string;
 	consoleErrors: number;
+}
+
+/**
+ * Tallest page captured, px. A page far taller is almost always broken (a stylesheet that failed to load leaves a
+ * builder's full-height backgrounds unpositioned: 120,000+ px that keeps growing as it scrolls), and a full-page
+ * capture of it crashes Chromium and every capture after it. Measured on a live WPBakery/Salient site, 2026-11-23.
+ */
+export const MAX_SHOT_HEIGHT = 30_000;
+
+/** Same-origin stylesheet or script responses with an error status, as `404 /path` (query left out). */
+export function trackBrokenAssets(page: Page, origin: string): () => string[] {
+	const broken = new Set<string>();
+	page.on("response", (r) => {
+		const type = r.request().resourceType();
+		if ((type !== "stylesheet" && type !== "script") || r.status() < 400) return;
+		try {
+			const u = new URL(r.url());
+			if (u.origin === origin) broken.add(`${r.status()} ${u.pathname}`);
+		} catch {}
+	});
+	return () => {
+		const out = [...broken];
+		broken.clear();
+		return out;
+	};
 }
 
 /** A rendered Bricks element's measured box (px): size, gaps, padding, bottom margin, text size and line height. */
@@ -384,9 +411,11 @@ export async function captureScreenshots(
 			page.on("console", (m) => {
 				if (m.type() === "error") consoleErrors++;
 			});
+			const takeBroken = trackBrokenAssets(page, new URL(urls[0] ?? "http://x").origin);
 			while (queue.length) {
 				const url = queue.shift() as string;
 				consoleErrors = 0;
+				takeBroken();
 				const file = join(dir, `${screenName(url)}.png`);
 				try {
 					await page.goto(url, { waitUntil: "load", timeout: 45_000 });
@@ -398,6 +427,13 @@ export async function captureScreenshots(
 					}
 					// Clip to the viewport width: marquees/off-canvas menus can make the document wider than the screen.
 					const height = await page.evaluate(() => document.documentElement.scrollHeight);
+					if (height > MAX_SHOT_HEIGHT) {
+						const brokenAssets = takeBroken();
+						const why = brokenAssets.length ? `; the site's own files failing to load: ${brokenAssets.slice(0, 3).join(", ")}` : "";
+						results.push({ url, viewport: vp.name, height, ...(brokenAssets.length ? { brokenAssets } : {}), error: `page is ${height.toLocaleString("en-US")} px tall (over ${MAX_SHOT_HEIGHT.toLocaleString("en-US")}): not captured — usually a broken page${why}`, consoleErrors });
+						reporter.emit({ type: "step:progress", step: "Screenshots", done: ++done, total, item: `${vp.name} ${new URL(url).pathname}` });
+						continue;
+					}
 					// Visible sideways scroll only: content clipped by an overflow:hidden ancestor (off-canvas menus) does not count.
 					const overflowX = await page.evaluate(() => Math.max(0, Math.round(document.documentElement.scrollWidth - document.documentElement.clientWidth)));
 					// What sticks out: the outermost element whose box passes the right edge, named so the report says where to look.
@@ -416,9 +452,11 @@ export async function captureScreenshots(
 						await page.screenshot({ path: stillFile, fullPage: true, clip: { x: 0, y: 0, width: vp.width, height }, timeout: 60_000 });
 						await tag.evaluate((el) => (el as Element).remove());
 					}
-					results.push({ url, viewport: vp.name, file, height, ...(sections ? { sections } : {}), ...(bricks && Object.keys(bricks).length ? { bricks } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), overflowX, ...(overflowBy ? { overflowBy } : {}), ...(missingImages ? { missingImages } : {}), consoleErrors });
+					const brokenAssets = takeBroken();
+					results.push({ url, viewport: vp.name, file, height, ...(brokenAssets.length ? { brokenAssets } : {}), ...(sections ? { sections } : {}), ...(bricks && Object.keys(bricks).length ? { bricks } : {}), ...(moving?.length ? { moving } : {}), ...(stillFile ? { stillFile } : {}), overflowX, ...(overflowBy ? { overflowBy } : {}), ...(missingImages ? { missingImages } : {}), consoleErrors });
 				} catch (e) {
-					results.push({ url, viewport: vp.name, error: (e as Error).message.split("\n")[0], consoleErrors });
+					const brokenAssets = takeBroken();
+					results.push({ url, viewport: vp.name, ...(brokenAssets.length ? { brokenAssets } : {}), error: (e as Error).message.split("\n")[0], consoleErrors });
 				}
 				reporter.emit({ type: "step:progress", step: "Screenshots", done: ++done, total, item: `${vp.name} ${new URL(url).pathname}` });
 			}

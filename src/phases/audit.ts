@@ -297,12 +297,21 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	const sensitiveForms = integrations.filter((i) => i.form && i.form.sensitiveFields.length > 0 && !handledElsewhere(i.id));
 	const parsedAll = urlRecords.filter((r) => r.kind === "page").every((r) => snapshots.has(r.url));
 
+	const brokenOwnFiles = [...new Set(screens.flatMap((s) => (s.brokenAssets ?? []).map((a) => `${a} (on ${new URL(s.url).pathname})`)))];
 	return [
 		{ id: "home-reachable", label: "Home page returns 200", ok: home?.status === 200, detail: home ? `HTTP ${home.status}` : "not fetched" },
 		{ id: "no-fetch-errors", label: "Every discovered URL fetched (no network errors)", ok: fetchErrors.length === 0, detail: fetchErrors.length ? fetchErrors.slice(0, 5).map((r) => `${r.path}: ${r.error}`).join("; ") : `${urlRecords.length} URLs` },
 		{ id: "not-truncated", label: `Crawl finished within maxUrls (${config.audit.maxUrls})`, ok: !truncated, detail: truncated ? "raise audit.maxUrls or add exclude patterns" : undefined },
 		{ id: "snapshots", label: "Every HTML page snapshotted", ok: parsedAll },
 		{ id: "screenshots", label: `Screenshots at ${config.audit.viewports.map((v) => v.width).join("/")}px for every page`, ok: failedScreens.length === 0, detail: failedScreens.length ? `${failedScreens.length} failed: ${failedScreens.slice(0, 3).map((s) => `${new URL(s.url).pathname}@${s.viewport}`).join(", ")}` : `${screens.length} captured` },
+		{
+			id: "own-files",
+			label: "The site's own stylesheets and scripts load (the original looks as designed)",
+			ok: brokenOwnFiles.length === 0,
+			detail: brokenOwnFiles.length
+				? `${brokenOwnFiles.length} failing on the live site: ${brokenOwnFiles.slice(0, 3).join("; ")}. Screenshots and design capture would record a broken page as the original. Usually a stale cache (WP Rocket / page cache): clear it on WordPress, then rerun the audit.`
+				: undefined,
+		},
 		{ id: "design", label: "Design captured for the home page", ok: design.some((d) => d.url === pagesForDesign[0]) },
 		{
 			id: "menu-captured",

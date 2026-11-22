@@ -6,6 +6,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Fixed
+- **One broken page no longer crashes the audit:** a page far taller than any real page (over 30,000 px) is not captured and is reported instead; a full-page capture of it crashed Chromium and every screenshot, design capture and interaction after it. New audit check **own-files**: the site's own stylesheets and scripts that fail to load on the live site (e.g. `404` from a stale WP Rocket cache, which left a Salient page 120,000+ px tall), so a broken original is fixed on WordPress before it is recorded as the design to match. Found on a live WPBakery/Salient site.
+
 ## [1.10.0] — 2026-11-22
 
 ### Added
