@@ -8,7 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { PHASE_IDS } from "../core/phases.js";
 import { PROPOSAL_FILES, RERUN_PHASES } from "../core/proposals.js";
-import { defaultEnv, explainGateTool, listDiagnosticsTool, proposeOverrideTool, readReportTool, runPhaseTool, statusTool, type ToolEnv } from "./tools.js";
+import { defaultEnv, explainGateTool, listDiagnosticsTool, proposeOverrideTool, readReportTool, runPhaseTool, statusTool, type ToolEnv, upgradeVerifyTool } from "./tools.js";
 
 const slug = z.string().regex(/^[a-z0-9][a-z0-9-]{0,62}$/).describe("Site slug (folder under sites/)");
 const phase = z.enum(PHASE_IDS as [string, ...string[]]).describe(`Pipeline phase: ${PHASE_IDS.join(" → ")}`);
@@ -114,6 +114,17 @@ export function createMcpServer(env: ToolEnv = defaultEnv()): McpServer {
 			annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
 		},
 		(a) => result(() => proposeOverrideTool(a, env))(),
+	);
+
+	server.registerTool(
+		"upgrade_verify",
+		{
+			title: "Compare a site with its pre-upgrade snapshot",
+			description: "Read-only part of `wp2emdash upgrade`: snapshots production (default) or staging now — GET requests only — and compares every page with the latest reports/upgrade/<timestamp>/before.json (status, title, description, h1, lang, hreflang count, visible text, link/image/form counts, fonts; asset hashes, cache-busting strings, copyright year and kit version ignored). Writes compare-<target>.json/.md there (read them with read_report). exitCode 0 identical · 2 differences · 1 error. It never rebuilds or deploys: the before snapshot, rebuild and staging deploy are the operator's `wp2emdash upgrade <slug>`, the production deploy the owner's.",
+			inputSchema: { slug, against: z.enum(["production", "staging"]).optional().describe("Address to compare (default production)") },
+			annotations: { readOnlyHint: true, openWorldHint: true },
+		},
+		(a) => result(() => upgradeVerifyTool(a, env))(),
 	);
 
 	return server;

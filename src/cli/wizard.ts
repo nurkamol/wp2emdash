@@ -96,7 +96,7 @@ export async function wizard(): Promise<void> {
 		p.log.message(formatTimeline(state));
 		const next = nextPhase(state);
 		if (!next) {
-			p.outro(pc.green("All phases complete."));
+			p.outro(`${pc.green("All phases complete.")} ${pc.dim(`Built with an older kit? \`wp2emdash upgrade ${slug}\` rebuilds it and compares every live page.`)}`);
 			return;
 		}
 		const current = state.phases[next];
