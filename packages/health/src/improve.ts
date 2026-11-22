@@ -71,6 +71,8 @@ export interface ImproveInputs {
 export const LINKS = {
 	health: (tab: ImproveLink["tab"], label: string): ImproveLink => ({ plugin: "site-health", path: "/health", label, ...(tab ? { tab } : {}) }),
 	seo: { plugin: "site-seo", path: "/seo", label: "Open SEO" } as ImproveLink,
+	/** SEO fix-it (@wp2emdash/seo ≥ 0.6): drafts missing descriptions (and focus keywords) for review. */
+	seoFixit: { plugin: "site-seo", path: "/seo-fixit", label: "Draft them with SEO fix-it" } as ImproveLink,
 	media: { plugin: "media-assistant", path: "/media", label: "Open Media" } as ImproveLink,
 	forms: { plugin: "site-forms", path: "/messages", label: "Open Form messages" } as ImproveLink,
 	backups: { plugin: "site-backups", path: "/backups", label: "Open Backups" } as ImproveLink,
@@ -122,7 +124,7 @@ export function improvements(i: ImproveInputs): Improvement[] {
 	if (f && f.previous !== undefined && f.previous >= FORMS_DROP_MIN && f.total * 2 <= f.previous) out.push({ id: "forms", impact: 65, text: `Form messages fell from ${f.previous} to ${f.total} compared with the month before. Send yourself a test message to make sure the forms still work.`, count: f.total, link: LINKS.forms });
 	const s = i.seo;
 	if (s?.thin.count) out.push({ id: "thin", impact: 60, text: `${plural(s.thin.count, "page")} ${these(s.thin.count, "has", "have")} too little text for Google to show ${these(s.thin.count, "it", "them")} in search. Add a few paragraphs: what you offer, who it is for and common questions.`, count: s.thin.count, names: names("Pages", s.thin.pages.map((p) => p.title), s.thin.count), link: LINKS.seo });
-	if (s?.noDescription.count) out.push({ id: "description", impact: 50, text: `${plural(s.noDescription.count, "page")} ${these(s.noDescription.count, "has", "have")} no search description, so Google picks a random snippet. Write one or two sentences for each.`, count: s.noDescription.count, names: names("Pages", s.noDescription.pages, s.noDescription.count), link: LINKS.seo });
+	if (s?.noDescription.count) out.push({ id: "description", impact: 50, text: `${plural(s.noDescription.count, "page")} ${these(s.noDescription.count, "has", "have")} no search description, so Google picks a random snippet. Write one or two sentences for each.`, count: s.noDescription.count, names: names("Pages", s.noDescription.pages, s.noDescription.count), link: LINKS.seoFixit });
 	// Pictures without a description: the Media Assistant's count when it runs (its page fixes them), else the SEO suite's.
 	const altCount = m ? m.missingAltUsed : (s?.missingAlt.count ?? 0);
 	if (altCount) out.push({ id: "alt", impact: 40, text: `${plural(altCount, "picture")} on your pages ${these(altCount, "has", "have")} no description for people who cannot see ${these(altCount, "it", "them")} (it also helps Google Images). Add a short sentence to each.`, count: altCount, ...(s?.missingAlt.pages.length ? { names: names("On", s.missingAlt.pages) } : {}), link: m ? LINKS.media : LINKS.seo });

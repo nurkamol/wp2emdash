@@ -146,7 +146,8 @@ describe("SEO panel plugin", () => {
 	const plugin = createPlugin({ productionUrl: "https://acme.example", titleSeparator: "-" }) as unknown as { capabilities: string[]; admin: { editorPanels: { id: string; collections: string[]; draft: unknown }[] }; routes: { panel: { permission: string; handler: (c: unknown) => Promise<{ blocks: Record<string, any>[]; toast?: { message: string } }> } } };
 	it("declares a draft-reading editor panel for pages, usable by contributors", () => {
 		expect(seoPlugin({ productionUrl: "https://acme.example" })).toMatchObject({ id: "site-seo", entrypoint: "@wp2emdash/seo/plugin" });
-		expect(plugin.capabilities).toEqual(["content:read", "media:read", "media:metadata:write", "admin.editor-draft:read", "taxonomies:read"]);
+		expect(plugin.capabilities).toEqual(["content:read", "content:write", "media:read", "media:metadata:write", "admin.editor-draft:read", "taxonomies:read"]);
+		expect((createPlugin({ productionUrl: "https://acme.example", fixit: false }) as unknown as { capabilities: string[] }).capabilities).not.toContain("content:write");
 		expect(plugin.admin.editorPanels[0]).toMatchObject({ id: "seo", collections: ["pages"], draft: { read: { fields: ["title", "content"] } } });
 		expect(plugin.routes.panel.permission).toBe("content:read_drafts");
 	});

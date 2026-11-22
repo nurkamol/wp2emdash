@@ -14,7 +14,7 @@ import { backupsOptions } from "../scaffold/backups.js";
 import { healthOptions, mailBaselineFrom } from "../scaffold/health.js";
 import { ardManifest } from "../../starter/src/utils/ard.js";
 import { CSP_REPORT_PATH } from "../../starter/src/utils/csp-report.js";
-import { mediaNeedsAi, mediaOptions } from "../scaffold/media.js";
+import { mediaOptions, workerNeedsAi } from "../scaffold/media.js";
 import { changeRequestsOptions } from "../scaffold/change-requests.js";
 import { consentScaffold } from "../scaffold/consent.js";
 import { motionOptions } from "../scaffold/motion.js";
@@ -145,8 +145,8 @@ export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms"> & 
 	// SELF: the SEO dashboard and Site health request the site's own pages through the Worker itself; Backups restores
 	// through EmDash's own API as the admin who confirmed; Media replaces and moves files the same way.
 	const self = o.seoPanel || !!o.health || !!o.backups || !!o.media;
-	// Workers AI (Media's alt text suggestions, kit.config media.aiAlt): not inherited by named environments.
-	const ai = o.ai ? `\n\t// Workers AI: Media's alt text suggestions (kit.config media.aiAlt).\n\t"ai": { "binding": "AI" },` : "";
+	// Workers AI (Media's alt text suggestions, kit.config media.aiAlt; SEO fix-it drafts): not inherited by named environments.
+	const ai = o.ai ? `\n\t// Workers AI: Media's alt text suggestions (kit.config media.aiAlt) and SEO fix-it drafts (seo.panel, not on sensitive sites).\n\t"ai": { "binding": "AI" },` : "";
 	const loader = (e: "staging" | "production") => o.sandboxedEnvs.some((envs) => envs.includes(e));
 	const d1 = (env: "staging" | "production", fallback: string) => JSON.stringify({ binding: "DB", database_name: cf[env]?.d1?.name ?? fallback, ...(cf[env]?.d1?.id ? { database_id: cf[env]?.d1?.id } : {}) });
 	// R2: media, and the sessions bucket (SESSIONS) when sign-in sessions are on R2 (src/scaffold/sessions.ts).
@@ -823,7 +823,7 @@ ${sess.options}${ap.options}	integrations: [
 	if (config.forms.outbox && config.forms.crm !== false && !config.sensitiveData && forms.length) reporter.emit({ type: "log", level: "info", message: `CRM sync available in Form messages → Settings → CRM & mailing lists (${config.forms.crm?.providers.length ? `pre-selected: ${config.forms.crm.providers.join(", ")}` : "off until an admin turns a provider on"}); each provider needs its Worker secret: npx wrangler secret put BREVO_API_KEY | HUBSPOT_TOKEN | MAILCHIMP_API_KEY` });
 	if (config.forms.outbox && config.forms.chat !== false && forms.length) reporter.emit({ type: "log", level: "info", message: `chat notifications available in Form messages → Settings (off until an admin turns a channel on${config.sensitiveData ? "; sensitiveData: notification only" : ""}); each channel needs its Worker secret: npx wrangler secret put TELEGRAM_BOT_TOKEN | SLACK_WEBHOOK_URL | CHAT_WEBHOOK_URL` });
 	if (!envs.staging && !config.forms.turnstileSiteKey && forms.length) reporter.emit({ type: "log", level: "warn", message: `single environment: production forms refuse messages until forms.turnstileSiteKey is set (one Turnstile widget for ${new URL(siteConfig.productionUrl).host} and the account's workers.dev subdomain) and its secret is put (wrangler secret put TURNSTILE_SECRET_KEY)` });
-	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, health: !!health, backups: !!backups, media: !!mediaAssistant, ai: mediaNeedsAi(mediaAssistant), productionHost: new URL(siteConfig.productionUrl).host, perf: config.performance, live: !!cf.production?.live, keepWorkersDev: config.target.keepWorkersDev, sessions: sessions.store }));
+	write(join(project, "wrangler.jsonc"), wranglerJsonc({ config, workerName, compatibilityDate: today, cf, staging: envs.staging, sandboxedEnvs: sandboxed.map((sp) => sp.environments), seoPanel: !!seoPanel, health: !!health, backups: !!backups, media: !!mediaAssistant, ai: workerNeedsAi(mediaAssistant, !!seoPanel, config.sensitiveData), productionHost: new URL(siteConfig.productionUrl).host, perf: config.performance, live: !!cf.production?.live, keepWorkersDev: config.target.keepWorkersDev, sessions: sessions.store }));
 	// Local dev: Turnstile's always-pass test keys so forms work under `astro dev` (kept if the developer edited the file).
 	const devVars = join(project, ".dev.vars");
 	if (!existsSync(devVars)) write(devVars, "# Local only (gitignored). Turnstile always-pass test keys; add EMAIL_API_KEY and FORM_FROM to test real delivery.\nTURNSTILE_SITE_KEY=1x00000000000000000000AA\nTURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA\n");

@@ -1,5 +1,31 @@
 # @wp2emdash/seo (experimental) — SEO & Analytics
 
+Version 0.6.0 adds **SEO fix-it** (below): a second admin page, the `content:write` capability (SEO fields only) and the
+`/fixit` export.
+
+## SEO fix-it (0.6)
+
+Admin page **SEO fix-it** (`/seo-fixit`, editors and admins). From the pages the analysis flags — published and
+indexable, without a meta description or focus keyword, and optionally with an SEO title that is too long or short —
+it drafts suggestions with **Workers AI** (`AI` binding; default model `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, JSON
+mode) from each page's own title and visible text (≤ 3,000 characters, sent once, never stored).
+
+- **Drafts:** description 120–160 characters, focus keyword of 2–4 words that occur in the page text, SEO title ≤ 60.
+  In the site's language (`lang`). Cleaned before review: plain text, phone numbers / prices / emails / links not on the
+  page removed, unsupported claims removed or flagged. Pages under 40 words are listed, not drafted.
+- **Limits:** 10 pages per press, 100 drafts per UTC day by default (≈ 5,500 of the 10,000 free daily neurons).
+- **Review:** each page shows its current values and editable suggestions with **Approve** and **Discard**; **Approve
+  all shown** approves the first 10 as drafted. Approval writes `seo.description` / `seo.title` with
+  `content.update(collection, id, { seo })` — the SEO panel's own row, which is **not versioned: live at once on a
+  published page** (the content is not touched) — and the keyword to the panel's KV key, then purges the cached pages.
+  Refused when the page was unpublished or someone changed the value since the draft.
+- **Storage:** KV `fixit:pending` (≤ 200, 30 days, no page text), `fixit:discarded` (30 days), `fixit:usage`.
+- **Without the binding** the page explains how to add `"ai": { "binding": "AI" }`; the kit's scaffold adds it unless
+  the site has `sensitiveData`. Options: `fixit: { model, dailyLimit, titles }`, or `fixit: false` to remove the page.
+- The dashboard Overview links to it; Site health's "What to improve" sends missing descriptions there.
+
+Findings: `docs/spikes/seo-fixit-findings.md`.
+
 Version 0.3.0 adds **sharing text per page** and **archive SEO** (below), exports `/social` (read by the starter and
 the kit's load) and declares `taxonomies:read`.
 
