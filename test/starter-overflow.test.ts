@@ -18,6 +18,10 @@ describe("starter layouts on phones", () => {
 		expect(read("components/collections/ProductDetail.astro")).toContain(".product-details .container { display: grid; grid-template-columns: minmax(0, 1fr);");
 	});
 
+	it("keeps a struck-through regular price readable (no dimming below WCAG AA; e2e: 3.9:1 at 65% opacity)", () => {
+		for (const f of ["components/collections/ProductCard.astro", "components/collections/ProductDetail.astro"]) expect(read(f)).not.toMatch(/del \{[^}]*opacity/);
+	});
+
 	it("separates a testimonial's name and role with a space (screen readers, text copies)", () => {
 		expect(read("components/sections/Testimonials.astro")).toContain('{q.name && q.role && " "}');
 	});
