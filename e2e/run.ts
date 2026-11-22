@@ -21,7 +21,7 @@ import { loadEnv } from "../src/extract/credentials.js";
 import { copyInto, PROJECT_COPY, SITE_COPY, scrubSecrets, startDevServer } from "./lib/artifacts.js";
 import { type Assertion, type FetchedPage, outputAssertions, pathsToRender, renderedAssertions } from "./lib/assertions.js";
 import { type Expectations, type PhaseOutcome, runPhases, verdict } from "./lib/pipeline.js";
-import { buildSeedPlan } from "./lib/plan.js";
+import { buildSeedPlan, withLiveAddresses } from "./lib/plan.js";
 import { fetchZips, writePlanAndImages } from "./lib/prepare.js";
 import { reportJson, reportMarkdown } from "./lib/report.js";
 import { createE2eSite, E2E_SLUG, forbiddenEnv, KIT_ENV_BLANK } from "./lib/site.js";
@@ -51,8 +51,13 @@ async function pipeline(): Promise<number> {
 	rmSync(outDir, { recursive: true, force: true });
 	mkdirSync(join(outDir, "logs"), { recursive: true });
 	const exp = JSON.parse(readFileSync(join(E2E_DIR, "expectations.json"), "utf8")) as Expectations;
-	const plan = buildSeedPlan();
+	const planned = buildSeedPlan();
 	const notes: string[] = [];
+	// The addresses WordPress really serves win over the planned ones (seed-summary.txt; e.g. Polylang's French front page).
+	const summaryFile = join(workDir, "seed-summary.txt");
+	const live = existsSync(summaryFile) ? withLiveAddresses(planned.expected, readFileSync(summaryFile, "utf8")) : { expected: planned.expected, changed: [] };
+	const plan = { ...planned, expected: live.expected };
+	for (const c of live.changed) notes.push(`WordPress serves ${c.to} where the plan expected ${c.from}: checked at ${c.to}`);
 
 	const pwFile = join(workDir, "app-password");
 	if (!existsSync(pwFile)) {

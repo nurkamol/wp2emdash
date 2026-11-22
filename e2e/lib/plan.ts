@@ -129,7 +129,7 @@ export interface SeedPlan {
 
 export interface SeedExpectations {
 	/** Live path → language; the seeded pages, posts and products the migrated site must answer at. */
-	routes: { path: string; lang: Lang; kind: "page" | "post" | "product"; builder?: "gutenberg" | "elementor" }[];
+	routes: { path: string; lang: Lang; kind: "page" | "post" | "product"; builder?: "gutenberg" | "elementor"; slug?: string }[];
 	/** Translated pairs (default-language path, French path). */
 	pairs: { en: string; fr: string }[];
 	products: { slug: string; type: "simple" | "variable"; onSale: boolean; variations: number }[];
@@ -519,9 +519,9 @@ export function buildSeedPlan(): SeedPlan {
 	const frontKeys = new Set(PAGES.filter((p) => p.front || (p.translationOf && pageByKey.get(p.translationOf)?.front)).map((p) => p.key));
 	const pagePath = (p: PlanPage) => livePath({ ...p, front: frontKeys.has(p.key) }, "page");
 	const routes: SeedExpectations["routes"] = [
-		...PAGES.map((p) => ({ path: pagePath(p), lang: p.lang, kind: "page" as const, builder: p.builder })),
-		...POSTS.map((p) => ({ path: livePath(p, "post"), lang: p.lang, kind: "post" as const })),
-		...PRODUCTS.map((p) => ({ path: livePath({ slug: p.slug, lang: "en" }, "product"), lang: "en" as const, kind: "product" as const })),
+		...PAGES.map((p) => ({ path: pagePath(p), lang: p.lang, kind: "page" as const, builder: p.builder, slug: p.slug })),
+		...POSTS.map((p) => ({ path: livePath(p, "post"), lang: p.lang, kind: "post" as const, slug: p.slug })),
+		...PRODUCTS.map((p) => ({ path: livePath({ slug: p.slug, lang: "en" }, "product"), lang: "en" as const, kind: "product" as const, slug: p.slug })),
 	];
 	const pairs = [
 		...PAGES.filter((p) => p.translationOf).map((p) => ({ en: pagePath(pageByKey.get(p.translationOf as string) as PlanPage), fr: pagePath(p) })),
@@ -657,4 +657,28 @@ export function planProblems(plan: SeedPlan): string[] {
 	const ids = JSON.stringify(plan.pages.map((p) => p.elementor ?? [])).match(/"id":"[0-9a-f]{7}"/g) ?? [];
 	dup("elementor element id", ids);
 	return out;
+}
+
+/**
+ * The addresses WordPress actually serves (seed-summary.txt: `  page accueil lang=fr url=http://…/fr/accueil/`) replace
+ * the planned ones where they differ: the kit's job is to keep what WordPress serves. Polylang, for one, kept the French
+ * front page at /fr/accueil/ (with /fr/ redirecting there) in CI although the plan expected /fr/. Pure.
+ */
+export function withLiveAddresses(expected: SeedExpectations, summary: string): { expected: SeedExpectations; changed: { from: string; to: string }[] } {
+	const actual = new Map<string, string>();
+	for (const m of summary.matchAll(/^\s+(page|post|product) (\S+) lang=\S+ url=(\S+)\s*$/gm)) {
+		try {
+			actual.set(`${m[1]}:${m[2]}`, new URL(m[3] as string).pathname);
+		} catch {}
+	}
+	const remap = new Map<string, string>();
+	for (const r of expected.routes) {
+		const live = r.slug ? actual.get(`${r.kind}:${r.slug}`) : undefined;
+		if (live && live !== r.path) remap.set(r.path, live);
+	}
+	const to = (p: string) => remap.get(p) ?? p;
+	return {
+		expected: { ...expected, routes: expected.routes.map((r) => ({ ...r, path: to(r.path) })), pairs: expected.pairs.map((p) => ({ en: to(p.en), fr: to(p.fr) })), forms: expected.forms.map((f) => ({ ...f, paths: f.paths.map(to) })) },
+		changed: [...remap].map(([from, to2]) => ({ from, to: to2 })),
+	};
 }

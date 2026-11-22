@@ -75,6 +75,12 @@ export const CHROME = [
 export function sourceText(html: string): string {
 	const $ = cheerio.load(html);
 	restoreCfEmails($);
+	// Animated counters ship their START number in the HTML and count up in the browser (Elementor
+	// `.elementor-counter-number` data-to-value, Salient / WPBakery `data-number`): the visitor reads the end number,
+	// which is what the migrated section carries. (WordPress e2e test, 2026-11-22: "0" for a counter to 1200.)
+	$(".elementor-counter-number[data-to-value]").each((_, el) => {
+		$(el).text($(el).attr("data-to-value") ?? "");
+	});
 	for (const sel of CHROME) $(sel).remove();
 	const root = $("#ajax-content-wrap").length ? $("#ajax-content-wrap") : $("main").length ? $("main").first().parent() : $("body");
 	// Block-level elements end a word.

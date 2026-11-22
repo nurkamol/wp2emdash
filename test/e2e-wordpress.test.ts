@@ -462,3 +462,16 @@ describe("report and artifacts", () => {
 		expect(readFileSync(join(dest, "reports", "audit", "audit.md"), "utf8")).toBe("auth with [redacted] and secretvalue");
 	});
 });
+
+describe("e2e: the addresses WordPress serves win over the plan", () => {
+	it("remaps routes and pairs from seed-summary.txt", async () => {
+		const { buildSeedPlan, withLiveAddresses } = await import("../e2e/lib/plan.js");
+		const plan = buildSeedPlan();
+		const summary = "  page accueil lang=fr url=http://localhost:8080/fr/accueil/\n  page about lang=en url=http://localhost:8080/about/\n";
+		const r = withLiveAddresses(plan.expected, summary);
+		expect(r.changed).toEqual([{ from: "/fr/", to: "/fr/accueil/" }]);
+		expect(r.expected.pairs).toContainEqual({ en: "/", fr: "/fr/accueil/" });
+		expect(r.expected.routes.some((x) => x.path === "/fr/")).toBe(false);
+		expect(withLiveAddresses(plan.expected, "").changed).toEqual([]);
+	});
+});

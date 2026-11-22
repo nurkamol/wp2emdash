@@ -19,3 +19,12 @@ describe("WooCommerce's own forms are not content forms", () => {
 		expect(isContentForm("contact-form-7")).toBe(true);
 	});
 });
+
+describe("text conservation reads animated counters at their end number", () => {
+	it("uses Elementor's data-to-value instead of the start number in the HTML", async () => {
+		const { sourceText } = await import("../src/transform/coverage.js");
+		const t = sourceText('<main><span class="elementor-counter-number" data-to-value="1200" data-from-value="0">0</span> mugs</main>');
+		expect(t).toContain("1200");
+		expect(t).not.toMatch(/\b0\b/);
+	});
+});
