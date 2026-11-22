@@ -9,7 +9,7 @@ import type { IrPage } from "../ir/schema.js";
 
 export interface ShortcodeUse {
 	name: string;
-	/** form | breadcrumbs | strip | widget | media | unknown */
+	/** form | breadcrumbs | strip | widget | media | products | unknown */
 	action: string;
 	count: number;
 	pages: string[];
@@ -48,7 +48,7 @@ export function shortcodeSummary(docs: { doc: Pick<IrPage, "diagnostics" | "sour
 
 export function shortcodesReport(s: ShortcodeSummary): string[] {
 	if (!s.used.length) return [];
-	const what: Record<string, string> = { form: "form section", breadcrumbs: "left out; theme breadcrumbs (flagged)", strip: "wrapper removed, content kept", widget: "not rebuilt (reported)", media: "rebuilt (core media)", unknown: "❌ unknown: output not rebuilt" };
+	const what: Record<string, string> = { form: "form section", breadcrumbs: "left out; theme breadcrumbs (flagged)", strip: "wrapper removed, content kept", widget: "not rebuilt (reported)", media: "rebuilt (core media)", products: "product grid section (catalogue mode; reported on a site without it)", unknown: "❌ unknown: output not rebuilt" };
 	return [
 		"",
 		"## Shortcodes",

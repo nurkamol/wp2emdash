@@ -1,0 +1,12 @@
+{
+	".env.example": "c94dfa0924fb01a97874b5b15bafb55c25770ea74a83d55b7f9bcc78c4266122",
+	".github/dependabot.yml": "8997f856f4e690189550ed6c68ffde90000a69c7ab8812fcf9e4da830c5eba39",
+	".github/pull_request_template.md": "5a7e2a3eb72b97ecaba3594e4438142c5ba0876f719da7701ebce7cc0a50f4b3",
+	".github/workflows/ci.yml": "a4815f3f8ae0f3d0126febd0069f53399d3eff84f187e341a25f69baed3609b4",
+	"docs/deployment.md": "dd1e1cbc0ed5c3fe6c73ef97e5116151aa3ea8e86488d561edf037b537136c9f",
+	"docs/editing-custom-content.md": "87357c31d3370bfb586b88ca8ed80d3f6638ddff1e4282cbcbe7086d33b5bfb6",
+	"docs/editor-guide.md": "7ee6a2702964a671fe9eab4f428bc1fef7fbf1b110d0810690ff0d0cdbac202e",
+	"docs/forms-and-integrations.md": "34099d89001751da61e6dfb6a1ab312430a9bbc07c567d8e848429324ca98362",
+	"docs/go-live.md": "c493a5fcc44cb32ea484e5bfe201ff35db6dd05f2169a319e1491dea94a464d6",
+	"README.md": "612875cccf0b04324425cf7f543bd86e02410362bc2566533639f31c1ec08ea7"
+}

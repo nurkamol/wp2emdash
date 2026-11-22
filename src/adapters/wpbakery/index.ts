@@ -11,6 +11,7 @@ import { colourValue, columnFraction, isDarkColour, parseVcCss, spacingFromPaddi
 import { type BoxHeight, type Col, CONTAINERS, DECORATIVE, type Fragment, GROUPS, HANDLERS, type HandlerCtx, LINE_LEADING, linkBlock, mediaFrom, richFromHtml } from "./elements.js";
 import { type AstNode, parseShortcodes, serialise, type ShortcodeNode } from "./parser.js";
 import { formIdOf, shortcodeAction } from "../shortcodes.js";
+import { salientWooProducts, wooShortcode } from "../woocommerce.js";
 
 export interface AdaptOptions {
 	kind: "page" | "post" | "partial" | "popup";
@@ -71,6 +72,10 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 		if (h) return h(n, ctx);
 		if (n.tag === "vc_row_inner") return subrowFragments(n, path);
 		if (n.tag === "vc_text_separator") return n.attrs.title ? [{ kind: "rich", blocks: richFromHtml(`<h4>${n.attrs.title}</h4>`, ctx).flatMap((f) => (f.kind === "rich" ? f.blocks : [])) }] : [];
+		// WooCommerce product listings ([products], [sale_products]…, Salient's products element) → a product grid.
+		if (n.tag === "nectar_woo_products") return salientWooProducts(n.attrs, diag, path);
+		const woo = wooShortcode(n.tag, n.attrs, diag, path);
+		if (woo) return woo;
 		// Plugin and theme shortcodes no builder handler knows: the registry (src/adapters/shortcodes.ts) says what to do.
 		const known = pluginShortcode(n, path, ctx);
 		if (known) return known;
@@ -107,6 +112,8 @@ export function adaptWpbakery(content: string, opts: AdaptOptions): AdaptResult 
 				return processChildren(n.children, path);
 			case "media":
 				return mediaShortcode(n, path, ctx, note);
+			case "products":
+				return undefined; // handled before the registry (src/adapters/woocommerce.ts)
 		}
 	}
 
@@ -450,8 +457,8 @@ export interface RecogniseCtx {
 }
 
 /** Collection sections that carry an intro (the text between their heading and their items). */
-const INTRO_COLLECTIONS = new Set<string>(["faq", "team", "price", "form", "feature"]);
-const COLLECTIONS = ["faq", "tab", "team", "testimonial", "gallery", "price", "stat", "form", "embed", "video", "audio", "posts", "map", "marquee", "legacy", "feature"] as const;
+const INTRO_COLLECTIONS = new Set<string>(["faq", "team", "price", "form", "feature", "products"]);
+const COLLECTIONS = ["faq", "tab", "team", "testimonial", "gallery", "price", "stat", "form", "embed", "video", "audio", "posts", "products", "map", "marquee", "legacy", "feature"] as const;
 type CollectionKind = (typeof COLLECTIONS)[number];
 
 const isHeading = (b: PtBlock) => /^h[1-6]$/.test(b.style);
@@ -638,6 +645,9 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 					break;
 				case "posts":
 					for (const [i, { kind: _k, ...p }] of items("posts").entries()) push({ ...base("posts_list"), fields: { ...(i === 0 ? h : {}), ...p } });
+					break;
+				case "products":
+					for (const [i, { kind: _k, ...p }] of items("products").entries()) push({ ...base("product_grid"), fields: { ...(i === 0 ? h : {}), intro: i === 0 ? intro : [], products: [], showPrice: true, ...p } });
 					break;
 				case "map":
 					for (const [i, m] of items("map").entries()) push({ ...base("map"), fields: { ...(i === 0 ? h : {}), ...(m.embedUrl ? { embedUrl: m.embedUrl } : {}), ...(m.address ? { address: m.address } : {}) } });
@@ -849,12 +859,12 @@ export function recognise(row: Row, ctx: RecogniseCtx): Section[] {
 	return sections;
 }
 
-const COLLECTION_PRIORITY: CollectionKind[] = ["form", "faq", "tab", "team", "testimonial", "price", "gallery", "stat", "posts", "embed", "map", "video", "audio", "marquee", "legacy", "feature"];
+const COLLECTION_PRIORITY: CollectionKind[] = ["form", "faq", "tab", "team", "testimonial", "price", "gallery", "stat", "posts", "products", "embed", "map", "video", "audio", "marquee", "legacy", "feature"];
 function pickCollection(present: readonly CollectionKind[]): CollectionKind | undefined {
 	return COLLECTION_PRIORITY.find((k) => present.includes(k));
 }
 function collectionSection(k: CollectionKind): SectionType {
-	return ({ faq: "faq", tab: "tabs", team: "team", testimonial: "testimonials", gallery: "gallery", price: "pricing", stat: "stats", form: "form", embed: "embed", video: "video", audio: "audio", posts: "posts_list", map: "map", marquee: "cta_banner", legacy: "legacy_html", feature: "feature_grid" } as const)[k];
+	return ({ faq: "faq", tab: "tabs", team: "team", testimonial: "testimonials", gallery: "gallery", price: "pricing", stat: "stats", form: "form", embed: "embed", video: "video", audio: "audio", posts: "posts_list", products: "product_grid", map: "map", marquee: "cta_banner", legacy: "legacy_html", feature: "feature_grid" } as const)[k];
 }
 
 function richBefore(all: Fragment[], k: CollectionKind): RichText {

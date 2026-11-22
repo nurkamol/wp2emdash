@@ -19,6 +19,7 @@ import Tabs from "./sections/Tabs.astro";
 import Video from "./sections/Video.astro";
 import Audio from "./sections/Audio.astro";
 import PostsList from "./sections/PostsList.astro";
+import ProductGrid from "./sections/ProductGrid.astro";
 import Form from "./sections/Form.astro";
 import Map from "./sections/Map.astro";
 import Embed from "./sections/Embed.astro";
@@ -56,6 +57,8 @@ const components = defineBlockComponents<any>({
 	section_video: Video,
 	section_audio: Audio,
 	section_posts_list: PostsList,
+	// Shop sites only (WooCommerce catalogue mode): other sites' editors never offer it.
+	section_product_grid: ProductGrid,
 	section_form: Form,
 	section_map: Map,
 	section_embed: Embed,

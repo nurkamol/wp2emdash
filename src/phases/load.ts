@@ -27,7 +27,7 @@ import type { SectionsPlan } from "../transform/sections.js";
 import { writeSections } from "../targets/emdash/sections.js";
 import type { BlogPlan } from "../transform/blog.js";
 import { type CptCollection, type CptPlan, collectionFields } from "../transform/cpt.js";
-import { BLOCK_TYPES } from "../starter/library.js";
+import { blockTypesFor, PRODUCT_GRID_BLOCK, sectionSlugsFor } from "../starter/library.js";
 import { svgToPng } from "../targets/emdash/svg.js";
 import { ACCESS_BODY_FIELD, ACCESS_FIELD, pageAction, protectedData } from "../targets/emdash/access.js";
 import { hashPassword, PROTECTED_FILE, type ProtectedEntry } from "../transform/protected.js";
@@ -271,6 +271,8 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 		// Custom post types (ir/collections.json): their collections, fields, taxonomies and bylines.
 		const cptPlan = readJson<CptPlan>(join(paths.ir, "collections.json"));
 		const cptCols = cptPlan?.collections ?? [];
+		// WooCommerce catalogue mode (a products collection): the shop sections (product grid) join the section library.
+		const shopSite = !!config.shop && cptCols.some((c) => c.shop);
 		// Classic-theme widget areas (ir/widgets.json).
 		const widgetPlan = readJson<WidgetPlan>(join(paths.ir, "widgets.json"));
 		const colBySlug = new Map(cptCols.map((c) => [c.slug, c]));
@@ -293,7 +295,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			const canon = (v: unknown) => JSON.stringify(sortKeys(v));
 			const schemaChanges: string[] = [];
 			const schemaErrors: string[] = [];
-			for (const lib of BLOCK_TYPES) {
+			for (const lib of blockTypesFor({ shop: shopSite })) {
 				const want = lib.versions[lib.versions.length - 1]?.fields ?? [];
 				const have = bt.find((x) => x.slug === lib.slug);
 				try {
@@ -340,7 +342,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			}
 			for (const c of madeCols) {
 				try {
-					for (const f of collectionFields(c, BLOCK_TYPES.map((b) => b.slug))) await api.createField(c.slug, { ...f });
+					for (const f of collectionFields(c, sectionSlugsFor({ shop: shopSite }))) await api.createField(c.slug, { ...f });
 					schemaChanges.push(`collection ${c.slug} created`);
 				} catch (e) {
 					schemaErrors.push(`${c.slug} fields: ${(e as Error).message}`);
@@ -389,6 +391,21 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 						}
 					} catch (e) {
 						schemaErrors.push(`${c} language fields: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
+					}
+				}
+			}
+			// Shop sites set up before the product grid: its block type joins the `content` fields' allowed sections (the
+			// seed allows it on a new site). Sites without a shop are never touched here.
+			if (shopSite) {
+				for (const c of ["pages", "site_parts", "popups", ...(blogPlan ? ["posts"] : []), ...cptCols.filter((x) => x.core.sections).map((x) => x.slug)].filter((x) => cols.some((y) => y.slug === x))) {
+					try {
+						const field = (await api.collectionFields(c)).find((f) => f.slug === "content" && f.type === "blocks");
+						const v = (field?.validation ?? {}) as { allowedTypes?: string[] };
+						if (!field || !Array.isArray(v.allowedTypes) || v.allowedTypes.includes(PRODUCT_GRID_BLOCK)) continue;
+						await api.updateField(c, "content", { validation: { ...v, allowedTypes: [...v.allowedTypes, PRODUCT_GRID_BLOCK] } });
+						schemaChanges.push(`${c}.content allows ${PRODUCT_GRID_BLOCK}`);
+					} catch (e) {
+						schemaErrors.push(`${c} sections: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
 					}
 				}
 			}

@@ -275,3 +275,40 @@ function announcementBlock(): BlockType {
 }
 
 export const SECTION_SLUGS = BLOCK_TYPES.map((b) => b.slug);
+
+/** Block type of the product grid (WooCommerce catalogue mode only). */
+export const PRODUCT_GRID_BLOCK = "section_product_grid";
+const SLUG_LIST = { pattern: "^(?:$|[a-z0-9_%-]+(?:\\s*,\\s*[a-z0-9_%-]+)*)$" };
+/** Product addresses (/product/blue-mug/) or slugs (blue-mug), comma-separated. */
+const PRODUCT_LIST = { pattern: "^(?:$|/?[a-z0-9_%-]+(?:/[a-z0-9_%-]+)*/?(?:\\s*,\\s*/?[a-z0-9_%-]+(?:/[a-z0-9_%-]+)*/?)*)$" };
+
+/**
+ * Sections only shops get (kit.config `shop`, WooCommerce catalogue mode: PLAN §8b). Kept out of BLOCK_TYPES so a site
+ * without a shop has exactly the block types, allowed sections and editor it had before: use blockTypesFor().
+ */
+export const SHOP_BLOCK_TYPES: BlockType[] = [
+	block(PRODUCT_GRID_BLOCK, "Product grid", "Products from the shop (newest, on sale, a category or hand-picked), updated on its own when a product changes", [], [
+		...heading(),
+		pt("intro", "Intro"),
+		sel("source", "Which products (latest = newest first; on_sale = with a sale price; category = the categories below; handpicked = the products below, in that order)", ["latest", "on_sale", "category", "handpicked"], "latest"),
+		s("categories", "Product categories for “category” (slugs, comma-separated)", { validation: SLUG_LIST }),
+		s("products", "Products for “handpicked” (addresses like /product/blue-mug/ or slugs, comma-separated)", { validation: PRODUCT_LIST }),
+		{ slug: "count", label: "How many products", type: "integer", defaultValue: 4, validation: { min: 1, max: 12 } },
+		{ slug: "columns", label: "Products per row (empty = as many as fit)", type: "integer", validation: { min: 1, max: 6 } },
+		bool("show_price", "Show the price", true),
+		s("button_label", "Button label (empty = the product's own Buy button text, else “View product”)"),
+	]),
+];
+
+/** The block types of a site: the shared library, plus the shop sections on catalogue-mode sites (after "Latest posts"). */
+export function blockTypesFor(o: { shop?: boolean } = {}): BlockType[] {
+	if (!o.shop) return BLOCK_TYPES;
+	const at = BLOCK_TYPES.findIndex((b) => b.slug === "section_posts_list") + 1;
+	return [...BLOCK_TYPES.slice(0, at), ...SHOP_BLOCK_TYPES, ...BLOCK_TYPES.slice(at)];
+}
+
+/** Section slugs a site's `blocks` fields allow (see blockTypesFor). */
+export const sectionSlugsFor = (o: { shop?: boolean } = {}): string[] => (o.shop ? blockTypesFor(o).map((b) => b.slug) : SECTION_SLUGS);
+
+/** Every block type the kit knows (IR → block mapping, conformance checks). */
+export const ALL_BLOCK_TYPES: BlockType[] = blockTypesFor({ shop: true });

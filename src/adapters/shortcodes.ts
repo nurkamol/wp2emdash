@@ -14,7 +14,9 @@
  *   sign-up boxes and switchers are reported as warnings (site widgets, the provider registry, can bring them back);
  *   widgets that show the site's own content (tables, galleries, sliders, documents, events, bookings, maps, templates,
  *   snippets) are errors, like an unmapped element, until a section replaces them or the owner decides;
- * - media: WordPress core media shortcodes, handled by the adapters (listed so the report names them).
+ * - media: WordPress core media shortcodes, handled by the adapters (listed so the report names them);
+ * - products: WooCommerce product listings ([products], [sale_products]…), rebuilt as a product grid on catalogue-mode
+ *   shops by src/adapters/woocommerce.ts (the listings it cannot rebuild, best sellers and the like, are content widgets).
  */
 export type ShortcodeAction =
 	| { do: "form"; provider: string }
@@ -22,7 +24,8 @@ export type ShortcodeAction =
 	| { do: "strip" }
 	/** `content`: it shows the site's own content (a table, gallery, slider, document, events): blocking until rebuilt or decided. */
 	| { do: "widget"; what: string; content: boolean }
-	| { do: "media" };
+	| { do: "media" }
+	| { do: "products" };
 
 const FORM: Record<string, string> = {
 	"contact-form-7": "contact-form-7",
@@ -131,8 +134,22 @@ const WIDGET: Record<string, string> = {
 	"insert_php": "PHP snippet",
 	"xyz-ihs": "HTML snippet (Insert HTML Snippet)",
 };
+/** WooCommerce listings the product grid cannot rebuild (src/adapters/woocommerce.ts reports them). */
+for (const [tag, what] of Object.entries({
+	best_selling_products: "WooCommerce best sellers",
+	top_rated_products: "WooCommerce top rated products",
+	product_attribute: "WooCommerce products by attribute",
+	product_categories: "WooCommerce product category list",
+	product: "WooCommerce single product",
+	product_page: "WooCommerce product page",
+	add_to_cart: "WooCommerce add-to-cart button",
+	add_to_cart_url: "WooCommerce add-to-cart link",
+}))
+	WIDGET[tag] = what;
+/** WooCommerce product listings rebuilt as a product grid (catalogue mode). */
+const PRODUCTS = new Set(["products", "featured_products", "sale_products", "recent_products", "product_category"]);
 /** Widgets whose output is the site's own content (blocking), by their description. */
-const CONTENT_WIDGET = /table|gallery|slider|flipbook|PDF|document|events|booking|map|template|snippet|policy text|cookie list|calendar|Calendly|entries/i;
+const CONTENT_WIDGET = /table|gallery|slider|flipbook|PDF|document|events|booking|map|template|snippet|policy text|cookie list|calendar|Calendly|entries|WooCommerce/i;
 const MEDIA = new Set(["caption", "wp_caption", "gallery", "embed", "video", "audio", "playlist"]);
 
 /** What to do with a shortcode tag no adapter handled; undefined = unknown (reported as unmapped). */
@@ -144,6 +161,7 @@ export function shortcodeAction(tag: string): ShortcodeAction | undefined {
 	const w = WIDGET[t];
 	if (w) return { do: "widget", what: w, content: CONTENT_WIDGET.test(w) };
 	if (MEDIA.has(t)) return { do: "media" };
+	if (PRODUCTS.has(t)) return { do: "products" };
 	return undefined;
 }
 
@@ -160,5 +178,6 @@ export function shortcodeRegistry(): { tag: string; action: ShortcodeAction }[] 
 		...[...STRIP].map((tag) => ({ tag, action: { do: "strip" as const } })),
 		...Object.entries(WIDGET).map(([tag, what]) => ({ tag, action: { do: "widget" as const, what, content: CONTENT_WIDGET.test(what) } })),
 		...[...MEDIA].map((tag) => ({ tag, action: { do: "media" as const } })),
+		...[...PRODUCTS].map((tag) => ({ tag, action: { do: "products" as const } })),
 	];
 }

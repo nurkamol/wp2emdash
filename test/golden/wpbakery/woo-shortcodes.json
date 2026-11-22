@@ -1,0 +1,482 @@
+{
+  "sections": [
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[0]",
+        "rawHash": "46cb4944cf"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "New in the studio",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [],
+        "columns": 4,
+        "source": "latest",
+        "count": 8
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[2]",
+        "rawHash": "8534207142"
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t2",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t3",
+                "text": "Our favourites",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [
+          {
+            "_type": "block",
+            "_key": "t4",
+            "style": "normal",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t5",
+                "text": "Picked by the potters.",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [
+          501,
+          502,
+          503
+        ],
+        "columns": 3,
+        "source": "handpicked",
+        "count": 3
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[4]",
+        "rawHash": "0f8eede9ae"
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [
+          "mugs",
+          "bowls"
+        ],
+        "productIds": [],
+        "columns": 3,
+        "source": "category",
+        "count": 6
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[6]",
+        "rawHash": "db8ff5d147"
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [],
+        "columns": 4,
+        "source": "on_sale",
+        "count": 4
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[8]",
+        "rawHash": "db705c148c"
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [],
+        "columns": 4,
+        "source": "handpicked",
+        "featured": true,
+        "count": 4
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[10]",
+        "rawHash": "98d6b7feeb"
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [],
+        "columns": 4,
+        "source": "latest",
+        "count": 12
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[16]",
+        "rawHash": "0b8ead2ffb"
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [],
+        "columns": 4,
+        "source": "handpicked",
+        "featured": true,
+        "count": 4
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[18]",
+        "rawHash": "8c4151109d"
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [],
+        "columns": 5,
+        "source": "on_sale",
+        "count": 12
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[20]",
+        "rawHash": "5ef971daca"
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [
+          "vases"
+        ],
+        "productIds": [],
+        "columns": 3,
+        "source": "category",
+        "count": 6
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[28]",
+        "rawHash": "2f96d138ed"
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [],
+        "columns": 4,
+        "source": "on_sale",
+        "count": 4
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "wpbakery",
+        "path": "vc_row[30]",
+        "rawHash": "f5924db18e"
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [
+          "mugs"
+        ],
+        "productIds": [],
+        "columns": 3,
+        "source": "category",
+        "count": 3
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [recent_products]: product grid (latest, 8 products)",
+      "path": "vc_row[0]/vc_column[0]/recent_products[1]",
+      "tag": "recent_products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [products]: product grid (handpicked, 3 products)",
+      "path": "vc_row[2]/vc_column[0]/products[1]",
+      "tag": "products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [products]: not carried: cat_operator AND",
+      "path": "vc_row[4]/vc_column[0]/products[0]",
+      "tag": "products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [products]: product grid (category, 6 products)",
+      "path": "vc_row[4]/vc_column[0]/products[0]",
+      "tag": "products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [products]: not carried: order title (the grid is newest first)",
+      "path": "vc_row[6]/vc_column[0]/products[0]",
+      "tag": "products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [products]: product grid (on_sale, 4 products)",
+      "path": "vc_row[6]/vc_column[0]/products[0]",
+      "tag": "products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [products]: featured products become a hand-picked list (the products featured on WordPress today)",
+      "path": "vc_row[8]/vc_column[0]/products[0]",
+      "tag": "products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [products]: product grid (featured, 4 products)",
+      "path": "vc_row[8]/vc_column[0]/products[0]",
+      "tag": "products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [products]: not carried: page numbers (the grid shows one page); order title (the grid is newest first)",
+      "path": "vc_row[10]/vc_column[0]/products[0]",
+      "tag": "products"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "shortcode [products]: products: every product (WooCommerce's default) — the grid shows at most 12",
+      "path": "vc_row[10]/vc_column[0]/products[0]",
+      "tag": "products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [products]: product grid (latest, 12 products)",
+      "path": "vc_row[10]/vc_column[0]/products[0]",
+      "tag": "products"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "shortcode [products]: filtered by tag gift — the grid lists by newest, sale, category or a hand-picked list: not rebuilt",
+      "path": "vc_row[12]/vc_column[0]/products[0]",
+      "carriesContent": true,
+      "tag": "products"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "shortcode [products]: best sellers (sales and reviews are not migrated) — not rebuilt; add a product grid section by hand",
+      "path": "vc_row[14]/vc_column[0]/products[0]",
+      "carriesContent": true,
+      "tag": "products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [featured_products]: featured products become a hand-picked list (the products featured on WordPress today, in WordPress order)",
+      "path": "vc_row[16]/vc_column[0]/featured_products[0]",
+      "tag": "featured_products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [featured_products]: product grid (featured, 4 products)",
+      "path": "vc_row[16]/vc_column[0]/featured_products[0]",
+      "tag": "featured_products"
+    },
+    {
+      "level": "warn",
+      "code": "lossy",
+      "message": "shortcode [sale_products]: sale products: 20 products asked for — the grid shows at most 12",
+      "path": "vc_row[18]/vc_column[0]/sale_products[0]",
+      "tag": "sale_products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [sale_products]: product grid (on_sale, 12 products)",
+      "path": "vc_row[18]/vc_column[0]/sale_products[0]",
+      "tag": "sale_products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [product_category]: not carried: order menu_order title (the grid is newest first)",
+      "path": "vc_row[20]/vc_column[0]/product_category[0]",
+      "tag": "product_category"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [product_category]: product grid (category, 6 products)",
+      "path": "vc_row[20]/vc_column[0]/product_category[0]",
+      "tag": "product_category"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "shortcode [product_category]: no category given — not rebuilt",
+      "path": "vc_row[22]/vc_column[0]/product_category[0]",
+      "carriesContent": true,
+      "tag": "product_category"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "shortcode [best_selling_products]: best sellers (sales figures are not migrated) — not rebuilt; add a product grid section by hand or decide in overrides.ts",
+      "path": "vc_row[24]/vc_column[0]/best_selling_products[0]",
+      "carriesContent": true,
+      "tag": "best_selling_products"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "shortcode [add_to_cart]: an add-to-cart button (catalogue mode has no cart: the product page's Buy button replaces it) — not rebuilt; add a product grid section by hand or decide in overrides.ts",
+      "path": "vc_row[26]/vc_column[0]/add_to_cart[0]",
+      "carriesContent": true,
+      "tag": "add_to_cart"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "nectar_woo_products: carousel shown as a grid",
+      "path": "vc_row[28]/vc_column[0]/nectar_woo_products[0]",
+      "tag": "nectar_woo_products"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "nectar_woo_products: best sellers (sales figures are not migrated) — not rebuilt; add a product grid section by hand",
+      "path": "vc_row[32]/vc_column[0]/nectar_woo_products[0]",
+      "carriesContent": true,
+      "tag": "nectar_woo_products"
+    }
+  ]
+}

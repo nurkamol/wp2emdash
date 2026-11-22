@@ -1,0 +1,58 @@
+---
+/**
+ * Products from the shop (WooCommerce catalogue mode; utils/product-grid.ts): the newest, those on sale, a category or a
+ * hand-picked list, as the shop's own product cards with a button to each product page. Read when the page renders, on
+ * the server: pages carry the products collection's cache tag (utils/cache.ts), so publishing a product refreshes every
+ * page with this section. Sites without a shop never have this section (the kit leaves it out of their editor).
+ * Structured data: an ItemList of the product pages (each product page has its own Product + Offer).
+ */
+import Section from "../Section.astro";
+import Heading from "../Heading.astro";
+import Rich from "../Rich.astro";
+import ProductCard from "../collections/ProductCard.astro";
+import site from "../../site.config.json";
+import { entryHref } from "../../utils/collections";
+import { type CollectionEntry, collectionsConfig, listProducts } from "../../utils/collections-data";
+import { gridButtonLabel, productGridPlan, productItemList } from "../../utils/product-grid";
+const { value: v } = Astro.props as { value: Record<string, any> };
+const col = collectionsConfig.find((c) => c.shop);
+const plan = productGridPlan(v, col?.base ?? "/product/");
+let products: CollectionEntry[] = [];
+if (col) {
+	try {
+		products = await listProducts(col, plan);
+	} catch (e) {
+		console.warn("product_grid: could not list products", e);
+	}
+}
+const style = (site as { trailingSlash?: "always" | "never" }).trailingSlash;
+const items = products.map((p) => ({ entry: p, href: entryHref(String(p.data.slug ?? p.id), style) }));
+const origin = new URL(site.productionUrl).origin;
+const itemList = productItemList(items.map((i) => new URL(i.href, origin).href));
+const level = v.heading ? "h3" : "h2";
+---
+
+<Section value={v} type="product_grid">
+	<Heading value={v} />
+	<Rich value={v.intro} />
+	{
+		col && items.length ? (
+			<div class:list={["product-grid", { "product-grid--cols": plan.columns, "product-grid--wide": (plan.columns ?? 0) > 2 }]} style={plan.columns ? `--product-cols:${plan.columns}` : undefined}>
+				{items.map((i) => (
+					<ProductCard href={i.href} data={i.entry.data} shop={col.shop!} level={level} hidePrice={!plan.showPrice} button={gridButtonLabel(plan, i.entry.data)} />
+				))}
+			</div>
+		) : (
+			<p class="product-grid__empty">No products to show yet.</p>
+		)
+	}
+	{itemList && <script type="application/ld+json" set:html={JSON.stringify(itemList)} />}
+</Section>
+
+<style>
+	.product-grid { display: grid; gap: clamp(1.5rem, 3vw, 2.5rem); grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); }
+	.product-grid--cols { grid-template-columns: repeat(var(--product-cols), minmax(0, 1fr)); }
+	@media (max-width: 900px) { .product-grid--wide { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+	@media (max-width: 520px) { .product-grid--cols { grid-template-columns: 1fr; } }
+	.product-grid__empty { opacity: 0.8; }
+</style>

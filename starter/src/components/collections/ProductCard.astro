@@ -3,6 +3,8 @@
  * One product in the shop listing and the category listings (WooCommerce catalogue mode, utils/shop.ts): picture,
  * name, price (sale price with the regular one struck through, "From" for variable products), availability when it is
  * not in stock. The whole card links to the product page; the Buy button lives there. Design tokens only.
+ * The product grid section (sections/ProductGrid.astro) uses the same card, with an h3 title and a button to the page.
+ * The picture box is square (aspect-ratio), so cards keep their size while pictures load.
  */
 import { Image } from "emdash/ui";
 import site from "../../site.config.json";
@@ -14,8 +16,14 @@ interface Props {
 	data: Record<string, any>;
 	shop: CollectionShop;
 	eager?: boolean;
+	/** Title level: h2 on the listings; h3 in a product grid under its own heading. */
+	level?: "h2" | "h3";
+	/** Product grid: hide the price. */
+	hidePrice?: boolean;
+	/** Product grid: a button to the product page with this label (the product's name is added for screen readers). */
+	button?: string;
 }
-const { href, data, shop, eager } = Astro.props;
+const { href, data, shop, eager, level = "h2", hidePrice, button } = Astro.props;
 const lang = (site as { lang?: string }).lang ?? "en";
 const price = priceView(data, shop, lang);
 ---
@@ -29,9 +37,15 @@ const price = priceView(data, shop, lang);
 			</a>
 		)
 	}
-	<h2 class="product-card__title"><a href={href}>{data.title}</a></h2>
 	{
-		price && (
+		level === "h3" ? (
+			<h3 class="product-card__title"><a href={href}>{data.title}</a></h3>
+		) : (
+			<h2 class="product-card__title"><a href={href}>{data.title}</a></h2>
+		)
+	}
+	{
+		price && !hidePrice && (
 			<p class="product-card__price">
 				{price.from && <span class="product-card__from">From </span>}
 				{price.regular && <del>{price.regular}</del>} <span class="product-card__current">{price.current}</span>
@@ -39,6 +53,16 @@ const price = priceView(data, shop, lang);
 		)
 	}
 	{data.stock_status && data.stock_status !== "instock" && <p class="product-card__stock">{availabilityLabel(data.stock_status)}</p>}
+	{
+		button && (
+			<p class="product-card__action">
+				<a class="btn btn--secondary" href={href}>
+					{button}
+					<span class="visually-hidden">: {data.title}</span>
+				</a>
+			</p>
+		)
+	}
 </article>
 
 <style>
@@ -53,4 +77,5 @@ const price = priceView(data, shop, lang);
 	.product-card__price del { font-weight: 400; opacity: 0.65; margin-right: 0.35em; }
 	.product-card__from { font-weight: 400; }
 	.product-card__stock { margin: 0; font-size: 0.9em; opacity: 0.75; }
+	.product-card__action { margin: 0.5rem 0 0; }
 </style>

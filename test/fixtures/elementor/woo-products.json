@@ -1,0 +1,24 @@
+{
+  "title": "Shop highlights",
+  "elements": [
+    { "id": "wa00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "wa00002", "elType": "widget", "widgetType": "heading", "settings": { "title": "On sale this week", "header_size": "h2" }, "elements": [] },
+      { "id": "wa00003", "elType": "widget", "widgetType": "woocommerce-products", "settings": { "query_post_type": "sale", "columns": "4", "rows": "1", "paginate": "yes" }, "elements": [] }
+    ] },
+    { "id": "wb00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "wb00002", "elType": "widget", "widgetType": "woocommerce-products", "settings": { "query_post_type": "by_id", "query_posts_ids": ["501", "503"], "columns": "2" }, "elements": [] }
+    ] },
+    { "id": "wc00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "wc00002", "elType": "widget", "widgetType": "woocommerce-products", "settings": { "query_post_type": "product", "query_include": ["terms"], "query_include_term_ids": ["41"], "columns": "3", "rows": "2" }, "elements": [] }
+    ] },
+    { "id": "wd00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "wd00002", "elType": "widget", "widgetType": "woocommerce-products", "settings": { "query_post_type": "featured", "columns": "3", "rows": "1" }, "elements": [] }
+    ] },
+    { "id": "we00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "we00002", "elType": "widget", "widgetType": "shortcode", "settings": { "shortcode": "[recent_products limit=\"4\" columns=\"4\"]" }, "elements": [] }
+    ] },
+    { "id": "wf00001", "elType": "container", "isInner": false, "settings": [], "elements": [
+      { "id": "wf00002", "elType": "widget", "widgetType": "woocommerce-product-related", "settings": [], "elements": [] }
+    ] }
+  ]
+}
