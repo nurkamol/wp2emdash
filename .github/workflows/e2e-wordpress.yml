@@ -1,0 +1,89 @@
+# WordPress end-to-end test (docs/e2e.md): a throwaway WordPress in Docker with Elementor, WooCommerce, Polylang,
+# Contact Form 7 and Fluent Forms, seeded with synthetic content and migrated by the kit up to a built project, then
+# loaded into the project's local dev server and verified. Manual and nightly only — not on every push.
+#
+# It cannot deploy: no secrets are passed, the token is read-only, nothing named CLOUDFLARE_* / EMDASH_TOKEN* is set
+# (the runner refuses to start if one is), api.cloudflare.com is blackholed in /etc/hosts, and load/verify are pinned
+# to the local target (WP2EMDASH_NO_PRODUCTION=1).
+name: E2E WordPress
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_load:
+        description: "Stop after scaffold (no dev server, load or verify)"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-wordpress
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      E2E_OUT: ${{ github.workspace }}/e2e-report
+      E2E_CACHE_DIR: ${{ github.workspace }}/.e2e-cache
+      WP2EMDASH_NO_PRODUCTION: "1"
+      WRANGLER_SEND_METRICS: "false"
+      ASTRO_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Block Cloudflare's API (nothing in this job may reach an account)
+        run: |
+          echo "0.0.0.0 api.cloudflare.com dash.cloudflare.com" | sudo tee -a /etc/hosts
+          if env | grep -E '^(CLOUDFLARE_|CF_API|EMDASH_TOKEN)'; then echo "Cloudflare/EmDash variables present" >&2; exit 1; fi
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cache plugin zips and Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: |
+            .e2e-cache
+            ~/.cache/ms-playwright
+          key: e2e-wordpress-${{ runner.os }}-${{ hashFiles('e2e/lib/versions.ts', 'pnpm-lock.yaml') }}
+
+      - name: Playwright Chromium (audit screenshots, verify)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Lint the seed scripts
+        run: |
+          shellcheck -x e2e/run.sh e2e/wordpress/seed.sh
+          for f in e2e/wordpress/*.php; do php -l "$f"; done
+          docker compose -f e2e/wordpress/docker-compose.yml config --quiet
+
+      - name: Pull pinned images
+        run: docker compose -f e2e/wordpress/docker-compose.yml --profile tools pull --quiet
+
+      - name: Run the end-to-end test
+        run: e2e/run.sh ${{ inputs.skip_load && '--skip-load' || '' }}
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f "$E2E_OUT/report.md" ]; then cat "$E2E_OUT/report.md" >> "$GITHUB_STEP_SUMMARY"; else echo "No report was written: see the step logs." >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-wordpress-report
+          path: e2e-report
+          retention-days: 14
+          if-no-files-found: warn

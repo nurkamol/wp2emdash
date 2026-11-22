@@ -55,6 +55,7 @@
     "src",
     "packages",
     "test",
+    "e2e",
     "sites/*/kit.config.ts",
     "sites/*/overrides.ts"
   ]

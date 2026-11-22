@@ -1,0 +1,9 @@
+{
+	"$comment": "What the WordPress end-to-end run must prove (e2e/lib/pipeline.ts, Expectations). A failed gate check in a requiredPhase fails the run unless it is listed in knownFailures as \"<phase>:<checkId>\" with a reason (keep the list short and dated; entries that no longer fail are reported as stale). optionalPhases run and are reported only: move load and verify to requiredPhases once they pass in CI. requiredAssertions likewise; the rendered-page assertions (html-hreflang, html-products) need load.",
+	"requiredPhases": ["init", "audit", "extract", "transform", "scaffold"],
+	"optionalPhases": ["load", "verify"],
+	"knownFailures": {},
+	"allowedElementorDiagnostics": [],
+	"requiredAssertions": ["routes", "products-collection", "variable-products", "shop-facts", "elementor-pages", "forms-mapped", "languages", "project-built"],
+	"stopAfterFailure": []
+}

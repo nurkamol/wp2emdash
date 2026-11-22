@@ -21,3 +21,8 @@ sites/*
 
 # Sales estimates (wp2emdash estimate): prospect data, never committed
 /estimates/
+
+# WordPress end-to-end test (docs/e2e.md): generated seed files, plugin zips, reports
+e2e/wordpress/.work/
+/e2e-report/
+/.e2e-cache/

@@ -1,0 +1,67 @@
+# Throwaway WordPress for the kit's end-to-end test (docs/e2e.md). Local only: nothing here is reachable from outside
+# the machine except the published port on 127.0.0.1, and every credential is generated per run.
+# Images are pinned; e2e/lib/versions.ts (IMAGES) must name the same tags (test/e2e-wordpress.test.ts checks it).
+name: wp2emdash-e2e
+
+# wp-config.php reads these at runtime (getenv_docker), so the CLI container needs them too.
+x-wp-env: &wp-env
+  WORDPRESS_DB_HOST: db
+  WORDPRESS_DB_USER: wordpress
+  WORDPRESS_DB_PASSWORD: e2e-local-only
+  WORDPRESS_DB_NAME: wordpress
+  # Application passwords need HTTPS unless the environment type is "local" (wp_is_application_passwords_supported).
+  WORDPRESS_CONFIG_EXTRA: |
+    define('WP_ENVIRONMENT_TYPE', 'local');
+    define('DISABLE_WP_CRON', true);
+    define('AUTOMATIC_UPDATER_DISABLED', true);
+    define('WP_AUTO_UPDATE_CORE', false);
+
+services:
+  db:
+    image: mariadb:11.8.9
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: e2e-local-only
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    tmpfs:
+      - /var/lib/mysql
+
+  wordpress:
+    image: wordpress:7.1.5-php8.3-apache
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${E2E_WP_PORT:-8080}:80"
+    environment:
+      <<: *wp-env
+    volumes:
+      - wp:/var/www/html
+
+  # Runs the seed (docker compose run --rm wpcli bash /seed/seed.sh). Same database settings and files as wordpress;
+  # uid 33 = www-data in the Debian-based wordpress image (the Alpine CLI image's own www-data is 82).
+  wpcli:
+    image: wordpress:cli-2.12.0-php8.3
+    profiles: ["tools"]
+    user: "33:33"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: *wp-env
+      HOME: /tmp
+      WP_CLI_CACHE_DIR: /tmp/wp-cli-cache
+      E2E_WP_URL: ${E2E_WP_URL:-http://localhost:8080}
+    volumes:
+      - wp:/var/www/html
+      - ./:/seed:ro
+      - ./.work:/work
+
+volumes:
+  wp:

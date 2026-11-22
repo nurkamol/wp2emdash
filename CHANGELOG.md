@@ -6,6 +6,12 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **WordPress end-to-end test** ([docs/e2e.md](docs/e2e.md)): a throwaway WordPress in Docker (`e2e/wordpress/docker-compose.yml`, images pinned) with Elementor 4.4.1, WooCommerce 11.3.1, Polylang 3.9.2, Contact Form 7 6.2.5, Fluent Forms 6.2.17, the EmDash Exporter 1.2.0 and Twenty Twenty-One, each pinned by version and sha256 (`e2e/lib/versions.ts`). A deterministic synthetic site (`e2e/lib/plan.ts`: 10 Elementor and Gutenberg pages, 7 posts, menus, 6 simple and variable products, a Fluent Forms and a CF7 form, English + French under `/fr/` with translated pairs, locally generated PNGs) is seeded with WP-CLI (`seed-languages.php`, `seed.php`), then `e2e/run.sh` runs the kit in a temporary sites folder — init → audit → extract → transform → scaffold, then load and verify against the generated project's local dev server — and checks the output beyond the gates (products collection and variations, Elementor pages without unmapped content, both form plugins mapped, Polylang groups and prefixes, rendered `hreflang` and language switcher). Failed gates never stop the run (later phases run as `--preview`) and are never accepted; `e2e/expectations.json` holds required phases and dated known failures. Report (`report.md` as the job summary, `report.json`, logs, kit reports, IR, rendered pages; credentials scrubbed) uploaded as an artifact. GitHub Actions workflow `E2E WordPress`: Run workflow and nightly, never on push; read-only token, no secrets, no Cloudflare variables (the runner refuses them), Cloudflare's API blackholed. Unit tests for the plan, the PHP/TS contract, the Elementor adapter on the seeded trees, pins, the workflow's guarantees, the runner loop, verdict, assertions and report (`test/e2e-wordpress.test.ts`).
+
+### Fixed
+- Extract `languages` gate on Polylang/WPML sites no longer asks for a language on entries without an address: WooCommerce variations (they follow their product) and post types WordPress does not list as viewable (Contact Form 7 form definitions, plugin internals) — `languageChecked` in `src/transform/multilingual.ts`.
+
 ## [1.8.0] — 2026-11-22
 
 ### Added
