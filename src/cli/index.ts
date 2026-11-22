@@ -217,14 +217,15 @@ program
 	.option("--deploy-staging", "sites with staging (target.staging): run the project's ci:deploy:staging, then compare staging with the snapshot")
 	.option("--verify [where]", "compare an address with the latest before.json now: production (default), staging, or a URL (e.g. a Workers version preview)")
 	.option("--limit <n>", "snapshot at most n pages (default 300)")
+	.option("--preview", "rebuild like `run <slug> scaffold --preview` (earlier gates not required, state.json untouched): sites delivered before the kit recorded every phase")
 	.option("--json", "print the result as JSON")
-	.action(async (slug: string, o: { deployStaging?: boolean; verify?: string | boolean; limit?: string; json?: boolean }) => {
+	.action(async (slug: string, o: { deployStaging?: boolean; verify?: string | boolean; limit?: string; preview?: boolean; json?: boolean }) => {
 		const { upgrade } = await import("../commands/upgrade.js");
 		if (o.verify !== undefined && o.deployStaging) fail("--verify and --deploy-staging are separate steps");
 		const limit = o.limit ? Number(o.limit) : undefined;
 		if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) fail("--limit must be a positive whole number");
 		try {
-			const r = await upgrade(slug, { ...(o.verify !== undefined ? { verify: o.verify === true ? "production" : String(o.verify) } : {}), ...(o.deployStaging ? { deployStaging: true } : {}), ...(limit ? { limit } : {}), ...(o.json ? {} : { log: (l: string) => console.log(pc.dim(l)) }) });
+			const r = await upgrade(slug, { ...(o.verify !== undefined ? { verify: o.verify === true ? "production" : String(o.verify) } : {}), ...(o.deployStaging ? { deployStaging: true } : {}), ...(limit ? { limit } : {}), ...(o.preview ? { preview: true } : {}), ...(o.json ? {} : { log: (l: string) => console.log(pc.dim(l)) }) });
 			if (o.json) console.log(JSON.stringify(r, null, 2));
 			else {
 				if (r.scaffold) console.log(`${r.scaffold.ok ? pc.green("✔") : pc.red("✖")} scaffold gate${r.scaffold.failing.length ? pc.dim(` — failing: ${r.scaffold.failing.map((c) => c.id).join(", ")}`) : ""}`);

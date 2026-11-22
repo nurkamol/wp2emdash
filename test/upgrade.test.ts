@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { initSite } from "../src/commands/init.js";
 import { assertStagingScript, defaultRunScript, latestUpgradeDir, productionDeployCommand, upgrade, upgradeAddresses } from "../src/commands/upgrade.js";
 import { sitePaths } from "../src/core/paths.js";
+import { newState, writeState } from "../src/core/state.js";
 import { upgradeVerifyTool } from "../src/mcp/tools.js";
 import { compareSnapshots, fontFamiliesFromCss, htmlToSnapshot, normalizeAsset, normalizeText, type SiteSnapshot, sitemapLocs } from "../src/upgrade/snapshot.js";
 
@@ -243,8 +244,11 @@ describe("wp2emdash upgrade", () => {
 		expect(r.next.join("\n")).toContain("pnpm run ci:deploy:production");
 
 		// Staging lost a page: exit 2, and the production command is not offered as the next step.
-		delete stg.pages["/about/"];
-		const bad = await upgrade(slug, { sitesDir: sites, deployStaging: true }, { runScaffold: okScaffold, runScript, now });
+		const losesPage = async (script: string, cwd: string, env: Record<string, string>) => {
+			delete stg.pages["/about/"]; // the upgrade's deploy broke a page staging had before
+			return runScript(script, cwd, env);
+		};
+		const bad = await upgrade(slug, { sitesDir: sites, deployStaging: true }, { runScaffold: okScaffold, runScript: losesPage, now });
 		expect(bad.exitCode).toBe(2);
 		expect(bad.comparisons[0]?.pagesWithDifferences).toBe(1);
 		expect(bad.next.join("\n")).not.toContain("ci:deploy:production");
@@ -261,6 +265,16 @@ describe("wp2emdash upgrade", () => {
 		expect(log).toContain("boom");
 		expect(log).not.toContain("secret-token-value-123");
 		expect(JSON.stringify(r)).not.toContain("secret-token-value-123");
+	});
+
+	it("checks the earlier gates before snapshotting; --preview rebuilds without them", async () => {
+		writeCf({ production: { d1: { id: "d" }, worker: { url: prodUrl } } });
+		writeState(paths().state, newState(slug));
+		const r = await upgrade(slug, { sitesDir: sites }, { now });
+		expect(r.exitCode).toBe(1);
+		expect(r.next.join("\n")).toContain("--preview");
+		expect(prod.hits).toEqual([]);
+		expect(existsSync(join(paths().reports, "upgrade"))).toBe(false);
 	});
 
 	it("never runs a production deploy script", async () => {

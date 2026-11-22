@@ -12,7 +12,7 @@
   <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-F6821F"></a>
   <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
-  <img alt="Tests: 1496 passing" src="https://img.shields.io/badge/tests-1496%20passing-1F9D6B">
+  <img alt="Tests: 1559 passing" src="https://img.shields.io/badge/tests-1559%20passing-1F9D6B">
 </p>
 
 wp2emdash is an open-source kit, built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net), that migrates WordPress sites to
@@ -246,7 +246,7 @@ Run as `pnpm wp2emdash <command>`; `pnpm wp2emdash <command> --help` lists every
 | `golive <slug> [--yes]` | The owner-approved traffic switch (see [Launch](#launch)). Plan only without `--yes` |
 | `golive <slug> --aliases [--yes]` | Separate step once the primary is live: one Single Redirect rule per alias domain |
 | `golive <slug> --rollback [--aliases] [--yes]` | Delete exactly the routes / rules recorded in `cutover/golive.json`; `production.live = false` |
-| `upgrade <slug> [--deploy-staging] [--json]` | Move a delivered site to the current kit version: snapshot every live page (sitemap of the address the client is live on) → `reports/upgrade/<timestamp>/before.json`, rerun `scaffold` (stops on a failed gate), and on opt-in staging sites with `--deploy-staging` run `ci:deploy:staging` and compare staging page by page (status, title, description, h1, `lang`, hreflang count, visible text, links, images, forms, fonts; asset hashes, cache-busting strings, copyright year and kit version ignored). Never deploys production: prints the command for the owner. Exit 0 identical · 2 differences or scaffold failed · 1 error |
+| `upgrade <slug> [--deploy-staging] [--preview] [--json]` | Move a delivered site to the current kit version: snapshot every live page (sitemap of the address the client is live on) → `reports/upgrade/<timestamp>/before.json`, rerun `scaffold` (stops on a failed gate), and on opt-in staging sites with `--deploy-staging` snapshot staging too, run `ci:deploy:staging` and compare staging after with staging before (status, title, description, h1, `lang`, hreflang count, visible text, links, images, forms, fonts; asset hashes, cache-busting strings, copyright year and kit version ignored). `--preview` rebuilds like `run <slug> scaffold --preview` (earlier gates not required, `state.json` untouched) for sites delivered before the kit recorded every phase. Never deploys production: prints the command for the owner. Exit 0 identical · 2 differences or scaffold failed · 1 error |
 | `upgrade <slug> --verify [production\|staging\|<url>]` | After the owner's production deploy: snapshot the address now and compare it with the latest `before.json` (`compare-<target>.md` / `.json`). A URL compares e.g. a Workers version preview (`pnpm versions:upload`) before production |
 | `publish <slug> [--repo owner/name] [--yes]` | Project → private GitHub repository: secret scan (file names only), commit, `gh repo create --private`, push, `CLOUDFLARE_ACCOUNT_ID` variable. Never sets the token secret. Plan only without `--yes` |
 | `proposals <slug> [approve\|reject <id>] --by "…"` | Approval queue for proposed `overrides.ts` / `decisions.md` changes |

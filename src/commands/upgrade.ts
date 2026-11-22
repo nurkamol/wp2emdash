@@ -22,7 +22,7 @@ import { join, relative } from "node:path";
 import { loadConfig } from "../config/load.js";
 import { readCf, siteEnvironments } from "../core/environments.js";
 import { KIT_ROOT, sitePaths } from "../core/paths.js";
-import type { GateCheck } from "../core/state.js";
+import { blockingPhase, type GateCheck, readState } from "../core/state.js";
 import { loadSiteEnv, scrubSecrets } from "../extract/credentials.js";
 import { type Comparison, compareSnapshots, comparisonReport, htmlToSnapshot, locationKey, type PageSnapshot, type SiteSnapshot, sitemapLocs, statusSnapshot } from "../upgrade/snapshot.js";
 import { credentialsFor } from "./provision.js";
@@ -39,6 +39,9 @@ export interface UpgradeOptions {
 	deployStaging?: boolean;
 	/** Snapshot at most this many pages (default 300). */
 	limit?: number;
+	/** Rebuild like `run <slug> scaffold --preview`: earlier gates are not required and nothing is recorded in state.json
+	 * (sites delivered before the kit recorded every phase). */
+	preview?: boolean;
 	/** Progress lines (the CLI prints them; --json and the MCP server leave it out). */
 	log?: (line: string) => void;
 }
@@ -285,6 +288,11 @@ export async function upgrade(slug: string, opts: UpgradeOptions = {}, deps: Upg
 	}
 
 	// ── upgrade: before snapshot, scaffold, optional staging deploy + comparison ──
+	// Gates before scaffold must have passed (or --preview): checked first, so no snapshot is taken for nothing.
+	if (!opts.preview && !deps.runScaffold && existsSync(paths.state)) {
+		const blocker = blockingPhase(readState(paths.state), "scaffold");
+		if (blocker) return { ...base, mode: "upgrade", dir: "", comparisons: [], next: [`The "${blocker}" gate has not passed in state.json, so scaffold cannot run. Sites delivered before the kit recorded every phase: \`wp2emdash upgrade ${slug} --preview\` (rebuilds without touching state.json).`], ok: false, exitCode: 1, error: `gate "${blocker}" has not passed` };
+	}
 	const dir = join(paths.reports, "upgrade", stamp(now()));
 	mkdirSync(dir, { recursive: true });
 	const rel = relative(paths.root, dir);
@@ -297,9 +305,18 @@ export async function upgrade(slug: string, opts: UpgradeOptions = {}, deps: Upg
 		return { ...base, mode: "upgrade", dir: rel, before: { file: relative(paths.root, beforeFile), pages: before.pages.length }, comparisons: [], next: [`Production (${production}) did not answer (home page: ${home?.status || home?.error || "no answer"}). Nothing was rebuilt.`], ok: false, exitCode: 1, error: "production did not answer" };
 	}
 	log(`Saved ${relative(paths.root, beforeFile)} (${before.pages.length} pages)`);
+	// --deploy-staging: staging is snapshotted too, before the rebuild, and the deployed staging is compared with it — the
+	// same environment before and after, so only what the upgrade changed shows (staging may already differ from
+	// production, e.g. a production that has not been redeployed since staging moved on).
+	let stagingBefore: SiteSnapshot | undefined;
+	if (addr.hasStaging && opts.deployStaging && addr.staging) {
+		log(`Before: snapshot of staging ${addr.staging}`);
+		stagingBefore = await takeSnapshot(addr.staging, "staging-before", snapOpts);
+		writeJson(join(dir, "before-staging.json"), stagingBefore);
+	}
 
 	log("Rebuild: scaffold phase");
-	const runScaffold = deps.runScaffold ?? ((s: string) => runPhase(s, "scaffold", { ...(opts.sitesDir ? { sitesDir: opts.sitesDir } : {}), quiet: !opts.log }));
+	const runScaffold = deps.runScaffold ?? ((s: string) => runPhase(s, "scaffold", { ...(opts.sitesDir ? { sitesDir: opts.sitesDir } : {}), ...(opts.preview ? { preview: true } : {}), quiet: !opts.log }));
 	const sc = await runScaffold(slug);
 	const scaffold = { ok: sc.ok, runId: sc.runId, failing: sc.checks.filter((c) => !c.ok) };
 	const out: UpgradeResult = { ...base, mode: "upgrade", dir: rel, before: { file: relative(paths.root, beforeFile), pages: before.pages.length }, scaffold, comparisons: [], next: [], ok: false, exitCode: 2 };
@@ -339,12 +356,13 @@ export async function upgrade(slug: string, opts: UpgradeOptions = {}, deps: Upg
 				return { ...out, exitCode: 1, error: `staging deploy failed (exit ${r.code})`, next: [`Staging deploy failed: read ${rel}/staging-deploy.log. Production was not touched.`] };
 			}
 			out.stagingDeploy = { ran: true, ok: true };
-			const after = await takeSnapshot(addr.staging, "staging", { ...snapOpts, extraPaths: before.pages.map((p) => p.path) });
+			const base4 = stagingBefore ?? before;
+			const after = await takeSnapshot(addr.staging, "staging", { ...snapOpts, extraPaths: base4.pages.map((p) => p.path) });
 			writeJson(join(dir, "after-staging.json"), after);
-			const c = compareSnapshots(before, after);
-			out.comparisons.push(writeComparison(dir, "staging", `Upgrade check: staging vs production before (${slug})`, c, paths.root));
+			const c = compareSnapshots(base4, after);
+			out.comparisons.push(writeComparison(dir, "staging", `Upgrade check: staging after vs staging before (${slug})`, c, paths.root));
 			if (!c.identical) {
-				out.next.push(`Staging differs from production on ${c.pagesWithDifferences} page(s): read ${rel}/compare-staging.md before deploying production.`);
+				out.next.push(`The upgrade changed ${c.pagesWithDifferences} page(s) on staging: read ${rel}/compare-staging.md before deploying production.`);
 				return out;
 			}
 		}
