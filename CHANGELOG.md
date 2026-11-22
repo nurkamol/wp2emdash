@@ -6,6 +6,10 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **`wp2emdash estimate <url>`**: a sales estimate for a prospect's public WordPress site, without login, `init` or a site workspace. Reads the site politely (GET/HEAD only, robots.txt and Crawl-delay respected, generic user agent, ≤ 4 requests at a time, ≤ 300 addresses collected, ≤ 25 pages read; REST totals instead of listings) and reuses the audit's discovery, fingerprint, integrations scan and WooCommerce Store API reader. Speed without a browser (TTFB, page weight, requests, image formats for the home page and two more) compared with the kit's measured numbers and verify gates; `--lab` adds PageSpeed Insights (PAGESPEED_API_KEY / CRUX_API_KEY), CrUX field data with CRUX_API_KEY. Findings mapped to the kit's real scope: out of scope (PLAN §9, not estimated), owner decisions (shop catalogue mode, sensitive forms, languages on other hosts), adapters proven on real sites vs fixture-only. Transparent hours range from rules in `src/estimate/rules.ts` (`--rules <file.json>` to tune), `--rate` for an amount. Writes `estimates/<host>-<date>/` (gitignored): `report.html` (client-facing, printable, agency-branded; `--agency`), `report.md`, `internal.md`, `estimate.json` (`--json`). Also in the wizard.
+- Audit fingerprint knows more plugins: memberships, LMS and community plugins (MemberPress, Paid Memberships Pro, Restrict Content, LearnDash, LifterLMS, Tutor, Sensei, BuddyPress, bbPress, Ultimate Member, Profile Builder) are out of scope as PLAN §9 says; builders without an adapter (Beaver Builder, Oxygen, Breakdance, Brizy, Thrive, SiteOrigin, Avada) go to the DOM fallback; Gutenberg block libraries, Jetpack and a few common utility plugins are named.
+
 ## [1.7.0] — 2026-11-22
 
 ### Added

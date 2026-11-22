@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import type { Reporter } from "../core/progress.js";
-import { fetchUrl } from "./http.js";
+import { fetchUrl, type HttpOptions } from "./http.js";
 import { isInternal, normalizeUrl, type SiteHosts } from "./urls.js";
 
 export type UrlSource = "home" | "sitemap" | "rest" | "crawl";
@@ -71,11 +71,12 @@ const SKIP_TYPES = new Set([
 	"templately_library",
 ]);
 
-async function fetchJson<T>(url: string): Promise<{ data?: T; totalPages: number; status: number }> {
-	const r = await fetchUrl(url, { headers: { Accept: "application/json" } });
+async function fetchJson<T>(url: string, http: HttpOptions = {}): Promise<{ data?: T; totalPages: number; total?: number; status: number }> {
+	const r = await fetchUrl(url, { ...http, headers: { Accept: "application/json", ...http.headers } });
 	if (r.status !== 200 || !/json/.test(r.contentType)) return { totalPages: 0, status: r.status };
 	try {
-		return { data: JSON.parse(r.body) as T, totalPages: Number(r.headers["x-wp-totalpages"] ?? 1), status: r.status };
+		const total = Number(r.headers["x-wp-total"]);
+		return { data: JSON.parse(r.body) as T, totalPages: Number(r.headers["x-wp-totalpages"] ?? 1), ...(Number.isFinite(total) && r.headers["x-wp-total"] !== undefined ? { total } : {}), status: r.status };
 	} catch {
 		return { totalPages: 0, status: r.status };
 	}
@@ -96,21 +97,37 @@ async function fetchAllPages<T>(base: string, reporter: Reporter, label: string)
 	return out;
 }
 
-export async function discoverSitemaps(site: SiteHosts, reporter: Reporter): Promise<Pick<Discovery, "sitemaps" | "sitemapUrls" | "robotsTxt">> {
+export interface SitemapOptions {
+	/** robots.txt already fetched by the caller (not fetched again); `null` = fetched, none there. */
+	robotsTxt?: string | null;
+	/** Stop after this many sitemap files (the estimate: a sample, not the whole site). */
+	maxSitemaps?: number;
+	/** Stop collecting page URLs after this many. */
+	maxUrls?: number;
+	/** URLs the caller may not fetch (robots.txt rules). */
+	allow?: (url: string) => boolean;
+	http?: HttpOptions;
+}
+
+export async function discoverSitemaps(site: SiteHosts, reporter: Reporter, o: SitemapOptions = {}): Promise<Pick<Discovery, "sitemaps" | "sitemapUrls" | "robotsTxt">> {
 	reporter.emit({ type: "step:start", step: "Sitemaps" });
-	const robots = await fetchUrl(`${site.origin}/robots.txt`);
-	const robotsTxt = robots.status === 200 ? robots.body : undefined;
+	const robotsTxt = o.robotsTxt !== undefined ? (o.robotsTxt ?? undefined) : await fetchUrl(`${site.origin}/robots.txt`, o.http).then((r) => (r.status === 200 ? r.body : undefined));
 	const declared = [...(robotsTxt ?? "").matchAll(/^\s*sitemap:\s*(\S+)/gim)].map((m) => m[1] as string);
 	const queue = [...new Set([...declared, `${site.origin}/sitemap_index.xml`, `${site.origin}/wp-sitemap.xml`, `${site.origin}/sitemap.xml`])];
 	const seen = new Set<string>();
 	const sitemaps: string[] = [];
 	const sitemapUrls = new Map<string, { lastmod?: string }>();
 
+	let fetched = 0;
 	while (queue.length) {
 		const url = queue.shift() as string;
 		if (seen.has(url)) continue;
 		seen.add(url);
-		const r = await fetchUrl(url);
+		if (o.allow && !o.allow(url)) continue;
+		if (o.maxSitemaps !== undefined && fetched >= o.maxSitemaps) break;
+		if (o.maxUrls !== undefined && sitemapUrls.size >= o.maxUrls) break;
+		fetched++;
+		const r = await fetchUrl(url, o.http);
 		if (r.status !== 200 || !/xml/.test(r.contentType + r.body.slice(0, 100))) continue;
 		sitemaps.push(r.finalUrl);
 		seen.add(r.finalUrl);
@@ -125,6 +142,7 @@ export async function discoverSitemaps(site: SiteHosts, reporter: Reporter): Pro
 		const set = doc.urlset as { url?: unknown } | undefined;
 		for (const u of asArray(set?.url as { loc: string; lastmod?: string }[] | { loc: string; lastmod?: string })) {
 			if (!u?.loc || !isInternal(String(u.loc).trim(), site)) continue;
+			if (o.maxUrls !== undefined && sitemapUrls.size >= o.maxUrls) break;
 			sitemapUrls.set(normalizeUrl(String(u.loc).trim(), site), { lastmod: u.lastmod ? String(u.lastmod) : undefined });
 		}
 		reporter.emit({ type: "step:progress", step: "Sitemaps", done: sitemaps.length, item: r.finalUrl });
@@ -192,4 +210,48 @@ export async function discoverRest(site: SiteHosts, reporter: Reporter): Promise
 		detail: `${items.length} entries in ${types.length} types, ${terms.length} terms, ${media.length} media, ${root.data.namespaces?.length ?? 0} namespaces`,
 	});
 	return { restAvailable: true, restNamespaces: root.data.namespaces ?? [], restSiteName: root.data.name, types, items, terms, media, authors };
+}
+
+export interface RestCounts {
+	restAvailable: boolean;
+	restNamespaces: string[];
+	siteName?: string;
+	/** Public content types and how many published entries each has (X-WP-Total; one request per type). */
+	types: { slug: string; restBase: string; count: number }[];
+	media?: number;
+	terms: { taxonomy: string; count: number }[];
+}
+
+/**
+ * Counts only, never the entries (the estimate): the REST index, the public types and, per type, `per_page=1` with the
+ * total WordPress reports in X-WP-Total. Same type filter as discoverRest. GET only, a handful of requests.
+ */
+export async function restCounts(site: SiteHosts, http: HttpOptions = {}, allow: (url: string) => boolean = () => true): Promise<RestCounts> {
+	const empty: RestCounts = { restAvailable: false, restNamespaces: [], types: [], terms: [] };
+	const rootUrl = `${site.origin}/wp-json/`;
+	if (!allow(rootUrl)) return empty;
+	const root = await fetchJson<{ name?: string; namespaces?: string[] }>(rootUrl, http);
+	if (!root.data) return empty;
+	const out: RestCounts = { restAvailable: true, restNamespaces: root.data.namespaces ?? [], ...(root.data.name ? { siteName: root.data.name } : {}), types: [], terms: [] };
+	const count = async (path: string) => {
+		const url = `${site.origin}/wp-json/wp/v2/${path}${path.includes("?") ? "&" : "?"}per_page=1&_fields=id`;
+		if (!allow(url)) return undefined;
+		const r = await fetchJson<unknown[]>(url, http);
+		return r.data ? (r.total ?? r.data.length) : undefined;
+	};
+	const typesRes = await fetchJson<Record<string, { slug: string; rest_base?: string; rest_namespace?: string }>>(`${site.origin}/wp-json/wp/v2/types`, http);
+	for (const t of Object.values(typesRes.data ?? {})) {
+		if (SKIP_TYPES.has(t.slug) || !t.rest_base || (t.rest_namespace && t.rest_namespace !== "wp/v2")) continue;
+		const n = await count(t.rest_base);
+		if (n !== undefined) out.types.push({ slug: t.slug, restBase: t.rest_base, count: n });
+	}
+	const media = await count("media");
+	if (media !== undefined) out.media = media;
+	const taxRes = await fetchJson<Record<string, { slug: string; rest_base?: string; rest_namespace?: string }>>(`${site.origin}/wp-json/wp/v2/taxonomies`, http);
+	for (const tax of Object.values(taxRes.data ?? {})) {
+		if (!tax.rest_base || tax.slug === "nav_menu" || (tax.rest_namespace && tax.rest_namespace !== "wp/v2")) continue;
+		const n = await count(`${tax.rest_base}?hide_empty=true`);
+		if (n !== undefined) out.terms.push({ taxonomy: tax.slug, count: n });
+	}
+	return out;
 }

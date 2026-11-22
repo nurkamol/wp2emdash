@@ -12,7 +12,7 @@
   <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-F6821F"></a>
   <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
-  <img alt="Tests: 1637 passing" src="https://img.shields.io/badge/tests-1637%20passing-1F9D6B">
+  <img alt="Tests: 1650 passing" src="https://img.shields.io/badge/tests-1650%20passing-1F9D6B">
 </p>
 
 wp2emdash is an open-source kit, built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net), that migrates WordPress sites to
@@ -237,6 +237,7 @@ Run as `pnpm wp2emdash <command>`; `pnpm wp2emdash <command> --help` lists every
 | `status [slug] [--json]` | Phase timeline for one or all sites |
 | `phases` | List the pipeline phases |
 | `doctor [--json]` | Local prerequisites; verifies the Cloudflare token and the EmDash encryption key format |
+| `estimate <url> [--rate <n>] [--lab] [--json]` | Sales estimate for a prospect's public WordPress site, no login or `init`: client report + internal effort sheet in `estimates/<host>-<date>/` (gitignored). See [Estimate a prospect](#estimate-a-prospect) |
 | `provision <slug> [production\|staging] [--location <hint>]` | Create or reuse D1, R2, the form outbox and the sign-in sessions bucket in the environment's account; record them in `cloudflare.json`. Default `production`; `staging` only for sites that opted in |
 | `import-dump <slug> [dir]` | Sort everything exported from the site (`sites/<slug>/dump/`) into the places the phases read |
 | `import-options <slug> <dump>` | Read builder settings (Bricks palette, global classes, theme styles, components) from a backup's `database.sql` |
@@ -258,6 +259,37 @@ Run as `pnpm wp2emdash <command>`; `pnpm wp2emdash <command> --help` lists every
 | `monitor build [--dir <path>] [--json]` | Regenerate the outside-in monitor Worker: every deployed site (its domain once live, else workers.dev) + extra URLs, 5-minute cron, KV state, email / Telegram / Slack alerts, certificate and domain expiry, token-protected status page. Never deploys: prints `npx wrangler deploy` for the operator |
 
 Load and verify targets: `WP2EMDASH_LOAD_TARGET` / `WP2EMDASH_TARGET` = `local`, `staging` or `production`.
+
+### Estimate a prospect
+
+```bash
+pnpm wp2emdash estimate https://prospect.example            # → estimates/prospect.example-<date>/
+pnpm wp2emdash estimate prospect.example --rate 95 --currency USD --lab
+```
+
+A sales tool: it reads only what the site shows the public (no credentials, no `sites/<slug>/`, nothing written to
+the site). Polite by design: GET/HEAD only, robots.txt respected (product token `wp2emdash`, Crawl-delay honoured), a
+generic user agent, at most 4 requests at a time, up to 300 addresses collected (sitemaps, links) and 25 pages read in
+detail; page and post counts come from the REST API's totals (one request per type, never the listings). It reuses
+the audit's discovery, fingerprint (builder, theme, plugins), integrations scan (forms, booking, analytics, embeds) and
+WooCommerce Store API reader.
+
+- **Speed** without a browser: time to first byte, page weight (HTML + referenced files sized with HEAD), request count
+  and image formats for the home page and two more pages, compared with the kit's own measurements
+  ([performance findings](docs/spikes/performance-findings.md)) and its verify gates. `--lab` adds Google PageSpeed
+  Insights for the home page (`PAGESPEED_API_KEY` or `CRUX_API_KEY` in the kit `.env`); CrUX field data is added
+  whenever `CRUX_API_KEY` is set.
+- **Scope:** each finding says what it is, its impact and how the kit handles it: out of scope (memberships/LMS,
+  multisite, visitor accounts, subscriptions, large shops — PLAN §9, not estimated), owner decisions (shop catalogue
+  mode §8b, sensitive forms, languages on other hosts §8c), extra care (adapters that have only run on fixtures:
+  Elementor, Divi, the DOM fallback, Gutenberg block libraries; unknown plugins).
+- **Effort:** an hours range built line by line from rules in `src/estimate/rules.ts` (base, per page by adapter, posts,
+  collections, forms, integrations, shop, languages, contingency). Tune them there or with `--rules <file.json>`
+  (deep-merged). No pricing unless `--rate <n>` (optional `--currency`).
+- **Output:** `report.html` (client-facing, printable, "Prepared by PixelKraft"; `--agency`, `--agency-url`,
+  `--contact` or `WP2EMDASH_AGENCY_NAME` / `_URL` / `_CONTACT` in the kit `.env`), `report.md`, `internal.md` (breakdown
+  with its basis, adapter status, plugins, crawl facts) and `estimate.json` (`--json` prints it). `--out <dir>` or
+  `WP2EMDASH_ESTIMATES_DIR` moves the folder. Estimates hold prospect data: never commit them.
 
 ## Plugin suite
 

@@ -37,13 +37,14 @@ export function createReporter(opts: { runsDir: string; runId: string; json: boo
 			if (opts.json) {
 				process.stdout.write(`${JSON.stringify(event)}\n`);
 			} else {
-				render(event);
+				renderEvent(event);
 			}
 		},
 	};
 }
 
-function render(e: ProgressEvent): void {
+/** Terminal rendering of one event (also used by commands without a site run log, e.g. estimate). */
+export function renderEvent(e: ProgressEvent): void {
 	switch (e.type) {
 		case "phase:start":
 			console.log(pc.bold(pc.cyan(`\n▶ ${e.phase}`)));
