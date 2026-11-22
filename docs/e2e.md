@@ -100,9 +100,10 @@ are usually consequences. A setup failure has a short `report.md` with the tail 
 - **Expected for now**: add `"<phase>:<checkId>": "<reason, date>"` to `knownFailures` in `e2e/expectations.json`.
   Keep the list short; entries that stop failing are reported as stale. `allowedElementorDiagnostics` takes
   `"<slug>:<code>[:<tag>]"`.
-- `load` and `verify` are optional (reported, not failing) until they pass in CI; then move them to `requiredPhases`
-  and the `html-*` assertions to `requiredAssertions`. Several verify checks compare against a stock WordPress theme on
-  `localhost` (visual diff, performance) and are expected to need `knownFailures` entries.
+- Every phase, `load` and `verify` included, is required (2026-11-22), and so are the `html-*` assertions. The one
+  known failure is `verify:visual`: the section library does not reproduce Twenty Twenty-One and Elementor's default
+  kit within 3% per section — a design-fidelity gap in the kit, written up in `docs/spikes/verify-e2e-findings.md`.
+  Every other verify check passes against the stock theme on `localhost`; what each one needed is in that file.
 
 ## Bumping versions
 

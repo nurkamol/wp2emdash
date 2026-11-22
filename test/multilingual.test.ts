@@ -411,7 +411,7 @@ describe("starter wiring", () => {
 		// Listings under a language directory list that language's posts; previous/next and related posts stay in the post's language.
 		expect(read("pages/[...slug].astro")).toContain("blogRoute(Astro.params.slug ? Astro.url.pathname : \"/\", blog, langDirs)");
 		expect(read("pages/[...slug].astro")).toContain("neighbours(post.data.publishedAt, post.data.lang)");
-		expect(read("utils/blog-data.ts")).toContain("...sameLang(post.data.lang)");
+		expect(read("utils/blog-data.ts")).toContain("sameLang({ [tax]: slugs }, post.data.lang)");
 		expect(read("pages/[...slug].astro").match(/group: data\.lang_group, lang: data\.lang/g)).toHaveLength(3);
 		const sw = read("components/LanguageSwitcher.astro");
 		expect(sw).toContain('aria-current={l.current ? "true" : undefined}');

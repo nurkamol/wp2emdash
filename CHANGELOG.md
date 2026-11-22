@@ -6,6 +6,23 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Multilingual blogs per language:** a language's category, tag and author archives and its feeds answer under its directory (`/fr/category/actualites/`, `/fr/author/jane/`, `/fr/feed/`, their pages and feeds) and list that language's posts, as WordPress does with Polylang / WPML; post meta links point there; previous/next and related posts stay in the post's language. A language's date archives (`/fr/2026/03/`) go to its home page. Before, these addresses answered 404 (archives) or 410 (feeds), and an English post's previous/next could be a French one.
+- The page title a classic theme prints above the content (`h1.entry-title`, Twenty Twenty-One, Astra, Hello…) is kept as the page's first section (an h1 the owner can edit or delete), read from the audit's saved HTML. Pages whose builder hides the title get none. Before, `/about/` lost "About" and its h1 became the first content heading.
+- Verify names what fails: accessibility findings give the element and, for contrast, the colours and ratio axe measured; a page that scrolls sideways names the element that sticks out.
+
+### Changed
+- The WordPress end-to-end test requires `verify` (moved from report-only to required). `verify:visual` is a dated known failure: the section library does not reproduce the stock theme and Elementor's default kit within 3% per section — a design-fidelity gap, not an environment one ([docs/spikes/verify-e2e-findings.md](docs/spikes/verify-e2e-findings.md)).
+- Variable products show their price range (`$30.00 – $45.00`, as WooCommerce does) on cards and product pages instead of "From $30.00".
+- The products listing takes its heading and meta description from the page WordPress kept at its address (WooCommerce's "Shop"), not the collection's label ("Products").
+
+### Fixed
+- **Multilingual: the language's home was a 404 when WordPress served the translated front page at its own address** (Polylang `/fr/accueil/`, with `/fr/` redirecting there): the logo and language switcher linked `/fr/`. The language's home is now the front page's translation (`site.config.json` `i18n.languages[].home`), and `/fr/` redirects to it.
+- Text on the accent colour (search, form and header buttons) is raised to WCAG AA like the content buttons' (white on Elementor's default green was 1.98:1).
+- No sideways scroll on phones from a long word in a form page's heading or a variable product's options table (grid columns `minmax(0, 1fr)`, headings wrap long words).
+- A testimonial's name and role are separated by a space (screen readers read "Robin Example Member since 2023").
+- **Verify** (all found by the WordPress end-to-end test, each a false failure on a correct migration): an `x-default` the live page lacked is accepted when it points at the default-language version; words are split at the start of block elements too (`Contact us` + `Your name` no longer read as "usyour"); the theme's post meta ("Published … By … Categorized as … Tagged") and post navigation, and WooCommerce's listing buttons, are left out of the text like other theme chrome; headings are compared without theme chrome (the header's site title, the comment form, WooCommerce's tab and related-products headings); only content forms are compared (not the comment form or WooCommerce's cart, variation and sorting forms — `isContentForm`); a page that had no meta description may gain one (a description it had must stay word for word); the theme's "Proudly powered by WordPress" credit link is not expected on the new site; feeds are expected per language.
+
 ## [1.9.0] — 2026-11-22
 
 ### Added

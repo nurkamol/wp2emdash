@@ -55,15 +55,16 @@ export async function bylineOf(slug: string) {
 }
 
 /** The language filter for a post's neighbours and related posts: its own language on a multilingual site. */
-const sameLang = (lang: unknown) => (defaultLang ? { lang: typeof lang === "string" && lang ? lang : defaultLang } : {});
+type Where = Record<string, string | string[] | { lt?: string; gt?: string }>;
+const sameLang = (where: Where, lang: unknown): Where => (defaultLang ? { ...where, lang: typeof lang === "string" && lang ? lang : defaultLang } : where);
 
 /** Previous (older) and next (newer) published post, in the post's language on a multilingual site (as WordPress does). */
 export async function neighbours(publishedAt: Date | string | undefined, lang?: unknown) {
 	if (!publishedAt) return {};
 	const at = new Date(publishedAt).toISOString();
 	const [older, newer] = await Promise.all([
-		getEmDashCollection("posts", { status: "published", where: { published_at: { lt: at }, ...sameLang(lang) }, orderBy: { published_at: "desc" }, limit: 1 }),
-		getEmDashCollection("posts", { status: "published", where: { published_at: { gt: at }, ...sameLang(lang) }, orderBy: { published_at: "asc" }, limit: 1 }),
+		getEmDashCollection("posts", { status: "published", where: sameLang({ published_at: { lt: at } }, lang), orderBy: { published_at: "desc" }, limit: 1 }),
+		getEmDashCollection("posts", { status: "published", where: sameLang({ published_at: { gt: at } }, lang), orderBy: { published_at: "asc" }, limit: 1 }),
 	]);
 	return { older: older.entries[0] as PostEntry | undefined, newer: newer.entries[0] as PostEntry | undefined };
 }
@@ -74,7 +75,7 @@ export async function relatedPosts(post: PostEntry, limit = 3) {
 	for (const tax of ["category", "tag"]) {
 		const slugs = (terms[tax] ?? []).map((t) => t.slug).filter((s) => s !== "uncategorized");
 		if (!slugs.length) continue;
-		const r = await getEmDashCollection("posts", { ...LIST, limit: limit + 1, where: { [tax]: slugs, ...sameLang(post.data.lang) } });
+		const r = await getEmDashCollection("posts", { ...LIST, limit: limit + 1, where: sameLang({ [tax]: slugs }, post.data.lang) });
 		const list = (r.entries as PostEntry[]).filter((e) => e.id !== post.id).slice(0, limit);
 		if (list.length) return list;
 	}
