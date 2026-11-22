@@ -23,12 +23,14 @@
  * (inline for EMAIL_PROVIDER=emdash), and the email records the submission time and the exact text the visitor was
  * shown (terms, consent) with its SHA-256 (buildEmail). A form generated for a site with
  * sensitive data only has the fields the owner approved (e.g. contact details), so that is all this can send.
- * Once a message is accepted (emailed or kept), chat notifications (chat.ts) go out in the background through the
- * Worker's waitUntil: the visitor's answer never waits for them and they can never fail the submission.
+ * Once a message is accepted (emailed or kept), chat notifications (chat.ts) and the CRM / mailing-list sync (crm.ts) go
+ * out in the background through the Worker's waitUntil: the visitor's answer never waits for them and they can never
+ * fail the submission.
  */
 import { env, waitUntil } from "cloudflare:workers";
 import type { APIRoute } from "astro";
 import { type ChatEnv, notifyChat } from "./chat.js";
+import { type CrmEnv, syncCrm } from "./crm.js";
 import { deliver, parseAddress } from "./deliver.js";
 import { sendViaEmDash } from "./emdash-email.js";
 import { FORMS_PLUGIN } from "./meta.js";
@@ -47,7 +49,7 @@ function background(p: Promise<unknown>): void {
 	void p.catch(() => {});
 }
 
-interface Env extends OutboxEnv, UploadEnv, ChatEnv {
+interface Env extends OutboxEnv, UploadEnv, ChatEnv, CrmEnv {
 	EMAIL_PROVIDER?: string;
 	EMAIL_API_KEY?: string;
 	MAILGUN_REGION?: string;
@@ -220,7 +222,8 @@ export const createFormEndpoint = ({ getForm }: FormEndpointOptions): APIRoute =
 	// message is not lost, and the cron emails it once delivery works.
 	const record = { form: form.id, ...(replyEmail ? { replyTo: { email: replyEmail, ...(name ? { name } : {}) } } : {}), subject, text, html, ...files, ...(test ? { test: true } : {}) };
 	// Chat notifications (chat.ts): after the answer, in the background; `key` links to the message when it is kept.
-	const announce = (key?: string) => background(notifyChat(e, { form, values, ...(name ? { name } : {}), at: new Date(), origin: new URL(request.url).origin, pluginId: FORMS_PLUGIN.id, ...(key ? { key } : {}), test }));
+	// CRM / mailing list (crm.ts): the mapped fields only, never on sensitive sites or forms, never for test messages.
+	const announce = (key?: string) => background(Promise.all([notifyChat(e, { form, values, ...(name ? { name } : {}), at: new Date(), origin: new URL(request.url).origin, pluginId: FORMS_PLUGIN.id, ...(key ? { key } : {}), test }), syncCrm(e, { form, values, test })]));
 	// `failed`: the provider refused it (one attempt made), else waiting (not tried: on hold or email not set up).
 	const keep = async (reason: string, failed = false) => {
 		try {

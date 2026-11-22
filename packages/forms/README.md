@@ -91,6 +91,7 @@ emdash({ database: d1({ binding: "DB" }), storage: r2({ binding: "MEDIA" }), plu
 import { env } from "cloudflare:workers";
 import handler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
 import { type ChatEnv, flushChat } from "@wp2emdash/forms/chat";
+import { type CrmEnv, flushCrm } from "@wp2emdash/forms/crm";
 import { flushOutbox, type OutboxEnv } from "@wp2emdash/forms/outbox";
 
 export { PluginBridge };
@@ -100,6 +101,7 @@ export default {
 	scheduled: async (controller, workerEnv, ctx) => {
 		ctx.waitUntil(flushOutbox(env as unknown as OutboxEnv).catch(() => {}));
 		ctx.waitUntil(flushChat(env as unknown as ChatEnv).catch(() => {})); // chat notification retries
+		ctx.waitUntil(flushCrm(env as unknown as CrmEnv).catch(() => {})); // CRM / mailing-list retries (backoff)
 		return emdashScheduled(controller, workerEnv, ctx);
 	},
 } satisfies ExportedHandler;
@@ -130,7 +132,13 @@ with `"triggers": { "crons": ["*/5 * * * *"] }`.
 | `CHAT_WEBHOOK_URL` | secret | Chat notifications → generic webhook (any `https://` address). Unset: not offered |
 | `FORM_WEBMCP` | var | `"0"`: no WebMCP annotations (kit.config `forms.webmcp: false`). Unset: on (below) |
 | `FORM_CHAT` | var | `"0"`: no chat notifications on this site (kit.config `forms.chat: false`) |
-| `FORM_SENSITIVE` | var | `"1"`: the site handles sensitive data (kit.config `sensitiveData`) — chat notifications are notification only |
+| `FORM_SENSITIVE` | var | `"1"`: the site handles sensitive data (kit.config `sensitiveData`) — chat notifications are notification only, CRM sync impossible |
+| `BREVO_API_KEY` | secret | CRM sync → Brevo contacts. Unset: Brevo uses `EMAIL_API_KEY` when `EMAIL_PROVIDER=brevo`, else it is not offered |
+| `HUBSPOT_TOKEN` | secret | CRM sync → HubSpot contacts: private app token, scope `crm.objects.contacts.write`. Unset: not offered |
+| `MAILCHIMP_API_KEY` | secret | CRM sync → Mailchimp audience members (`…-us21`). Unset: not offered |
+| `MAILCHIMP_SERVER_PREFIX` | var | Optional: the Mailchimp data center (e.g. `us21`) when the key has no suffix |
+| `FORM_CRM` | var | `"0"`: no CRM sync on this site (kit.config `forms.crm: false`) |
+| `FORM_CRM_PRESELECT` | var | Providers pre-selected for every form until an admin saves (kit.config `forms.crm.providers`); with `FORM_CRM_BREVO_LIST`, `FORM_CRM_MAILCHIMP_AUDIENCE` |
 | `FORM_FILE_SECRET` | secret | File upload fields (1.7): signs the one-time download links (16+ random characters). Without it (or without the `MEDIA` R2 binding) forms refuse files and ask the visitor to email them |
 | `FORM_UPLOAD_DAYS` | var | Days a sent file and its link are kept (1–90; default `FORM_OUTBOX_DAYS`, else 30) |
 
@@ -296,6 +304,57 @@ native WhatsApp channel — use the generic webhook with an automation tool that
 The WhatsApp credentials then live in that tool, not in the site. On a sensitive site the payload is notification only
 anyway; still, mind where the tool stores its run history.
 
+## CRM and mailing lists (1.11)
+
+A new form message can also create or update a contact in **Brevo**, **HubSpot** or **Mailchimp** — in addition to the
+email, never instead of it. Needs `FORM_OUTBOX` (settings and retries live in its KV) and the cron line
+`ctx.waitUntil(flushCrm(env).catch(() => {}))` (import from `@wp2emdash/forms/crm`; the kit's starter has it). Request
+shapes, auth and the live checks still open: `docs/spikes/forms-crm-findings.md` in the kit.
+
+**Present by default, silent by default.** **Form messages → Settings → CRM & mailing lists** (admins only) offers a
+provider only once its Worker secret exists, and sends nothing until an admin turns it on and picks it for a form.
+`FORM_CRM="0"` (kit.config `forms.crm: false`) removes the feature; kit.config `forms.crm.providers` pre-selects
+providers for every form (auto-mapped) until an admin saves (`FORM_CRM_PRESELECT`, with `FORM_CRM_BREVO_LIST` /
+`FORM_CRM_MAILCHIMP_AUDIENCE` — ids, not secrets). Empty by default.
+
+| Provider | Worker secret | Call | Admin setting |
+|---|---|---|---|
+| Brevo | `BREVO_API_KEY`; without it, the email key `EMAIL_API_KEY` when `EMAIL_PROVIDER=brevo` | `POST api.brevo.com/v3/contacts` (`updateEnabled: true`) | on/off, list id for opt-ins, attribute names |
+| HubSpot | `HUBSPOT_TOKEN` — a private app token with only `crm.objects.contacts.write` | `POST /crm/v3/objects/contacts`; on 409 `PATCH …/contacts/<email>?idProperty=email` | on/off, property names, opt-in property |
+| Mailchimp | `MAILCHIMP_API_KEY` (its `-us21` ending is the data center; `MAILCHIMP_SERVER_PREFIX` overrides) | `PUT <dc>.api.mailchimp.com/3.0/lists/<audience>/members/<md5(email)>` | on/off, audience id, double opt-in, what to do without opt-in, merge tags |
+
+**Per form**: which providers, and which form field is sent as email, first name, last name, full name (split at the
+first space when no first / last name is mapped), phone, company, message, and the marketing opt-in checkbox. The
+mapping is guessed from field names, labels and autocomplete hints (`your-email` → email, `newsletter` → opt-in; a
+terms or privacy checkbox is never taken for an opt-in) and can be changed. **Only mapped fields are sent** — never the
+rest of the submission, files, signatures or hidden fields. Provider-side names default to Brevo `FIRSTNAME`,
+`LASTNAME`, `SMS` (sent only as an international number, `+…`), HubSpot `firstname`, `lastname`, `phone`, `company`,
+`message`, Mailchimp `FNAME`, `LNAME`, `PHONE`; an empty name means "not sent to this provider" (Brevo and Mailchimp
+have no company or message field unless you add one).
+
+**Marketing consent.**
+
+| | Opt-in mapped and ticked | Not ticked, or no opt-in field |
+|---|---|---|
+| Brevo | contact created/updated **and added to the list** | contact created/updated, no list |
+| HubSpot | contact created/updated, the opt-in property (if named) set to `true` | contact created/updated only |
+| Mailchimp | `subscribed` (`pending` with double opt-in, the default) — also re-subscribes an existing member | skipped (default), or `status_if_new: "transactional"` — an existing member keeps its status |
+
+An existing contact's subscription is never changed without a tick. HubSpot's marketing subscription itself
+(communication preferences) is not touched: it needs a broader scope; use the opt-in property in a HubSpot workflow.
+
+**Sensitive data: impossible.** On a site with `FORM_SENSITIVE="1"` (kit.config `sensitiveData`) or for a form marked
+`sensitive`, the section shows why it is unavailable, saving refuses it (also for a crafted request), a new message is
+never synced and pending retries are dropped. Test messages (`FORM_LIVE_HOST`) and the opt-in staging environment
+(`STAGING="1"`) never sync either.
+
+**Delivery never blocks the form.** The sync runs in `waitUntil` beside the chat notification. A temporary failure
+(network, timeout, 408, 425, 429, 5xx) becomes a retry job in the same KV (`crm:<time>:<id>`: the mapped contact only,
+kept two days at most) retried by the cron after 5 min, 15 min, 1 h, 4 h and 12 h (6 attempts). A permanent error
+(401, 403, 400 …) or the last attempt is counted per day and provider (`crmfail:`, 30 days) and the provider's error
+text — with the contact's values, any email address and long numbers removed — kept as that provider's last error
+(`crmerr:<provider>`), shown in Settings with a Clear button. Logs carry provider names and counts only.
+
 ## File uploads (1.7)
 
 A `file` field's files are checked after Turnstile and validation (extension, size, the first bytes: a `.pdf` must start
@@ -391,6 +450,9 @@ const tool = formTool(form, env); // undefined: not exposed
 - **Chat notifications send data to a third party** (Telegram, Slack, the webhook's service). In summary mode that is the
   sender's name and the start of the message — the site admin's choice, worth a line in the privacy policy;
   notification only sends nothing a visitor wrote, and is the only mode on sites with sensitive data.
+- **CRM sync sends the mapped fields to a third party** (Brevo, HubSpot, Mailchimp): the business's own account, but a
+  processor to name in the privacy policy. Marketing subscription only with a ticked opt-in. Never on sites with
+  sensitive data or for sensitive forms.
 - For sites handling health, legal or financial data, keep forms to contact details only and tell visitors not to send
   sensitive details (`notice` on the form definition).
 - **Signatures are personal data.** They are emailed to the recipients and, with the outbox, kept in KV only until

@@ -244,6 +244,13 @@ export function runtimeSecrets(ctx: SiteContext, env: EnvName): { name: string; 
 					{ name: "CF_ZONE_READ_TOKEN", required: false, why: "Optional: Site health reads the certificate expiry (Zone Read + SSL and Certificates Read on this zone only). Cloudflare renews certificates itself." },
 				]
 			: []),
+		...(hasForms && ctx.config.forms.outbox && ctx.config.forms.crm !== false && !ctx.config.sensitiveData
+			? [
+					{ name: "BREVO_API_KEY", required: false, why: `Optional: form leads to Brevo contacts (Form messages → Settings → CRM & mailing lists).${ctx.config.email.provider === "brevo" ? " Without it the Brevo email key (EMAIL_API_KEY) is used." : ""}` },
+					{ name: "HUBSPOT_TOKEN", required: false, why: "Optional: form leads to HubSpot contacts. A private app token with only the scope crm.objects.contacts.write." },
+					{ name: "MAILCHIMP_API_KEY", required: false, why: "Optional: form leads to a Mailchimp audience. Its \"-us21\" ending is the server prefix (else the var MAILCHIMP_SERVER_PREFIX)." },
+				]
+			: []),
 		...(ctx.config.backups !== false && ctx.config.backups?.offsite
 			? [
 					{ name: "BACKUP_S3_ACCESS_KEY_ID", required: true, why: `Off-site backup copy (backups.offsite → ${ctx.config.backups.offsite.bucket}): the access key id. Write access is enough; the site never deletes there.` },

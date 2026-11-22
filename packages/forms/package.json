@@ -1,7 +1,7 @@
 {
   "name": "@wp2emdash/forms",
-  "version": "1.10.0",
-  "description": "Website forms for EmDash on Cloudflare Workers: form endpoint, email delivery, KV outbox and a Form messages admin page",
+  "version": "1.11.0",
+  "description": "Website forms for EmDash on Cloudflare Workers: form endpoint, email delivery, KV outbox, chat and CRM sync, and a Form messages admin page",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -19,6 +19,7 @@
     "./logic": "./src/logic.ts",
     "./uploads": "./src/uploads.ts",
     "./chat": "./src/chat.ts",
+    "./crm": "./src/crm.ts",
     "./webmcp": "./src/webmcp.ts",
     "./prefill": "./src/prefill.ts"
   },

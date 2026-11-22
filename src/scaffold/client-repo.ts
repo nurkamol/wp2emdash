@@ -52,6 +52,8 @@ export interface ClientRepoInput {
 	outbox?: { days: number; hold: boolean; keepSent?: boolean };
 	/** Chat notifications for form messages (kit.config forms.chat, on by default with the outbox). */
 	formChat?: boolean;
+	/** CRM / mailing-list sync (kit.config forms.crm; with the outbox, never on sensitiveData sites): pre-selected providers. */
+	formCrm?: { providers: string[]; brevoEmailKey: boolean };
 	/** Tracking carried over from the old site (Google tag ids, Tag Manager container, Cloudflare beacon token). */
 	analytics?: LegacyAnalytics;
 	/** Analytics is managed in SEO & Analytics (@wp2emdash/seo): tracking codes, conversion events, Visits. */
@@ -151,6 +153,30 @@ npx wrangler secret put CF_ZONE_READ_TOKEN   # certificate expiry: Cloudflare to
 \`\`\`
 
 The monthly report's visits use the same \`CF_ANALYTICS_TOKEN\` as the SEO & Analytics Visits tab.`
+		: "";
+
+const CRM_NAMES: Record<string, string> = { brevo: "Brevo", hubspot: "HubSpot", mailchimp: "Mailchimp" };
+
+/** Optional Worker secrets for the CRM / mailing-list sync (deployment docs, both environment layouts). */
+const crmSecrets = (c: ClientRepoInput["formCrm"]) =>
+	c
+		? `
+
+Optional, for sending form leads to a **CRM or mailing list** (Form messages → Settings → CRM & mailing lists offers a provider once its secret is set):
+
+\`\`\`bash
+npx wrangler secret put BREVO_API_KEY       # Brevo contacts: an API key (SMTP & API → API keys)${c.brevoEmailKey ? " — optional here: the Brevo email key (EMAIL_API_KEY) is used when it is not set" : ""}
+npx wrangler secret put HUBSPOT_TOKEN       # HubSpot contacts: a private app's access token with only the scope crm.objects.contacts.write
+npx wrangler secret put MAILCHIMP_API_KEY   # Mailchimp audience members: an API key; its "-us21" ending is the server prefix (else set the var MAILCHIMP_SERVER_PREFIX)
+\`\`\``
+		: "";
+
+/** Forms & integrations: the CRM / mailing-list paragraph. */
+const crmDoc = (i: ClientRepoInput) =>
+	i.outbox && i.formCrm
+		? `**CRM and mailing lists.** A new form message can also create or update a contact in **Brevo**, **HubSpot** or **Mailchimp** — as well as the email, never instead of it. An Admin turns a provider on in **Form messages → Settings → CRM & mailing lists**${i.formCrm.providers.length ? ` (this site starts with ${i.formCrm.providers.map((p) => CRM_NAMES[p] ?? p).join(", ")} pre-selected for every form)` : " (everything is off until then)"}, then picks per form which providers get it and which form field is sent as email, first / last / full name, phone, company or message — fields are matched automatically from their names and can be changed. **Only the mapped fields are sent**, never the rest of the message, files or signatures. **Marketing:** when a form has a newsletter / opt-in checkbox mapped, the contact is subscribed only if the visitor ticked it (Brevo: added to the list you name; Mailchimp: subscribed, or asked to confirm with double opt-in; HubSpot: the opt-in property you name is set); without a tick, or without such a checkbox, the contact is only created or updated (Mailchimp: skipped, or added as a transactional contact if you choose so) and an existing subscription is never changed. Sending never slows down or blocks a form; a temporary failure is retried for up to a day, and errors (with the visitor's details removed) show in the same Settings section. A provider is offered only once its secret is set by whoever manages the Cloudflare account: \`npx wrangler secret put BREVO_API_KEY\`${i.formCrm.brevoEmailKey ? " (or nothing: the Brevo email key is reused)" : ""}, \`npx wrangler secret put HUBSPOT_TOKEN\` (private app token, scope \`crm.objects.contacts.write\` only) or \`npx wrangler secret put MAILCHIMP_API_KEY\`. Sites with sensitive data never get this. Setup: \`packages/forms/README.md\` → CRM and mailing lists.
+
+`
 		: "";
 
 /** The editor guide's Privacy & consent section. */
@@ -459,7 +485,7 @@ npx wrangler secret put TURNSTILE_SECRET_KEY              # production only; sta
 Leave out \`--env staging\` for production. Losing \`EMDASH_ENCRYPTION_KEY\` makes settings stored in the admin
 (such as email credentials) unreadable, so keep each environment's key somewhere safe. A key in any other format makes
 Settings → Email fail with "Failed to save email settings" (\`wrangler tail\` shows *EMDASH_ENCRYPTION_KEY entry is
-malformed*): set it again from the generated value.${healthSecrets(i.health)}
+malformed*): set it again from the generated value.${healthSecrets(i.health)}${crmSecrets(i.formCrm)}
 `);
 
 	const sectionRows = i.sections.map((s) => `| ${s.label} | ${s.description} |`).join("\n");
@@ -635,7 +661,7 @@ the account the queue is also in Workers KV: \`npx wrangler kv key list --bindin
 
 ` : ""}${i.outbox && i.formChat ? `**Chat notifications.** A new form message can also ping a chat app — Telegram, Slack, or any service that takes a webhook (Discord, Google Chat, Microsoft Teams, Make, Zapier, n8n; WhatsApp through one of those) — with a link to the message in Form messages. An Admin turns each channel on in **Form messages → Settings → Chat notifications**, picks which forms notify and what is sent: ${i.sensitiveData ? "on this site **only that a message arrived** (form, time, link) — nothing a visitor wrote leaves the website" : "a **summary** (form, time, the sender's name and the first ~200 characters of the message; never email addresses, phone numbers or files) or **notification only** (form, time, link)"}. A channel is offered only once its secret is set, by whoever manages the Cloudflare account: \`npx wrangler secret put TELEGRAM_BOT_TOKEN\` (a bot from @BotFather; the chat id goes in the settings), \`npx wrangler secret put SLACK_WEBHOOK_URL\` (a Slack incoming webhook) or \`npx wrangler secret put CHAT_WEBHOOK_URL\`. **Send a test notification** checks it. Notifications never slow down or block a form; one that fails is retried a few times and then dropped (Site health shows it), while the email and the inbox are unaffected. Setup per channel: \`packages/forms/README.md\` → Chat notifications.
 
-` : ""}${single ? `**Test messages never reach ${i.email.to.length ? i.email.to.join(", ") : "the site's recipients"}.** A message sent from any address other than
+` : ""}${crmDoc(i)}${single ? `**Test messages never reach ${i.email.to.length ? i.email.to.join(", ") : "the site's recipients"}.** A message sent from any address other than
 ${i.productionUrl} — the workers.dev address before go-live, a preview link after it — is a test: it is emailed only to
 ${testTo.length ? testTo.join(", ") : "the test inbox (none set: it is kept in the outbox unsent, or refused without an outbox)"} (\`FORM_TEST_TO\`), with "[Test]" in the subject, and the outbox never
 sends it anywhere else, also after the switch. The Form messages recipients setting applies to real messages only.
@@ -1000,7 +1026,7 @@ npx wrangler secret put TURNSTILE_SECRET_KEY
 
 Losing \`EMDASH_ENCRYPTION_KEY\` makes settings stored in the admin (such as email credentials) unreadable, so keep the
 key somewhere safe. A key in any other format makes Settings → Email fail with "Failed to save email settings"
-(\`wrangler tail\` shows *EMDASH_ENCRYPTION_KEY entry is malformed*): set it again from the generated value.${healthSecrets(i.health)}
+(\`wrangler tail\` shows *EMDASH_ENCRYPTION_KEY entry is malformed*): set it again from the generated value.${healthSecrets(i.health)}${crmSecrets(i.formCrm)}
 
 ## Backups
 

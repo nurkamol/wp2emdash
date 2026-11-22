@@ -268,7 +268,9 @@ describe("chat: Form messages → Settings", () => {
 	const call = (input: unknown, role = 50) => plugin.routes.admin.handler({ input, request: new Request("https://site.example/_emdash/api/plugins/site-forms/admin"), user: { id: "u1", email: "owner@example.com", name: "Owner", role }, log: { info: () => {} } }) as Promise<Res>;
 	const chatBlocks = (r: Res) => {
 		const blocks = (r.blocks.find((b) => b.type === "tab")?.panels[4]?.blocks ?? []) as B[];
-		return blocks.slice(blocks.findIndex((b) => b.type === "header" && b.text === "Chat notifications"));
+		const from = blocks.findIndex((b) => b.type === "header" && b.text === "Chat notifications");
+		const to = blocks.findIndex((b) => b.type === "header" && b.text === "CRM & mailing lists");
+		return blocks.slice(from, to < 0 ? undefined : to - 1);
 	};
 	let kv: ReturnType<typeof memoryKv>;
 	beforeEach(() => {

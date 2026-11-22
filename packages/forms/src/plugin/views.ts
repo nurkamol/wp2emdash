@@ -3,6 +3,7 @@
  * plain-text fields, which the admin renders escaped.
  */
 import { CHANNEL_NAME, CHANNEL_SECRET, CHANNELS, type Channel, type ChatSettings } from "../chat.js";
+import { type CrmEnv, type CrmForm, type CrmSettings, fieldFits, formSetting, type LastError, NAMED_FIELDS, PROVIDER_NAME, PROVIDER_SECRET, PROVIDERS, type Provider, TARGET_LABEL, TARGETS, unavailable } from "../crm.js";
 import { type DayCount, type Delivery, deliveryOf, MAX_RECIPIENTS, type OutboxStatus, type Queued, type Summary } from "../outbox.js";
 import { attachmentDataUrl } from "../signature.js";
 import type { Activity } from "./data.js";
@@ -73,6 +74,29 @@ export interface Overview {
 	/** Chat notifications (chat.ts): the settings, which secrets exist (never their values), recent give-ups. */
 	chat?: ChatView;
 	chatErrors?: string[];
+	/** CRM & mailing lists (crm.ts): settings, which secrets exist (never their values), failures and last errors. */
+	crm?: CrmView;
+	crmErrors?: string[];
+}
+
+export interface CrmView {
+	/** false: FORM_CRM="0". */
+	enabled: boolean;
+	/** The site handles sensitive data: unavailable. */
+	sensitive: boolean;
+	settings: CrmSettings;
+	secrets: Record<Provider, boolean>;
+	/** Brevo would use the email key (EMAIL_API_KEY, EMAIL_PROVIDER=brevo). */
+	brevoEmailKey: boolean;
+	forms: (CrmForm & { title: string })[];
+	/** Contacts given up on in the last 7 days, per provider. */
+	failures: Record<Provider, number>;
+	/** Each provider's last error, scrubbed of personal data. */
+	lastErrors: Partial<Record<Provider, LastError>>;
+	/** Contacts waiting for a retry. */
+	pending: number;
+	/** What the defaults depend on (pre-selected providers, sensitivity). */
+	env: Pick<CrmEnv, "FORM_CRM_PRESELECT" | "FORM_SENSITIVE">;
 }
 
 export interface ChatView {
@@ -325,6 +349,75 @@ function settings(o: Overview): Block[] {
 		...(r.test ? [{ type: "context", text: `These recipients get messages sent from ${r.test.host}. Messages sent from any other address (the site's workers.dev address before launch, preview links) are tests: they go only to ${r.test.to.length ? r.test.to.join(", ") : "the test inbox (none set: they are kept here unsent)"}.` }] : []),
 		{ type: "context", text: o.provider === "emdash" ? "Email goes through EmDash's own email settings (Settings → Email), with the sender address set there." : "The email service, its key and the sender address are set in the site's configuration by your developer." },
 		...(o.chat ? chatSettings(o.chat, o.chatErrors) : []),
+		...(o.crm ? crmSettingsView(o.crm, o.crmErrors) : []),
+	];
+}
+
+const PROVIDER_HELP: Record<Provider, string> = {
+	brevo: "adds or updates a Brevo contact; with a ticked opt-in also to the list you name",
+	hubspot: "creates or updates a HubSpot contact (private app token with the scope crm.objects.contacts.write)",
+	mailchimp: "adds or updates a member of a Mailchimp audience; subscribed only with a ticked opt-in",
+};
+const NAME_LABEL: Record<Provider, string> = { brevo: "attribute", hubspot: "property", mailchimp: "merge tag" };
+
+/** Settings → CRM & mailing lists: per provider on/off (only when its secret exists), ids and names, per form providers and mapping. */
+export function crmSettingsView(c: CrmView, errors?: string[]): Block[] {
+	const head: Block[] = [{ type: "divider" }, { type: "header", text: "CRM & mailing lists" }];
+	const why = unavailable({ ...(c.enabled ? {} : { FORM_CRM: "0" }), ...(c.sensitive ? { FORM_SENSITIVE: "1" } : {}) });
+	if (why) return [...head, ...(c.sensitive ? [{ type: "banner", title: "Not available on this site", description: why, variant: "default" }] : [{ type: "context", text: `${why} Ask your developer.` }])];
+	const s = c.settings;
+	const missing = PROVIDERS.filter((p) => !c.secrets[p]);
+	const available = PROVIDERS.filter((p) => c.secrets[p]);
+	const fields: Block[] = [];
+	for (const p of available) {
+		fields.push({ type: "toggle", action_id: `crm_${p}_on`, label: PROVIDER_NAME[p], description: PROVIDER_HELP[p], initial_value: s[p].on });
+		if (p === "brevo") fields.push({ type: "text_input", action_id: "crm_brevo_list", label: "Brevo list id for opt-ins (optional)", placeholder: "7", ...(s.brevo.listId ? { initial_value: String(s.brevo.listId) } : {}) });
+		if (p === "mailchimp") {
+			fields.push({ type: "text_input", action_id: "crm_mailchimp_audience", label: "Mailchimp audience id", placeholder: "a1b2c3d4e5", ...(s.mailchimp.audienceId ? { initial_value: s.mailchimp.audienceId } : {}) });
+			fields.push({ type: "toggle", action_id: "crm_mailchimp_double", label: "Double opt-in", description: "Mailchimp emails a confirmation link first (status pending); recommended in the EU", initial_value: s.mailchimp.doubleOptIn });
+			fields.push({ type: "select", action_id: "crm_mailchimp_unconsented", label: "Without a ticked opt-in", options: [{ label: "Do not add to Mailchimp", value: "skip" }, { label: "Add as a transactional contact (never subscribed)", value: "transactional" }], initial_value: s.mailchimp.unconsented });
+		}
+		if (p === "hubspot") fields.push({ type: "text_input", action_id: "crm_hubspot_consent", label: "HubSpot property set to true on a ticked opt-in (optional)", placeholder: "newsletter_opt_in", ...(s.hubspot.consentProperty ? { initial_value: s.hubspot.consentProperty } : {}) });
+		for (const n of NAMED_FIELDS) fields.push({ type: "text_input", action_id: `crm_${p}_name_${n}`, label: `${PROVIDER_NAME[p]} ${NAME_LABEL[p]} for ${TARGET_LABEL[n].toLowerCase()} (empty: not sent)`, ...(s[p].names[n] ? { initial_value: s[p].names[n] } : {}) });
+	}
+	const formsBlocks: Block[] = [];
+	for (const f of c.forms) {
+		const label = f.title && f.title !== f.id ? `${f.title} (${f.id})` : f.id;
+		const no = unavailable(c.env, f);
+		if (no) {
+			formsBlocks.push({ type: "context", text: `${label}: not available. ${no}` });
+			continue;
+		}
+		if (!f.fields.length) continue;
+		const cur = formSetting(s, c.env, f);
+		const on = available.filter((p) => s[p].on);
+		if (on.length) fields.push({ type: "checkbox", action_id: `crm_form_${f.id}_providers`, label: `${label}: send to`, options: on.map((p) => ({ label: PROVIDER_NAME[p], value: p })), initial_value: cur.providers.filter((p) => on.includes(p)) });
+		for (const t of TARGETS) {
+			const options = f.fields.filter((x) => fieldFits(t, x)).map((x) => ({ label: `${x.label} (${x.name})`, value: x.name }));
+			if (!options.length) continue;
+			fields.push({ type: "select", action_id: `crm_form_${f.id}_${t}`, label: `${label}: ${TARGET_LABEL[t]}`, options: [{ label: "Not sent", value: "" }, ...options], initial_value: cur.map[t] ?? "" });
+		}
+	}
+	const failed = PROVIDERS.filter((p) => c.failures[p] > 0);
+	const errorBlocks: Block[] = PROVIDERS.flatMap((p) => {
+		const e = c.lastErrors[p];
+		if (!e) return [];
+		return [
+			{ type: "banner", title: `${PROVIDER_NAME[p]}: last error`, description: `${longDate(e.at)}${e.form ? `, form ${e.form}` : ""}${e.status ? `, HTTP ${e.status}` : ""}: ${e.text}`, variant: "alert" },
+			{ type: "actions", elements: [{ type: "button", action_id: "crm-clear", label: `Clear the ${PROVIDER_NAME[p]} error`, style: "secondary", value: p }] },
+		];
+	});
+	return [
+		...head,
+		{ type: "context", text: "Send new form messages to a CRM or mailing list as well as by email: only the fields you map below (email, name, phone, company, message) — never the whole message, files or signatures. A contact is subscribed to marketing only when the form has an opt-in checkbox mapped and the visitor ticked it; otherwise it is added as a contact only. Sending never delays or blocks a visitor's form; a temporary failure is retried for up to a day." },
+		...missing.map((p) => ({ type: "context", text: `${PROVIDER_NAME[p]} (${PROVIDER_HELP[p]}): not available yet — set the secret ${PROVIDER_SECRET[p]} with \`wrangler secret put ${PROVIDER_SECRET[p]}\` (your developer does this once), then turn it on here.` })),
+		...(c.brevoEmailKey && c.secrets.brevo ? [{ type: "context", text: "Brevo uses the site's email key (EMAIL_API_KEY). Set BREVO_API_KEY to use another Brevo account or key." }] : []),
+		...(errors?.length ? [{ type: "banner", title: "Not saved", description: errors.slice(0, 10).join(" "), variant: "error" }] : []),
+		...formsBlocks,
+		...(available.length ? [{ type: "form", block_id: "crm", fields, submit: { label: "Save CRM settings", action_id: "crm" } }] : []),
+		{ type: "fields", fields: [...PROVIDERS.map((p) => ({ label: PROVIDER_NAME[p], value: !c.secrets[p] ? "Secret not set" : s[p].on ? "On" : "Off" })), { label: "Waiting for a retry", value: String(c.pending) }] },
+		...(failed.length ? [{ type: "banner", title: "Some contacts could not be sent", description: `In the last 7 days: ${failed.map((p) => `${PROVIDER_NAME[p]} ${plural(c.failures[p], "contact")}`).join(", ")}. The messages themselves are in the inbox and were emailed as usual.`, variant: "alert" }] : []),
+		...errorBlocks,
 	];
 }
 

@@ -451,6 +451,25 @@ export const kitConfigSchema = z.object({
 			 */
 			chat: z.boolean().default(true),
 			/**
+			 * Form leads to a CRM or mailing list (@wp2emdash/forms crm.ts: Brevo contacts, HubSpot contacts, Mailchimp audience
+			 * members), in addition to the email. Present by default in Form messages → Settings → CRM & mailing lists, but
+			 * nothing is sent until an admin turns a provider on and its Worker secret (BREVO_API_KEY — or the Brevo email key —,
+			 * HUBSPOT_TOKEN, MAILCHIMP_API_KEY) exists. Only mapped fields are sent; marketing subscription only with a ticked
+			 * opt-in checkbox. Needs the outbox (settings and retries live in its KV). Impossible on a sensitiveData site and
+			 * for sensitive forms. `providers` pre-selects providers for every form (auto-mapped) until an admin saves —
+			 * empty by default (off); `false` removes the feature (FORM_CRM="0").
+			 */
+			crm: z
+				.object({
+					providers: z.array(z.enum(["brevo", "hubspot", "mailchimp"])).default([]),
+					/** Brevo list that ticked opt-ins join (not a secret). */
+					brevoListId: z.number().int().positive().optional(),
+					/** Mailchimp audience (list) id (not a secret); Mailchimp is only pre-selected with one. */
+					mailchimpAudienceId: z.string().regex(/^[0-9a-f]{6,20}$/, "the audience id from Audience → Settings").optional(),
+				})
+				.or(z.literal(false))
+				.prefault({}),
+			/**
 			 * WebMCP form annotations (@wp2emdash/forms webmcp.ts; docs/spikes/webmcp-findings.md): `toolname`,
 			 * `tooldescription` and `toolparamdescription` attributes so AI agents in Chrome can fill in the site's forms,
 			 * comment form and search. No JavaScript; the visitor still presses Submit (Turnstile unchanged). Forms of a

@@ -17,7 +17,8 @@
  * Keys: `msg:<received ISO>:<8 hex>` (message; a short summary rides in the key's metadata so lists need no reads),
  * `stat:<day>:<outcome>:<form>` (a count per day — no visitor data), `cfg:recipients` (the recipients an admin set on
  * the Form messages page; the endpoint reads it too), plus the admin page's own `act:` and `dl:` keys, and the chat
- * notifications' `cfg:chat`, `cfg:chat-test`, `chat:` (retries) and `chatfail:` (counts) keys (chat.ts).
+ * notifications' `cfg:chat`, `cfg:chat-test`, `chat:` (retries) and `chatfail:` (counts) keys (chat.ts), and the CRM
+ * sync's `cfg:crm`, `crm:` (retries: the mapped contact only), `crmfail:` (counts) and `crmerr:` (last error) keys (crm.ts).
  */
 import { deliver, type Message, parseAddress } from "./deliver.js";
 import { emdashEmailAvailable, sendViaEmDash } from "./emdash-email.js";
