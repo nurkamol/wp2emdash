@@ -236,6 +236,15 @@ export function trackBrokenAssets(page: Page, origin: string): () => string[] {
 			if (u.origin === origin) broken.add(`${r.status()} ${u.pathname}`);
 		} catch {}
 	});
+	// A stylesheet answered with an HTML error page is often aborted by Chromium (net::ERR_ABORTED) before a response event.
+	page.on("requestfailed", (r) => {
+		const type = r.resourceType();
+		if (type !== "stylesheet" && type !== "script") return;
+		try {
+			const u = new URL(r.url());
+			if (u.origin === origin) broken.add(`failed ${u.pathname}`);
+		} catch {}
+	});
 	return () => {
 		const out = [...broken];
 		broken.clear();
