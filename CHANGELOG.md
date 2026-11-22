@@ -6,6 +6,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **Privacy check** (`pnpm privacy`, `scripts/privacy-check.mjs`): this repository is public, so every push and pull request (CI step before install) and every local commit (`.githooks/pre-commit`; enable with `git config core.hooksPath .githooks`) is checked for client names, domains and email addresses. Patterns are never committed: they are derived from the local client workspaces (`sites/<slug>/` folder name, kit.config `name` and its two-word runs, every non-public domain and email in kit.config / cloudflare.json, the agency monitor config), plus a gitignored `.privacy-patterns` file and the `PRIVACY_PATTERNS` GitHub secret in CI. A generic rule flags any email address outside an allowlist (reserved example/test/invalid domains, the agency's test inbox). Output names the file, line and rule — never the matched text, so CI logs stay clean. `--staged` checks what is being committed, `--range A..B` a commit range. Added after a client name reached a findings file.
+
 ## [1.9.0] — 2026-11-22
 
 ### Added

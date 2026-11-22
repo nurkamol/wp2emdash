@@ -26,3 +26,6 @@ sites/*
 e2e/wordpress/.work/
 /e2e-report/
 /.e2e-cache/
+
+# Private patterns for scripts/privacy-check.mjs (client names the check cannot derive from sites/)
+.privacy-patterns

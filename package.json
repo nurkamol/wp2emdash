@@ -15,7 +15,8 @@
     "wp2emdash": "tsx src/cli/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "privacy": "node scripts/privacy-check.mjs"
   },
   "dependencies": {
     "@clack/prompts": "^1.9.0",

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Public repository: block commits that contain client names, domains or emails (scripts/privacy-check.mjs).
+# Enable once per clone: git config core.hooksPath .githooks
+exec node "$(git rev-parse --show-toplevel)/scripts/privacy-check.mjs" --staged

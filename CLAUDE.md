@@ -23,6 +23,7 @@ WP2EMDASH_LOAD_TARGET=staging pnpm wp2emdash run <slug> load   # sites that opte
 pnpm wp2emdash sync-staging <slug> [--yes]   # staging sites: production content → staging (production read-only; allowlisted tables; never users/sessions/tokens/form data); dry run without --yes, staging D1 bookmark first
 pnpm wp2emdash upgrade <slug> --deploy-staging --sync-staging --yes   # sync staging first, then the staging upgrade check
 pnpm test && pnpm typecheck   # run both before saying a change is done
+pnpm privacy                  # public repo: no client names/domains/emails (patterns from local sites/, .privacy-patterns, CI secret PRIVACY_PATTERNS); pre-commit hook: git config core.hooksPath .githooks
 ```
 
 ## Pipeline

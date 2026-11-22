@@ -15,6 +15,10 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Privacy check (public repository)
+        run: node scripts/privacy-check.mjs
+        env:
+          PRIVACY_PATTERNS: ${{ secrets.PRIVACY_PATTERNS }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
