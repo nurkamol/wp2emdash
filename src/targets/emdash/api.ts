@@ -23,6 +23,9 @@ export interface ContentItem {
 	data: Record<string, unknown>;
 	seo?: Record<string, unknown>;
 	_rev?: string;
+	/** EmDash 1.5: +1 on every write to the entry (save, draft revision, publish…); with updatedAt, how load spots an admin edit. */
+	version?: number;
+	updatedAt?: string;
 }
 export interface MediaItem {
 	id: string;

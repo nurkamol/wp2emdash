@@ -17,6 +17,8 @@ export interface RunOptions {
 	force?: boolean;
 	/** load: replace site settings an editor changed in the admin since the last load. */
 	overwriteSettings?: boolean;
+	/** load: replace entries an editor changed in the EmDash admin since the last load (default: kept and reported). */
+	overwriteEdited?: boolean;
 	only?: "settings";
 }
 
@@ -54,7 +56,7 @@ export async function runPhase(slug: string, phase: PhaseId, opts: RunOptions = 
 	let checks: GateCheck[];
 	let notImplemented = false;
 	try {
-		checks = await RUNNERS[phase]({ config, paths, reporter, ...(opts.force ? { force: true } : {}), ...(opts.overwriteSettings ? { overwriteSettings: true } : {}), ...(opts.only ? { only: opts.only } : {}) });
+		checks = await RUNNERS[phase]({ config, paths, reporter, ...(opts.force ? { force: true } : {}), ...(opts.overwriteSettings ? { overwriteSettings: true } : {}), ...(opts.overwriteEdited ? { overwriteEdited: true } : {}), ...(opts.only ? { only: opts.only } : {}) });
 	} catch (err) {
 		notImplemented = err instanceof NotImplementedError;
 		const message = err instanceof Error ? err.message : String(err);

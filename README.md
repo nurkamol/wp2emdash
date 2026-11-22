@@ -12,7 +12,7 @@
   <a href="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/nurkamol/wp2emdash/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-F6821F"></a>
   <img alt="Node.js 24 or newer" src="https://img.shields.io/badge/node-%E2%89%A524-171717?logo=nodedotjs&logoColor=white">
-  <img alt="Tests: 1809 passing" src="https://img.shields.io/badge/tests-1809%20passing-1F9D6B">
+  <img alt="Tests: 1818 passing" src="https://img.shields.io/badge/tests-1818%20passing-1F9D6B">
 </p>
 
 wp2emdash is an open-source kit, built by [Nurkamol Vokhidov](https://github.com/nurkamol) at [PixelKraft](https://pixelkraft.net), that migrates WordPress sites to
@@ -233,6 +233,8 @@ Run as `pnpm wp2emdash <command>`; `pnpm wp2emdash <command> --help` lists every
 | `run <slug> load --force` | Load into a **live** production (after go-live): records a D1 Time Travel bookmark first and prints the restore command; refused without `--force` |
 | `run <slug> load --only settings` | Apply Settings (General, Social Links, SEO) only, without touching pages, media, menus or redirects: the safe way to update a live site's settings |
 | `run <slug> load --overwrite-settings` | Also replace settings an editor changed in the admin since the last load; without it those are kept and reported |
+| `run <slug> load --overwrite-edited` | Also replace pages and entries an editor changed in the EmDash admin since the last load. Without it they are kept: load records each entry's `version` / `updatedAt` after writing it (`load/content.<target>.json`); an entry changed since is left as it is, and one changed in WordPress too is listed as a conflict (gate `edited-in-admin` fails until you rerun with this flag or accept the gate) |
+| `changes <slug> [--json]` | What changed in WordPress between the last two extracts, for sites still edited during the migration: new, edited (raw export or modified date), moved (slug or path) and deleted pages, posts and entries; menus; media counts; forms. Each extract keeps a manifest of what it read (`raw/manifest.json`, the previous one in `raw/manifest.previous.json`) and prints the same summary at its end (`reports/extract/changes.json`). Entries deleted in WordPress are reported, never removed from EmDash. Reads files only |
 | `accept <slug> <phase> --reason "…" --by "…"` | Record the owner's acceptance of a failed gate |
 | `status [slug] [--json]` | Phase timeline for one or all sites |
 | `phases` | List the pipeline phases |

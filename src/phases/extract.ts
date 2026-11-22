@@ -13,6 +13,7 @@ import { usersDir, WP_USERS_FILE, wpUsersFromRest } from "../transform/users.js"
 import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import { extractReport } from "../extract/report.js";
+import { buildManifest, CHANGES_REPORT, diffManifests, formatChanges, MANIFEST_FILE, PREVIOUS_MANIFEST_FILE, readManifest } from "../extract/changes.js";
 import { attachmentTaxonomies, type FolderSource, folderSourceFromRest } from "../extract/media-folders.js";
 import { WpClient, WpHttpError, versionAtLeast } from "../extract/client.js";
 import { loadSiteEnv, redact, resolveCredentials } from "../extract/credentials.js";
@@ -159,6 +160,9 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	const client = new WpClient(creds.url ?? config.source.url, creds);
 	const raw = paths.raw;
 	const exp = join(raw, "exporter");
+	// What this extract is compared with (src/extract/changes.ts): the last complete extract's manifest, or — a site
+	// extracted before manifests existed — one derived from the raw export still on disk.
+	const previousManifest = readManifest(join(raw, MANIFEST_FILE)) ?? buildManifest(raw);
 	rmSync(join(exp, "content"), { recursive: true, force: true });
 	mkdirSync(join(exp, "content"), { recursive: true });
 
@@ -724,6 +728,19 @@ export async function runExtract({ config, paths, reporter }: PhaseContext): Pro
 	write(join(raw, "extract.json"), summary);
 	const reportDir = join(paths.reports, "extract");
 	write(join(reportDir, "extract.md"), extractReport(config.name, summary, checks));
+	// ── What changed in WordPress since the previous extract (wp2emdash changes <slug>) ─────────────────────────
+	const extractManifest = buildManifest(raw);
+	if (extractManifest) {
+		rmSync(join(raw, PREVIOUS_MANIFEST_FILE), { force: true });
+		if (previousManifest) write(join(raw, PREVIOUS_MANIFEST_FILE), previousManifest);
+		write(join(raw, MANIFEST_FILE), extractManifest);
+		rmSync(join(reportDir, CHANGES_REPORT), { force: true });
+		if (previousManifest) {
+			const changes = diffManifests(previousManifest, extractManifest);
+			write(join(reportDir, CHANGES_REPORT), changes);
+			for (const line of formatChanges(changes).split("\n")) reporter.emit({ type: "log", level: "info", message: line });
+		}
+	}
 	reporter.emit({ type: "log", level: "info", message: `Report: ${join(reportDir, "extract.md")}` });
 	return checks;
 }

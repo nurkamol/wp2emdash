@@ -6,6 +6,10 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **`wp2emdash changes <slug> [--json]`**: what changed in WordPress between the last two extracts, for sites the owner keeps editing during the migration — new, edited (raw export hash or modified date), moved (slug or path from the parent pages) and deleted pages, posts and custom post type entries; menus (new, edited, deleted); media counts (new, replaced, gone); forms. Every complete extract writes a compact manifest of what it read (`raw/manifest.json`: per entry type, WordPress id, slug, path, title, status, modified date and a hash of the raw export; no content) and keeps the previous one (`raw/manifest.previous.json`); a site extracted before this release gets its previous manifest derived from the raw export on disk, once. Extract prints the same grouped summary at its end and writes `reports/extract/changes.json`. Entries deleted in WordPress are reported, never removed from EmDash. Reads files only, never WordPress.
+- **Load keeps edits made in the EmDash admin** (`run <slug> load --overwrite-edited` replaces them): load records each entry's `version` and `updatedAt` after its last write, with the WordPress modified date and raw hash it came from (`load/content.<target>.json`). On the next load an entry changed in the admin since is left as it is (also skipped in the references pass); one that changed in WordPress too is a **conflict**, listed by the new `edited-in-admin` check, which fails until the owner reruns with `--overwrite-edited` or accepts the gate. EmDash 1.5 behaviour verified in the installed package: [docs/spikes/content-changes-findings.md](docs/spikes/content-changes-findings.md).
+
 ## [1.9.0] — 2026-11-22
 
 ### Added

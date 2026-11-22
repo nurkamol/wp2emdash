@@ -57,12 +57,14 @@ program
 	.option("--force", "load: write to a live production (after go-live); a D1 Time Travel bookmark is recorded first and the restore command printed")
 	.option("--only <part>", "load: run one part only — settings (Settings → General, Social Links, SEO; no media, pages, menus or redirects): the safe way to apply settings to a live site")
 	.option("--overwrite-settings", "load: replace site settings (logo, social links, SEO…) an editor changed in the admin since the last load")
+	.option("--overwrite-edited", "load: replace pages and entries an editor changed in the EmDash admin since the last load (by default they are kept; those also changed in WordPress are listed as conflicts)")
 	.action(async (slug: string, phase: string, o) => {
 		if (!isPhaseId(phase)) fail(`Unknown phase "${phase}". Phases: ${PHASE_IDS.join(", ")}`);
 		if (o.force && phase !== "load") fail("--force only applies to load");
 		if (o.overwriteSettings && phase !== "load") fail("--overwrite-settings only applies to load");
+		if (o.overwriteEdited && phase !== "load") fail("--overwrite-edited only applies to load");
 		if (o.only && (phase !== "load" || o.only !== "settings")) fail("--only applies to load, with: settings");
-		const result = await runPhase(slug, phase as never, { json: o.json, preview: o.preview, ...(o.force ? { force: true } : {}), ...(o.overwriteSettings ? { overwriteSettings: true } : {}), ...(o.only ? { only: o.only } : {}) }).catch((e: Error) => fail(e.message));
+		const result = await runPhase(slug, phase as never, { json: o.json, preview: o.preview, ...(o.force ? { force: true } : {}), ...(o.overwriteSettings ? { overwriteSettings: true } : {}), ...(o.overwriteEdited ? { overwriteEdited: true } : {}), ...(o.only ? { only: o.only } : {}) }).catch((e: Error) => fail(e.message));
 		if (o.json) console.log(JSON.stringify({ type: "result", ...result }));
 		process.exit(result.ok ? 0 : result.notImplemented ? 3 : 2);
 	});
@@ -300,6 +302,20 @@ program
 		for (const c of r.reused) console.log(`${pc.dim("=")} ${c}`);
 		if (r.workersSubdomain) console.log(`${pc.dim("workers.dev:")} ${r.workersSubdomain}`);
 		for (const n of r.notes) console.log(`${pc.yellow("!")} ${n}`);
+	});
+
+program
+	.command("changes <slug>")
+	.description("What changed in WordPress between the last two extracts: new, edited, moved and deleted pages, posts and entries; menus; media counts; forms. Reads the extract manifests only (never WordPress); deleted entries are reported, never removed from EmDash")
+	.option("--json", "print the change set as JSON")
+	.action(async (slug: string, o: { json?: boolean }) => {
+		const { changesCommand, changesText } = await import("../commands/changes.js");
+		try {
+			const r = changesCommand(slug);
+			console.log(o.json ? JSON.stringify(r, null, 2) : changesText(r));
+		} catch (e) {
+			fail((e as Error).message);
+		}
 	});
 
 program

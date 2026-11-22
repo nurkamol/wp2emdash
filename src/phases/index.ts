@@ -20,6 +20,11 @@ export interface PhaseContext {
 	force?: boolean;
 	/** `run … load --overwrite-settings`: replace site settings an editor changed in the admin since the last load. */
 	overwriteSettings?: boolean;
+	/**
+	 * `run … load --overwrite-edited`: replace entries an editor changed in the EmDash admin since the last load (those
+	 * also changed in WordPress are conflicts). Default: kept and reported (src/targets/emdash/content-record.ts).
+	 */
+	overwriteEdited?: boolean;
 	/** load: run one part only ("settings": Settings → General/Social/SEO, no media/content/menus/redirects). */
 	only?: "settings";
 }
