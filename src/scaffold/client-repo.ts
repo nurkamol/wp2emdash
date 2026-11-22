@@ -515,7 +515,7 @@ ${sectionRows}
 
 Fields with a size (e.g. "40%", "35vh", "40px") reproduce spacing from the old site; leave them empty to use the
 site defaults. Buttons can link to a page, an outside address, or open a popup (enter the popup's name).
-
+${i.sections.some((s) => s.slug === "section_product_grid") ? productGridHelp() : ""}
 ## Good to know
 
 - **Images:** use the alt text field to describe each picture; it is read aloud to people who cannot see it and helps search engines.
@@ -1190,6 +1190,19 @@ switch it on.
 
 Comments are not in the nightly backups (they hold visitors' personal data). Cloudflare D1 Time Travel (30 days)
 restores the whole database, comments included, if something goes badly wrong — ask your developer.
+`;
+}
+
+/** Editor guide, shop sites only: how to fill in the product grid section (WooCommerce catalogue mode). */
+function productGridHelp(): string {
+	return `
+**Product grid** (shop sites): add it to any page (for example "Featured products" on the home page) and choose
+**Which products**: \`latest\` (newest first), \`on_sale\` (products with a sale price), \`category\` (fill in
+**Product categories** with the category slugs, e.g. \`mugs, bowls\`) or \`handpicked\` (fill in **Products** with the
+product addresses, e.g. \`/product/blue-mug/, /product/green-bowl/\`, shown in that order). **How many** (1–12, 4 by
+default), **Products per row**, **Show the price** and **Button label** (empty: each product's own Buy button text,
+else "View product") finish it. The cards are the shop's own product cards and link to the product pages; the grid
+updates on its own when a product is published, changed or put on sale.
 `;
 }
 

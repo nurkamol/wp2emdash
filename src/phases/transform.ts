@@ -44,6 +44,7 @@ import { entrySocial, resolveSeoVars, seoSeparator } from "../transform/social-s
 import { inviteCounts, planInvites, usersDir, usersReport, type WpUser, WP_USERS_FILE, writeInvites } from "../transform/users.js";
 import { type AnnouncementReport, transformReport } from "../transform/report.js";
 import { shortcodeSummary, shortcodesReport } from "../transform/shortcodes.js";
+import { finishProductGrids, type ProductGridContext } from "../transform/product-grid.js";
 import { loadSiteEnv } from "../extract/credentials.js";
 import { decide, isPasswordFormHtml, PROTECTED_FILE, type ProtectedEntry, type ProtectedKind } from "../transform/protected.js";
 import { announcementDoc, describeBar, detectAnnouncement } from "../transform/announcement.js";
@@ -415,7 +416,34 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	reporter.emit({ type: "step:start", step: "Adapt content", total: pages.length + partialsRaw.length + popupsRaw.length + posts.length });
 	let done = 0;
 	const seoNorm = (p: string) => (p === "/" ? "/" : `/${p.replace(/^\/+|\/+$/g, "")}/`);
-	const emit = (doc: IrPage, file: string, published: boolean) => {
+	// Product grids (src/transform/product-grid.ts): WordPress product ids → the products' addresses on a catalogue-mode
+	// shop (the same address the products collection gives them), reported on any other site.
+	let gridProducts: Map<number, { path: string; featured: boolean; date: string }> | undefined;
+	const gridProduct = () =>
+		(gridProducts ??= new Map(
+			(content(PRODUCT_TYPE) as unknown as (ProductPost & { permalink?: string; date_gmt?: string })[])
+				.filter((p) => p.status === "publish")
+				.map((p) => {
+					const known = pathById.get(p.id);
+					const live = (() => {
+						try {
+							const u = new URL(p.permalink ?? "");
+							return siteHosts.has(u.host.replace(/^www\./, "")) && !u.search ? u.pathname : undefined;
+						} catch {
+							return undefined;
+						}
+					})();
+					const path = known ?? live ?? `/product/${p.slug || `product-${p.id}`}/`;
+					return [p.id, { path: overrides.routes[path] ?? path, featured: (p.taxonomies?.product_visibility ?? []).some((t) => t.slug === "featured"), date: p.date_gmt ?? "" }] as const;
+				}),
+		));
+	const gridContext: ProductGridContext = {
+		shop: !!config.shop,
+		productPath: (id) => gridProduct().get(id)?.path,
+		featuredIds: () => [...gridProduct().entries()].filter(([, p]) => p.featured).sort(([, a], [, b]) => b.date.localeCompare(a.date)).map(([id]) => id),
+	};
+	const emit = (input: IrPage, file: string, published: boolean) => {
+		let doc = finishProductGrids(input, gridContext);
 		// SEO text the owner rewrote on purpose (overrides.ts seo): onto the page, so load writes it and a rerun keeps it.
 		const seoOv = doc.route?.path ? overrides.seo[seoNorm(doc.route.path)] ?? overrides.seo[doc.route.path] : undefined;
 		if (seoOv) {

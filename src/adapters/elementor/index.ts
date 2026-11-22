@@ -20,6 +20,7 @@ import { fluid } from "../../scaffold/generate.js";
 import { type Col, type Fragment, type HandlerCtx, mediaFrom } from "../wpbakery/elements.js";
 import { mergeRich, recognise, type Row, splitRow } from "../wpbakery/index.js";
 import { DECORATIVE, DYNAMIC, dynamicListing, type Env, HANDLERS, LISTINGS, mediaOf, stripTags } from "./elements.js";
+import { elementorWooProducts } from "../woocommerce.js";
 import { atDevice, colourOf, type Device, type ElementorElement, type ElementorKit, emptyKit, hiddenOn, obj, settingsOf, sizePx, str } from "./site.js";
 
 export { activeKit, elementorDesign, elementorElements, elementorEntranceAnimations, elementorKit, type ElementorElement, type ElementorKit, isElementor, popupAutoOpen, siteTemplates, templateConditions, templateType } from "./site.js";
@@ -191,6 +192,8 @@ export function adaptElementor(elements: ElementorElement[], opts: ElementorOpti
 			return [];
 		}
 		if (LISTINGS.has(type)) return dynamicListing(e, s, path, env);
+		// Elementor Pro's Products widget → a product grid when its query maps (src/adapters/woocommerce.ts).
+		if (type === "woocommerce-products") return elementorWooProducts(s, diag, path);
 		if (DYNAMIC.has(type) || type.startsWith("wp-widget-") || type.startsWith("woocommerce-")) {
 			if (type === "menu-anchor" && str(s.anchor)) diag({ level: "info", code: "dynamic", message: `[menu-anchor] anchor #${str(s.anchor)} not kept (link to the section's CSS id instead)`, path, tag: type });
 			else diag({ level: "info", code: "dynamic", message: `[${type}] is rendered by the site (search, post data, sharing, widgets), not migrated as content`, path, tag: type });

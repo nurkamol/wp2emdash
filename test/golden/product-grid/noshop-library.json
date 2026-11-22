@@ -1,0 +1,29 @@
+{
+	"count": 23,
+	"slugs": [
+		"section_hero",
+		"section_rich_text",
+		"section_media_text",
+		"section_columns",
+		"section_feature_grid",
+		"section_cta_banner",
+		"section_faq",
+		"section_pricing",
+		"section_testimonials",
+		"section_team",
+		"section_gallery",
+		"section_logo_strip",
+		"section_stats",
+		"section_steps",
+		"section_tabs",
+		"section_video",
+		"section_audio",
+		"section_posts_list",
+		"section_form",
+		"section_map",
+		"section_embed",
+		"section_legacy_html",
+		"section_announcement"
+	],
+	"sha256": "ce22c242669ead6f0eb3630d9c88afc0dc13da93b4c9460ac23509b7f641e622"
+}

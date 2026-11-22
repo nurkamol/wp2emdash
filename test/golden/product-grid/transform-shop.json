@@ -1,0 +1,71 @@
+{
+	"sections": [
+		{
+			"source": "handpicked",
+			"count": 3,
+			"columns": 3,
+			"categories": [],
+			"products": [
+				"product/red-plate",
+				"product/blue-mug"
+			],
+			"productIds": [],
+			"showPrice": true
+		},
+		{
+			"source": "category",
+			"count": 4,
+			"columns": 4,
+			"categories": [
+				"mugs"
+			],
+			"products": [],
+			"productIds": [],
+			"showPrice": true
+		},
+		{
+			"source": "on_sale",
+			"count": 4,
+			"columns": 4,
+			"categories": [],
+			"products": [],
+			"productIds": [],
+			"showPrice": true
+		},
+		{
+			"source": "handpicked",
+			"count": 2,
+			"columns": 2,
+			"categories": [],
+			"products": [
+				"product/green-bowl",
+				"product/tall-vase"
+			],
+			"productIds": [],
+			"showPrice": true
+		}
+	],
+	"diagnostics": [
+		{
+			"level": "info",
+			"code": "lossy",
+			"message": "shortcode [featured_products]: featured products become a hand-picked list (the products featured on WordPress today, in WordPress order)",
+			"path": "loose[3]/featured_products[1]",
+			"tag": "featured_products"
+		},
+		{
+			"level": "info",
+			"code": "lossy",
+			"message": "shortcode [featured_products]: product grid (featured, 2 products)",
+			"path": "loose[3]/featured_products[1]",
+			"tag": "featured_products"
+		},
+		{
+			"level": "warn",
+			"code": "lossy",
+			"message": "product grid: product #999 not found among the published products — left out of the grid",
+			"path": "blocks[1-1]",
+			"tag": "product_grid"
+		}
+	]
+}

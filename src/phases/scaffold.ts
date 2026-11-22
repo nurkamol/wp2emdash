@@ -41,7 +41,7 @@ import { astroSessions, sessionsBucketBinding, sessionStore } from "../scaffold/
 import { lintInlineScripts } from "../scaffold/csp-lint.js";
 import { withDeployCheck } from "../scaffold/deploy-check.js";
 import { astroPerf, brandHashes, imageHosts, type PerfConfig, perfSite, rewarmSiteConfig, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
-import { BLOCK_TYPES } from "../starter/library.js";
+import { blockTypesFor, SHOP_BLOCK_TYPES } from "../starter/library.js";
 import { customStylesheet } from "../transform/custom-css.js";
 import type { WpUrlRules } from "../transform/wp-urls.js";
 import type { SiteFeatures } from "../transform/site-features.js";
@@ -312,6 +312,9 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const posts = blogPlan ? loadDir("posts").filter((p) => p.kind === "post" && p.post) : [];
 	// Custom post types (transform wrote ir/collections.json): their collections, entries, archives.
 	const cptPlan = readJson<CptPlan>(join(ir, "collections.json"));
+	// WooCommerce catalogue mode with its products collection: the shop sections (product grid) in the editor and docs.
+	const shopSite = !!config.shop && !!cptPlan?.collections.some((c) => c.shop);
+	const siteBlockTypes = blockTypesFor({ shop: shopSite });
 	// WordPress comments (transform wrote ir/comments.json only when WordPress had comments).
 	const commentsFile = readJson<CommentsPlan & { items: unknown[] }>(join(ir, "comments.json"));
 	const commentsShown = commentsFile ? starterCommentsConfig(commentsFile) : undefined;
@@ -699,7 +702,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Seed (with the migrated content for local preview)
 	const sep = /\s([-–—|·•])\s/.exec(pages.find((p) => p.route?.isFrontPage)?.seo.title ?? "")?.[1] ?? "-";
 	const drops: string[] = [];
-	const seed = buildSeed({ name: config.name, site, pages, partials, popups, media, titleSeparator: sep, forms, includeContent: true, onDrop: (m) => drops.push(m), ...(blogPlan ? { blog: { plan: blogPlan, posts } } : {}), ...(cptPlan?.collections.length ? { collections: { plan: cptPlan, entries } } : {}), ...(widgetPlan ? { widgets: widgetPlan } : {}), ...(sectionsPlan?.sections.length ? { sections: sectionsPlan.sections } : {}), ...(commentsFile?.collections.some((c) => c.form) ? { comments: { form: commentsFile.collections.filter((c) => c.form).map((c) => c.slug) } } : {}) });
+	const seed = buildSeed({ name: config.name, site, pages, partials, popups, media, titleSeparator: sep, forms, includeContent: true, onDrop: (m) => drops.push(m), ...(blogPlan ? { blog: { plan: blogPlan, posts } } : {}), ...(cptPlan?.collections.length ? { collections: { plan: cptPlan, entries } } : {}), ...(widgetPlan ? { widgets: widgetPlan } : {}), ...(sectionsPlan?.sections.length ? { sections: sectionsPlan.sections } : {}), ...(commentsFile?.collections.some((c) => c.form) ? { comments: { form: commentsFile.collections.filter((c) => c.form).map((c) => c.slug) } } : {}), ...(shopSite ? { shop: true } : {}) });
 	for (const d of drops) reporter.emit({ type: "log", level: "info", message: `not stored (no matching field): ${d}` });
 	write(join(project, "seed", "seed.json"), seed);
 
@@ -833,7 +836,8 @@ ${sess.options}${ap.options}	integrations: [
 			...(cf.production?.d1?.fingerprint ? { productionFingerprint: cf.production.d1.fingerprint } : {}),
 			// Live = traffic switched (cutover records production.live); resources alone do not make the site live.
 			productionReady: !!cf.production?.live,
-			sections: BLOCK_TYPES.filter((b) => used.has(b.slug)).map((b) => ({ slug: b.slug, label: b.label, description: b.description ?? "" })),
+			// The sections the site uses; shop sites also list the shop sections an editor can add (the product grid).
+			sections: siteBlockTypes.filter((b) => used.has(b.slug) || SHOP_BLOCK_TYPES.includes(b)).map((b) => ({ slug: b.slug, label: b.label, description: b.description ?? "" })),
 			forms: forms.map((f) => ({ id: f.id, title: f.title, fields: f.fields.map((x) => x.label), withheld: f.withheld ?? [] })),
 			...(formUploads ? { formUploads: config.forms.uploads ? config.forms.uploads.days : 30 } : {}),
 			...(protectedDocs.length ? { protectedPages: protectedDocs.length } : {}),
@@ -871,7 +875,7 @@ ${sess.options}${ap.options}	integrations: [
 	// ── Static checks ──────────────────────────────────────────────────────────
 	const usedTypes = new Set([...pages, ...posts, ...entries, ...partials, ...popups].flatMap((d) => d.sections.map((s) => `section_${s.type}`)));
 	const componentSrc = readFileSync(join(project, "src", "components", "Sections.astro"), "utf8");
-	const missingComponents = [...usedTypes].filter((t) => !BLOCK_TYPES.some((b) => b.slug === t) || !componentSrc.includes(`${t}:`));
+	const missingComponents = [...usedTypes].filter((t) => !siteBlockTypes.some((b) => b.slug === t) || !componentSrc.includes(`${t}:`));
 	check("section-components", "Every section type used by the IR has a block type and a component", missingComponents.length === 0, missingComponents.join(", ") || `${usedTypes.size} types used`);
 	const formIds = new Set(forms.map((f) => f.id));
 	const missingForms = [...pages, ...posts, ...entries, ...partials, ...popups].flatMap((d) => d.sections.flatMap((s) => (s.type === "form" && !formIds.has(`${s.fields.formRef.provider}-${s.fields.formRef.id}`) ? [`${d.source.slug}: ${s.fields.formRef.provider}#${s.fields.formRef.id}`] : [])));

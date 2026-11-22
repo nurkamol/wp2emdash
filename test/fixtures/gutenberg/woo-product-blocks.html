@@ -1,0 +1,51 @@
+<!-- fixture {"terms":{"product_cat:21":"mugs","product_cat:22":"bowls"}} -->
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Featured pieces</h2>
+<!-- /wp:heading -->
+
+<!-- wp:woocommerce/handpicked-products {"columns":4,"products":[501,502,999],"contentVisibility":{"image":true,"title":true,"price":true,"rating":false,"button":true}} /-->
+
+<!-- wp:paragraph -->
+<p>Our mugs, newest first.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:woocommerce/product-category {"columns":3,"rows":2,"categories":[21,77],"orderby":"price_asc"} /-->
+
+<!-- wp:woocommerce/product-on-sale {"columns":2,"rows":1,"categories":[22],"contentVisibility":{"image":true,"title":true,"price":false,"rating":true,"button":true}} /-->
+
+<!-- wp:woocommerce/product-new {"columns":4,"rows":5} /-->
+
+<!-- wp:woocommerce/product-new {"columns":3,"rows":1,"categories":[22]} /-->
+
+<!-- wp:woocommerce/products-by-attribute {"attributes":[{"id":31,"attr_slug":"pa_size"}],"columns":3,"rows":3} /-->
+
+<!-- wp:woocommerce/product-best-sellers {"columns":3,"rows":1} /-->
+
+<!-- wp:woocommerce/product-collection {"queryId":1,"query":{"perPage":4,"pages":0,"offset":0,"postType":"product","order":"desc","orderBy":"date","search":"","exclude":[],"inherit":false,"taxQuery":{},"isProductCollectionBlock":true,"woocommerceOnSale":true,"woocommerceStockStatus":["instock","outofstock","onbackorder"],"woocommerceAttributes":[],"woocommerceHandPickedProducts":[]},"tagName":"div","displayLayout":{"type":"flex","columns":4,"shrinkColumns":true},"collection":"woocommerce/product-collection/on-sale"} -->
+<div class="wp-block-woocommerce-product-collection"><!-- wp:woocommerce/product-template -->
+<!-- wp:woocommerce/product-image /-->
+<!-- wp:post-title {"isLink":true,"__woocommerceNamespace":"woocommerce/product-collection/product-title"} /-->
+<!-- wp:woocommerce/product-price /-->
+<!-- wp:woocommerce/product-button /-->
+<!-- /wp:woocommerce/product-template --></div>
+<!-- /wp:woocommerce/product-collection -->
+
+<!-- wp:woocommerce/product-collection {"queryId":2,"query":{"perPage":3,"postType":"product","order":"desc","orderBy":"date","inherit":false,"taxQuery":{},"featured":true},"displayLayout":{"type":"flex","columns":3},"collection":"woocommerce/product-collection/featured"} -->
+<div class="wp-block-woocommerce-product-collection"><!-- wp:woocommerce/product-template -->
+<!-- wp:woocommerce/product-image /-->
+<!-- wp:post-title {"isLink":true} /-->
+<!-- /wp:woocommerce/product-template --></div>
+<!-- /wp:woocommerce/product-collection -->
+
+<!-- wp:woocommerce/product-collection {"queryId":3,"query":{"perPage":8,"postType":"product","order":"asc","orderBy":"title","inherit":false,"taxQuery":{"product_cat":[22]}},"displayLayout":{"type":"flex","columns":4}} -->
+<div class="wp-block-woocommerce-product-collection"><!-- wp:woocommerce/product-template -->
+<!-- wp:woocommerce/product-price /-->
+<!-- /wp:woocommerce/product-template -->
+<!-- wp:query-pagination -->
+<!-- wp:query-pagination-next /-->
+<!-- /wp:query-pagination --></div>
+<!-- /wp:woocommerce/product-collection -->
+
+<!-- wp:shortcode -->
+[sale_products limit="8" columns="4"]
+<!-- /wp:shortcode -->

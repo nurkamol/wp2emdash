@@ -4,7 +4,7 @@
  * uses uploaded media ids.
  */
 import type { Button, MediaRef, PtBlock, RichText, Section } from "../../ir/schema.js";
-import { BLOCK_TYPES, type Field } from "../../starter/library.js";
+import { ALL_BLOCK_TYPES, type Field } from "../../starter/library.js";
 
 export type MediaResolver = (m: MediaRef | undefined) => unknown;
 
@@ -104,7 +104,7 @@ function overflowLinks(body: RichText | undefined, list: Button[] | undefined, k
 
 const fraction = (w?: string) => (w && ["1/4", "1/3", "1/2", "2/3", "3/4"].includes(w) ? w : "auto");
 
-const FIELDS = new Map(BLOCK_TYPES.map((b) => [b.slug, b.versions[b.versions.length - 1]?.fields ?? []]));
+const FIELDS = new Map(ALL_BLOCK_TYPES.map((b) => [b.slug, b.versions[b.versions.length - 1]?.fields ?? []]));
 
 /**
  * EmDash rejects block values with keys the block type does not define, and select values outside
@@ -313,6 +313,9 @@ function rawBlock(s: Section, key: string, media: MediaResolver): BlockValue {
 			return base("audio", { ...head, audio: media(s.fields.audio), caption: s.fields.caption, ...(s.fields.autoplay ? { autoplay: true } : {}), ...(s.fields.loop ? { loop: true } : {}) });
 		case "posts_list":
 			return base("posts_list", { ...head, count: s.fields.count, categories: s.fields.categories.join(", ") || undefined, show_excerpt: s.fields.showExcerpt, show_date: s.fields.showDate, show_image: s.fields.showImage, show_author: s.fields.showAuthor, ...(s.fields.columns ? { columns: s.fields.columns } : {}) });
+		case "product_grid":
+			// Product ids the transform could not resolve were reported there; only addresses reach the block.
+			return base("product_grid", { ...head, intro: pt(s.fields.intro), source: s.fields.source, categories: s.fields.categories.join(", ") || undefined, products: s.fields.products.join(", ") || undefined, count: s.fields.count, ...(s.fields.columns ? { columns: s.fields.columns } : {}), show_price: s.fields.showPrice, button_label: s.fields.buttonLabel });
 		case "form":
 			return base("form", { ...head, intro: pt(s.fields.intro), form_id: `${s.fields.formRef.provider}-${s.fields.formRef.id}`, aside: pt(s.fields.aside), ...(s.fields.stacked ? { stacked: true } : {}), ...(s.fields.formWidth ? { form_width: s.fields.formWidth } : {}), ...(s.fields.formGap ? { form_gap: s.fields.formGap } : {}) });
 		case "map":

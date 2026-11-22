@@ -429,6 +429,30 @@ export const section = z.discriminatedUnion("type", [
 	 * how many, only these category slugs (none = every category), which parts of each post show, cards per row.
 	 */
 	z.object({ type: z.literal("posts_list"), ...base, fields: z.object({ heading, count: z.number().int().min(1).max(50).default(5), categories: z.array(z.string()).default([]), showExcerpt: z.boolean().default(true), showDate: z.boolean().default(true), showImage: z.boolean().default(true), showAuthor: z.boolean().default(false), columns: z.number().int().min(1).max(6).optional() }) }),
+	/**
+	 * Products from the `products` collection, listed at render time (WooCommerce catalogue mode only: kit.config
+	 * `shop`; PLAN §8b). Which products: the newest, those on sale, those in product categories (slugs) or a hand-picked
+	 * list (product addresses; `productIds` holds WordPress product ids until the transform resolves them to addresses).
+	 * Sites without catalogue mode never keep this section: the transform reports it instead.
+	 */
+	z.object({
+		type: z.literal("product_grid"),
+		...base,
+		fields: z.object({
+			heading,
+			intro: richText.default([]),
+			source: z.enum(["latest", "on_sale", "category", "handpicked"]).default("latest"),
+			categories: z.array(z.string()).default([]),
+			products: z.array(z.string()).default([]),
+			productIds: z.array(z.number().int().positive()).default([]),
+			/** WooCommerce's featured products ([featured_products], featured collections): the transform turns them into the hand-picked list. */
+			featured: z.boolean().optional(),
+			count: z.number().int().min(1).max(12).default(4),
+			columns: z.number().int().min(1).max(6).optional(),
+			showPrice: z.boolean().default(true),
+			buttonLabel: z.string().optional(),
+		}),
+	}),
 	z.object({ type: z.literal("form"), ...base, fields: z.object({ heading, intro: richText.default([]), formRef: z.object({ provider: z.string(), id: z.string() }), aside: richText.default([]), /** The form under the heading, not beside it (a builder column stacks them), at most this wide (px), this far below (px or fluid). */ stacked: z.boolean().optional(), formWidth: z.number().int().min(200).max(2000).optional(), formGap: fluidLength.optional() }) }),
 	z.object({ type: z.literal("map"), ...base, fields: z.object({ heading, embedUrl: z.string().optional(), address: z.string().optional(), height: z.string().optional() }) }),
 	z.object({ type: z.literal("embed"), ...base, fields: z.object({ heading, provider: z.string(), html: z.string(), height: z.string().optional() }) }),

@@ -35,6 +35,8 @@ export type Fragment =
 	| { kind: "video"; video?: MediaRef; embedUrl?: string; poster?: MediaRef }
 	| { kind: "audio"; audio: MediaRef; caption?: string; autoplay?: boolean; loop?: boolean }
 	| { kind: "posts"; count: number; categories: string[]; showExcerpt: boolean; showDate: boolean; showImage: boolean; showAuthor: boolean; columns?: number }
+	/** A WooCommerce product grid (blocks, shortcodes, builder elements: src/adapters/woocommerce.ts) → product_grid. */
+	| { kind: "products"; source: "latest" | "on_sale" | "category" | "handpicked"; count: number; categories: string[]; productIds: number[]; featured?: boolean; columns?: number; buttonLabel?: string; showPrice?: boolean }
 	| { kind: "map"; embedUrl?: string; address?: string }
 	| { kind: "marquee"; blocks: RichText; media?: MediaRef; link?: Button }
 	| { kind: "legacy"; html: string; reason: string }

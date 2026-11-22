@@ -9,6 +9,7 @@ import { adaptWpbakery, mergeRich, recognise, type Row, splitRow } from "../wpba
 import type { Col } from "../wpbakery/elements.js";
 import type { FormDefinitionOut } from "../../scaffold/forms.js";
 import { oembedMarkup } from "./oembed.js";
+import { WOO_GRID_BLOCKS, wooBlock } from "../woocommerce.js";
 import { isLibRow, LIB_CONTAINERS, LIB_LEAF, type LibEnv, libColumns, libraryOf, libStyle } from "./libraries.js";
 
 export interface Block {
@@ -134,6 +135,8 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 		// Block libraries (Kadence, Spectra, GenerateBlocks, Stackable, CoBlocks): src/adapters/gutenberg/libraries.ts.
 		const lib = LIB_LEAF[b.name];
 		if (lib) return lib(b, path, libEnv);
+		// WooCommerce product listing blocks → a product grid, or reported (src/adapters/woocommerce.ts).
+		if (WOO_GRID_BLOCKS.has(b.name)) return wooBlock(b, diag, path, opts.termSlug);
 		switch (b.name) {
 			case "core/image": {
 				const id = typeof b.attrs.id === "number" ? b.attrs.id : undefined;
@@ -417,9 +420,9 @@ export function adaptGutenberg(content: string, opts: GutenbergOptions): { secti
 		}
 		// An audio player or a posts list is a section of its own (text between two of them stays between them); the
 		// heading that ends the text before it is its title.
-		if (!opts.asFragments && OWN_SECTION.has(b.name)) {
+		if (!opts.asFragments && (OWN_SECTION.has(b.name) || WOO_GRID_BLOCKS.has(b.name))) {
 			const frags = fragmentsOf(b, path);
-			if (!frags.some((f) => f.kind === "audio" || f.kind === "posts")) {
+			if (!frags.some((f) => f.kind === "audio" || f.kind === "posts" || f.kind === "products")) {
 				if (!run.length) runStart = i;
 				run.push(...frags);
 				return;

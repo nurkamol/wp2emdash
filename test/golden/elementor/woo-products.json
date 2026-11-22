@@ -1,0 +1,155 @@
+{
+  "sections": [
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#wa00001",
+        "rawHash": "d204faad7f",
+        "row": 0
+      },
+      "fields": {
+        "heading": [
+          {
+            "_type": "block",
+            "_key": "t0",
+            "style": "h2",
+            "children": [
+              {
+                "_type": "span",
+                "_key": "t1",
+                "text": "On sale this week",
+                "marks": []
+              }
+            ],
+            "markDefs": []
+          }
+        ],
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [],
+        "columns": 4,
+        "source": "on_sale",
+        "count": 4
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#wb00001",
+        "rawHash": "e20b817677",
+        "row": 1
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [
+          501,
+          503
+        ],
+        "columns": 2,
+        "source": "handpicked",
+        "count": 2
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#wd00001",
+        "rawHash": "81b682fef0",
+        "row": 3
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [],
+        "columns": 3,
+        "source": "handpicked",
+        "featured": true,
+        "count": 3
+      }
+    },
+    {
+      "type": "product_grid",
+      "theme": {
+        "tone": "light"
+      },
+      "spacing": "normal",
+      "sourceRef": {
+        "adapter": "elementor",
+        "path": "container#we00001",
+        "rawHash": "d412fef018",
+        "row": 4
+      },
+      "fields": {
+        "intro": [],
+        "products": [],
+        "showPrice": true,
+        "categories": [],
+        "productIds": [],
+        "columns": 4,
+        "source": "latest",
+        "count": 4
+      }
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[woocommerce-products]: not carried: page numbers",
+      "path": "container#wa00001/woocommerce-products#wa00003",
+      "tag": "woocommerce-products"
+    },
+    {
+      "level": "error",
+      "code": "unmapped",
+      "message": "[woocommerce-products]: products of chosen categories or tags (Elementor's term query) — not rebuilt; add a product grid with the category slugs by hand",
+      "path": "container#wc00001/woocommerce-products#wc00002",
+      "carriesContent": true,
+      "tag": "woocommerce-products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "[woocommerce-products]: featured products become a hand-picked list (the products featured on WordPress today)",
+      "path": "container#wd00001/woocommerce-products#wd00002",
+      "tag": "woocommerce-products"
+    },
+    {
+      "level": "info",
+      "code": "lossy",
+      "message": "shortcode [recent_products]: product grid (latest, 4 products)",
+      "path": "container#we00001/shortcode#we00002",
+      "tag": "recent_products"
+    },
+    {
+      "level": "info",
+      "code": "dynamic",
+      "message": "[woocommerce-product-related] is rendered by the site (search, post data, sharing, widgets), not migrated as content",
+      "path": "container#wf00001/woocommerce-product-related#wf00002",
+      "tag": "woocommerce-product-related"
+    }
+  ],
+  "forms": []
+}

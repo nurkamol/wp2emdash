@@ -10,6 +10,8 @@ import { autop } from "../../ir/portable-text.js";
 import type { FormDefinitionOut } from "../../scaffold/forms.js";
 import { type Col, embedOrLegacy, type Fragment, type HandlerCtx, richFromHtml } from "../wpbakery/elements.js";
 import { elementorFormToDefinition } from "./forms.js";
+import { parseShortcodes } from "../wpbakery/parser.js";
+import { wooShortcode } from "../woocommerce.js";
 import type { ElementorOptions } from "./index.js";
 import { type ElementorElement, type ElementorKit, obj, settingsOf, str } from "./site.js";
 
@@ -511,7 +513,12 @@ export const HANDLERS: Record<string, Handler> = {
 	shortcode: (e, s, path, env) => {
 		const sc = (str(s.shortcode) ?? "").trim();
 		const form = new RegExp(`^${FORM_SHORTCODE.source}$`).test(sc) ? formShortcode(sc) : [];
-		return form.length ? form : embedOrLegacy(sc, env.ctx(path), "Elementor shortcode widget");
+		if (form.length) return form;
+		// One WooCommerce listing shortcode ([products], [sale_products]…) → a product grid (src/adapters/woocommerce.ts).
+		const one = parseShortcodes(sc);
+		const node = one.length === 1 && one[0]?.type === "shortcode" ? one[0] : undefined;
+		const woo = node ? wooShortcode(node.tag, node.attrs, env.diag, path) : undefined;
+		return woo ?? embedOrLegacy(sc, env.ctx(path), "Elementor shortcode widget");
 	},
 
 	// Menus and logo (theme builder parts)
