@@ -9,7 +9,7 @@
       "sourceRef": {
         "adapter": "wpbakery",
         "path": "vc_row[0]",
-        "rawHash": "ac2447410a"
+        "rawHash": "3002addcf3"
       },
       "fields": {
         "heading": [
@@ -179,7 +179,7 @@
               {
                 "_type": "span",
                 "_key": "tl",
-                "text": "100 Example Street, Houston, TX 77000",
+                "text": "100 Example Street, Portland, OR 97000",
                 "marks": []
               }
             ],

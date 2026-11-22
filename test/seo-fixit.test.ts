@@ -40,7 +40,7 @@ import { workerNeedsAi } from "../src/scaffold/media.js";
 import { cache, env } from "./stubs/cloudflare-workers.js";
 
 const pt = (style: string, text: string) => ({ _type: "block", style, children: [{ _type: "span", text }], markDefs: [] });
-const BODY = "Our reformer pilates classes in Houston help beginners build core strength with small groups and certified instructors. Book a first class online, bring water and comfortable clothes, and arrive ten minutes early. Call 713-555-0142 for private sessions. Intro offer $49 for two weeks of unlimited classes.";
+const BODY = "Our reformer pilates classes in Portland help beginners build core strength with small groups and certified instructors. Book a first class online, bring water and comfortable clothes, and arrive ten minutes early. Call 503-555-0142 for private sessions. Intro offer $49 for two weeks of unlimited classes.";
 const content = (heading: string, body = BODY) => [{ _type: "section_hero", heading, heading_level: "h1", body: [pt("normal", body), pt("normal", body)] }];
 const NOW = Date.parse("2026-11-22T12:00:00Z");
 const DAY = 86400_000;
@@ -49,7 +49,7 @@ const report = (over: Partial<ReportPage["item"]> & { keyword?: string; titleSta
 	const { keyword, titleStatus, ...item } = over;
 	return {
 		collection: "pages",
-		item: { id: "P1", slug: "reformer-pilates", status: "published", data: { title: "Reformer Pilates", content: content("Reformer Pilates in Houston") }, seo: { title: null, description: null, noIndex: false }, ...item },
+		item: { id: "P1", slug: "reformer-pilates", status: "published", data: { title: "Reformer Pilates", content: content("Reformer Pilates in Portland") }, seo: { title: null, description: null, noIndex: false }, ...item },
 		title: String((item.data as { title?: string } | undefined)?.title ?? "Reformer Pilates"),
 		...(keyword ? { keyword } : {}),
 		analysis: { checks: [{ id: "title", status: titleStatus ?? "good" }] },
@@ -93,21 +93,21 @@ describe("SEO fix-it: reading and cleaning the AI answer", () => {
 		expect(parseAi(42)).toBeUndefined();
 	});
 	it("strips phone numbers, prices, emails and links the page does not have; keeps those it has", () => {
-		const r = stripUnsupported("Call (555) 123-4567 or 713-555-0142, from $29 or $49, write hi@x.example, see www.other.example.", BODY);
+		const r = stripUnsupported("Call (555) 123-4567 or 503-555-0142, from $29 or $49, write hi@x.example, see www.other.example.", BODY);
 		expect(r.removed).toEqual(["(555) 123-4567", "$29", "hi@x.example", "www.other.example."]);
-		expect(r.text).toContain("713-555-0142");
+		expect(r.text).toContain("503-555-0142");
 		expect(r.text).toContain("$49");
 		expect(r.text).not.toMatch(/555\) 123|\$29|hi@|other\.example/);
 	});
 	it("drops claims the page does not make and flags the doubtful ones", () => {
-		const r = stripUnsupported("Award-winning reformer classes, the best in Houston.", BODY);
+		const r = stripUnsupported("Award-winning reformer classes, the best in Portland.", BODY);
 		expect(r.removed).toEqual(["Award-winning"]);
 		expect(r.text.startsWith("reformer classes")).toBe(true);
 		expect(r.flagged).toEqual(["best"]);
 		expect(stripUnsupported("Certified instructors.", BODY).flagged).toEqual([]);
 	});
 	it("description: plain, 120–160 characters, cut at a sentence or word, too short dropped", () => {
-		const d = cleanDescription(`“Reformer pilates classes in Houston for beginners 🧘 — small groups, certified instructors and an intro offer of $49 for two weeks of unlimited classes. Book your first class online today and feel stronger.”`, BODY);
+		const d = cleanDescription(`“Reformer pilates classes in Portland for beginners 🧘 — small groups, certified instructors and an intro offer of $49 for two weeks of unlimited classes. Book your first class online today and feel stronger.”`, BODY);
 		expect(d.value).toBeDefined();
 		expect(d.value?.length).toBeLessThanOrEqual(160);
 		expect(d.value?.length).toBeGreaterThanOrEqual(120);
@@ -115,11 +115,11 @@ describe("SEO fix-it: reading and cleaning the AI answer", () => {
 		expect(d.value?.endsWith(".")).toBe(true);
 		expect(cleanDescription("Pilates classes.", BODY).value).toBeUndefined();
 		expect(cleanDescription("Pilates classes.", BODY).notes[0]).toMatch(/too short/);
-		const short = cleanDescription("Reformer pilates classes in Houston for beginners, with small groups and certified instructors", BODY);
+		const short = cleanDescription("Reformer pilates classes in Portland for beginners, with small groups and certified instructors", BODY);
 		expect(short.value?.length).toBeLessThan(120);
 		expect(short.notes.join(" ")).toMatch(/Short description/);
 		expect(cleanDescription(undefined, BODY).value).toBeUndefined();
-		const phone = cleanDescription("Reformer pilates classes in Houston for beginners with certified instructors. Call 212-555-9999 to book a private session with a coach.", BODY);
+		const phone = cleanDescription("Reformer pilates classes in Portland for beginners with certified instructors. Call 212-555-9999 to book a private session with a coach.", BODY);
 		expect(phone.value).not.toContain("212");
 		expect(phone.notes[0]).toMatch(/Removed from the description/);
 	});
@@ -132,13 +132,13 @@ describe("SEO fix-it: reading and cleaning the AI answer", () => {
 		expect(inText("core strengths", BODY)).toBe(false);
 	});
 	it("title: at most 60 characters, cut at a separator, else dropped", () => {
-		expect(cleanTitle("Reformer Pilates Classes in Houston", BODY).value).toBe("Reformer Pilates Classes in Houston");
-		expect(cleanTitle("Reformer Pilates Classes for Beginners in Houston | Acme Pilates Studio Downtown", BODY).value).toBe("Reformer Pilates Classes for Beginners in Houston");
+		expect(cleanTitle("Reformer Pilates Classes in Portland", BODY).value).toBe("Reformer Pilates Classes in Portland");
+		expect(cleanTitle("Reformer Pilates Classes for Beginners in Portland | Acme Pilates Studio Downtown", BODY).value).toBe("Reformer Pilates Classes for Beginners in Portland");
 		expect(cleanTitle("A".repeat(70), BODY).value).toBeUndefined();
 		expect(cleanTitle("Pilates", BODY).value).toBeUndefined();
 	});
 	it("validates only the fields a page needs", () => {
-		const v = validate({ description: "Reformer pilates classes in Houston for beginners, with small groups and certified instructors. Book a first class online today.", keyword: "reformer pilates", title: "Ignored" }, cand({ needs: { description: true, keyword: true, title: false } }));
+		const v = validate({ description: "Reformer pilates classes in Portland for beginners, with small groups and certified instructors. Book a first class online today.", keyword: "reformer pilates", title: "Ignored" }, cand({ needs: { description: true, keyword: true, title: false } }));
 		expect(Object.keys(v.suggested)).toEqual(["description", "keyword"]);
 		expect(validate(undefined, cand()).notes).toEqual(["The AI answer could not be read."]);
 	});
@@ -263,7 +263,7 @@ describe("SEO fix-it admin page", () => {
 	beforeEach(() => {
 		kv = new Map();
 		items = [
-			{ id: "P1", slug: "reformer-pilates", status: "published", data: { title: "Reformer Pilates", content: content("Reformer Pilates in Houston") }, seo: seoOf() },
+			{ id: "P1", slug: "reformer-pilates", status: "published", data: { title: "Reformer Pilates", content: content("Reformer Pilates in Portland") }, seo: seoOf() },
 			{ id: "P2", slug: "about", status: "published", data: { title: "About", content: content("About our studio") }, seo: { ...seoOf(), description: "x".repeat(140) } },
 			{ id: "P3", slug: "secret", status: "draft", data: { title: "Secret plans", content: content("Secret plans", "Unpublished draft text about a merger nobody may know about yet, with enough words to be drafted if it were published, which it is not, so it must never reach the model at all, not even once, ever.") }, seo: seoOf() },
 		];
@@ -291,7 +291,7 @@ describe("SEO fix-it admin page", () => {
 		site: { name: "Acme Pilates" },
 	});
 	const fakeAi = () => {
-		const run = vi.fn(async (_m: string, _input: Record<string, unknown>) => ({ response: { description: "Reformer pilates classes in Houston for beginners, with small groups and certified instructors. Book a first class online today.", keyword: "Reformer Pilates Classes" } }));
+		const run = vi.fn(async (_m: string, _input: Record<string, unknown>) => ({ response: { description: "Reformer pilates classes in Portland for beginners, with small groups and certified instructors. Book a first class online today.", keyword: "Reformer Pilates Classes" } }));
 		env.AI = { run };
 		return run;
 	};
@@ -345,10 +345,10 @@ describe("SEO fix-it admin page", () => {
 	it("approves one page with the editor's edits, then purges the cached pages", async () => {
 		fakeAi();
 		await plugin.routes.admin.handler(ctx({ type: "block_action", action_id: "fx-draft" }));
-		const r = await plugin.routes.admin.handler(ctx({ type: "form_submit", action_id: "fx-approve", block_id: "fx:pages:P1", values: { description: "Edited by the editor: reformer pilates classes in Houston for beginners with certified instructors and small groups.", keyword: "reformer pilates" } }));
+		const r = await plugin.routes.admin.handler(ctx({ type: "form_submit", action_id: "fx-approve", block_id: "fx:pages:P1", values: { description: "Edited by the editor: reformer pilates classes in Portland for beginners with certified instructors and small groups.", keyword: "reformer pilates" } }));
 		expect(r.toast).toMatchObject({ type: "success" });
 		expect(r.toast?.message).toContain("Saved for 1 page.");
-		expect(update).toHaveBeenCalledWith("pages", "P1", { seo: { description: "Edited by the editor: reformer pilates classes in Houston for beginners with certified instructors and small groups." } });
+		expect(update).toHaveBeenCalledWith("pages", "P1", { seo: { description: "Edited by the editor: reformer pilates classes in Portland for beginners with certified instructors and small groups." } });
 		expect(kv.get("kw:pages:P1")).toBe("reformer pilates");
 		expect(purge).toHaveBeenCalledTimes(1);
 		expect(pendingOf().map((s) => s.sid)).toEqual(["pages:P2"]);

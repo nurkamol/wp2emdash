@@ -42,7 +42,7 @@ describe("heading outline (starter middleware)", () => {
 });
 
 describe("SEO rules (verify seo-rules)", () => {
-	const ok = { headings: [{ level: 1, text: "Pilates in Houston" }, { level: 2, text: "Classes" }], seo: { title: "Pilates Classes in Houston – Example Studio", description: "Reformer and mat Pilates classes for every level in Houston. Book your first class online today." } };
+	const ok = { headings: [{ level: 1, text: "Pilates in Portland" }, { level: 2, text: "Classes" }], seo: { title: "Pilates Classes in Portland – Example Studio", description: "Reformer and mat Pilates classes for every level in Portland. Book your first class online today." } };
 	it("passes a clean page", () => expect(seoRules(ok)).toEqual([]));
 	it("flags what the SEO audit flagged", () => {
 		const r = seoRules({ headings: [{ level: 1, text: "A" }, { level: 1, text: "B" }, { level: 3, text: "C" }], seo: { title: "Member Login", description: "Log in to book and manage your classes" } });
@@ -53,8 +53,8 @@ describe("SEO rules (verify seo-rules)", () => {
 
 describe("/llms.txt", () => {
 	it("lists the site's public pages and posts as Markdown links", () => {
-		const t = llmsTxt({ name: "Example Studio", tagline: "Pilates in Houston" }, [{ title: "Home", url: "https://studio.example/" }, { title: "FAQ [new]", url: "https://studio.example/faq/", description: "Answers  to common\nquestions." }], [{ title: "Spring schedule", url: "https://studio.example/spring/" }]);
-		expect(t).toBe("# Example Studio\n\n> Pilates in Houston\n\n## Pages\n\n- [Home](https://studio.example/)\n- [FAQ new](https://studio.example/faq/): Answers to common questions.\n\n## Posts\n\n- [Spring schedule](https://studio.example/spring/)\n");
+		const t = llmsTxt({ name: "Example Studio", tagline: "Pilates in Portland" }, [{ title: "Home", url: "https://studio.example/" }, { title: "FAQ [new]", url: "https://studio.example/faq/", description: "Answers  to common\nquestions." }], [{ title: "Spring schedule", url: "https://studio.example/spring/" }]);
+		expect(t).toBe("# Example Studio\n\n> Pilates in Portland\n\n## Pages\n\n- [Home](https://studio.example/)\n- [FAQ new](https://studio.example/faq/): Answers to common questions.\n\n## Posts\n\n- [Spring schedule](https://studio.example/spring/)\n");
 	});
 	it("leaves out noindex and password-protected entries", () => {
 		expect(llmsListed("noindex, follow", {})).toBe(false);

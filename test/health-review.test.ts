@@ -32,7 +32,7 @@ function page(o: { lang?: string | null; main?: string; footer?: string; header?
 	const header =
 		o.header ??
 		`<header class="site-header"><button class="menu-toggle" type="button" aria-expanded="false"><span class="menu-toggle__icon" aria-hidden="true"><i class="menu-toggle__line"></i></span><span class="visually-hidden">Menu</span></button><a href="/" class="site-header__logo" aria-label="Acme — home"><img src="/brand/logo.png" alt="" class="logo"></a><nav><a href="/about/">About</a></nav></header>`;
-	const main = o.main ?? `<section class="section section--hero"><h1>Pilates in Houston</h1><p>Classes for every level.</p></section><section class="section section--rich_text"><header class="section__head"><h2 class="heading">Our classes</h2></header><h3>Reformer</h3><img src="/_emdash/api/media/file/reformer.webp" alt="A reformer class in the studio"></section>`;
+	const main = o.main ?? `<section class="section section--hero"><h1>Pilates in Portland</h1><p>Classes for every level.</p></section><section class="section section--rich_text"><header class="section__head"><h2 class="heading">Our classes</h2></header><h3>Reformer</h3><img src="/_emdash/api/media/file/reformer.webp" alt="A reformer class in the studio"></section>`;
 	const footer = o.footer ?? `<footer><p class="container">© 2026 Acme</p></footer>`;
 	return `<!doctype html><html${lang}><head><title>Acme</title><script>var t = "Summer 2020 offer";</script></head><body>${header}<main id="main" tabindex="-1">${main}</main>${footer}<div class="motion-preloader" aria-hidden="true" hidden><img src="/brand/logo.png" alt=""></div></body></html>`;
 }
@@ -152,8 +152,8 @@ describe("freshness: dates", () => {
 		expect(dates("Book now. May 2024 was our best month")).toEqual([]);
 	});
 	it("history is skipped: since, founded, posted, updated, award", () => {
-		expect(dates("Founded on Saturday, March 3, 2009 in Houston, we teach classes.")).toEqual([]);
-		expect(dates("Serving Houston since March 2015 with classes for all.")).toEqual([]);
+		expect(dates("Founded on Saturday, March 3, 2009 in Portland, we teach classes.")).toEqual([]);
+		expect(dates("Serving Portland since March 2015 with classes for all.")).toEqual([]);
 		expect(dates("Last updated: Monday, January 6, 2025.")).toEqual([]);
 		expect(dates("Winner of the award in June 2024 — book a class")).toEqual([]);
 	});
