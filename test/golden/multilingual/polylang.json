@@ -154,7 +154,7 @@
 	"report": [
 		"## Languages",
 		"",
-		"Polylang, default language **fr**, URL mode **directory** (from hreflang). Migrated with every address kept: each entry carries `lang` and `translation_group`; the starter prints `<html lang>`, hreflang alternates and a language switcher.",
+		"Polylang, default language **fr**, URL mode **directory** (from hreflang). Migrated with every address kept: each entry carries `lang` and `lang_group`; the starter prints `<html lang>`, hreflang alternates and a language switcher.",
 		"",
 		"| Language | Directory | hreflang | Pages | Posts | Entries |",
 		"|---|---|---|---|---|---|",

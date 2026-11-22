@@ -391,7 +391,7 @@ export function multilingualChecks(plan: MlPlan, docs: MlDoc[]): GateCheck[] {
 export function multilingualReport(plan: MlPlan, docs: MlDoc[], notMigrated: string[]): string[] {
 	const routable = docs.filter((d) => d.path && ["page", "post", "entry"].includes(d.kind));
 	const groups = [...translationGroups(routable)];
-	const L = ["", "## Languages", "", `${plan.plugin === "wpml" ? "WPML" : "Polylang"}, default language **${plan.defaultLang}**, URL mode **${plan.urlMode}**${plan.defaultPrefixed ? " (default prefixed)" : ""} (from ${plan.modeSource}). ${plan.supported ? "Migrated with every address kept: each entry carries `lang` and `translation_group`; the starter prints `<html lang>`, hreflang alternates and a language switcher." : `**Needs a decision:** ${plan.problems.join("; ")}.`}`, "", "| Language | Directory | hreflang | Pages | Posts | Entries |", "|---|---|---|---|---|---|"];
+	const L = ["", "## Languages", "", `${plan.plugin === "wpml" ? "WPML" : "Polylang"}, default language **${plan.defaultLang}**, URL mode **${plan.urlMode}**${plan.defaultPrefixed ? " (default prefixed)" : ""} (from ${plan.modeSource}). ${plan.supported ? "Migrated with every address kept: each entry carries `lang` and `lang_group`; the starter prints `<html lang>`, hreflang alternates and a language switcher." : `**Needs a decision:** ${plan.problems.join("; ")}.`}`, "", "| Language | Directory | hreflang | Pages | Posts | Entries |", "|---|---|---|---|---|---|"];
 	for (const l of plan.languages) {
 		const n = (k: string) => routable.filter((d) => d.lang === l.code && d.kind === k).length;
 		L.push(`| ${l.label} (${l.code})${l.default ? " — default" : ""} | ${l.prefix ? `/${l.prefix}/` : "—"} | ${l.hreflang} | ${n("page")} | ${n("post")} | ${n("entry")} |`);

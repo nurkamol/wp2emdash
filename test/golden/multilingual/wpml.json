@@ -221,7 +221,7 @@
 	"report": [
 		"## Languages",
 		"",
-		"WPML, default language **en**, URL mode **directory** (from options). Migrated with every address kept: each entry carries `lang` and `translation_group`; the starter prints `<html lang>`, hreflang alternates and a language switcher.",
+		"WPML, default language **en**, URL mode **directory** (from options). Migrated with every address kept: each entry carries `lang` and `lang_group`; the starter prints `<html lang>`, hreflang alternates and a language switcher.",
 		"",
 		"| Language | Directory | hreflang | Pages | Posts | Entries |",
 		"|---|---|---|---|---|---|",
