@@ -281,7 +281,7 @@ export function buildSeed(i: SeedInput): Record<string, unknown> {
 }
 
 /**
- * Multilingual sites (src/transform/multilingual.ts): the `lang` and `translation_group` fields on every collection
+ * Multilingual sites (src/transform/multilingual.ts): the `lang` and `lang_group` fields on every collection
  * with language-tagged entries, and their values on the seeded entries (matched by slug: the entry's path).
  */
 export function seedLanguages(seed: Record<string, unknown>, docs: IrPage[]): void {

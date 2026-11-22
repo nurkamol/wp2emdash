@@ -331,13 +331,13 @@ describe("database dump → raw/multilingual.json (import-options)", () => {
 });
 
 describe("seed: language fields", () => {
-	it("adds lang and translation_group to tagged collections and their entries", () => {
+	it("adds lang and lang_group to tagged collections and their entries", () => {
 		const page = (path: string, lang: string, group: string) => ({ kind: "page", route: { path }, source: { slug: path, wpId: 1 }, i18n: { lang, group } }) as unknown as IrPage;
 		const seed = { collections: [{ slug: "pages", fields: [{ slug: "title" }] }, { slug: "site_parts", fields: [{ slug: "title" }] }], content: { pages: [{ slug: "home", data: { title: "Home" } }, { slug: "fr", data: { title: "Accueil" } }, { slug: "contact", data: { title: "Contact" } }] } };
 		seedLanguages(seed, [page("/", "en", "g1"), page("/fr/", "fr", "g1")]);
-		expect(seed.collections[0]?.fields.map((f) => f.slug)).toEqual(["title", "lang", "translation_group"]);
+		expect(seed.collections[0]?.fields.map((f) => f.slug)).toEqual(["title", "lang", "lang_group"]);
 		expect(seed.collections[1]?.fields.map((f) => f.slug)).toEqual(["title"]);
-		expect(seed.content.pages.map((e) => e.data)).toEqual([{ title: "Home", lang: "en", translation_group: "g1" }, { title: "Accueil", lang: "fr", translation_group: "g1" }, { title: "Contact" }]);
+		expect(seed.content.pages.map((e) => e.data)).toEqual([{ title: "Home", lang: "en", lang_group: "g1" }, { title: "Accueil", lang: "fr", lang_group: "g1" }, { title: "Contact" }]);
 	});
 });
 
@@ -351,7 +351,7 @@ describe("starter wiring", () => {
 		expect(read("components/SiteHeader.astro")).toContain("<LanguageSwitcher links={languages} />");
 		expect(read("utils/chrome.ts")).toContain('menuFor("primary", pathname)');
 		expect(read("utils/blog-data.ts")).toContain("lang: defaultLang");
-		expect(read("pages/[...slug].astro").match(/group: data\.translation_group, lang: data\.lang/g)).toHaveLength(3);
+		expect(read("pages/[...slug].astro").match(/group: data\.lang_group, lang: data\.lang/g)).toHaveLength(3);
 		const sw = read("components/LanguageSwitcher.astro");
 		expect(sw).toContain('aria-current={l.current ? "true" : undefined}');
 		expect(sw).not.toContain("<script");
@@ -368,5 +368,14 @@ describe("extract: which entries need a language", () => {
 		expect(languageChecked("wpcf7_contact_form")).toBe(true);
 		expect(languageChecked("product_variation")).toBe(false);
 		expect(languageChecked("elementor_library")).toBe(false);
+	});
+});
+
+describe("multilingual fields never collide with EmDash's system columns", () => {
+	it("lang and the group field are not reserved column names (translation_group is one: migration 019_i18n)", async () => {
+		const { GROUP_FIELD, LANG_FIELD } = await import("../src/transform/multilingual.js");
+		const { RESERVED_SLUGS } = await import("../src/transform/cpt-fields.js");
+		expect(RESERVED_SLUGS.has("translation_group")).toBe(true);
+		for (const f of [LANG_FIELD, GROUP_FIELD]) expect(RESERVED_SLUGS.has(f.slug), f.slug).toBe(false);
 	});
 });

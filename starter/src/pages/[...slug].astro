@@ -221,15 +221,15 @@ if (crumbCfg?.pages && page && slug !== "home") {
 			<AccessGate title={`Protected: ${data.title ?? ""}`} collection={page ? "pages" : "posts"} slug={slug} back={accessBack} state={Astro.url.searchParams.get("access")} />
 		</Base>
 	) : found ? (
-		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: found.collection.slug, id: data.id, slug: found.entry.id, group: data.translation_group, lang: data.lang }} structuredData={productLd ? [productLd] : undefined}>
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: found.collection.slug, id: data.id, slug: found.entry.id, group: data.lang_group, lang: data.lang }} structuredData={productLd ? [productLd] : undefined}>
 			<Entry collection={found.collection} entry={found.entry} edit={found.entry.edit ?? {}} />
 		</Base>
 	) : post ? (
-		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || autoExcerpt(ptText(data.body), 30) || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "posts", id: data.id, slug: post.id, group: data.translation_group, lang: data.lang }} sidebar breadcrumbs={trail} article={{ publishedTime: data.publishedAt ? new Date(data.publishedAt).toISOString() : null, modifiedTime: data.updatedAt ? new Date(data.updatedAt).toISOString() : null, author: byline?.displayName ?? null }}>
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description || data.excerpt || autoExcerpt(ptText(data.body), 30) || null} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "posts", id: data.id, slug: post.id, group: data.lang_group, lang: data.lang }} sidebar breadcrumbs={trail} article={{ publishedTime: data.publishedAt ? new Date(data.publishedAt).toISOString() : null, modifiedTime: data.updatedAt ? new Date(data.updatedAt).toISOString() : null, author: byline?.displayName ?? null }}>
 			<Single post={post} edit={post.edit ?? {}} older={older} newer={newer} related={related} />
 		</Base>
 	) : (
-		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "pages", id: data.id, slug: entry.id, group: data.translation_group, lang: data.lang }} overHero={!!overHero} breadcrumbs={trail}>
+		<Base chrome={chrome} title={seo?.title} pageTitle={data.title} description={seo?.description} image={seo?.ogImage} canonical={seo?.canonical} robots={seo?.robots} content={{ collection: "pages", id: data.id, slug: entry.id, group: data.lang_group, lang: data.lang }} overHero={!!overHero} breadcrumbs={trail}>
 			{
 				blocks.length ? (
 					<div {...entry.edit.content}>{needsH1 && <h1 class="visually-hidden">{data.title}</h1>}<Sections value={blocks} leadImage /></div>

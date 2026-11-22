@@ -44,6 +44,26 @@ export const CHROME = [
 	// schedule, which may hide it on one side only (an ended bar stays in the plugin's HTML but is not shown).
 	".ancr-group",
 	"section.announcement[data-announcement]",
+	// WooCommerce template parts catalogue mode does not carry (listed in the shop report): related / upsell products,
+	// the reviews tab and its form, tab labels, breadcrumbs, the add-to-cart box, stock and result-count notes, sorting.
+	// The product's own text (name, price, descriptions, attributes) stays compared. (WordPress e2e test, 2026-11-22.)
+	"section.related.products",
+	"section.up-sells",
+	".cross-sells",
+	"#reviews",
+	".woocommerce-Reviews",
+	"ul.wc-tabs",
+	".woocommerce-breadcrumb",
+	"form.cart",
+	".woocommerce-product-rating",
+	".stock",
+	".woocommerce-result-count",
+	".woocommerce-ordering",
+	".woocommerce-notices-wrapper",
+	".product_meta .posted_in",
+	".product_meta .tagged_as",
+	// WordPress's comment form (comments are imported and shown by the comments feature, with its own form).
+	"#respond",
 	// wp2emdash starter chrome (verify compares the migrated site's HTML the same way)
 	"#menu-panel",
 	".menu-overlay",

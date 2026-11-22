@@ -1,6 +1,6 @@
 /**
  * Multilingual sites (migrated from WPML / Polylang; site.config.json `i18n`): every page keeps its WordPress address
- * as its slug (`fr/a-propos`) and carries `lang` and `translation_group`. From those this file works out the page's
+ * as its slug (`fr/a-propos`) and carries `lang` and `lang_group`. From those this file works out the page's
  * language (`<html lang>`), its hreflang alternates (self, every published translation, x-default) and the language
  * switcher's links (the translation of this page, else that language's home page).
  * No imports: this file loads in Node (kit tests) and in the Worker. The kit's copy of the same rules is

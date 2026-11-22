@@ -310,6 +310,13 @@ foreach ( $plan['pages'] as $p ) {
 	}
 	e2e_log( "{$p['lang']} {$p['builder']} page {$p['slug']} #{$id}" );
 }
+// Polylang caches each language's front page in its language list (transient pll_languages_list), built when the
+// languages were created — before page_on_front was set. Without a refresh it keeps no French front page and answers
+// /fr/ with a 301 to /fr/accueil/ (first CI runs, 2026-11-22).
+delete_transient( 'pll_languages_list' );
+if ( function_exists( 'PLL' ) && isset( PLL()->model ) && method_exists( PLL()->model, 'clean_languages_cache' ) ) {
+	PLL()->model->clean_languages_cache();
+}
 
 // ── Posts ────────────────────────────────────────────────────────────────────────────────────────────────────
 WP_CLI::log( 'Posts' );

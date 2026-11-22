@@ -257,6 +257,10 @@ export function adaptDomFallback(html: string, opts: DomFallbackOptions): DomFal
 			diag({ level: "info", code: "dynamic", message: "search form left out (the starter has its own search)", path, tag: "form:wp-search" });
 			return [];
 		}
+		if (snap.provider === "wp-comments") {
+			diag({ level: "info", code: "dynamic", message: "comment form left out (comments are imported with their own form)", path, tag: "form:wp-comments" });
+			return [];
+		}
 		if (snap.provider === "woocommerce") {
 			diag({ level: "info", code: "dynamic", message: "WooCommerce shop form left out (catalogue mode: the product's Buy button)", path, tag: "form:woocommerce" });
 			return [];

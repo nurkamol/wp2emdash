@@ -18,6 +18,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - SEO fix-it: no focus keyword is drafted for legal pages (privacy, terms, cookies, waivers…) — found on the first live run; a description still is.
 
 ### Fixed
+- **Multilingual sites could not be set up:** the kit's language-group field was named `translation_group`, a system column on every EmDash 1.5 content table — the seed failed with "duplicate column name". It is now `lang_group` (no delivered site used it). Found by the WordPress end-to-end test.
+- WordPress's comment form (and WooCommerce's review form) is recognised and left out like the search form; the comments feature imports comments with its own form.
+- Text conservation ignores the WooCommerce template parts catalogue mode does not carry (related products, reviews tab, tab labels, breadcrumbs, add-to-cart box, stock and sorting notes) and the comment form; product names, prices, descriptions and attributes are still compared.
 - **New projects could not build:** `@astrojs/cloudflare` accepts any newer `@cloudflare/vite-plugin`, and 1.70.1 needs Wrangler ≥ 4.164 while the kit pins 4.163.0; a project without a lockfile picked it up. The starter's `pnpm-workspace.yaml` now pins the plugin (1.70.0, `STACK`). Sites with a lockfile were not affected.
 - **The audit no longer requests addresses that make WordPress do something:** `?add-to-cart=`, cart removals, comment replies, logins, nonce'd actions and admin/xmlrpc paths are never crawled, link-checked or sampled (`isActionUrl`; an add-to-cart request creates a cart session in the live site's database). Also in `estimate`.
 - WooCommerce's own forms (add to cart, variations, sorting, cart, checkout, account, product search) are recognised and left out like the search form — catalogue mode's Buy button replaces them — instead of counting as unknown live forms in the extract `forms` gate.

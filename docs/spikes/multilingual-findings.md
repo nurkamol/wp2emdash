@@ -47,17 +47,17 @@ The kit model keeps all of that unchanged and still preserves every source URL e
 - Every routable entry keeps its WordPress path as its slug (as before), so `/fr/a-propos/` stays `/fr/a-propos/`
   with no routing change. A translation the audit did not see gets its language directory in front of its WordPress
   path; the front page's translations are their language's home (`/fr/`).
-- Two string fields on routable collections: `lang` (language code) and `translation_group` (shared by the
+- Two string fields on routable collections: `lang` (language code) and `lang_group` (shared by the
   translations of one page; WPML `trid`, Polylang `post_translations` term, or the exporter's group).
 - The starter reads them: `<html lang>`, `<link rel="alternate" hreflang>` for self + each published translation +
   `x-default` (default-language version), a language switcher (translation, else the language's home), per-language
   menus `primary-<lang>` (fallback `primary`). Translations are found with
-  `getEmDashCollection(c, { where: { translation_group } })` — `where` on a content column is documented in
+  `getEmDashCollection(c, { where: { lang_group } })` — `where` on a content column is documented in
   `query.ts` (`CollectionFilterBase.where`).
 - Astro `i18n` stays off, so EmDash keeps its single-locale behaviour (no list filtering, no automatic hreflang — no
   duplicate links).
 
-Moving to native rows later is a mapping, not a migration of content: `lang` → `locale`, `translation_group` →
+Moving to native rows later is a mapping, not a migration of content: `lang` → `locale`, `lang_group` →
 `translationOf` on create, plus per-locale terms/bylines and slugs without the prefix. Revisit when EmDash's hreflang
 honours nested slugs and a prefixed default locale.
 
@@ -92,3 +92,10 @@ Where the mode comes from, in order: the plugin's options (database dump → `im
 - Blog listings, archives and feeds per language: they list the default language's posts; a translated posts page,
   category or author archive under `/fr/…` has no list of posts (the translated posts page migrates as a page with its own text only).
 - Previous/next and related posts are not filtered by language.
+
+## Field name collision (2026-11-22, WordPress end-to-end test)
+
+The group field was first named `translation_group`. That is a **system column** on every EmDash 1.5 content table
+(migration `019_i18n`; the kit's `RESERVED_SLUGS` already listed it), so a real setup failed with
+`D1_ERROR: duplicate column name: translation_group` — the synthetic fixtures never created a database. Renamed to
+`lang_group`; a test now checks both language fields against `RESERVED_SLUGS`. No delivered site used it.

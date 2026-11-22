@@ -11,8 +11,9 @@ describe("WooCommerce's own forms are not content forms", () => {
 			<form class="variations_form cart" data-product_id="64"><select name="attribute_size"><option>S</option></select><input type="hidden" name="add-to-cart" value="64"></form>
 			<form class="woocommerce-ordering" method="get"><select name="orderby"><option>price</option></select></form>
 			<form class="woocommerce-cart-form"><input name="cart[x][qty]"><input type="hidden" name="woocommerce-cart-nonce"></form>
+			<form id="commentform" action="https://example.com/wp-comments-post.php" method="post"><textarea name="comment"></textarea><input name="author"></form>
 			<form class="wpcf7-form"><input name="your-name"></form>`;
-		expect(forms(html)).toEqual(["woocommerce", "woocommerce", "woocommerce", "woocommerce", "contact-form-7"]);
+		expect(forms(html)).toEqual(["woocommerce", "woocommerce", "woocommerce", "woocommerce", "wp-comments", "contact-form-7"]);
 		expect(isContentForm("woocommerce")).toBe(false);
 		expect(isContentForm("wp-search")).toBe(false);
 		expect(isContentForm("contact-form-7")).toBe(true);

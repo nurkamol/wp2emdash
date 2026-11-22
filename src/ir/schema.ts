@@ -575,7 +575,7 @@ export const irPage = z.object({
 	access: z.object({ kind: z.enum(["password", "private"]), as: z.enum(["protect", "draft", "publish"]) }).optional(),
 	/**
 	 * Multilingual sites only (WPML, Polylang; src/transform/multilingual.ts): the entry's language code and its
-	 * translation group (shared by its translations). Load writes them to the `lang` and `translation_group` fields.
+	 * translation group (shared by its translations). Load writes them to the `lang` and `lang_group` fields.
 	 */
 	i18n: z.object({ lang: z.string(), group: z.string() }).optional(),
 	diagnostics: z.array(diagnostic),

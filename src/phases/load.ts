@@ -378,7 +378,7 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 					schemaErrors.push(`pages attribute fields: ${(e as EmDashHttpError).code === "INSUFFICIENT_SCOPE" ? "the API token needs the schema:write scope" : (e as Error).message}`);
 				}
 			}
-			// Multilingual sites (src/transform/multilingual.ts): `lang` and `translation_group` on every collection that has
+			// Multilingual sites (src/transform/multilingual.ts): `lang` and `lang_group` on every collection that has
 			// language-tagged entries (seeded on a new site; created here on one set up before).
 			if (site.i18n) {
 				const langCols = [...new Set([...irDocs.filter((d) => d.i18n).map((d) => collectionOf(d, !!blogPlan)), ...cptCols.filter((c) => c.routable).map((c) => c.slug)])];

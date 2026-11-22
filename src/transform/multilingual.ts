@@ -3,7 +3,7 @@
  * address. Decision and evidence: docs/spikes/multilingual-findings.md.
  *
  * Model: every routable entry keeps its source path as its slug (as every other entry does, so `/fr/a-propos/` stays
- * `/fr/a-propos/`), and carries two fields: `lang` (the language code) and `translation_group` (shared by the
+ * `/fr/a-propos/`), and carries two fields: `lang` (the language code) and `lang_group` (shared by the
  * translations of one page). The starter reads them for `<html lang>`, hreflang alternates and the language switcher.
  * EmDash's native i18n (Astro `i18n`, per-locale rows) is not switched on: see the findings for why.
  *
@@ -407,7 +407,9 @@ export function multilingualReport(plan: MlPlan, docs: MlDoc[], notMigrated: str
 
 /** Fields the load phase adds to every routable collection of a multilingual site. */
 export const LANG_FIELD = { slug: "lang", label: "Language", type: "string" } as const;
-export const GROUP_FIELD = { slug: "translation_group", label: "Translation group (same value on every translation of this page)", type: "string" } as const;
+/** Not `translation_group`: that is a system column on every EmDash 1.5 content table (migration 019_i18n, `RESERVED_SLUGS`) —
+ * a field of that name fails the seed with "duplicate column name" (found by the WordPress e2e test, 2026-11-22). */
+export const GROUP_FIELD = { slug: "lang_group", label: "Translation group (same value on every translation of this page)", type: "string" } as const;
 
 /**
  * The language switcher's links for one page and the hreflang alternates, from the page's translations. Pure: the
