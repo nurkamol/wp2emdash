@@ -20,6 +20,8 @@ pnpm wp2emdash fleet upgrade-prs           # dry run; --apply commits a wp2emdas
 pnpm wp2emdash upgrade <slug> [--deploy-staging] [--preview]   # delivered site → current kit: snapshot live pages, rerun scaffold, compare; prints (never runs) the production deploy; then --verify
 pnpm wp2emdash run <slug> load      # single environment (default): production on workers.dev once provisioned, else local; live production needs --force (D1 bookmark first)
 WP2EMDASH_LOAD_TARGET=staging pnpm wp2emdash run <slug> load   # sites that opted into staging (target.staging: true)
+pnpm wp2emdash sync-staging <slug> [--yes]   # staging sites: production content → staging (production read-only; allowlisted tables; never users/sessions/tokens/form data); dry run without --yes, staging D1 bookmark first
+pnpm wp2emdash upgrade <slug> --deploy-staging --sync-staging --yes   # sync staging first, then the staging upgrade check
 pnpm test && pnpm typecheck   # run both before saying a change is done
 ```
 

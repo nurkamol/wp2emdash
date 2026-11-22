@@ -21,6 +21,7 @@ the client reviews the real thing, and the switch-over only adds Worker routes. 
 | `load` / `verify` default | production once provisioned, else local | load: local; verify: staging |
 | EmDash token | `EMDASH_TOKEN_PRODUCTION` (or `EMDASH_TOKEN`) | staging `EMDASH_TOKEN`, production `EMDASH_TOKEN_PRODUCTION` |
 | Review of code changes after launch | Workers preview URLs (§7) | staging, or preview URLs |
+| Real content on staging | — | `sync-staging <slug> [--yes]` copies production's content (allowlisted tables, media files) to staging; production is only read, staging users / tokens / form data stay (docs/spikes/staging-sync-findings.md). `upgrade <slug> --deploy-staging --sync-staging --yes` runs it before the staging check |
 
 ## 1. Create the production resources (once per site)
 

@@ -8,7 +8,10 @@
  *   2. Rebuild: the scaffold phase (same engine as `wp2emdash run <slug> scaffold`; its gate is recorded). A failed
  *      gate stops here.
  *   3. Staging (opt-in sites only): with --deploy-staging, the project's `ci:deploy:staging` script, then a staging
- *      snapshot compared with before. Without the flag nothing is deployed.
+ *      snapshot compared with before. Without the flag nothing is deployed. With --sync-staging as well, staging is
+ *      first refreshed with production's content (src/commands/sync-staging.ts) — before any snapshot — so the
+ *      comparison runs on real content. The sync is a dry run unless --yes is given too: without it upgrade prints the
+ *      sync plan and stops (exit 1) before snapshotting, rebuilding or deploying anything.
  *   4. Production is never deployed from here: the exact command is printed for the owner. Afterwards
  *      `wp2emdash upgrade <slug> --verify` snapshots production again and compares it with the saved before.json
  *      (`--verify staging` / `--verify <url>` compare another address, e.g. a Workers version preview URL).
@@ -27,6 +30,7 @@ import { loadSiteEnv, scrubSecrets } from "../extract/credentials.js";
 import { type Comparison, compareSnapshots, comparisonReport, htmlToSnapshot, locationKey, type PageSnapshot, type SiteSnapshot, sitemapLocs, statusSnapshot } from "../upgrade/snapshot.js";
 import { credentialsFor } from "./provision.js";
 import { runPhase } from "./run.js";
+import { syncStaging, type SyncStagingOptions, type SyncStagingResult } from "./sync-staging.js";
 
 /** The only project script this command ever runs. Production deploy scripts are refused by name. */
 export const STAGING_DEPLOY_SCRIPT = "ci:deploy:staging";
@@ -42,6 +46,10 @@ export interface UpgradeOptions {
 	/** Rebuild like `run <slug> scaffold --preview`: earlier gates are not required and nothing is recorded in state.json
 	 * (sites delivered before the kit recorded every phase). */
 	preview?: boolean;
+	/** With deployStaging: refresh staging with production's content first (wp2emdash sync-staging). */
+	syncStaging?: boolean;
+	/** Apply the sync; without it the sync plan is printed and upgrade stops before anything else. */
+	yes?: boolean;
 	/** Progress lines (the CLI prints them; --json and the MCP server leave it out). */
 	log?: (line: string) => void;
 }
@@ -53,7 +61,14 @@ export interface UpgradeDeps {
 	/** Runs a project script (only ever STAGING_DEPLOY_SCRIPT). Default: `pnpm run <script>` in the project folder. */
 	runScript?: (script: string, cwd: string, env: Record<string, string>) => Promise<{ code: number; out: string }>;
 	now?: () => Date;
+	/** The staging sync (default: sync-staging's engine). */
+	syncStaging?: (slug: string, opts: SyncStagingOptions) => Promise<SyncStagingResult>;
+	/** Wait after a sync before staging is snapshotted (isolates keep settings 30 s). Default: setTimeout. */
+	sleep?: (ms: number) => Promise<void>;
 }
+
+/** After a sync: Worker isolates keep a 30 s stale-while-revalidate copy of the settings (docs/spikes/settings-findings.md). */
+export const SYNC_SETTLE_MS = 35_000;
 
 export interface ComparisonSummary {
 	label: string;
@@ -75,6 +90,8 @@ export interface UpgradeResult {
 	before?: { file: string; pages: number };
 	scaffold?: { ok: boolean; runId: string; failing: GateCheck[] };
 	stagingDeploy?: { ran: boolean; ok?: boolean; reason?: string };
+	/** --sync-staging: the sync's result (counts and table names only). */
+	syncStaging?: SyncStagingResult;
 	comparisons: ComparisonSummary[];
 	next: string[];
 	ok: boolean;
@@ -293,6 +310,20 @@ export async function upgrade(slug: string, opts: UpgradeOptions = {}, deps: Upg
 		const blocker = blockingPhase(readState(paths.state), "scaffold");
 		if (blocker) return { ...base, mode: "upgrade", dir: "", comparisons: [], next: [`The "${blocker}" gate has not passed in state.json, so scaffold cannot run. Sites delivered before the kit recorded every phase: \`wp2emdash upgrade ${slug} --preview\` (rebuilds without touching state.json).`], ok: false, exitCode: 1, error: `gate "${blocker}" has not passed` };
 	}
+	// --sync-staging: staging gets production's content first, before any snapshot (a refusal or dry run stops here).
+	let synced: SyncStagingResult | undefined;
+	if (opts.syncStaging) {
+		if (!addr.hasStaging) return { ...base, mode: "upgrade", dir: "", comparisons: [], next: [`${slug} has one environment (production): --sync-staging is only for sites with staging.`], ok: false, exitCode: 1, error: "no staging environment" };
+		if (!opts.deployStaging) return { ...base, mode: "upgrade", dir: "", comparisons: [], next: ["--sync-staging goes with --deploy-staging (the sync is for the staging comparison)."], ok: false, exitCode: 1, error: "--sync-staging without --deploy-staging" };
+		log("Staging sync: production's content → staging");
+		synced = await (deps.syncStaging ?? ((s: string, o: SyncStagingOptions) => syncStaging(s, o)))(slug, { ...(opts.sitesDir ? { sitesDir: opts.sitesDir } : {}), yes: !!opts.yes, log });
+		if (!synced.applied) {
+			const dry = synced.exitCode === 0;
+			return { ...base, mode: "upgrade", dir: "", syncStaging: synced, comparisons: [], next: dry ? [`Read the sync plan above, then rerun with --yes: pnpm wp2emdash upgrade ${slug} --deploy-staging --sync-staging --yes. Nothing was snapshotted, rebuilt or deployed.`] : [...synced.next, "Nothing was snapshotted, rebuilt or deployed."], ok: false, exitCode: synced.exitCode === 2 ? 2 : 1, error: dry ? "--sync-staging is a dry run without --yes" : (synced.error ?? "staging sync failed") };
+		}
+		if (synced.exitCode !== 0) return { ...base, mode: "upgrade", dir: "", syncStaging: synced, comparisons: [], next: [...synced.next, "Nothing was snapshotted, rebuilt or deployed."], ok: false, exitCode: synced.exitCode, error: synced.error ?? "staging sync finished with differences" };
+		await (deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms))))(SYNC_SETTLE_MS);
+	}
 	const dir = join(paths.reports, "upgrade", stamp(now()));
 	mkdirSync(dir, { recursive: true });
 	const rel = relative(paths.root, dir);
@@ -319,7 +350,7 @@ export async function upgrade(slug: string, opts: UpgradeOptions = {}, deps: Upg
 	const runScaffold = deps.runScaffold ?? ((s: string) => runPhase(s, "scaffold", { ...(opts.sitesDir ? { sitesDir: opts.sitesDir } : {}), ...(opts.preview ? { preview: true } : {}), quiet: !opts.log }));
 	const sc = await runScaffold(slug);
 	const scaffold = { ok: sc.ok, runId: sc.runId, failing: sc.checks.filter((c) => !c.ok) };
-	const out: UpgradeResult = { ...base, mode: "upgrade", dir: rel, before: { file: relative(paths.root, beforeFile), pages: before.pages.length }, scaffold, comparisons: [], next: [], ok: false, exitCode: 2 };
+	const out: UpgradeResult = { ...base, mode: "upgrade", dir: rel, before: { file: relative(paths.root, beforeFile), pages: before.pages.length }, scaffold, ...(synced ? { syncStaging: synced } : {}), comparisons: [], next: [], ok: false, exitCode: 2 };
 	if (!sc.ok) {
 		out.next = [`The scaffold gate failed (${scaffold.failing.map((c) => c.id).join(", ")}): fix it, then run \`wp2emdash upgrade ${slug}\` again. Nothing was deployed.`];
 		return out;
