@@ -100,9 +100,10 @@ export const sectionTheme = z.object({
 export const sourceRef = z.object({
 	/**
 	 * html = rebuilt from the live page HTML (audit snapshot), e.g. a plugin's announcement bar; dom-fallback = a page of
-	 * a builder without an adapter, rebuilt from its rendered HTML (src/adapters/dom-fallback).
+	 * a builder without an adapter, rebuilt from its rendered HTML (src/adapters/dom-fallback); acf = a row of an ACF
+	 * flexible content field (src/transform/acf-flexible.ts).
 	 */
-	adapter: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "elementor", "divi", "html", "dom-fallback"]),
+	adapter: z.enum(["wpbakery", "gutenberg", "classic", "bricks", "elementor", "divi", "html", "dom-fallback", "acf"]),
 	/** Path inside the source tree, e.g. `vc_row[2]` or `blocks[4]`. */
 	path: z.string(),
 	/** Short hash of the raw source of this section, to detect changes in the cutover delta. */

@@ -165,7 +165,7 @@ describe("cpt transform", () => {
 		await run(paths);
 		const jane = JSON.parse(readFileSync(join(paths.ir, "entries", "team", "jane.json"), "utf8")) as IrPage;
 		expect(jane).toMatchObject({ kind: "entry", route: { path: "/team/jane/" }, featuredImage: { wpId: 31 }, entry: { collection: "team", excerpt: "Lead instructor.", publishedAt: "2024-02-01T09:00:00.000Z", menuOrder: 1, terms: { department: ["coaching"] }, references: { related: ["team:102"] } } });
-		expect(jane.entry?.fields).toMatchObject({ role: "Lead instructor", photo: { wpId: 32, kind: "image", alt: "Jane portrait" }, start_date: "2020-01-15T00:00:00.000Z", level: "senior", accepts_clients: true, skills: [{ skill: "Reformer", years: 8 }, { skill: "Mat", years: 12 }], gallery: [{ image: { wpId: 33, kind: "image", alt: "Studio" } }, { image: { wpId: 34, kind: "image" } }], profile_link: { title: "Profile", url: "https://example.org/jane", target: "" }, legacy_code: "JD-01" });
+		expect(jane.entry?.fields).toMatchObject({ role: "Lead instructor", photo: { wpId: 32, kind: "image", alt: "Jane portrait" }, start_date: "2020-01-15T00:00:00.000Z", level: "senior", accepts_clients: true, skills: [{ skill: "Reformer", years: 8 }, { skill: "Mat", years: 12 }], gallery: [{ image: { wpId: 33, kind: "image", alt: "Studio" } }, { image: { wpId: 34, kind: "image" } }], profile_link: "https://example.org/jane", profile_link_label: "Profile", legacy_code: "JD-01" });
 		expect((jane.entry?.fields.bio as { _type: string }[])[0]?._type).toBe("block");
 		// Classic content → Portable Text (body); Gutenberg/builder content → sections, like pages.
 		expect(jane.entry?.body.map((b) => b._type)).toEqual(["block", "block"]);

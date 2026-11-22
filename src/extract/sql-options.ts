@@ -125,8 +125,9 @@ export function parseValues(sql: string): (string | null)[][] {
  * (`<anything>options`) and its columns by the dump's own CREATE TABLE when present, else WordPress's default order
  * (option_id, option_name, option_value, autoload).
  */
-export async function readOptionsFromDump(file: string, allow: readonly string[]): Promise<Record<string, unknown>> {
-	const want = new Set(allow);
+export async function readOptionsFromDump(file: string, allow: readonly string[] | ((name: string) => boolean)): Promise<Record<string, unknown>> {
+	const names = typeof allow === "function" ? undefined : new Set(allow);
+	const want = { has: (n: string) => (names ? names.has(n) : (allow as (name: string) => boolean)(n)) };
 	const out: Record<string, unknown> = {};
 	const rl = createInterface({ input: createReadStream(file, { encoding: "utf8" }), crlfDelay: Number.POSITIVE_INFINITY });
 	let cols: string[] = ["option_id", "option_name", "option_value", "autoload"];

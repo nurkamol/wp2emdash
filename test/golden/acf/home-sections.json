@@ -1,0 +1,402 @@
+{
+	"sections": [
+		{
+			"type": "hero",
+			"theme": {
+				"tone": "light"
+			},
+			"spacing": "normal",
+			"sourceRef": {
+				"adapter": "acf",
+				"path": "acf.page_sections[0]",
+				"rawHash": "ee976e4244"
+			},
+			"fields": {
+				"heading": [
+					{
+						"_type": "block",
+						"_key": "t_0",
+						"style": "h2",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "t_1",
+								"text": "Design that works",
+								"marks": []
+							}
+						],
+						"markDefs": []
+					}
+				],
+				"body": [
+					{
+						"_type": "block",
+						"_key": "t_2",
+						"style": "lead",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "t_3",
+								"text": "A small studio for brave brands",
+								"marks": []
+							}
+						],
+						"markDefs": []
+					}
+				],
+				"buttons": [
+					{
+						"label": "See our work",
+						"href": "/work/",
+						"style": "primary"
+					}
+				],
+				"media": {
+					"wpId": 51,
+					"kind": "image"
+				},
+				"align": "center"
+			}
+		},
+		{
+			"type": "media_text",
+			"theme": {
+				"tone": "light"
+			},
+			"spacing": "normal",
+			"sourceRef": {
+				"adapter": "acf",
+				"path": "acf.page_sections[1]",
+				"rawHash": "e744143e85"
+			},
+			"fields": {
+				"media": [
+					{
+						"wpId": 52,
+						"kind": "image"
+					}
+				],
+				"body": [
+					{
+						"_type": "block",
+						"_key": "t_a",
+						"style": "h2",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "t_b",
+								"text": "Who we are",
+								"marks": []
+							}
+						],
+						"markDefs": []
+					},
+					{
+						"_type": "block",
+						"_key": "t_4",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "t_5",
+								"text": "We are a ",
+								"marks": []
+							},
+							{
+								"_type": "span",
+								"_key": "t_6",
+								"text": "small team",
+								"marks": [
+									"strong"
+								]
+							},
+							{
+								"_type": "span",
+								"_key": "t_7",
+								"text": ".",
+								"marks": []
+							}
+						],
+						"markDefs": []
+					},
+					{
+						"_type": "block",
+						"_key": "t_8",
+						"style": "normal",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "t_9",
+								"text": "Second paragraph.",
+								"marks": []
+							}
+						],
+						"markDefs": []
+					}
+				],
+				"buttons": [],
+				"mediaSide": "left",
+				"ratio": "1/2"
+			}
+		},
+		{
+			"type": "feature_grid",
+			"theme": {
+				"tone": "light"
+			},
+			"spacing": "normal",
+			"sourceRef": {
+				"adapter": "acf",
+				"path": "acf.page_sections[2]",
+				"rawHash": "35d943c6ba"
+			},
+			"fields": {
+				"heading": [
+					{
+						"_type": "block",
+						"_key": "t_i",
+						"style": "h2",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "t_j",
+								"text": "What we do",
+								"marks": []
+							}
+						],
+						"markDefs": []
+					}
+				],
+				"intro": [],
+				"items": [
+					{
+						"title": "Brand",
+						"body": [
+							{
+								"_type": "block",
+								"_key": "t_c",
+								"style": "normal",
+								"children": [
+									{
+										"_type": "span",
+										"_key": "t_d",
+										"text": "Identity and voice.",
+										"marks": []
+									}
+								],
+								"markDefs": []
+							}
+						],
+						"image": {
+							"wpId": 53,
+							"kind": "image"
+						},
+						"link": {
+							"label": "Read more",
+							"href": "/brand/",
+							"style": "primary"
+						}
+					},
+					{
+						"title": "Web",
+						"body": [
+							{
+								"_type": "block",
+								"_key": "t_e",
+								"style": "normal",
+								"children": [
+									{
+										"_type": "span",
+										"_key": "t_f",
+										"text": "Sites that load fast.",
+										"marks": []
+									}
+								],
+								"markDefs": []
+							}
+						]
+					},
+					{
+						"title": "Print",
+						"body": [
+							{
+								"_type": "block",
+								"_key": "t_g",
+								"style": "normal",
+								"children": [
+									{
+										"_type": "span",
+										"_key": "t_h",
+										"text": "Things you can hold.",
+										"marks": []
+									}
+								],
+								"markDefs": []
+							}
+						]
+					}
+				],
+				"columns": 3
+			}
+		},
+		{
+			"type": "faq",
+			"theme": {
+				"tone": "light"
+			},
+			"spacing": "normal",
+			"sourceRef": {
+				"adapter": "acf",
+				"path": "acf.page_sections[3]",
+				"rawHash": "5a7dd6dbc8"
+			},
+			"fields": {
+				"heading": [
+					{
+						"_type": "block",
+						"_key": "t_o",
+						"style": "h2",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "t_p",
+								"text": "Questions",
+								"marks": []
+							}
+						],
+						"markDefs": []
+					}
+				],
+				"intro": [],
+				"items": [
+					{
+						"question": "How long does a site take?",
+						"answer": [
+							{
+								"_type": "block",
+								"_key": "t_k",
+								"style": "normal",
+								"children": [
+									{
+										"_type": "span",
+										"_key": "t_l",
+										"text": "Six to ten weeks.",
+										"marks": []
+									}
+								],
+								"markDefs": []
+							}
+						]
+					},
+					{
+						"question": "Do you host?",
+						"answer": [
+							{
+								"_type": "block",
+								"_key": "t_m",
+								"style": "normal",
+								"children": [
+									{
+										"_type": "span",
+										"_key": "t_n",
+										"text": "Yes, on Cloudflare.",
+										"marks": []
+									}
+								],
+								"markDefs": []
+							}
+						]
+					}
+				],
+				"schema": true
+			}
+		},
+		{
+			"type": "testimonials",
+			"theme": {
+				"tone": "light"
+			},
+			"spacing": "normal",
+			"sourceRef": {
+				"adapter": "acf",
+				"path": "acf.page_sections[4]",
+				"rawHash": "21f63dbcd7"
+			},
+			"fields": {
+				"heading": [
+					{
+						"_type": "block",
+						"_key": "t_u",
+						"style": "h2",
+						"children": [
+							{
+								"_type": "span",
+								"_key": "t_v",
+								"text": "Kind words",
+								"marks": []
+							}
+						],
+						"markDefs": []
+					}
+				],
+				"items": [
+					{
+						"quote": "They listened.\n\nThen they delivered.",
+						"name": "A. Client",
+						"role": "Founder, Example Co"
+					}
+				]
+			}
+		}
+	],
+	"unmapped": [],
+	"layouts": [
+		{
+			"field": "page_sections",
+			"layout": "hero",
+			"label": "Hero",
+			"rows": 1,
+			"by": "kit",
+			"notCarried": [],
+			"as": "hero"
+		},
+		{
+			"field": "page_sections",
+			"layout": "text_image",
+			"label": "Text and image",
+			"rows": 1,
+			"by": "kit",
+			"notCarried": [],
+			"as": "media_text"
+		},
+		{
+			"field": "page_sections",
+			"layout": "features",
+			"label": "Features",
+			"rows": 1,
+			"by": "kit",
+			"notCarried": [],
+			"as": "feature_grid"
+		},
+		{
+			"field": "page_sections",
+			"layout": "faq",
+			"label": "FAQ",
+			"rows": 1,
+			"by": "kit",
+			"notCarried": [],
+			"as": "faq"
+		},
+		{
+			"field": "page_sections",
+			"layout": "testimonials",
+			"label": "Testimonials",
+			"rows": 1,
+			"by": "kit",
+			"notCarried": [],
+			"as": "testimonials"
+		}
+	],
+	"diagnostics": [],
+	"disabled": 1
+}

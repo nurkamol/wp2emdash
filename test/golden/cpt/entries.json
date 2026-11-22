@@ -350,11 +350,8 @@
 							}
 						}
 					],
-					"profile_link": {
-						"title": "Profile",
-						"url": "https://example.org/jane",
-						"target": ""
-					},
+					"profile_link": "https://example.org/jane",
+					"profile_link_label": "Profile",
 					"legacy_code": "JD-01"
 				},
 				"references": {

@@ -1,5 +1,7 @@
 # Custom post types and custom fields (CPT mapper)
 
+> ACF storage formats (verified in the plugin source), flexible content, ACF on pages/posts and options pages: `acf-findings.md` (2026-11-22).
+
 **Date:** 2026-11-21 · **EmDash:** 1.5.0 (installed source in the pilot project, read-only) · **Astro:** 7.4.12 · **EmDash Exporter:** 1.2.0 (plugin source read from a site backup) · Parity backlog items 8 (P0) and 14 (P1) (`docs/parity/wp-to-emdash.md`).
 
 ## What was built
@@ -35,10 +37,12 @@ Kinds are the plugin-neutral middle step (`fieldKind`); the full table per plugi
 | gallery | image, image_advanced, image_upload, plupload_image | file (images, multi) | `repeater` with one `image` sub-field |
 | — | file, file_advanced, file_upload, video | file (multi) | `json` (list of media) + warning: repeaters cannot hold files |
 | relationship, post_object | post | pick (post_type) | `reference` → the target type's collection (`multiple` for relationship/multi); several or unknown targets → `json` of WordPress ids + warning |
-| repeater (flat sub-fields) | group (clone) | — | `repeater` (sub-fields: string, text, url, number, boolean, datetime, select, image) |
+| repeater (flat sub-fields; link and group sub-fields flattened since 2026-11-22) | group (clone) | — | `repeater` (sub-fields: string, text, url, number, boolean, datetime, select, image; a link → `<sub>` url + `<sub>_label`, a group → `<group>_<sub>`) |
 | repeater with rich text, files, references or nested rows | — | — | `json` + warning |
 | group, clone (sub-fields known) | group | — | one field per sub-field, `<group>_<sub>` |
-| flexible_content, link, taxonomy, user, google_map | taxonomy, user, map, osm, key_value, fieldset_text | pick (taxonomy/user/other) | `json` + warning |
+| link (since 2026-11-22) | — | — | `url` + `<name>_label` string |
+| flexible_content (since 2026-11-22) | — | — | rows of mapped layouts → the entry's sections; other rows `json` (see `acf-findings.md`) |
+| taxonomy, user, google_map | taxonomy, user, map, osm, key_value, fieldset_text | pick (taxonomy/user/other) | `json` + warning |
 | password | password | password | not carried (secrets never leave WordPress; listed) |
 | message, tab, accordion | heading, divider, custom_html, button | heading, html | no value (layout) |
 

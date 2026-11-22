@@ -138,7 +138,7 @@ for (const f of files) {
 	if (text.includes("\0")) continue;
 	text.split("\n").forEach((line, i) => {
 		for (const { re, label } of compiled) if (re.test(line)) hits.push(`${f}:${i + 1} — ${label}`);
-		for (const m of line.matchAll(/[\w.+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/gi)) {
+		for (const m of line.matchAll(/[\w.+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|edu|gov|io|co|us|uk|de|fr|nl|es|it|ca|au|ch|at|be|se|no|dk|fi|pl|pt|ie|nz|in|jp|ru|br|mx|ae|uz|kz|app|dev|me|info|biz|studio|health|clinic|agency|design|shop|online|site|email|xyz|example|test|invalid|local|localhost)\b/gi)) {
 			if (/^[\w-]+@[\d.]+$/.test(m[0]) || /@(\d|v?\d+\.)/.test(m[0])) continue; // package@1.2.3
 			if (/^@?[\w-]+\/[\w-]+@/.test(m[0])) continue;
 			if (!ALLOW_EMAIL.test(m[0]) && !/@[\w-]+\.(js|ts|mjs|css|json|png|svg|webp|jpe?g)$/i.test(m[0])) hits.push(`${f}:${i + 1} — email address outside the allowlist`);

@@ -1,0 +1,1173 @@
+{
+	"$comment": "Synthetic WordPress site with Advanced Custom Fields: a page built from a flexible content field (field definitions as ACF's acf-field posts, values in post meta, one row disabled), a page with get_fields() values and an unmapped layout, a post with an ACF field, a custom post type `project` (repeater with link and group sub-fields, flexible content, group, link, true/false, checkbox, select, date/time pickers, image, file, relationship, post object) defined by an ACF export file, and an options page. Generated; no real data.",
+	"options": {
+		"blogname": "Example Agency",
+		"show_on_front": "page",
+		"page_on_front": 10,
+		"posts_per_page": 10,
+		"permalink_structure": "/%postname%/"
+	},
+	"pages": [
+		{
+			"id": 10,
+			"post_type": "page",
+			"status": "publish",
+			"slug": "home",
+			"title": "Home",
+			"content": "",
+			"excerpt": "",
+			"date_gmt": "2024-06-01 10:00:00",
+			"modified_gmt": "2024-06-02 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {
+				"page_sections": "a:6:{i:0;s:4:\"hero\";i:1;s:10:\"text_image\";i:2;s:8:\"features\";i:3;s:3:\"faq\";i:4;s:12:\"testimonials\";i:5;s:4:\"hero\";}",
+				"_page_sections": "field_sections",
+				"_page_sections_layout_meta": {
+					"disabled": [
+						5
+					],
+					"renamed": []
+				},
+				"page_sections_0_title": "Design that works",
+				"page_sections_0_subtitle": "A small studio for brave brands",
+				"page_sections_0_image": "51",
+				"page_sections_0_button": {
+					"title": "See our work",
+					"url": "https://acf.example.test/work/",
+					"target": ""
+				},
+				"page_sections_1_heading": "Who we are",
+				"page_sections_1_content": "<p>We are a <strong>small team</strong>.</p>\n<p>Second paragraph.</p>",
+				"page_sections_1_image": "52",
+				"page_sections_1_image_position": "left",
+				"page_sections_2_heading": "What we do",
+				"page_sections_2_cards": "3",
+				"page_sections_2_cards_0_title": "Brand",
+				"page_sections_2_cards_0_text": "Identity and voice.",
+				"page_sections_2_cards_0_icon": "53",
+				"page_sections_2_cards_0_link": "a:3:{s:5:\"title\";s:9:\"Read more\";s:3:\"url\";s:7:\"/brand/\";s:6:\"target\";s:0:\"\";}",
+				"page_sections_2_cards_1_title": "Web",
+				"page_sections_2_cards_1_text": "Sites that load fast.",
+				"page_sections_2_cards_2_title": "Print",
+				"page_sections_2_cards_2_text": "Things you can hold.",
+				"page_sections_3_heading": "Questions",
+				"page_sections_3_items": "2",
+				"page_sections_3_items_0_question": "How long does a site take?",
+				"page_sections_3_items_0_answer": "<p>Six to ten weeks.</p>",
+				"page_sections_3_items_1_question": "Do you host?",
+				"page_sections_3_items_1_answer": "<p>Yes, on Cloudflare.</p>",
+				"page_sections_4_heading": "Kind words",
+				"page_sections_4_quotes": "1",
+				"page_sections_4_quotes_0_quote": "They listened.\n\nThen they delivered.",
+				"page_sections_4_quotes_0_name": "A. Client",
+				"page_sections_4_quotes_0_role": "Founder, Example Co",
+				"page_sections_5_title": "Old hero (disabled)",
+				"hero_note": "Shown above the footer",
+				"_hero_note": "field_hero_note"
+			},
+			"permalink": "https://acf.example.test/"
+		},
+		{
+			"id": 11,
+			"post_type": "page",
+			"status": "publish",
+			"slug": "about",
+			"title": "About",
+			"content": "<!-- wp:paragraph --><p>About us.</p><!-- /wp:paragraph -->",
+			"excerpt": "",
+			"date_gmt": "2024-06-01 10:00:00",
+			"modified_gmt": "2024-06-02 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {},
+			"permalink": "https://acf.example.test/about/",
+			"acf": {
+				"page_sections": [
+					{
+						"acf_fc_layout": "text_block",
+						"content": "<p>Our story began in a garage.</p>"
+					},
+					{
+						"acf_fc_layout": "latest_work",
+						"projects": [
+							201
+						],
+						"style": "dark"
+					}
+				]
+			}
+		}
+	],
+	"posts": [
+		{
+			"id": 30,
+			"post_type": "post",
+			"status": "publish",
+			"slug": "hello",
+			"title": "Hello",
+			"content": "Hello from the studio.",
+			"excerpt": "",
+			"date_gmt": "2024-06-03 10:00:00",
+			"modified_gmt": "2024-06-03 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {
+				"category": [
+					{
+						"id": 1,
+						"name": "News",
+						"slug": "news"
+					}
+				]
+			},
+			"meta": {
+				"reading_time": "4",
+				"_reading_time": "field_reading_time"
+			},
+			"permalink": "https://acf.example.test/hello/"
+		}
+	],
+	"project": [
+		{
+			"id": 201,
+			"post_type": "project",
+			"status": "publish",
+			"slug": "harbor-rebrand",
+			"title": "Harbor rebrand",
+			"content": "",
+			"excerpt": "",
+			"date_gmt": "2024-06-05 10:00:00",
+			"modified_gmt": "2024-06-05 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {
+				"cover": "54",
+				"summary": "<p>A rebrand for a harbour.</p>",
+				"status": "live",
+				"featured": "1",
+				"services": "a:2:{i:0;s:5:\"brand\";i:1;s:3:\"web\";}",
+				"launched_at": "2024-06-01 09:30:00",
+				"opening_time": "09:00:00",
+				"website": "a:3:{s:5:\"title\";s:14:\"Visit the site\";s:3:\"url\";s:27:\"https://harbor.example.org/\";s:6:\"target\";s:6:\"_blank\";}",
+				"brochure": "60",
+				"lead_page": "11",
+				"related_projects": [
+					"202"
+				],
+				"contact": "",
+				"contact_email": "hi@harbor.example.org",
+				"contact_phone": "+1 555 0101",
+				"milestones": "2",
+				"milestones_0_title": "Kickoff",
+				"milestones_0_due": "20240105",
+				"milestones_0_link": {
+					"title": "Notes",
+					"url": "https://acf.example.test/notes/",
+					"target": ""
+				},
+				"milestones_0_details": "",
+				"milestones_0_details_budget": "1000",
+				"milestones_0_details_owner": "Sam",
+				"milestones_1_title": "Launch",
+				"milestones_1_due": "20240601",
+				"milestones_1_details_budget": "5000",
+				"milestones_1_details_owner": "Alex",
+				"blocks": "a:3:{i:0;s:13:\"gallery_block\";i:1;s:5:\"quote\";i:2;s:9:\"map_block\";}",
+				"blocks_0_images": [
+					"55",
+					"56"
+				],
+				"blocks_1_quote": "Best harbour ever.",
+				"blocks_1_author": "Harbour master",
+				"blocks_2_location": {
+					"address": "1 Pier Road, Example City",
+					"lat": "51.5",
+					"lng": "-0.1"
+				}
+			},
+			"permalink": "https://acf.example.test/project/harbor-rebrand/"
+		},
+		{
+			"id": 202,
+			"post_type": "project",
+			"status": "publish",
+			"slug": "city-site",
+			"title": "City site",
+			"content": "",
+			"excerpt": "",
+			"date_gmt": "2024-06-05 10:00:00",
+			"modified_gmt": "2024-06-05 10:00:00",
+			"parent": null,
+			"menu_order": 0,
+			"taxonomies": {},
+			"meta": {
+				"milestones": "1",
+				"milestones_0_title": "Discovery",
+				"milestones_0_due": "20250110",
+				"status": "planning"
+			},
+			"permalink": "https://acf.example.test/project/city-site/",
+			"acf": {
+				"cover": {
+					"type": "image",
+					"id": 57,
+					"url": "https://acf.example.test/wp-content/uploads/2024/06/city-cover.jpg",
+					"alt": "City skyline"
+				},
+				"status": "planning",
+				"featured": false,
+				"services": [
+					"web"
+				],
+				"website": {
+					"title": "",
+					"url": "https://city.example.org/",
+					"target": ""
+				},
+				"related_projects": [
+					201
+				],
+				"milestones": [
+					{
+						"title": "Discovery",
+						"due": "10/01/2025",
+						"link": null,
+						"details": {
+							"budget": "",
+							"owner": ""
+						}
+					}
+				],
+				"blocks": [
+					{
+						"acf_fc_layout": "quote",
+						"quote": "Fast and calm.",
+						"author": "City CTO"
+					},
+					{
+						"acf_fc_layout": "poll_widget",
+						"question": "Which colour?"
+					}
+				]
+			}
+		}
+	],
+	"acfFieldGroups": [
+		{
+			"id": 900,
+			"post_type": "acf-field-group",
+			"status": "publish",
+			"slug": "group_page_sections",
+			"title": "Page sections",
+			"content": "a:2:{s:8:\"location\";a:1:{i:0;a:1:{i:0;a:3:{s:5:\"param\";s:9:\"post_type\";s:8:\"operator\";s:2:\"==\";s:5:\"value\";s:4:\"page\";}}}s:8:\"position\";s:6:\"normal\";}",
+			"excerpt": "page-sections",
+			"parent": null,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 910,
+			"post_type": "acf-field-group",
+			"status": "publish",
+			"slug": "group_home_extras",
+			"title": "Home extras",
+			"content": "a:1:{s:8:\"location\";a:1:{i:0;a:1:{i:0;a:3:{s:5:\"param\";s:9:\"page_type\";s:8:\"operator\";s:2:\"==\";s:5:\"value\";s:10:\"front_page\";}}}}",
+			"excerpt": "home-extras",
+			"parent": null,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		}
+	],
+	"acfFields": [
+		{
+			"id": 901,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_sections",
+			"title": "Page sections",
+			"excerpt": "page_sections",
+			"content": "a:3:{s:4:\"type\";s:16:\"flexible_content\";s:7:\"layouts\";a:7:{s:11:\"layout_hero\";a:4:{s:3:\"key\";s:11:\"layout_hero\";s:4:\"name\";s:4:\"hero\";s:5:\"label\";s:4:\"Hero\";s:7:\"display\";s:5:\"block\";}s:9:\"layout_ti\";a:4:{s:3:\"key\";s:9:\"layout_ti\";s:4:\"name\";s:10:\"text_image\";s:5:\"label\";s:14:\"Text and image\";s:7:\"display\";s:5:\"block\";}s:11:\"layout_feat\";a:4:{s:3:\"key\";s:11:\"layout_feat\";s:4:\"name\";s:8:\"features\";s:5:\"label\";s:8:\"Features\";s:7:\"display\";s:5:\"block\";}s:10:\"layout_faq\";a:4:{s:3:\"key\";s:10:\"layout_faq\";s:4:\"name\";s:3:\"faq\";s:5:\"label\";s:3:\"FAQ\";s:7:\"display\";s:5:\"block\";}s:10:\"layout_tst\";a:4:{s:3:\"key\";s:10:\"layout_tst\";s:4:\"name\";s:12:\"testimonials\";s:5:\"label\";s:12:\"Testimonials\";s:7:\"display\";s:5:\"block\";}s:11:\"layout_text\";a:4:{s:3:\"key\";s:11:\"layout_text\";s:4:\"name\";s:10:\"text_block\";s:5:\"label\";s:4:\"Text\";s:7:\"display\";s:5:\"block\";}s:11:\"layout_work\";a:4:{s:3:\"key\";s:11:\"layout_work\";s:4:\"name\";s:11:\"latest_work\";s:5:\"label\";s:11:\"Latest work\";s:7:\"display\";s:5:\"block\";}}s:12:\"button_label\";s:11:\"Add section\";}",
+			"parent": 900,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 920,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_hero_title",
+			"title": "Title",
+			"excerpt": "title",
+			"content": "a:2:{s:4:\"type\";s:4:\"text\";s:13:\"parent_layout\";s:11:\"layout_hero\";}",
+			"parent": 901,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 921,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_hero_sub",
+			"title": "Subtitle",
+			"excerpt": "subtitle",
+			"content": "a:2:{s:4:\"type\";s:4:\"text\";s:13:\"parent_layout\";s:11:\"layout_hero\";}",
+			"parent": 901,
+			"menu_order": 1,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 922,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_hero_img",
+			"title": "Image",
+			"excerpt": "image",
+			"content": "a:3:{s:4:\"type\";s:5:\"image\";s:13:\"return_format\";s:5:\"array\";s:13:\"parent_layout\";s:11:\"layout_hero\";}",
+			"parent": 901,
+			"menu_order": 2,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 923,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_hero_btn",
+			"title": "Button",
+			"excerpt": "button",
+			"content": "a:2:{s:4:\"type\";s:4:\"link\";s:13:\"parent_layout\";s:11:\"layout_hero\";}",
+			"parent": 901,
+			"menu_order": 3,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 924,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_ti_heading",
+			"title": "Heading",
+			"excerpt": "heading",
+			"content": "a:2:{s:4:\"type\";s:4:\"text\";s:13:\"parent_layout\";s:9:\"layout_ti\";}",
+			"parent": 901,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 925,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_ti_content",
+			"title": "Content",
+			"excerpt": "content",
+			"content": "a:2:{s:4:\"type\";s:7:\"wysiwyg\";s:13:\"parent_layout\";s:9:\"layout_ti\";}",
+			"parent": 901,
+			"menu_order": 1,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 926,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_ti_image",
+			"title": "Image",
+			"excerpt": "image",
+			"content": "a:2:{s:4:\"type\";s:5:\"image\";s:13:\"parent_layout\";s:9:\"layout_ti\";}",
+			"parent": 901,
+			"menu_order": 2,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 927,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_ti_pos",
+			"title": "Image position",
+			"excerpt": "image_position",
+			"content": "a:3:{s:4:\"type\";s:6:\"select\";s:7:\"choices\";a:2:{s:4:\"left\";s:4:\"Left\";s:5:\"right\";s:5:\"Right\";}s:13:\"parent_layout\";s:9:\"layout_ti\";}",
+			"parent": 901,
+			"menu_order": 3,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 928,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_feat_heading",
+			"title": "Heading",
+			"excerpt": "heading",
+			"content": "a:2:{s:4:\"type\";s:4:\"text\";s:13:\"parent_layout\";s:11:\"layout_feat\";}",
+			"parent": 901,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 929,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_feat_cards",
+			"title": "Cards",
+			"excerpt": "cards",
+			"content": "a:2:{s:4:\"type\";s:8:\"repeater\";s:13:\"parent_layout\";s:11:\"layout_feat\";}",
+			"parent": 901,
+			"menu_order": 1,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 930,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_card_title",
+			"title": "Title",
+			"excerpt": "title",
+			"content": "a:1:{s:4:\"type\";s:4:\"text\";}",
+			"parent": 929,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 931,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_card_text",
+			"title": "Text",
+			"excerpt": "text",
+			"content": "a:1:{s:4:\"type\";s:8:\"textarea\";}",
+			"parent": 929,
+			"menu_order": 1,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 932,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_card_icon",
+			"title": "Icon",
+			"excerpt": "icon",
+			"content": "a:1:{s:4:\"type\";s:5:\"image\";}",
+			"parent": 929,
+			"menu_order": 2,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 933,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_card_link",
+			"title": "Link",
+			"excerpt": "link",
+			"content": "a:1:{s:4:\"type\";s:4:\"link\";}",
+			"parent": 929,
+			"menu_order": 3,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 934,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_faq_heading",
+			"title": "Heading",
+			"excerpt": "heading",
+			"content": "a:2:{s:4:\"type\";s:4:\"text\";s:13:\"parent_layout\";s:10:\"layout_faq\";}",
+			"parent": 901,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 935,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_faq_items",
+			"title": "Questions",
+			"excerpt": "items",
+			"content": "a:2:{s:4:\"type\";s:8:\"repeater\";s:13:\"parent_layout\";s:10:\"layout_faq\";}",
+			"parent": 901,
+			"menu_order": 1,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 936,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_faq_q",
+			"title": "Question",
+			"excerpt": "question",
+			"content": "a:1:{s:4:\"type\";s:4:\"text\";}",
+			"parent": 935,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 937,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_faq_a",
+			"title": "Answer",
+			"excerpt": "answer",
+			"content": "a:1:{s:4:\"type\";s:7:\"wysiwyg\";}",
+			"parent": 935,
+			"menu_order": 1,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 938,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_tst_heading",
+			"title": "Heading",
+			"excerpt": "heading",
+			"content": "a:2:{s:4:\"type\";s:4:\"text\";s:13:\"parent_layout\";s:10:\"layout_tst\";}",
+			"parent": 901,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 939,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_tst_quotes",
+			"title": "Quotes",
+			"excerpt": "quotes",
+			"content": "a:2:{s:4:\"type\";s:8:\"repeater\";s:13:\"parent_layout\";s:10:\"layout_tst\";}",
+			"parent": 901,
+			"menu_order": 1,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 940,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_tst_quote",
+			"title": "Quote",
+			"excerpt": "quote",
+			"content": "a:1:{s:4:\"type\";s:8:\"textarea\";}",
+			"parent": 939,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 941,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_tst_name",
+			"title": "Name",
+			"excerpt": "name",
+			"content": "a:1:{s:4:\"type\";s:4:\"text\";}",
+			"parent": 939,
+			"menu_order": 1,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 942,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_tst_role",
+			"title": "Role",
+			"excerpt": "role",
+			"content": "a:1:{s:4:\"type\";s:4:\"text\";}",
+			"parent": 939,
+			"menu_order": 2,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 943,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_text_content",
+			"title": "Content",
+			"excerpt": "content",
+			"content": "a:2:{s:4:\"type\";s:7:\"wysiwyg\";s:13:\"parent_layout\";s:11:\"layout_text\";}",
+			"parent": 901,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 944,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_work_projects",
+			"title": "Projects",
+			"excerpt": "projects",
+			"content": "a:3:{s:4:\"type\";s:12:\"relationship\";s:9:\"post_type\";a:1:{i:0;s:7:\"project\";}s:13:\"parent_layout\";s:11:\"layout_work\";}",
+			"parent": 901,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 945,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_work_style",
+			"title": "Style",
+			"excerpt": "style",
+			"content": "a:3:{s:4:\"type\";s:6:\"select\";s:7:\"choices\";a:2:{s:5:\"light\";s:5:\"Light\";s:4:\"dark\";s:4:\"Dark\";}s:13:\"parent_layout\";s:11:\"layout_work\";}",
+			"parent": 901,
+			"menu_order": 1,
+			"meta": {},
+			"taxonomies": {}
+		},
+		{
+			"id": 946,
+			"post_type": "acf-field",
+			"status": "publish",
+			"slug": "field_hero_note",
+			"title": "Note above the footer",
+			"excerpt": "hero_note",
+			"content": "a:1:{s:4:\"type\";s:4:\"text\";}",
+			"parent": 910,
+			"menu_order": 0,
+			"meta": {},
+			"taxonomies": {}
+		}
+	],
+	"taxonomies": [
+		{
+			"name": "category",
+			"label": "Categories",
+			"label_singular": "Category",
+			"hierarchical": true,
+			"post_types": [
+				"post"
+			],
+			"terms": [
+				{
+					"id": 1,
+					"name": "News",
+					"slug": "news",
+					"description": "",
+					"parent": null,
+					"count": 1
+				}
+			]
+		}
+	],
+	"analyze": {
+		"post_types": [
+			{
+				"name": "page",
+				"label": "Pages",
+				"label_singular": "Page",
+				"total": 2,
+				"supports": {
+					"title": true,
+					"editor": true
+				},
+				"taxonomies": [],
+				"hierarchical": true,
+				"has_archive": false,
+				"custom_fields": []
+			},
+			{
+				"name": "post",
+				"label": "Posts",
+				"label_singular": "Post",
+				"total": 1,
+				"supports": {
+					"title": true,
+					"editor": true
+				},
+				"taxonomies": [
+					"category"
+				],
+				"hierarchical": false,
+				"has_archive": false,
+				"custom_fields": []
+			},
+			{
+				"name": "project",
+				"label": "Projects",
+				"label_singular": "Project",
+				"total": 2,
+				"supports": {
+					"title": true,
+					"editor": true
+				},
+				"taxonomies": [],
+				"hierarchical": false,
+				"has_archive": true,
+				"custom_fields": []
+			}
+		],
+		"acf": [],
+		"authors": [],
+		"attachments": 8
+	},
+	"types": {
+		"page": {
+			"slug": "page",
+			"name": "Pages",
+			"rest_base": "pages",
+			"hierarchical": true,
+			"has_archive": false,
+			"viewable": true
+		},
+		"post": {
+			"slug": "post",
+			"name": "Posts",
+			"rest_base": "posts",
+			"hierarchical": false,
+			"has_archive": false,
+			"viewable": true
+		},
+		"project": {
+			"slug": "project",
+			"name": "Projects",
+			"rest_base": "project",
+			"hierarchical": false,
+			"has_archive": true,
+			"viewable": true
+		}
+	},
+	"fieldDefinitions": {
+		"acf-project.json": {
+			"provider": "acf",
+			"file": "acf-export-2024-06-01.json",
+			"data": [
+				{
+					"key": "group_project",
+					"title": "Project",
+					"location": [
+						[
+							{
+								"param": "post_type",
+								"operator": "==",
+								"value": "project"
+							}
+						]
+					],
+					"fields": [
+						{
+							"key": "field_cover",
+							"label": "Cover",
+							"name": "cover",
+							"type": "image"
+						},
+						{
+							"key": "field_summary",
+							"label": "Summary",
+							"name": "summary",
+							"type": "wysiwyg"
+						},
+						{
+							"key": "field_status",
+							"label": "Status",
+							"name": "status",
+							"type": "select",
+							"choices": {
+								"planning": "Planning",
+								"live": "Live"
+							}
+						},
+						{
+							"key": "field_featured",
+							"label": "Featured",
+							"name": "featured",
+							"type": "true_false"
+						},
+						{
+							"key": "field_services",
+							"label": "Services",
+							"name": "services",
+							"type": "checkbox",
+							"choices": {
+								"brand": "Brand",
+								"web": "Web",
+								"print": "Print"
+							}
+						},
+						{
+							"key": "field_launched",
+							"label": "Launched",
+							"name": "launched_at",
+							"type": "date_time_picker",
+							"return_format": "d/m/Y g:i a"
+						},
+						{
+							"key": "field_opening",
+							"label": "Office opens",
+							"name": "opening_time",
+							"type": "time_picker"
+						},
+						{
+							"key": "field_website",
+							"label": "Website",
+							"name": "website",
+							"type": "link"
+						},
+						{
+							"key": "field_brochure",
+							"label": "Brochure",
+							"name": "brochure",
+							"type": "file"
+						},
+						{
+							"key": "field_lead_page",
+							"label": "Landing page",
+							"name": "lead_page",
+							"type": "post_object",
+							"post_type": [
+								"page"
+							]
+						},
+						{
+							"key": "field_related",
+							"label": "Related projects",
+							"name": "related_projects",
+							"type": "relationship",
+							"post_type": [
+								"project"
+							]
+						},
+						{
+							"key": "field_contact",
+							"label": "Contact",
+							"name": "contact",
+							"type": "group",
+							"sub_fields": [
+								{
+									"key": "field_c_email",
+									"label": "E-mail",
+									"name": "email",
+									"type": "email"
+								},
+								{
+									"key": "field_c_phone",
+									"label": "Phone",
+									"name": "phone",
+									"type": "text"
+								}
+							]
+						},
+						{
+							"key": "field_milestones",
+							"label": "Milestones",
+							"name": "milestones",
+							"type": "repeater",
+							"sub_fields": [
+								{
+									"key": "field_m_title",
+									"label": "Title",
+									"name": "title",
+									"type": "text"
+								},
+								{
+									"key": "field_m_due",
+									"label": "Due",
+									"name": "due",
+									"type": "date_picker",
+									"return_format": "d/m/Y"
+								},
+								{
+									"key": "field_m_link",
+									"label": "Link",
+									"name": "link",
+									"type": "link"
+								},
+								{
+									"key": "field_m_details",
+									"label": "Details",
+									"name": "details",
+									"type": "group",
+									"sub_fields": [
+										{
+											"key": "field_m_budget",
+											"label": "Budget",
+											"name": "budget",
+											"type": "number"
+										},
+										{
+											"key": "field_m_owner",
+											"label": "Owner",
+											"name": "owner",
+											"type": "text"
+										}
+									]
+								}
+							]
+						},
+						{
+							"key": "field_blocks",
+							"label": "Blocks",
+							"name": "blocks",
+							"type": "flexible_content",
+							"layouts": {
+								"layout_gal": {
+									"key": "layout_gal",
+									"name": "gallery_block",
+									"label": "Gallery",
+									"sub_fields": [
+										{
+											"key": "field_b_images",
+											"label": "Images",
+											"name": "images",
+											"type": "gallery"
+										}
+									]
+								},
+								"layout_quote": {
+									"key": "layout_quote",
+									"name": "quote",
+									"label": "Quote",
+									"sub_fields": [
+										{
+											"key": "field_b_quote",
+											"label": "Quote",
+											"name": "quote",
+											"type": "textarea"
+										},
+										{
+											"key": "field_b_author",
+											"label": "Author",
+											"name": "author",
+											"type": "text"
+										}
+									]
+								},
+								"layout_map": {
+									"key": "layout_map",
+									"name": "map_block",
+									"label": "Map",
+									"sub_fields": [
+										{
+											"key": "field_b_loc",
+											"label": "Location",
+											"name": "location",
+											"type": "google_map"
+										}
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"key": "group_site_settings",
+					"title": "Site settings",
+					"location": [
+						[
+							{
+								"param": "options_page",
+								"operator": "==",
+								"value": "site-settings"
+							}
+						]
+					],
+					"fields": [
+						{
+							"key": "field_o_phone",
+							"label": "Phone",
+							"name": "phone",
+							"type": "text"
+						},
+						{
+							"key": "field_o_footer",
+							"label": "Footer text",
+							"name": "footer_text",
+							"type": "textarea"
+						},
+						{
+							"key": "field_o_social",
+							"label": "Social links",
+							"name": "social_links",
+							"type": "repeater",
+							"sub_fields": [
+								{
+									"key": "field_o_net",
+									"label": "Network",
+									"name": "network",
+									"type": "select",
+									"choices": {
+										"instagram": "Instagram",
+										"linkedin": "LinkedIn"
+									}
+								},
+								{
+									"key": "field_o_url",
+									"label": "URL",
+									"name": "url",
+									"type": "url"
+								}
+							]
+						},
+						{
+							"key": "field_o_smtp",
+							"label": "SMTP password",
+							"name": "smtp_password",
+							"type": "password"
+						}
+					]
+				},
+				{
+					"key": "group_post",
+					"title": "Post extras",
+					"location": [
+						[
+							{
+								"param": "post_type",
+								"operator": "==",
+								"value": "post"
+							}
+						]
+					],
+					"fields": [
+						{
+							"key": "field_reading_time",
+							"label": "Reading time",
+							"name": "reading_time",
+							"type": "number"
+						}
+					]
+				}
+			]
+		}
+	},
+	"acfOptions": {
+		"values": {
+			"options_phone": "+1 555 0100",
+			"options_footer_text": "Made in Example City",
+			"options_social_links": "2",
+			"options_social_links_0_network": "instagram",
+			"options_social_links_0_url": "https://instagram.com/example",
+			"options_social_links_1_network": "linkedin",
+			"options_social_links_1_url": "https://linkedin.com/company/example",
+			"options_legacy_banner": "Summer sale"
+		}
+	},
+	"media": [
+		{
+			"id": 51,
+			"url": "https://acf.example.test/wp-content/uploads/2024/06/hero.jpg",
+			"file": "2024/06/hero.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 52,
+			"url": "https://acf.example.test/wp-content/uploads/2024/06/team-photo.jpg",
+			"file": "2024/06/team-photo.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 53,
+			"url": "https://acf.example.test/wp-content/uploads/2024/06/icon-brand.png",
+			"file": "2024/06/icon-brand.png",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 54,
+			"url": "https://acf.example.test/wp-content/uploads/2024/06/harbor-cover.jpg",
+			"file": "2024/06/harbor-cover.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 55,
+			"url": "https://acf.example.test/wp-content/uploads/2024/06/harbor-1.jpg",
+			"file": "2024/06/harbor-1.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 56,
+			"url": "https://acf.example.test/wp-content/uploads/2024/06/harbor-2.jpg",
+			"file": "2024/06/harbor-2.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 57,
+			"url": "https://acf.example.test/wp-content/uploads/2024/06/city-cover.jpg",
+			"file": "2024/06/city-cover.jpg",
+			"inLibrary": true,
+			"referencedBy": []
+		},
+		{
+			"id": 60,
+			"url": "https://acf.example.test/wp-content/uploads/2024/06/harbor-brochure.pdf",
+			"file": "2024/06/harbor-brochure.pdf",
+			"inLibrary": true,
+			"referencedBy": []
+		}
+	],
+	"urls": [
+		{
+			"url": "https://acf.example.test/",
+			"path": "/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 10,
+				"type": "page"
+			}
+		},
+		{
+			"url": "https://acf.example.test/about/",
+			"path": "/about/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 11,
+				"type": "page"
+			}
+		},
+		{
+			"url": "https://acf.example.test/project/harbor-rebrand/",
+			"path": "/project/harbor-rebrand/",
+			"status": 200,
+			"kind": "page",
+			"wp": {
+				"id": 201,
+				"type": "project"
+			}
+		}
+	],
+	"discovery": {
+		"items": [
+			{
+				"id": 201,
+				"type": "project",
+				"link": "https://acf.example.test/project/harbor-rebrand/"
+			},
+			{
+				"id": 202,
+				"type": "project",
+				"link": "https://acf.example.test/project/city-site/"
+			}
+		],
+		"terms": [],
+		"authors": [],
+		"media": []
+	}
+}
