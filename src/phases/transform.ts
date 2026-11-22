@@ -565,7 +565,9 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 	}
 	const usedTaxonomies = new Set(blogPosts.flatMap((p) => Object.entries(p.taxonomies ?? {}).filter(([, t]) => t.length).map(([k]) => k)));
 	const wpTaxonomies = readJson<WpTaxonomy[]>(join(exp, "taxonomies.json")) ?? [];
-	const termBases = (tax: string) => baseOf((discovery?.terms ?? []).filter((t) => t.taxonomy === tax));
+	// Archive bases from the live term links; a translated term's link has its language directory in front (/fr/category/…).
+	const langDirs = ml ? ml.plan.languages.map((l) => l.prefix).filter(Boolean) : [];
+	const termBases = (tax: string) => baseOf((discovery?.terms ?? []).filter((t) => t.taxonomy === tax), langDirs);
 	const blogTax = blogOn ? blogTaxonomies({ taxonomies: wpTaxonomies, usedByPosts: usedTaxonomies, internal: INTERNAL_TAXONOMIES, bases: Object.fromEntries(wpTaxonomies.map((t) => [t.name, termBases(t.name)])) }) : { taxonomies: [], notMigrated: [] };
 	for (const n of blogTax.notMigrated) notTransformed.push(`taxonomy ${n}`);
 	const taxName = new Map(blogTax.taxonomies.map((t) => [t.wpName, t.name]));
@@ -632,7 +634,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 				permalink: permalinkStructure ?? "",
 				taxonomies: blogTax.taxonomies,
 				bylines: blogBylines,
-				authorBase: baseOf(discovery?.authors ?? []) ?? "/author/",
+				authorBase: baseOf(discovery?.authors ?? [], langDirs) ?? "/author/",
 			}
 		: undefined;
 	if (blogPlan) write(join(paths.ir, "blog.json"), blogPlan);
@@ -1264,6 +1266,7 @@ export async function runTransform({ config, paths, reporter }: PhaseContext): P
 		publishedPosts: posts.filter((p) => p.status === "publish").length,
 		...(Number(options.page_for_posts) > 0 ? { blogPageId: Number(options.page_for_posts) } : {}),
 		...(discovery ? { discovery } : {}),
+		...(langDirs.length ? { langDirs } : {}),
 		overrides,
 		...(commentsPlan?.migrate && commentsPlan.counts.imported ? { comments: true } : {}),
 		trailingSlash: config.target.trailingSlash === "preserve" ? (pubPages.every((r) => r.doc.route?.path === "/" || r.doc.route?.path.endsWith("/")) ? "always" : "never") : config.target.trailingSlash,

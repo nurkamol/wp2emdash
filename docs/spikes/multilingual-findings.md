@@ -99,3 +99,38 @@ The group field was first named `translation_group`. That is a **system column**
 (migration `019_i18n`; the kit's `RESERVED_SLUGS` already listed it), so a real setup failed with
 `D1_ERROR: duplicate column name: translation_group` — the synthetic fixtures never created a database. Renamed to
 `lang_group`; a test now checks both language fields against `RESERVED_SLUGS`. No delivered site used it.
+
+## Every French page 404 (2026-11-22, WordPress end-to-end test)
+
+Symptom: load created the French pages and posts without errors, then its `render` check got 404 for every `/fr/…`
+address (`[404] (rewrite) /fr/a-propos/` in the dev server log); English pages and products rendered.
+
+**EmDash is not the cause — verified on EmDash 1.5.0 / Astro 7.4.12** (a copy of `spikes/m0-site`, `astro dev` with
+local D1, `POST /_emdash/api/setup/dev-bypass?content=0`, fields and entries created through the kit's `EmDashApi`
+with `devBypass`, a `[...slug].astro` printing what `getEmDashEntry("pages", decodeSlug(slug))` returns):
+
+| Entry (published) | GET | Result |
+|---|---|---|
+| slug `fr/a-propos`, `{ lang: "fr", lang_group: "g1" }` | `/fr/a-propos/` and `/fr/a-propos` | 200, found, `locale: "en"`, `lang: "fr"` |
+| slug `about`, `{ lang: "en", lang_group: "g1" }` | `/about/` | 200, found |
+| slug `fr/plain`, no language fields | `/fr/plain/` | 200, found |
+| slug `xx/a-propos`, `{ lang: "fr" }` | `/xx/a-propos/` | 200, found |
+
+- `lang` / `lang_group` are plain columns (`ec_pages.lang`); no collision with the `locale` system column or reserved keys.
+- `Astro.currentLocale` is `undefined` without an Astro `i18n` block (`FetchState.computeCurrentLocale` returns early
+  when `manifest.i18n` is unset), so EmDash's request context has no locale and the slug lookup is unscoped
+  (`loader.ts` `loadEntry`: `c.slug = ? OR c.id = ?`).
+- A slug whose first segment looks like a language is stored and resolved as written; entries are created in the
+  default locale `en` and published by `POST …/publish`.
+
+**Cause: the blog's category base was `/fr/`.** The generated `site.config.json` of the failing run had
+`blog.archives[category].base = "/fr/"` (and `wpUrls.bases.category = "/fr/"`). Bases come from the live term links
+(`baseOf`, `src/transform/wp-urls.ts`: the first path segment before the term slug, most common wins). Polylang links a
+French term as `/fr/category/actualites/`; the test site has two French and two English categories, the French ones
+listed first, so `/fr/` won the tie. The starter's `blogRoute` runs before the page lookup and took `/fr/a-propos/` for
+the archive of a category `a-propos`, found no such term and rewrote to 404 — for every French page and post.
+
+**Fix:** `baseOf(items, langDirs)` leaves a language directory (the plan's non-empty prefixes) out of each link before
+reading the base; transform passes it for the blog taxonomies, the author base and the WordPress-URL rules. Sites
+without languages pass none, so their bases are unchanged. Translated term archives (`/fr/category/actualites/`) stay
+as listed under "Not carried".
