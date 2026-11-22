@@ -6,6 +6,15 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **App features catalogue** (`src/audit/app-features.ts`), one list shared by `audit` and `estimate`: online courses (LearnDash, LifterLMS, Tutor LMS, Sensei LMS, MasterStudy LMS), memberships (MemberPress, Paid Memberships Pro, Restrict Content Pro, WooCommerce Memberships and Subscriptions, Ultimate Member, s2Member), cart and checkout (WooCommerce — catalogue mode by owner decision —, Easy Digital Downloads, SureCart), bookings (Amelia, Bookly, WooCommerce Bookings, BirchPress, Simply Schedule Appointments), ticketed events (Event Tickets, Event Espresso; The Events Calendar alone is content and is not flagged), forums and communities (bbPress, BuddyPress, BuddyBoss) and visitor accounts (Profile Builder; a password field on a public page, except WordPress's protected-post form and WooCommerce's account forms). Each entry: category, detection signals, what the kit does (out of scope / embed a hosted service / catalogue mode), a suggested path (a subdomain or a hosted service category, no vendors) and an effort note. Detected from public HTML only — plugin asset folders, body classes, class/id tokens, custom elements, generator tags and REST namespaces the discovery already read; page text is never matched and addresses (`/courses/`, `/cart/`) are supporting evidence only, so a theme that talks about courses or bookings does not count.
+- **Audit:** `reports/audit/app-features.md` and an "App features" section in `audit.md` (evidence, pages, suggested path); `snapshot/app-features.json`. The `no-out-of-scope` check now covers the whole catalogue and fails with a message naming each feature, its evidence and the `wp2emdash accept <slug> audit --reason "…" --by "…"` step; nothing is accepted automatically. WooCommerce alone passes once `shop` is set, as before.
+- **Estimate:** a blocker finding per detected app feature (`app-<id>`, excluded from the hours) and an effort line for linking to it or embedding the hosted service (`effort.perAppFeature`, 1–3 h). Sampled pages are scanned too, not only the plugin list.
+
+### Changed
+- Booking plugins (WooCommerce Bookings, Amelia, Bookly …), Event Tickets, Event Espresso, s2Member, BuddyBoss, Easy Digital Downloads and SureCart now stop the audit gate like memberships and courses already did (they showed as "review" or unknown plugins before). The plugin matrix takes these plugins' action and text from the catalogue.
+- Estimate: the `lms`, `memberships` and community `user-accounts` findings are replaced by one `app-<id>` finding per feature; a generic front-end login is a blocker, account links alone stay a decision.
+
 ## [1.9.0] — 2026-11-22
 
 ### Added

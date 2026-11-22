@@ -6,6 +6,7 @@
  * Adapter status is the kit's own record (docs/PLAN.md §6–§7h and §13 status, docs/spikes/*-findings.md). Update
  * ADAPTERS when an adapter runs on its first real site.
  */
+import { type AppCategory, type AppDetection, categoryLabel, detectAppFeatures } from "../audit/app-features.js";
 import { kitConfigSchema } from "../config/schema.js";
 import type { AdapterId } from "./rules.js";
 import type { AdapterUse, Detections, Finding } from "./types.js";
@@ -50,6 +51,21 @@ const SHOP_MAX_PRODUCTS = kitConfigSchema.shape.shop.unwrap().shape.maxProducts.
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+const APP_IMPACT: Record<AppCategory, string> = {
+	lms: "Courses, lessons, enrolments and progress tracking are application logic, not website content.",
+	membership: "Members-only pages need logins, payments and access rules, which sites built by the kit do not have.",
+	commerce: "A cart, checkout and customer accounts are a store, not website content.",
+	booking: "Appointments, staff schedules and payments run inside the plugin on WordPress, which the new site replaces.",
+	events: "Ticket sales, orders and attendee lists run inside the plugin on WordPress, which the new site replaces.",
+	community: "Member profiles, forums and activity need visitor accounts, which sites built by the kit do not have.",
+	accounts: "Visitor sign-up, profiles and login are not part of a migrated site (only editors sign in, with passkeys).",
+};
+
+/** The estimate's app features: detected from the sampled pages, else from the plugin list and REST namespaces. */
+export function appFeaturesOf(d: Detections): AppDetection[] {
+	return d.appFeatures ?? detectAppFeatures({ pages: [], plugins: d.plugins, restNamespaces: d.restNamespaces });
+}
+
 /** All findings, most serious first. */
 export function findingsFor(d: Detections, adapters: AdapterUse[]): Finding[] {
 	const out: Finding[] = [];
@@ -62,21 +78,25 @@ export function findingsFor(d: Detections, adapters: AdapterUse[]): Finding[] {
 		out.push({ id: "home-unreachable", level: "blocker", title: "The home page did not load", what: `The home page answered ${d.homeStatus === 0 ? "with a network error" : `HTTP ${d.homeStatus}`}.`, impact: "The estimate below is based on very little and may be far off.", handling: "Check the address (or a firewall blocking automated requests) and run the estimate again." });
 	}
 
-	// --- Out of scope (PLAN §9): blockers, not estimated.
-	const lms = has(/^(sfwd-lms|learndash|lifterlms|tutor|sensei-lms)$/);
-	if (lms.length) out.push({ id: "lms", level: "blocker", title: "Online courses (LMS)", what: `${lms.map((p) => p.name).join(", ")} found on the site.`, impact: "Courses, lessons, progress tracking and enrolments are application logic, not website content.", handling: "Out of scope for the kit (PLAN §9). The marketing pages can migrate; the course platform stays on WordPress or moves to a dedicated LMS.", ref: "docs/PLAN.md §9", excluded: true });
-	const members = has(/^(memberpress|paid-memberships-pro|restrict-content-pro|restrict-content|woocommerce-memberships)$/);
-	if (members.length) out.push({ id: "memberships", level: "blocker", title: "Memberships or paywalled content", what: `${members.map((p) => p.name).join(", ")} found on the site.`, impact: "Members-only pages need logins, subscriptions and access rules, which EmDash sites built by the kit do not have.", handling: "Out of scope (PLAN §9): keep the membership area on its current platform or a membership service; public pages migrate.", ref: "docs/PLAN.md §9", excluded: true });
-	const community = has(/^(buddypress|bbpress|ultimate-member|profile-builder)$/);
-	if (community.length || d.accounts.loginForms > 0 || d.accounts.accountLinks.length > 0) {
-		const what = [community.length ? `${community.map((p) => p.name).join(", ")} found` : "", d.accounts.loginForms ? `${plural(d.accounts.loginForms, "page")} with a password field` : "", d.accounts.accountLinks.length ? `links to ${d.accounts.accountLinks.slice(0, 3).join(", ")}` : ""].filter(Boolean).join("; ");
-		const shopOnly = !community.length && !d.accounts.loginForms && !!d.shop && d.accounts.accountLinks.every((l) => /my-account|cart|checkout/.test(l));
-		if (!shopOnly) out.push({ id: "user-accounts", level: community.length ? "blocker" : "decision", title: "Visitor accounts or front-end login", what: `${what}.`, impact: "Visitor sign-up, profiles and login are not part of a migrated site (only editors sign in, with passkeys).", handling: community.length ? "Out of scope (PLAN §9): the community area stays where it is." : "Confirm with the owner what the login is for; if it is only the WordPress admin link, nothing to do.", ref: "docs/PLAN.md §9", ...(community.length ? { excluded: true } : {}) });
+	// --- App features (PLAN §9; one catalogue with the audit, src/audit/app-features.ts): a blocker each, not estimated.
+	const apps = appFeaturesOf(d);
+	const woo = d.plugins.some((p) => p.slug === "woocommerce" || p.slug === "wc") || apps.some((a) => a.id === "woocommerce");
+	const subsShop = woo && (!!d.shop?.plugins.subscriptions || d.plugins.some((p) => /subscriptions/.test(p.slug)) || Object.keys(d.shop?.types ?? {}).some((t) => /subscription/.test(t)));
+	for (const a of apps) {
+		if (a.handling === "catalogue-mode") continue; // WooCommerce: the shop findings below
+		if (a.id === "woocommerce-subscriptions" && subsShop) continue; // "Shop with subscriptions" below says it
+		out.push({ id: `app-${a.id}`, level: "blocker", title: `${a.name} (${categoryLabel(a.category)})`, what: `${a.name} found on the site: ${a.evidence.slice(0, 2).join("; ")}.`, impact: APP_IMPACT[a.category], handling: `${a.handling === "external-embed" ? "Out of scope as a WordPress plugin (PLAN §9); a hosted service's widget or link takes its place." : "Out of scope for the kit (PLAN §9)."} ${a.path}`, ref: "docs/PLAN.md §9, src/audit/app-features.ts", excluded: true });
+	}
+	const accountApps = apps.filter((a) => ["membership", "community", "accounts", "lms"].includes(a.category) && a.id !== "front-end-login");
+	if (!accountApps.length && (d.accounts.loginForms > 0 || d.accounts.accountLinks.length > 0)) {
+		const what = [d.accounts.loginForms ? `${plural(d.accounts.loginForms, "page")} with a password field` : "", d.accounts.accountLinks.length ? `links to ${d.accounts.accountLinks.slice(0, 3).join(", ")}` : ""].filter(Boolean).join("; ");
+		const shopOnly = !d.accounts.loginForms && !!d.shop && d.accounts.accountLinks.every((l) => /my-account|cart|checkout/.test(l));
+		// A generic login form is already a blocker above (app-front-end-login); links alone are a question for the owner.
+		if (!shopOnly && !apps.some((a) => a.id === "front-end-login")) out.push({ id: "user-accounts", level: "decision", title: "Visitor accounts or front-end login", what: `${what}.`, impact: "Visitor sign-up, profiles and login are not part of a migrated site (only editors sign in, with passkeys).", handling: "Confirm with the owner what the login is for; if it is only the WordPress admin link, nothing to do.", ref: "docs/PLAN.md §9" });
 	}
 	if (d.multisite) out.push({ id: "multisite", level: "blocker", title: "WordPress multisite", what: "Media addresses use /wp-content/uploads/sites/<n>/, the multisite layout.", impact: "A network of sites shares users, plugins and settings; each sub-site is its own migration.", handling: "Out of scope as a network (PLAN §9); each sub-site can be estimated and migrated on its own.", ref: "docs/PLAN.md §9", excluded: true });
 
 	// --- Shop (PLAN §8b)
-	const woo = d.plugins.some((p) => p.slug === "woocommerce" || p.slug === "wc");
 	if (woo) {
 		const s = d.shop;
 		const subs = s?.plugins.subscriptions || d.plugins.some((p) => /subscriptions/.test(p.slug)) || Object.keys(s?.types ?? {}).some((t) => /subscription/.test(t));

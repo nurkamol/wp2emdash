@@ -117,7 +117,7 @@ describe("detections → adapters and findings", () => {
 		});
 		const f = findingsFor(d, adaptersFor(d));
 		const byId = Object.fromEntries(f.map((x) => [x.id, x]));
-		expect(byId.lms).toMatchObject({ level: "blocker", excluded: true });
+		expect(byId["app-learndash"]).toMatchObject({ level: "blocker", excluded: true, title: "LearnDash (online courses)" });
 		expect(byId.multisite).toMatchObject({ level: "blocker", excluded: true });
 		expect(byId.shop).toMatchObject({ level: "decision" });
 		expect(byId.shop?.what).toContain("30 products");
@@ -169,7 +169,9 @@ describe("effort rules", () => {
 		const d = base({ plugins: [{ slug: "memberpress", name: "MemberPress", evidence: ["assets"], action: "out-of-scope", replacement: "" }] });
 		const a = adaptersFor(d);
 		const e = computeEffort(d, a, findingsFor(d, a), DEFAULT_RULES);
-		expect(e.excluded).toEqual(["Memberships or paywalled content"]);
+		expect(e.excluded).toEqual(["MemberPress (memberships)"]);
+		// The membership area itself adds no hours; linking the new site to where it is kept does (one rule).
+		expect(e.lines.filter((l) => l.id.startsWith("app-"))).toEqual([expect.objectContaining({ id: "app-memberpress", hours: DEFAULT_RULES.effort.perAppFeature })]);
 		const tuned = mergeRules(structuredClone(DEFAULT_RULES), { effort: { base: [20, 30], contingency: 0 }, crawl: { concurrency: 12 }, agency: { name: "Studio X" } });
 		expect(tuned.effort.base).toEqual([20, 30]);
 		expect(tuned.effort.perForm).toEqual(DEFAULT_RULES.effort.perForm);

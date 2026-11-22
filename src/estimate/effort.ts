@@ -3,6 +3,7 @@
  * hours come from. Rules and numbers live in rules.ts. Out-of-scope findings add no hours: they are listed as
  * excluded (scoped separately). Pure.
  */
+import { appFeaturesOf } from "./blockers.js";
 import type { EstimateRules, Range } from "./rules.js";
 import type { AdapterUse, Detections, Effort, EffortLine, Finding } from "./types.js";
 
@@ -52,6 +53,8 @@ export function computeEffort(d: Detections, adapters: AdapterUse[], findings: F
 	if (d.integrations.some((i) => ["analytics", "tag-manager", "pixel", "consent"].includes(i.kind))) line("tracking", "Analytics, tags and consent re-wired", e.tracking, "SEO & Analytics settings + consent banner");
 	const popups = d.integrations.filter((i) => i.kind === "popup").length + (d.plugins.some((p) => /popup|pum/.test(p.slug)) && !d.integrations.some((i) => i.kind === "popup") ? 1 : 0);
 	if (popups) line("popups", "Popups as dialog sections", times(e.perPopup, popups), `${popups} × ${e.perPopup.join("–")} h`);
+	// App features kept elsewhere (findings app-*): the app itself is excluded; linking or embedding it is not.
+	for (const a of appFeaturesOf(d).filter((x) => findings.some((f) => f.id === `app-${x.id}`))) line(`app-${a.id}`, `${a.name}: ${a.handling === "external-embed" ? "embed or link the hosted service" : "link to where it is kept"}`, e.perAppFeature, a.effort);
 	const unknown = d.plugins.filter((p) => p.action === "review" && p.replacement.startsWith("Unknown")).length;
 	if (unknown) line("unknown-plugins", "Unknown plugins reviewed", times(e.perUnknownPlugin, unknown), `${unknown} × ${e.perUnknownPlugin.join("–")} h`);
 

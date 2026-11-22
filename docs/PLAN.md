@@ -677,6 +677,8 @@ previous/next and related posts.
 
 WooCommerce/shop beyond catalogue mode (carts and checkout on EmDash, more than `shop.maxProducts` products, subscriptions, memberships; small shops: catalogue mode by owner decision, §8b), membership/LMS/paywalls, multisite, user accounts/front-end login, custom plugins with business logic (→ later via `wordpress-plugin-to-emdash`), Bricks pages (adapter in v2, built against a real client site).
 
+**App features catalogue (2026-11-22):** `src/audit/app-features.ts` is the one list of application plugins the kit does not migrate — LMS (LearnDash, LifterLMS, Tutor LMS, Sensei, MasterStudy), memberships (MemberPress, Paid Memberships Pro, Restrict Content Pro, WooCommerce Memberships/Subscriptions, Ultimate Member, s2Member), carts and checkout (WooCommerce → catalogue mode by owner decision, Easy Digital Downloads, SureCart), bookings (Amelia, Bookly, WooCommerce Bookings, BirchPress, Simply Schedule Appointments), ticketed events (Event Tickets, Event Espresso; an events calendar alone is content), forums/communities (bbPress, BuddyPress, BuddyBoss) and front-end logins (Profile Builder, any public password form except WordPress's protected-post form and WooCommerce's account forms). Detected from public HTML only: plugin asset folders, body classes, markup class/id tokens, custom elements, generator tags, REST namespaces; page text never, addresses only as supporting evidence. `estimate` adds an excluded blocker and a linking/embedding line per detection; `audit` writes `reports/audit/app-features.md` and its `no-out-of-scope` check fails until the owner decides and accepts the audit gate with a reason (WooCommerce alone passes once `shop` is set).
+
 ---
 
 ## 10. Claude Code integration
