@@ -6,6 +6,8 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-11-22
+
 ### Added
 - **`wp2emdash fleet`**: one view of every site for an agency with many deliveries. Per site: environments (production on its live domain or workers.dev address, opt-in staging), the kit version the project was built with against the current kit ("behind by 2 minor versions"), every `@wp2emdash/*` package in the project's `packages/` against the kit's, the client project's last commit, the latest upgrade snapshot (`reports/upgrade/<timestamp>/`) and its comparison results, and owner to-dos from structured sources only (failed gates not accepted, the next gate, proposals waiting for approval, open ACCESS.md items, an upgrade not verified on production, the monitoring window after go-live). Compact terminal table or `--json`; `--sites a,b`. `--live` (read-only): GET of the home page (status, response time) and the last production deploy from `wrangler deployments list --json`, run in the project with the site's credentials as `provision` resolves them (tokens never printed; author addresses left out). Dashboard: a **Fleet** page in `wp2emdash ui` (`/api/fleet`, local files only).
 - **Build marker** `.wp2emdash.json`: the scaffold now writes the kit version, build time and package versions at the client project root, so a delivered project says which kit built it. Projects built before it show "unknown" until their next rebuild (package versions are still read from `packages/*/package.json`).
