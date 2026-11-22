@@ -222,3 +222,8 @@ h1.row, h2.row { gap: 8px; }
 .req { color: var(--bad); font-weight: 600; }
 .notice .fix { margin-top: 8px; }
 .spacer-t.grid { margin-top: 16px; }
+
+/* Fleet */
+.card:has(> table.fleet) { overflow-x: auto; }
+table.fleet { min-width: 860px; }
+table.fleet .list li { padding: 4px 0; }

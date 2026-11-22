@@ -132,7 +132,7 @@
 			return api("/api/portfolio").then(function (sites) {
 				if (!sites.length) return show(el("div", { class: "card" }, el("h2", { text: "No sites yet" }), el("p", null, "Create one with ", el("code", { text: "pnpm wp2emdash init" }), " or the wizard (", el("code", { text: "pnpm wp2emdash" }), ").")));
 				show(el("div", null,
-					el("div", { class: "head" }, el("div", null, el("h1", { text: "Portfolio" }), el("p", { class: "muted", text: sites.length + " site" + (sites.length === 1 ? "" : "s") + " · refreshes every 5 s" }))),
+					el("div", { class: "head" }, el("div", null, el("h1", { text: "Portfolio" }), el("p", { class: "muted" }, sites.length + " site" + (sites.length === 1 ? "" : "s") + " · refreshes every 5 s · ", el("a", { href: "#/fleet", text: "Fleet (versions, upgrades, to-dos) →" })))),
 					el("div", { class: "grid cards" }, sites.map(siteCard))));
 			});
 		};
@@ -874,10 +874,41 @@
 		}).catch(fail);
 	}
 
+	// ── fleet ────────────────────────────────────────────────────────────────────────────────────
+	function fleetPage() {
+		setCrumbs([{ text: "Portfolio", href: "#/" }, { text: "Fleet" }]);
+		api("/api/fleet").then(function (sites) {
+			var current = (sites.find(function (s) { return s.kit.current; }) || { kit: {} }).kit.current || "?";
+			var day = function (iso) { return iso ? String(iso).slice(0, 10) : "—"; };
+			var head = ["Site", "Environment", "Kit (now " + current + ")", "Plugins", "Last change", "Upgrade check", "Owner to-dos"];
+			show(el("div", null,
+				el("div", { class: "head" }, el("div", null, el("h1", { text: "Fleet" }), el("p", { class: "muted" }, "Versions each project was built with, last change, last upgrade check and open owner to-dos. Local files only; ", el("code", { text: "pnpm wp2emdash fleet --live" }), " adds home page status and last deploy."))),
+				el("div", { class: "card" }, el("table", { class: "fleet" },
+					el("thead", null, el("tr", null, head.map(function (h) { return el("th", { scope: "col", text: h }); }))),
+					el("tbody", null, sites.map(function (s) {
+						var p = s.environments.production;
+						var g = s.kit.gap;
+						var behind = s.packages.filter(function (x) { return x.status === "behind"; });
+						var up = s.upgrade;
+						return el("tr", null,
+							el("th", { scope: "row" }, el("a", { href: "#/site/" + encodeURIComponent(s.slug), text: s.name }), el("div", { class: "small muted", text: s.slug })),
+							el("td", null, p.live ? pill("passed", "live") : p.url ? pill("pending", "workers.dev") : pill("pending", "not provisioned"), " ", el("span", { class: "small", text: p.live ? p.domain : (p.url || "") }), s.environments.staging ? el("div", { class: "small muted", text: "+ staging" }) : null),
+							el("td", null, g.status === "current" ? pill("passed", s.kit.built) : g.status === "behind" ? pill("failed", s.kit.built) : pill("pending", s.kit.built || "unknown"), el("div", { class: "small muted", text: g.text })),
+							el("td", null, s.packages.length ? (behind.length ? el("span", { title: behind.map(function (x) { return x.name + " " + x.built + " → " + x.current; }).join("\n"), text: behind.length + " of " + s.packages.length + " behind" }) : el("span", { text: s.packages.length + " current" })) : el("span", { class: "muted", text: "—" })),
+							el("td", null, s.lastCommit ? [el("div", { text: day(s.lastCommit.date) }), el("div", { class: "small muted", text: s.lastCommit.subject })] : el("span", { class: "muted", text: s.project.exists ? "no git history" : "no project folder" })),
+							el("td", null, up ? [up.verified ? pill("passed", "verified") : up.comparisons.some(function (c) { return !c.identical; }) ? pill("failed", "differences") : pill("pending", "not verified"), el("div", { class: "small muted", text: day(up.takenAt) + (up.kitVersion ? " · kit " + up.kitVersion : "") })] : el("span", { class: "muted", text: "—" })),
+							el("td", null, s.error ? el("span", { class: "err", text: s.error }) : s.todos.length ? el("ul", { class: "list small" }, s.todos.map(function (t) { return el("li", null, t.required ? el("b", { text: t.text }) : el("span", { text: t.text }), el("div", { class: "muted", text: t.source })); })) : el("span", { class: "muted", text: "none" }),
+								s.warnings.length ? el("details", null, el("summary", { class: "small", text: s.warnings.length + " note" + (s.warnings.length === 1 ? "" : "s") }), el("ul", { class: "list small" }, s.warnings.map(function (w) { return el("li", { text: w }); }))) : null));
+					})))),
+				el("p", { class: "small muted" }, "Upgrade branches: ", el("code", { text: "pnpm wp2emdash fleet upgrade-prs" }), " (dry run; never touches main).")));
+		}).catch(fail);
+	}
+
 	// ── router ───────────────────────────────────────────────────────────────────────────────────
 	function route() {
 		stopAll();
 		var parts = location.hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(function (s) { try { return decodeURIComponent(s); } catch (e) { return ""; } });
+		if (parts[0] === "fleet") return fleetPage();
 		if (parts[0] === "site" && parts[1]) {
 			if (parts[2] === "visual") return visual(parts[1], parts[3], parts[4]);
 			if (parts[2] === "runs") return runs(parts[1], parts[3]);

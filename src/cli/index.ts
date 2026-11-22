@@ -241,6 +241,37 @@ program
 	});
 
 program
+	.command("fleet")
+	.description("One view of every site: environments, kit and plugin versions built with vs current, last change, last upgrade check, owner to-dos. `fleet upgrade-prs`: a wp2emdash/v<version> branch per site behind the kit, rebuilt and committed (dry run by default; never main)")
+	.argument("[action]", "upgrade-prs")
+	.option("--sites <list>", "only these slugs (comma-separated)")
+	.option("--live", "read-only network: home page status and response time, last production deploy (wrangler deployments list)")
+	.option("--json", "print as JSON")
+	.option("--dry-run", "upgrade-prs: show what would happen (the default)")
+	.option("--apply", "upgrade-prs: create the branch, rebuild and commit on it (never main); prints the push / gh pr create command")
+	.option("--open", "upgrade-prs: --apply, then push the branch and open the pull request with gh")
+	.option("--all", "upgrade-prs: also sites already on the current kit version")
+	.action(async (action: string | undefined, o: { sites?: string; live?: boolean; json?: boolean; dryRun?: boolean; apply?: boolean; open?: boolean; all?: boolean }) => {
+		const sites = o.sites ? o.sites.split(",").map((s) => s.trim()).filter(Boolean) : undefined;
+		try {
+			if (action === undefined) {
+				if (o.apply || o.open || o.dryRun) fail("--apply / --open / --dry-run belong to `fleet upgrade-prs`");
+				const { fleet, fleetTable } = await import("../commands/fleet.js");
+				const r = await fleet({ ...(sites ? { sites } : {}), ...(o.live ? { live: true } : {}) });
+				return console.log(o.json ? JSON.stringify(r, null, 2) : fleetTable(r));
+			}
+			if (action !== "upgrade-prs") fail(`Unknown fleet action "${action}" (upgrade-prs)`);
+			if (o.dryRun && (o.apply || o.open)) fail("--dry-run cannot be combined with --apply or --open");
+			const { upgradePrs, upgradePrsReport } = await import("../commands/fleet-prs.js");
+			const r = await upgradePrs({ ...(sites ? { sites } : {}), ...(o.apply ? { apply: true } : {}), ...(o.open ? { open: true } : {}), ...(o.all ? { all: true } : {}), ...(o.json ? {} : { log: (l: string) => console.log(pc.dim(l)) }) });
+			console.log(o.json ? JSON.stringify(r, null, 2) : upgradePrsReport(r, o));
+			process.exitCode = r.some((x) => x.status === "failed") ? 1 : r.some((x) => x.status === "refused") ? 2 : 0;
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
 	.command("phases")
 	.description("List pipeline phases")
 	.action(() => {
