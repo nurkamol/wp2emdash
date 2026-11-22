@@ -6,6 +6,9 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **`wp2emdash upgrade <slug>`**: moves an already-delivered site to the current kit version and proves visitors see the same site. Snapshots every page of the address the client is live on (sitemap; status, title, meta description, h1, `<html lang>`, hreflang count, visible-text hash and word count, link / image / form counts, stylesheets, scripts, font families) to `sites/<slug>/reports/upgrade/<timestamp>/before.json`, reruns the scaffold phase (a failed gate stops it), and on opt-in staging sites with `--deploy-staging` runs the project's `ci:deploy:staging` and compares staging page by page. Expected rebuild noise is ignored (asset hashes in file names, cache-busting query strings, copyright year, kit version, nonces); renamed bundles and new pages are reported as expected changes, a lost font or page is a difference. Production is never deployed: the exact command is printed for the owner, then `upgrade <slug> --verify` compares production with the saved snapshot (`--verify staging` or `--verify <url>`, e.g. a Workers version preview, too). Markdown + JSON report per comparison; exit 0 identical · 2 differences · 1 error; `--json`. MCP tool `upgrade_verify` (read-only comparison).
+
 ## [1.5.0] — 2026-11-22
 
 ### Added
