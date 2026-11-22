@@ -1,5 +1,6 @@
 import type { LabRun } from "../../packages/health/src/checks/lab.js";
 import type { Cwv } from "../../packages/health/src/store.js";
+import type { AppDetection } from "../audit/app-features.js";
 import type { PluginInfo } from "../audit/fingerprint.js";
 import type { Integration } from "../audit/integrations.js";
 import type { ShopFacts } from "../transform/shop.js";
@@ -50,6 +51,8 @@ export interface Detections {
 	multilingual: { plugin?: string; languages: string[]; otherHosts: number };
 	multisite: boolean;
 	accounts: { loginForms: number; accountLinks: string[] };
+	/** App features (courses, memberships, checkout, bookings …; src/audit/app-features.ts). Absent: derived from plugins. */
+	appFeatures?: AppDetection[];
 }
 
 export type FindingLevel = "blocker" | "decision" | "complexity" | "info";

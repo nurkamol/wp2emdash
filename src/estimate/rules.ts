@@ -56,6 +56,8 @@ export interface EstimateRules {
 		tracking: Range;
 		/** Per popup kept as a dialog section. */
 		perPopup: Range;
+		/** Per app feature kept elsewhere (courses, memberships, bookings …): links, redirects or the hosted service's embed. The app itself is not estimated. */
+		perAppFeature: Range;
 		/** Per plugin the kit does not know: find out what it does on the site. */
 		perUnknownPlugin: Range;
 		/** First real site on an adapter that has only run on fixtures so far (docs/PLAN.md status). */
@@ -93,6 +95,7 @@ export const DEFAULT_RULES: EstimateRules = {
 		perIntegration: [0.5, 1],
 		tracking: [0.5, 1],
 		perPopup: [1, 2],
+		perAppFeature: [1, 3],
 		perUnknownPlugin: [0.5, 2],
 		unprovenAdapter: [4, 10],
 		shopBase: [8, 16],

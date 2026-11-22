@@ -1,4 +1,5 @@
 import type { KitConfig } from "../config/schema.js";
+import { type AppDetection, categoryLabel, handlingLabel } from "./app-features.js";
 import type { LinkCheck, UrlRecord } from "../phases/audit.js";
 import type { DesignCapture, ScreenshotResult } from "./browser.js";
 import type { Discovery } from "./discover.js";
@@ -19,6 +20,8 @@ export interface ReportContext {
 	design: DesignCapture[];
 	fp: Fingerprint;
 	integrations: Integration[];
+	/** App features (src/audit/app-features.ts). */
+	apps?: AppDetection[];
 	truncated: boolean;
 }
 
@@ -33,6 +36,18 @@ const path = (u: string) => {
 };
 const table = (head: string[], rows: (string | number | undefined)[][]) =>
 	[`| ${head.join(" | ")} |`, `|${head.map(() => "---").join("|")}|`, ...rows.map((r) => `| ${r.map((c) => esc(String(c ?? ""))).join(" | ")} |`)].join("\n");
+
+/** Courses, memberships, checkout, bookings … : what the kit does not migrate, right under the summary. */
+function appSection(apps: AppDetection[]): string {
+	if (!apps.length) return "";
+	return `## App features
+
+The kit migrates the website around these, not the application (docs/PLAN.md §9). Details and evidence: app-features.md.
+
+${table(["Feature", "Kind", "What the kit does", "Evidence"], apps.map((a) => [a.name, categoryLabel(a.category), handlingLabel(a.handling), a.evidence.slice(0, 2).join("; ")]))}
+
+`;
+}
 
 export function auditReport(c: ReportContext): string {
 	const pages = c.records.filter((r) => r.kind === "page");
@@ -68,9 +83,10 @@ ${c.truncated ? "\n> ⚠️ Crawl was truncated at `audit.maxUrls`. Results are 
 | EmDash Exporter plugin | ${c.fp.emdashExporter ? "installed" : "not installed (needed for extract)"} |
 | Plugins detected | ${c.fp.plugins.length} (see plugin-matrix.md) |
 | Integrations | ${c.integrations.length} (see integrations.md) |
+| App features | ${c.apps?.length ? `${c.apps.map((a) => a.name).join(", ")} (see app-features.md)` : "none detected"} |
 | Screenshots | ${c.screens.filter((s) => s.file).length}/${c.screens.length} |
 
-## URL inventory
+${appSection(c.apps ?? [])}## URL inventory
 
 ${table(
 	["Path", "Status", "Kind", "Sources", "WP", "Sitemap", "noindex", "Screens"],

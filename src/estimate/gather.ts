@@ -6,6 +6,7 @@
 import { isContentForm } from "../audit/page.js";
 import type { Reporter } from "../core/progress.js";
 import { discoverSitemaps, restCounts } from "../audit/discover.js";
+import { detectAppFeatures, type PageAppSignals, scanAppSignals } from "../audit/app-features.js";
 import { fingerprint } from "../audit/fingerprint.js";
 import { fetchUrl, mapLimit } from "../audit/http.js";
 import { scanIntegrations } from "../audit/integrations.js";
@@ -124,6 +125,7 @@ export async function gather(input: string, rules: EstimateRules, reporter: Repo
 	const snapshots: PageSnapshot[] = [];
 	const statuses = new Map<string, number>();
 	const htmlSamples: string[] = [];
+	const appSignals: PageAppSignals[] = [];
 	// Until maxSample pages are read; addresses that turn out to be redirects or files do not count, but at most
 	// twice that many requests are made.
 	while (snapshots.length < maxSample && visited.size < maxSample * 2) {
@@ -144,6 +146,7 @@ export async function gather(input: string, rules: EstimateRules, reporter: Repo
 					const page = parsePage(r.body, { url, finalUrl: r.finalUrl, status: r.status, redirects: r.redirects, contentType: r.contentType, ms: r.ms }, site);
 					snapshots.push(page);
 					if (htmlSamples.length < 5) htmlSamples.push(r.body);
+					appSignals.push(scanAppSignals(r.body, page));
 					for (const l of page.links) if (l.internal) seed(l.href);
 				}
 				reporter.emit({ type: "step:progress", step: "Sample pages", done: snapshots.length, total: maxSample, item: new URL(url).pathname });
@@ -214,6 +217,7 @@ export async function gather(input: string, rules: EstimateRules, reporter: Repo
 		...(shop ? { shop } : {}),
 		multilingual: { ...(mlPlugin ? { plugin: mlPlugin } : {}), languages: [...langs].sort(), otherHosts: [...otherHostLangs].filter((l) => !langs.has(l)).length },
 		multisite: allImages.some((u) => /\/wp-content\/uploads\/sites\/\d+\//.test(u)),
+		appFeatures: detectAppFeatures({ pages: appSignals, plugins: fp.plugins, restNamespaces: rest.restNamespaces }),
 		accounts: { loginForms: snapshots.filter((p) => p.forms.some((f) => f.fields.some((x) => x.type === "password"))).length, accountLinks },
 	};
 

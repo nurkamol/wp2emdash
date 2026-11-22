@@ -1,3 +1,4 @@
+import { APP_PLUGIN_SLUGS, categoryLabel } from "./app-features.js";
 import type { PageSnapshot } from "./page.js";
 
 export type PluginAction = "adapter" | "migrate-data" | "rebuild" | "replace" | "drop" | "out-of-scope" | "review";
@@ -29,7 +30,7 @@ export interface Fingerprint {
 }
 
 /** Known plugins → what happens to them. Keys: plugin folder slug or REST namespace prefix. */
-const KNOWN: Record<string, { name: string; action: PluginAction; replacement: string }> = {
+const LISTED: Record<string, { name: string; action: PluginAction; replacement: string }> = {
 	js_composer: { name: "WPBakery Page Builder", action: "adapter", replacement: "WPBakery adapter → section blocks" },
 	"js_composer_salient": { name: "WPBakery (Salient bundled)", action: "adapter", replacement: "WPBakery adapter → section blocks" },
 	"salient-core": { name: "Salient Core", action: "adapter", replacement: "nectar_* element handlers + Salient design capture" },
@@ -86,10 +87,6 @@ const KNOWN: Record<string, { name: string; action: PluginAction; replacement: s
 	acf: { name: "ACF", action: "migrate-data", replacement: "EmDash fields (via exporter)" },
 	woocommerce: { name: "WooCommerce", action: "out-of-scope", replacement: "catalogue mode by owner decision (kit.config shop: products as pages, external checkout; docs/PLAN.md §8b), else out of scope" },
 	wc: { name: "WooCommerce", action: "out-of-scope", replacement: "catalogue mode by owner decision (kit.config shop), else out of scope" },
-	"woocommerce-subscriptions": { name: "WooCommerce Subscriptions", action: "out-of-scope", replacement: "Out of scope (recurring billing needs a store; catalogue mode cannot carry it)" },
-	"woocommerce-subscriptions-core": { name: "WooCommerce Subscriptions", action: "out-of-scope", replacement: "Out of scope (recurring billing needs a store)" },
-	"woocommerce-memberships": { name: "WooCommerce Memberships", action: "out-of-scope", replacement: "Out of scope (members-only content and accounts)" },
-	"woocommerce-bookings": { name: "WooCommerce Bookings", action: "review", replacement: "catalogue mode: products shown, bookings not rebuilt (link the Buy button to the booking system)" },
 	"woocommerce-gateway-stripe": { name: "WooCommerce Stripe Gateway", action: "drop", replacement: "catalogue mode: Stripe Payment Links per product (shop.checkout)" },
 	"woocommerce-payments": { name: "WooPayments", action: "drop", replacement: "catalogue mode: the external checkout takes payments" },
 	"woocommerce-paypal-payments": { name: "WooCommerce PayPal Payments", action: "drop", replacement: "catalogue mode: the external checkout takes payments" },
@@ -110,20 +107,8 @@ const KNOWN: Record<string, { name: string; action: PluginAction; replacement: s
 	"wp-super-cache": { name: "WP Super Cache", action: "drop", replacement: "EmDash route caching on Workers" },
 	updraftplus: { name: "UpdraftPlus", action: "drop", replacement: "kit Backups & Restore (D1 + R2)" },
 	"duplicate-post": { name: "Yoast Duplicate Post", action: "drop", replacement: "—" },
-	// Memberships, courses, communities and front-end accounts: out of scope for v1 (docs/PLAN.md §9).
-	memberpress: { name: "MemberPress", action: "out-of-scope", replacement: "Out of scope (memberships / paywalled content, PLAN §9)" },
-	"paid-memberships-pro": { name: "Paid Memberships Pro", action: "out-of-scope", replacement: "Out of scope (memberships, PLAN §9)" },
-	"restrict-content-pro": { name: "Restrict Content Pro", action: "out-of-scope", replacement: "Out of scope (memberships / paywall, PLAN §9)" },
-	"restrict-content": { name: "Restrict Content", action: "out-of-scope", replacement: "Out of scope (memberships / paywall, PLAN §9)" },
-	"ultimate-member": { name: "Ultimate Member", action: "out-of-scope", replacement: "Out of scope (user accounts / front-end login, PLAN §9)" },
-	"profile-builder": { name: "Profile Builder", action: "out-of-scope", replacement: "Out of scope (user accounts / front-end login, PLAN §9)" },
-	"sfwd-lms": { name: "LearnDash", action: "out-of-scope", replacement: "Out of scope (LMS, PLAN §9)" },
-	learndash: { name: "LearnDash", action: "out-of-scope", replacement: "Out of scope (LMS, PLAN §9)" },
-	lifterlms: { name: "LifterLMS", action: "out-of-scope", replacement: "Out of scope (LMS, PLAN §9)" },
-	tutor: { name: "Tutor LMS", action: "out-of-scope", replacement: "Out of scope (LMS, PLAN §9)" },
-	"sensei-lms": { name: "Sensei LMS", action: "out-of-scope", replacement: "Out of scope (LMS, PLAN §9)" },
-	buddypress: { name: "BuddyPress", action: "out-of-scope", replacement: "Out of scope (community / user accounts, PLAN §9)" },
-	bbpress: { name: "bbPress", action: "out-of-scope", replacement: "Out of scope (forums / user accounts, PLAN §9)" },
+	// Memberships, courses, carts, bookings, ticketed events, communities and front-end accounts: from the app
+	// features catalogue (src/audit/app-features.ts), merged in below.
 	// Builders without their own adapter: pages rebuilt from rendered HTML by the DOM-fallback adapter (PLAN §7h).
 	"bb-plugin": { name: "Beaver Builder", action: "adapter", replacement: "DOM-fallback adapter (rendered HTML → sections; owner review gate)" },
 	"beaver-builder-lite-version": { name: "Beaver Builder Lite", action: "adapter", replacement: "DOM-fallback adapter (rendered HTML → sections; owner review gate)" },
@@ -139,6 +124,14 @@ const KNOWN: Record<string, { name: string; action: PluginAction; replacement: s
 	generateblocks: { name: "GenerateBlocks", action: "adapter", replacement: "Gutenberg adapter: GenerateBlocks handlers" },
 	"stackable-ultimate-gutenberg-blocks": { name: "Stackable", action: "adapter", replacement: "Gutenberg adapter: Stackable handlers" },
 	coblocks: { name: "CoBlocks", action: "adapter", replacement: "Gutenberg adapter: CoBlocks handlers" },
+};
+
+/** App plugins (courses, memberships, checkout, bookings, tickets, forums, accounts) come from the shared catalogue. */
+const KNOWN: Record<string, { name: string; action: PluginAction; replacement: string }> = {
+	...Object.fromEntries(
+		[...APP_PLUGIN_SLUGS].filter(([, e]) => e.handling !== "catalogue-mode").map(([slug, e]) => [slug, { name: e.name, action: "out-of-scope" as const, replacement: `Out of scope (${categoryLabel(e.category)}, PLAN §9; reports/audit/app-features.md): ${e.path}` }]),
+	),
+	...LISTED,
 };
 
 /** REST namespaces that belong to WordPress itself. */

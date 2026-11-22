@@ -4,6 +4,7 @@ import { accessSection, exportsFor, previousSection, withAccessSection } from ".
 import { join } from "node:path";
 import { captureDesign, captureRootVariables, captureScreenshots, type DesignCapture, type RootVariables, screenName, withBrowser } from "../audit/browser.js";
 import { type Discovery, discoverRest, discoverSitemaps, type UrlSource } from "../audit/discover.js";
+import { appFeaturesReport, appGateDetail, blockingAppFeatures, detectAppFeatures, type PageAppSignals, scanAppSignals, APP_PLUGIN_SLUGS } from "../audit/app-features.js";
 import { fingerprint } from "../audit/fingerprint.js";
 import { fetchUrl, mapLimit } from "../audit/http.js";
 import { readStoreApi } from "../audit/shop.js";
@@ -76,6 +77,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	const snapshots = new Map<string, PageSnapshot>();
 	const records = new Map<string, UrlRecord>();
 	const htmlSamples: string[] = [];
+	const appSignals: PageAppSignals[] = [];
 	let truncated = false;
 	reporter.emit({ type: "step:start", step: "Crawl & snapshot" });
 
@@ -109,6 +111,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 				write(join(snap, "html", `${name}.html`), r.body);
 				write(join(snap, "pages", `${name}.json`), page);
 				if (htmlSamples.length < 5) htmlSamples.push(r.body);
+				appSignals.push(scanAppSignals(r.body, page));
 				if (!redirected) {
 					for (const l of page.links) {
 						if (!l.internal || looksLikeAsset(l.href) || isActionUrl(l.href) || matchesExclude(l.href, config.audit.exclude) || /\/wp-content\//.test(l.href)) continue;
@@ -231,11 +234,12 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	const pages = [...snapshots.values()];
 	const fp = fingerprint(pages, discovery.restNamespaces, htmlSamples, discovery.media.map((m) => m.sourceUrl));
 	const integrations = scanIntegrations(pages);
+	const apps = detectAppFeatures({ pages: appSignals, plugins: fp.plugins, restNamespaces: discovery.restNamespaces });
 	reporter.emit({
 		type: "step:end",
 		step: "Fingerprint & integrations",
 		ok: true,
-		detail: `theme ${fp.childTheme ?? fp.parentTheme ?? "?"}, builders ${Object.keys(fp.builders).join("+") || "none"}, ${fp.plugins.length} plugins, ${integrations.length} integrations`,
+		detail: `theme ${fp.childTheme ?? fp.parentTheme ?? "?"}, builders ${Object.keys(fp.builders).join("+") || "none"}, ${fp.plugins.length} plugins, ${integrations.length} integrations${apps.length ? `, app features: ${apps.map((a) => a.name).join(", ")}` : ""}`,
 	});
 
 	// 6. Write snapshot + reports
@@ -249,11 +253,13 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 	write(join(snap, "interactions.json"), { menus: menus.map((m) => ({ ...m, recipe: motionRecipe(m) })), headers });
 	write(join(snap, "fingerprint.json"), fp);
 	write(join(snap, "integrations.json"), integrations);
+	write(join(snap, "app-features.json"), apps);
 
-	const ctx = { config, discovery, records: urlRecords, pages, linkChecks, brokenInternal, brokenExternal, screens, design, fp, integrations, truncated };
+	const ctx = { config, discovery, records: urlRecords, pages, linkChecks, brokenInternal, brokenExternal, screens, design, fp, integrations, apps, truncated };
 	write(join(reportDir, "audit.md"), auditReport(ctx));
 	write(join(reportDir, "integrations.md"), integrationsReport(ctx));
 	write(join(reportDir, "plugin-matrix.md"), pluginMatrixReport(ctx));
+	write(join(reportDir, "app-features.md"), appFeaturesReport(apps, { title: `# App features — ${config.name}`, shopDecided: !!config.shop, slug: config.slug }));
 	// Plugin data the REST API does not expose: ask the owner for the exports, in ACCESS.md (rewritten each audit, ticks kept).
 	const signals = [...fp.plugins.map((p) => p.name), ...integrations.flatMap((i) => (i.kind === "form" && i.form ? [i.form.provider] : []))];
 	const exportsNeeded = exportsFor(signals);
@@ -279,7 +285,11 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 		write(join(snap, "shop.json"), { facts: shopFacts });
 		write(join(reportDir, "shop.md"), `${shopReport(shopFacts, config.shop, `# Shop (WooCommerce) — ${config.name}`).join("\n")}\n`);
 	}
-	const outOfScope = fp.plugins.filter((p) => p.action === "out-of-scope" && !(config.shop && (p.slug === "woocommerce" || p.slug === "wc")));
+	// App features (courses, memberships, checkout, bookings, ticketed events, forums, visitor accounts; one catalogue,
+	// src/audit/app-features.ts) stop the gate until the owner decides and accepts it with a reason. Out-of-scope plugins
+	// the catalogue does not cover still count.
+	const blockingApps = blockingAppFeatures(apps, { shopDecided: !!config.shop });
+	const outOfScope = fp.plugins.filter((p) => p.action === "out-of-scope" && !APP_PLUGIN_SLUGS.has(p.slug) && !(p.slug === "woocommerce" || p.slug === "wc"));
 	// A form the owner decided to handle elsewhere (overrides.ts → integrations: "replace" | "drop", e.g. a waiver signed
 	// in the booking system) is not rebuilt on the site, so it does not make the site sensitive.
 	const decisions = (await loadOverrides(paths.overrides).catch(() => undefined))?.integrations ?? {};
@@ -301,7 +311,12 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 			detail: menus.map((m) => `${m.viewport}: ${m.error ? `error ${m.error}` : m.found ? `${m.items.length} items` : "no toggle (inline nav)"}`).join("; "),
 		},
 		{ id: "builders-supported", label: "All page builders supported in v1", ok: unsupportedBuilders.length === 0, detail: unsupportedBuilders.length ? `found ${unsupportedBuilders.join(", ")} — accept only if those pages are rebuilt by hand` : Object.keys(fp.builders).join(", ") },
-		{ id: "no-out-of-scope", label: "No out-of-scope plugins (shop, membership)", ok: outOfScope.length === 0, detail: outOfScope.map((p) => p.name).join(", ") || undefined },
+		{
+			id: "no-out-of-scope",
+			label: "No app features the kit does not migrate (checkout, memberships, courses, bookings, ticketed events, forums, visitor accounts)",
+			ok: blockingApps.length === 0 && outOfScope.length === 0,
+			detail: [appGateDetail(blockingApps, config.slug), outOfScope.length ? `Other out-of-scope plugins: ${outOfScope.map((p) => p.name).join(", ")}` : ""].filter(Boolean).join(" ") || (apps.length ? `${apps.map((a) => a.name).join(", ")}: decided (catalogue mode)` : undefined),
+		},
 		...(shopFacts ? [{ id: "shop", label: "WooCommerce: catalogue mode decided by the owner (kit.config shop) and nothing it cannot carry", ...shopGate(shopFacts, config.shop) }] : []),
 		{
 			id: "sensitive-data-flag",
