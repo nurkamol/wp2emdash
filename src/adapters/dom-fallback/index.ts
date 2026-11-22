@@ -257,6 +257,10 @@ export function adaptDomFallback(html: string, opts: DomFallbackOptions): DomFal
 			diag({ level: "info", code: "dynamic", message: "search form left out (the starter has its own search)", path, tag: "form:wp-search" });
 			return [];
 		}
+		if (snap.provider === "woocommerce") {
+			diag({ level: "info", code: "dynamic", message: "WooCommerce shop form left out (catalogue mode: the product's Buy button)", path, tag: "form:woocommerce" });
+			return [];
+		}
 		if (PLUGIN_FORMS.has(snap.provider) && snap.providerFormId) return [{ kind: "form", provider: snap.provider, id: snap.providerFormId }];
 		if (snap.provider !== "html" && snap.provider !== "elementor-forms") return embedOrLegacy($.html(el), ctxFor(path), `${snap.provider} form`);
 		const id = `${opts.postId ?? "x"}-${++formCount}`;

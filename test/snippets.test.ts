@@ -92,3 +92,15 @@ describe("site-wide snippets", () => {
 		expect(v.widget).toBeUndefined();
 	});
 });
+
+describe("WooCommerce and Elementor housekeeping code is not needed (WordPress e2e test)", () => {
+	const hosts = new Set(["example.test"]);
+	const v = (r: { attrs?: Record<string, string>; body: string }) => classifySnippet({ tag: "script", attrs: r.attrs ?? {}, body: r.body, html: "" }, hosts).kind;
+	it("classifies variation templates, the no-JS swap and the lazy-load observer as WordPress code", () => {
+		expect(v({ attrs: { type: "text/template", id: "tmpl-variation-template" }, body: "<div>{{{ data.variation.price_html }}}</div>" })).toBe("wordpress");
+		expect(v({ attrs: { type: "text/template", id: "tmpl-unavailable-variation-template" }, body: "<p>Sorry</p>" })).toBe("wordpress");
+		expect(v({ attrs: { id: "wc-no-js" }, body: "(function () { var c = document.body.className; c = c.replace(/woocommerce-no-js/, 'woocommerce-js'); document.body.className = c; })();" })).toBe("wordpress");
+		expect(v({ body: "( () => { const lazyloadRunObserver = () => { const lazyloadBackgrounds = document.querySelectorAll( `.e-con.e-parent:not(.e-lazyloaded)` ); } } )();" })).toBe("wordpress");
+		expect(v({ body: "window.myCustomWidget({ id: 42 });" })).toBe("unknown");
+	});
+});

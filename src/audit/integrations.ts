@@ -1,3 +1,4 @@
+import { isContentForm } from "./page.js";
 import type { FormSnapshot, PageSnapshot } from "./page.js";
 
 export type IntegrationKind =
@@ -166,7 +167,7 @@ export function scanIntegrations(pages: PageSnapshot[]): Integration[] {
 			}
 		}
 		for (const f of p.forms) {
-			if (f.provider === "wp-search") continue;
+			if (!isContentForm(f.provider)) continue;
 			const sens = sensitiveFields(f);
 			const id = `form:${f.id}`;
 			const proposed: ProposedAction = f.provider === "mailchimp" || f.provider === "hubspot" ? "keep" : sens.length ? "decide" : "rebuild";

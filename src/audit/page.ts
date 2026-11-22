@@ -109,12 +109,19 @@ function formProvider($form: cheerio.Cheerio<never>, html: string): { provider: 
 	if (/\bwsf-form\b/.test(cls)) return { provider: "ws-form", id: $form.attr("data-id") ?? $form.find('input[name="wsf_form_id"]').attr("value") };
 	if (/forminator-custom-form|forminator-ui/.test(cls)) return { provider: "forminator", id: $form.attr("data-form-id") ?? $form.find('input[name="form_id"]').attr("value") };
 	if (/elementor-form/.test(cls)) return { provider: "elementor-forms" };
+	// WooCommerce's own shop forms (add to cart, variations, sorting, cart, checkout, account, product search): catalogue
+	// mode replaces them with the Buy button, so they are not content forms to rebuild (WordPress e2e test, 2026-11-22).
+	if (/\b(cart|variations_form|woocommerce-ordering|woocommerce-cart-form|checkout|woocommerce-checkout|woocommerce-form-login|woocommerce-form-register|woocommerce-form-coupon|woocommerce-product-search|lost_reset_password|woocommerce-ResetPassword|woocommerce-EditAccountForm)\b/.test(cls) || $form.find('[name="add-to-cart"], [name="woocommerce-cart-nonce"], [name="woocommerce-process-checkout-nonce"]').length) return { provider: "woocommerce" };
 	if (/search-form|searchform/.test(cls) || $form.find('input[name="s"]').length) return { provider: "wp-search" };
 	if (/mc4wp|mailchimp/.test(cls + ($form.attr("action") ?? ""))) return { provider: "mailchimp" };
 	if (/hs-form|hubspot/.test(cls)) return { provider: "hubspot" };
 	void html;
 	return { provider: "html" };
 }
+
+/** Forms that are part of WordPress or the shop rather than site content: never rebuilt, never counted as live forms. */
+export const NON_CONTENT_FORMS: ReadonlySet<string> = new Set(["wp-search", "woocommerce"]);
+export const isContentForm = (provider: string): boolean => !NON_CONTENT_FORMS.has(provider);
 
 const fid2 = (f: { attribs?: Record<string, string> }) => f.attribs?.id;
 

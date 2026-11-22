@@ -54,6 +54,25 @@ export function looksLikeAsset(url: string): boolean {
 	}
 }
 
+/**
+ * Addresses that make WordPress DO something when requested: WooCommerce cart actions (`?add-to-cart=63` creates a cart
+ * session row in the site's database), comment replies, logins/logouts, nonce'd actions, customizer previews. The kit
+ * never writes to the live site, so these are never requested — not crawled, not link-checked, not sampled. Found by
+ * the WordPress end-to-end test (2026-11-22): the crawler followed WooCommerce's add-to-cart buttons.
+ */
+const ACTION_PARAMS = /^(add-to-cart|add_to_wishlist|remove_item|undo_item|removed_item|order_again|cancel_order|replytocom|_wpnonce|_wp_http_referer|wc-ajax|wc-api|action|customize_changeset_uuid|customize_theme|preview_id|preview_nonce|unapproved|moderation-hash)$/i;
+const ACTION_PATHS = /\/(wp-login\.php|wp-admin\/|wp-cron\.php|xmlrpc\.php|wp-comments-post\.php)/i;
+export function isActionUrl(url: string): boolean {
+	try {
+		const u = new URL(url);
+		if (ACTION_PATHS.test(u.pathname)) return true;
+		for (const k of u.searchParams.keys()) if (ACTION_PARAMS.test(k)) return true;
+		return false;
+	} catch {
+		return false;
+	}
+}
+
 export function matchesExclude(url: string, patterns: string[]): boolean {
 	const path = new URL(url).pathname;
 	return patterns.some((p) => path === p || path.startsWith(p.endsWith("/") ? p : `${p}/`) || path.startsWith(p));

@@ -13,3 +13,10 @@ minimumReleaseAgeExclude:
   - emdash
   - "@emdash-cms/*"
 blockExoticSubdeps: true
+
+# Versions the kit verified together (src/phases/scaffold.ts STACK). @astrojs/cloudflare asks for
+# @cloudflare/vite-plugin with a caret range; a newer plugin can require a newer Wrangler than the pinned one
+# (1.70.1 needs wrangler ^4.164.0 — found by the WordPress end-to-end test, 2026-11-22). A project without a
+# lockfile would pick it up and fail to build, so the plugin is pinned to the version the sites run on.
+overrides:
+  "@cloudflare/vite-plugin": 1.70.0

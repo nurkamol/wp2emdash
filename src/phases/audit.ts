@@ -1,3 +1,4 @@
+import { isContentForm } from "../audit/page.js";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { accessSection, exportsFor, previousSection, withAccessSection } from "../extract/plugin-exports.js";
 import { join } from "node:path";
@@ -11,7 +12,7 @@ import { scanIntegrations } from "../audit/integrations.js";
 import { type PageSnapshot, parsePage } from "../audit/page.js";
 import { captureHeaderScroll, captureMenu, type HeaderScrollCapture, type MenuCapture, motionRecipe } from "../audit/interactions.js";
 import { auditReport, integrationsReport, interactionsReport, pluginMatrixReport } from "../audit/report.js";
-import { isInternal, looksLikeAsset, matchesExclude, normalizeUrl, pathKey, siteHosts } from "../audit/urls.js";
+import { isActionUrl, isInternal, looksLikeAsset, matchesExclude, normalizeUrl, pathKey, siteHosts } from "../audit/urls.js";
 import { loadOverrides } from "../config/overrides.js";
 import type { GateCheck } from "../core/state.js";
 import type { PhaseContext } from "./index.js";
@@ -57,7 +58,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 
 	const sources = new Map<string, Set<UrlSource>>();
 	const seed = (url: string, src: UrlSource) => {
-		if (!isInternal(url, site) || looksLikeAsset(url) || matchesExclude(url, config.audit.exclude)) return;
+		if (!isInternal(url, site) || looksLikeAsset(url) || isActionUrl(url) || matchesExclude(url, config.audit.exclude)) return;
 		const key = normalizeUrl(url, site);
 		const set = sources.get(key) ?? new Set();
 		set.add(src);
@@ -110,7 +111,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 				if (htmlSamples.length < 5) htmlSamples.push(r.body);
 				if (!redirected) {
 					for (const l of page.links) {
-						if (!l.internal || looksLikeAsset(l.href) || matchesExclude(l.href, config.audit.exclude) || /\/wp-content\//.test(l.href)) continue;
+						if (!l.internal || looksLikeAsset(l.href) || isActionUrl(l.href) || matchesExclude(l.href, config.audit.exclude) || /\/wp-content\//.test(l.href)) continue;
 						if (!sources.has(l.href)) sources.set(l.href, new Set(["crawl"]));
 						if (!visited.has(l.href) && !queue.includes(l.href)) {
 							if (visited.size + queue.length >= config.audit.maxUrls) truncated = true;
@@ -156,6 +157,7 @@ export async function runAudit({ config, paths, reporter }: PhaseContext): Promi
 			if (/^(mailto|tel|sms|whatsapp):/i.test(l.href)) continue;
 			if (l.internal && records.has(l.href)) continue; // already fetched
 			if (l.internal && matchesExclude(l.href, config.audit.exclude)) continue;
+			if (isActionUrl(l.href)) continue; // never request an address that makes WordPress do something
 			const set = linkMap.get(l.href) ?? new Set();
 			set.add(pathKey(p.url));
 			linkMap.set(l.href, set);
@@ -342,7 +344,7 @@ function pickDesignPages(urls: string[], snapshots: Map<string, PageSnapshot>, o
 		if (!out.includes(u)) out.push(u);
 	}
 	// One page with a form, so the fields' look is measured (an extra page: it does not displace a type sample).
-	const hasForm = (u: string) => (snapshots.get(u)?.forms ?? []).some((f) => f.provider !== "wp-search" && !f.inPopup);
+	const hasForm = (u: string) => (snapshots.get(u)?.forms ?? []).some((f) => isContentForm(f.provider) && !f.inPopup);
 	const withForm = urls.find(hasForm);
 	if (withForm && !out.some(hasForm)) out.push(withForm);
 	return out;

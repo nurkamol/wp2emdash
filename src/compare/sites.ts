@@ -3,6 +3,7 @@
  * installs of the same studio on two domains). Read-only, no network: it reads both audit snapshots
  * (snapshot/pages/*.json + snapshot/html/*.html) and writes sites/<slugB>/reports/compare/<slugA>.md + .json.
  */
+import { isContentForm } from "../audit/page.js";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { FormSnapshot, PageSnapshot } from "../audit/page.js";
@@ -172,7 +173,7 @@ export function comparePage(a: SitePage, b: SitePage, hosts: Set<string>): PageC
 	const h1a = a.snap.headings.find((h) => h.level === 1)?.text;
 	const h1b = b.snap.headings.find((h) => h.level === 1)?.text;
 	if (!same(h1a, h1b)) meta.h1 = { a: h1a, b: h1b };
-	const forms = (s: PageSnapshot) => new Set(s.forms.filter((f) => f.provider !== "wp-search").map(formKey));
+	const forms = (s: PageSnapshot) => new Set(s.forms.filter((f) => isContentForm(f.provider)).map(formKey));
 	const fa = forms(a.snap);
 	const fb = forms(b.snap);
 	const la = externalLinks(a.snap.links, hosts);

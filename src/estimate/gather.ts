@@ -3,6 +3,7 @@
  * fingerprint, integrations scan and Store API reader. GET/HEAD only, robots.txt respected (product token
  * "wp2emdash"), a generic user agent, ≤ 4 requests at a time, a capped URL list and a small fetched sample.
  */
+import { isContentForm } from "../audit/page.js";
 import type { Reporter } from "../core/progress.js";
 import { discoverSitemaps, restCounts } from "../audit/discover.js";
 import { fingerprint } from "../audit/fingerprint.js";
@@ -10,7 +11,7 @@ import { fetchUrl, mapLimit } from "../audit/http.js";
 import { scanIntegrations } from "../audit/integrations.js";
 import { type PageSnapshot, parsePage } from "../audit/page.js";
 import { readStoreApi } from "../audit/shop.js";
-import { isInternal, looksLikeAsset, normalizeUrl, siteHosts } from "../audit/urls.js";
+import { isActionUrl, isInternal, looksLikeAsset, normalizeUrl, siteHosts } from "../audit/urls.js";
 import { robotsAllows, robotsCrawlDelay } from "./robots.js";
 import type { EstimateRules } from "./rules.js";
 import { measurePage, sizeResources } from "./speed.js";
@@ -98,7 +99,7 @@ export async function gather(input: string, rules: EstimateRules, reporter: Repo
 	const discovered = new Set<string>();
 	let capped = false;
 	const seed = (u: string) => {
-		if (!isInternal(u, site) || looksLikeAsset(u) || /\/wp-(content|admin|json)\//.test(u)) return;
+		if (!isInternal(u, site) || looksLikeAsset(u) || isActionUrl(u) || /\/wp-(content|admin|json)\//.test(u)) return;
 		const key = normalizeUrl(u, site);
 		if (discovered.has(key)) return;
 		if (!allow(key)) {
@@ -203,7 +204,7 @@ export async function gather(input: string, rules: EstimateRules, reporter: Repo
 		urlGuess: { pages: urlKinds.filter((k) => k === "page").length, posts: urlKinds.filter((k) => k === "post").length, archives: urlKinds.filter((k) => k === "archive").length },
 		sample: [...visited].map((url) => {
 			const s = snapshots.find((p) => p.url === url);
-			return { url, status: statuses.get(url) ?? 0, builders: s?.builders ?? [], forms: s?.forms.filter((f) => f.provider !== "wp-search").length ?? 0, words: s?.wordCount ?? 0, passwordField: !!s?.forms.some((f) => f.fields.some((x) => x.type === "password")) };
+			return { url, status: statuses.get(url) ?? 0, builders: s?.builders ?? [], forms: s?.forms.filter((f) => isContentForm(f.provider)).length ?? 0, words: s?.wordCount ?? 0, passwordField: !!s?.forms.some((f) => f.fields.some((x) => x.type === "password")) };
 		}),
 		builders: fp.builders,
 		plugins: fp.plugins,

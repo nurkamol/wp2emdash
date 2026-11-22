@@ -83,6 +83,8 @@ const WP_INLINE = [
 	/RocketLazyLoad|rocket_lazy|lazyLoadOptions|lazySizesConfig|\bwpRocket/,
 	/\bff_form_instance|intlTelInput|fluentForm/,
 	/elementorFrontendConfig|bricksData|nectarLove|pum_vars|wpcf7|wc_add_to_cart|wpforms_settings|_wpUtilSettings|wp\.i18n\.setLocaleData|ElementorProFrontendConfig|et_pb_custom|DIVI\b/,
+	// WooCommerce's no-JS body class swap; Elementor's background lazy-load observer (WordPress e2e test, 2026-11-22).
+	/woocommerce-no-js|lazyloadRunObserver|e-lazyloaded/,
 ];
 
 const hash = (s: string, n = 8) => createHash("sha1").update(s).digest("hex").slice(0, n);
@@ -205,6 +207,8 @@ export function classifySnippet(r: { tag: string; attrs: Record<string, string>;
 		return { kind: "wordpress", label: `${tag} ${url.pathname}`, note: "WordPress / theme / plugin file: not needed (the starter brings its own)" };
 	}
 	if (url && LIBRARY_HOSTS.test(host)) return { kind: "wordpress", label: `library ${url.host}${url.pathname}`, note: "library the theme or a plugin used: not needed" };
+	// Underscore templates WordPress and plugins print for their own scripts (wp.template: WooCommerce variations, media).
+	if (!url && tag === "script" && /^text\/(?:template|html|x-template)$/i.test(attrs.type ?? "") && /^tmpl-/.test(attrs.id ?? "")) return { kind: "wordpress", label: what, note: "WordPress / plugin script template: not needed" };
 	if (!url && tag === "script" && (/-js-(?:extra|before|after)$/.test(attrs.id ?? "") || WP_INLINE.some((re) => re.test(body)))) return { kind: "wordpress", label: what, note: "WordPress / theme / plugin settings code: not needed" };
 	if (tag === "noscript" && !/<(?:iframe|script)\b/i.test(body) && [...body.matchAll(/\bsrc=["']([^"']+)/gi)].every((m) => { const u = urlOf(m[1], "https://x.invalid"); return !u || u.host === "x.invalid" || siteHosts.has(u.host.replace(/^www\./, "")); })) return { kind: "wordpress", label: what, note: "theme no-JS fallback: not needed" };
 	return { kind: "unknown", label: what, note: "unrecognised site-wide code: never carried automatically — rebuild it (embed section, site widget, analytics) or drop it, then record the choice in overrides.ts snippets" };

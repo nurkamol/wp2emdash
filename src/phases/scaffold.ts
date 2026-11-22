@@ -75,6 +75,8 @@ export const STACK = {
 	react: "19.2.4",
 	"react-dom": "19.2.4",
 	wrangler: "4.163.0",
+	/** Pinned in starter/pnpm-workspace.yaml `overrides` (the adapter's caret range would pick up a plugin needing a newer Wrangler). */
+	"@cloudflare/vite-plugin": "1.70.0",
 	"@cloudflare/workers-types": "5.20261116.1",
 	"@astrojs/check": "0.9.12",
 	/** astro check (via @astrojs/check) supports TypeScript 5–6 only; without a pin the newest (7) is picked up. */

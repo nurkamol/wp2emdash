@@ -18,6 +18,10 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - SEO fix-it: no focus keyword is drafted for legal pages (privacy, terms, cookies, waivers…) — found on the first live run; a description still is.
 
 ### Fixed
+- **New projects could not build:** `@astrojs/cloudflare` accepts any newer `@cloudflare/vite-plugin`, and 1.70.1 needs Wrangler ≥ 4.164 while the kit pins 4.163.0; a project without a lockfile picked it up. The starter's `pnpm-workspace.yaml` now pins the plugin (1.70.0, `STACK`). Sites with a lockfile were not affected.
+- **The audit no longer requests addresses that make WordPress do something:** `?add-to-cart=`, cart removals, comment replies, logins, nonce'd actions and admin/xmlrpc paths are never crawled, link-checked or sampled (`isActionUrl`; an add-to-cart request creates a cart session in the live site's database). Also in `estimate`.
+- WooCommerce's own forms (add to cart, variations, sorting, cart, checkout, account, product search) are recognised and left out like the search form — catalogue mode's Buy button replaces them — instead of counting as unknown live forms in the extract `forms` gate.
+- WooCommerce variation templates, its no-JS class swap and Elementor's background lazy-load script are classified as WordPress code (not needed) instead of site-wide snippets needing a decision.
 - Extract `languages` gate on Polylang/WPML sites no longer asks for a language on entries without an address: WooCommerce variations (they follow their product) and post types WordPress does not list as viewable (Contact Form 7 form definitions, plugin internals) — `languageChecked` in `src/transform/multilingual.ts`.
 
 ## [1.8.0] — 2026-11-22
