@@ -321,7 +321,7 @@ describe("cache safety: the HTML is identical for every visitor", () => {
 	});
 	it("no inline script: the banner is a file the CSP's 'self' allows, and the CSP's inline list is unchanged", () => {
 		const comp = starter("src/components/Consent.astro");
-		expect(comp).toContain('<script is:inline src="/scripts/site-consent.js" defer></script>');
+		expect(comp).toContain('<script is:inline src={asset("/scripts/site-consent.js")} defer></script>');
 		expect(comp.match(/<script/g)).toHaveLength(1);
 		expect(starter("src/middleware.ts")).toContain("const INLINE_SCRIPTS = [announcementScript];");
 		const base = starter("src/layouts/Base.astro");

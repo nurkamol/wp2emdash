@@ -10,6 +10,7 @@
  */
 import { isEditor } from "../utils/editor";
 import { hasTrackers, pageAnalytics } from "../utils/analytics";
+import { asset } from "../utils/assets";
 import { pageConsent } from "../utils/consent";
 
 const editor = isEditor(Astro.cookies, Astro.url);
@@ -20,4 +21,4 @@ const banner = on && !!(await pageConsent(Astro.locals, editor)).runtime;
 ---
 
 {on && <meta name="site-analytics" content={JSON.stringify(banner ? { ...a, consent: true, banner: true } : a)} />}
-{on && <script is:inline src="/scripts/site-analytics.js" defer></script>}
+{on && <script is:inline src={asset("/scripts/site-analytics.js")} defer></script>}

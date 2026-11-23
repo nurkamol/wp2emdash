@@ -114,8 +114,8 @@ describe("page output: attributes, classes, files", () => {
 		expect(mw).toContain("if (context.url.searchParams.has(MOTION_PREVIEW) && context.cache?.enabled) context.cache.set(false);");
 		expect(mw).toMatch(/style-src 'self' 'unsafe-inline'/);
 		const base = starter("src/layouts/Base.astro");
-		expect(base).toContain("<script is:inline src={MOTION_JS}></script>");
-		expect(base).toContain("<script is:inline src={MOTION_JS} defer></script>");
+		expect(base).toContain("<script is:inline src={asset(MOTION_JS)}></script>");
+		expect(base).toContain("<script is:inline src={asset(MOTION_JS)} defer></script>");
 		expect(base).not.toMatch(/<script is:inline set:html=\{(?!announcement)/);
 		// Preview only for signed-in editors (whose pages are never cached).
 		expect(starter("src/utils/motion.ts")).toContain("motionPanelOn && o.editor ? decodePreview(o.url.searchParams.get(PREVIEW_PARAM)) : undefined");

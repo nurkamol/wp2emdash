@@ -42,7 +42,7 @@ import { buildSeed, type MediaInfo, seedMediaResolver } from "../scaffold/seed.j
 import { astroSessions, sessionsBucketBinding, sessionStore } from "../scaffold/sessions.js";
 import { lintInlineScripts } from "../scaffold/csp-lint.js";
 import { withDeployCheck } from "../scaffold/deploy-check.js";
-import { astroPerf, brandHashes, imageHosts, type PerfConfig, perfSite, rewarmSiteConfig, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
+import { astroPerf, brandHashes, hashStaticAssets, imageHosts, type PerfConfig, perfSite, rewarmSiteConfig, withWarmup, wranglerPerf, writePerfFiles } from "../scaffold/perf.js";
 import { blockTypesFor, SHOP_BLOCK_TYPES } from "../starter/library.js";
 import { customStylesheet } from "../transform/custom-css.js";
 import type { WpUrlRules } from "../transform/wp-urls.js";
@@ -681,6 +681,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		writeFileSync(join(project, "public", "styles", sheet.file), sheet.content);
 		(siteConfig as { customCss?: string }).customCss = `/styles/${sheet.file}`;
 	}
+	// Content-hashed names for the site's own scripts and stylesheets (cached for a year; starter utils/assets.ts).
+	(siteConfig as { assets?: Record<string, string> }).assets = hashStaticAssets(join(project, "public"));
 	write(join(project, "src", "site.config.json"), siteConfig);
 	write(join(project, "src", "styles", "tokens.css"), tokens.css + bricksBodyWeight(bricksDesignOut) + bricksLayoutTokens(bricksDesignOut?.layout) + headerTokens(interactions.headers, siteConfig.header.breakpoint));
 	write(join(project, "src", "styles", "motion.css"), motion.css);

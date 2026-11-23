@@ -7,13 +7,14 @@
  * the choice is known before any tracker or widget starts. Not for signed-in editors (never tracked, never cached).
  */
 import { isEditor } from "../utils/editor";
+import { asset } from "../utils/assets";
 import { pageConsent } from "../utils/consent";
 
 const { runtime } = await pageConsent(Astro.locals, isEditor(Astro.cookies, Astro.url));
 ---
 
 {runtime && <meta name="site-consent" content={JSON.stringify(runtime)} />}
-{runtime && <script is:inline src="/scripts/site-consent.js" defer></script>}
+{runtime && <script is:inline src={asset("/scripts/site-consent.js")} defer></script>}
 
 <style is:global>
 	/* Colours from the site's tokens: the banner's text and buttons use the body text and background pair, which the

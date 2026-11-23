@@ -180,7 +180,7 @@ describe("runtime config and CSP host table", () => {
 		const util = starter("src/utils/analytics.ts");
 		expect(util).toContain("url.host !== PRODUCTION_HOST");
 		expect(util).toContain("readStoredAnalytics");
-		expect(starter("src/components/Analytics.astro")).toContain('src="/scripts/site-analytics.js"');
+		expect(starter("src/components/Analytics.astro")).toContain(`src={asset("/scripts/site-analytics.js")}`);
 		expect(starter("src/utils/chrome.ts")).toContain("cache.set({ tags: [ANALYTICS_TAG] })");
 	});
 });

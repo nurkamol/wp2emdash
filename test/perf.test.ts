@@ -352,3 +352,33 @@ describe("Workers placement (performance.smartPlacement / placementRegion)", asy
 		expect(() => parse({ placementRegion: "ENAM" })).toThrow(/cloud region/);
 	});
 });
+
+describe("content-hashed scripts and stylesheets (hashStaticAssets)", async () => {
+	const { hashStaticAssets, HEADERS_FILE } = await import("../src/scaffold/perf.js");
+	it("copies each script and stylesheet under h/ with a content hash, maps the plain path, and skips already-hashed files", () => {
+		const pub = mkdtempSync(join(tmpdir(), "wp2e-assets-"));
+		try {
+			mkdirSync(join(pub, "scripts"), { recursive: true });
+			mkdirSync(join(pub, "styles"), { recursive: true });
+			writeFileSync(join(pub, "scripts", "site-consent.js"), "console.log(1)");
+			writeFileSync(join(pub, "styles", "site-motion.css"), "a{}");
+			writeFileSync(join(pub, "styles", "custom-0123456789.css"), "b{}");
+			const first = hashStaticAssets(pub);
+			expect(Object.keys(first).sort()).toEqual(["/scripts/site-consent.js", "/styles/site-motion.css"]);
+			expect(first["/scripts/site-consent.js"]).toMatch(/^\/scripts\/h\/site-consent\.[0-9a-f]{10}\.js$/);
+			expect(readFileSync(join(pub, first["/scripts/site-consent.js"] as string), "utf8")).toBe("console.log(1)");
+			// A changed file gets a new name; the old hashed copy is gone (h/ is rebuilt).
+			writeFileSync(join(pub, "scripts", "site-consent.js"), "console.log(2)");
+			const second = hashStaticAssets(pub);
+			expect(second["/scripts/site-consent.js"]).not.toBe(first["/scripts/site-consent.js"]);
+			expect(readdirSync(join(pub, "scripts", "h"))).toHaveLength(1);
+			expect(second["/styles/site-motion.css"]).toBe(first["/styles/site-motion.css"]);
+		} finally {
+			rmSync(pub, { recursive: true, force: true });
+		}
+	});
+	it("_headers keeps the hashed copies for a year", () => {
+		expect(HEADERS_FILE).toContain("/scripts/h/*\n  Cache-Control: public, max-age=31536000, immutable");
+		expect(HEADERS_FILE).toContain("/styles/h/*\n  Cache-Control: public, max-age=31536000, immutable");
+	});
+});

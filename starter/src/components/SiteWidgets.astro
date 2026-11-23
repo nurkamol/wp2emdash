@@ -6,10 +6,11 @@
  * from its ID only.
  */
 import { isEditor } from "../utils/editor";
+import { asset } from "../utils/assets";
 import { pageWidgets } from "../utils/widgets";
 
 const widgets = pageWidgets(Astro.url, isEditor(Astro.cookies, Astro.url));
 ---
 
 {widgets.length > 0 && <meta name="site-widgets" content={JSON.stringify(widgets)} />}
-{widgets.length > 0 && <script is:inline src="/scripts/site-widgets.js" defer></script>}
+{widgets.length > 0 && <script is:inline src={asset("/scripts/site-widgets.js")} defer></script>}
