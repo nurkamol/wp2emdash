@@ -3,10 +3,10 @@
 	".github/dependabot.yml": "8997f856f4e690189550ed6c68ffde90000a69c7ab8812fcf9e4da830c5eba39",
 	".github/pull_request_template.md": "5a7e2a3eb72b97ecaba3594e4438142c5ba0876f719da7701ebce7cc0a50f4b3",
 	".github/workflows/ci.yml": "a4815f3f8ae0f3d0126febd0069f53399d3eff84f187e341a25f69baed3609b4",
-	"docs/deployment.md": "dd1e1cbc0ed5c3fe6c73ef97e5116151aa3ea8e86488d561edf037b537136c9f",
+	"docs/deployment.md": "594e5261e78a69a911e169ff5bd8438ee59ec02f9aba14e56441419e88b9e344",
 	"docs/editing-custom-content.md": "779c30a1cdd7e52b63eb6ed25baa3473b497856f63889c9fafee0b89ecd339fa",
 	"docs/editor-guide.md": "7ee6a2702964a671fe9eab4f428bc1fef7fbf1b110d0810690ff0d0cdbac202e",
 	"docs/forms-and-integrations.md": "34099d89001751da61e6dfb6a1ab312430a9bbc07c567d8e848429324ca98362",
 	"docs/go-live.md": "c493a5fcc44cb32ea484e5bfe201ff35db6dd05f2169a319e1491dea94a464d6",
-	"README.md": "612875cccf0b04324425cf7f543bd86e02410362bc2566533639f31c1ec08ea7"
+	"README.md": "1b07707a6883f4d039f846980dce788c76a1e3da6a3ba93b5b11ae31ca311f5c"
 }
