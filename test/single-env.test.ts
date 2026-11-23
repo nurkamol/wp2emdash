@@ -393,6 +393,32 @@ describe("pnpm versions:deploy <version-id> (no prompt)", async () => {
 		}
 		expect(versionsDeployScript({ "versions:deploy": "wrangler versions deploy" }, { accountId: "not-an-id" }).file).toContain('const ACCOUNT = "";');
 	});
+	it("pnpm deploy:production runs its chain from scripts/deploy-production.mjs with the same credentials", async () => {
+		const { deployProductionScript } = await import("../src/scaffold/client-repo.js");
+		const account = "0123456789abcdef0123456789abcdef";
+		const r = deployProductionScript({ "deploy:production": "echo build && echo acct=$CLOUDFLARE_ACCOUNT_ID tok=$CLOUDFLARE_API_TOKEN && echo wrangler deploy && false && echo never", "ci:deploy:production": "x" }, { accountId: account });
+		expect(r.scripts["deploy:production"]).toBe("node scripts/deploy-production.mjs");
+		expect(r.scripts["ci:deploy:production"]).toBe("x");
+		const dir = mkdtempSync(join(tmpdir(), "wp2emdash-dp-"));
+		try {
+			const file = join(dir, "deploy-production.mjs");
+			writeFileSync(file, r.file as string);
+			writeFileSync(join(dir, ".env"), "CLOUDFLARE_API_TOKEN=from-env-file\n");
+			const a = spawnSync(process.execPath, [file], { cwd: dir, encoding: "utf8", env: { PATH: process.env.PATH ?? "", HOME: dir } });
+			const ran = a.stdout.split("\n").filter((l) => l && !l.startsWith(">"));
+			// In order, stopping at the first failing step.
+			expect(ran).toEqual(["build", `acct=${account} tok=from-env-file`, "wrangler deploy"]);
+			expect(a.status).toBe(1);
+			rmSync(join(dir, ".env"));
+			const c = spawnSync(process.execPath, [file], { cwd: dir, encoding: "utf8", env: { PATH: "", HOME: dir } });
+			expect(c.status).toBe(1);
+			expect(c.stderr).toMatch(/Missing CLOUDFLARE_API_TOKEN/);
+			expect(c.stdout).not.toContain("build");
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+		expect(deployProductionScript({ "deploy:staging": "x" }).file).toBeUndefined();
+	});
 	it("leaves projects without a versions:deploy script alone", () => {
 		expect(versionsDeployScript({ "deploy:staging": "x" }).file).toBeUndefined();
 	});

@@ -33,7 +33,7 @@ import { writeBuildMarker } from "../core/build-marker.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
 import { missingFamilies, resolveGoogleHref, selfHostGoogleFonts, typekitKit } from "../scaffold/fonts.js";
-import { clientRepoFiles, deployScripts, versionsDeployScript, writeClientRepo } from "../scaffold/client-repo.js";
+import { clientRepoFiles, deployScripts, deployProductionScript, versionsDeployScript, writeClientRepo } from "../scaffold/client-repo.js";
 import { loadOverrides } from "../config/overrides.js";
 import { pluginForm } from "../../packages/forms/src/index.js";
 import { applySensitivePolicy, applyUploadPolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
@@ -762,7 +762,11 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const envs = siteEnvironments(config, cf as never);
 	reporter.emit({ type: "log", level: "info", message: envs.staging ? `environments: staging + production (staging: ${envs.why})` : "environments: production only (single environment; staging is opt-in: target.staging)" });
 	const deployUrls = { staging: cf.staging?.worker?.url, production: cf.production?.live ? siteConfig.productionUrl : (cf.production as { worker?: { url?: string } } | undefined)?.worker?.url };
-	const versionsDeploy = versionsDeployScript(withDeployCheck(withWarmup(deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }), deployUrls, config.performance), deployUrls, config.performance), { ...((cfRecord.production?.accountId ?? cfRecord.accountId) ? { accountId: (cfRecord.production?.accountId ?? cfRecord.accountId) as string } : {}) });
+	const deployAccount = { ...((cfRecord.production?.accountId ?? cfRecord.accountId) ? { accountId: (cfRecord.production?.accountId ?? cfRecord.accountId) as string } : {}) };
+	const versionsDeploy0 = versionsDeployScript(withDeployCheck(withWarmup(deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }), deployUrls, config.performance), deployUrls, config.performance), deployAccount);
+	// pnpm deploy:production with its own credentials, like versions:deploy (scripts/deploy-production.mjs).
+	const deployProduction = deployProductionScript(versionsDeploy0.scripts, deployAccount);
+	const versionsDeploy = { scripts: deployProduction.scripts, file: versionsDeploy0.file };
 	write(join(project, "package.json"), {
 		name: `${config.slug}-site`,
 		version: "0.1.0",
@@ -805,6 +809,11 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		mkdirSync(join(project, "scripts"), { recursive: true });
 		writeFileSync(vdFile, versionsDeploy.file);
 	} else rmSync(vdFile, { force: true });
+	const dpFile = join(project, "scripts", "deploy-production.mjs");
+	if (deployProduction.file) {
+		mkdirSync(join(project, "scripts"), { recursive: true });
+		writeFileSync(dpFile, deployProduction.file);
+	} else rmSync(dpFile, { force: true });
 	// Password-protected pages never get a route-cache rule (the page itself refuses every cache: utils/access.ts).
 	const pagePaths = pages.flatMap((p) => (p.source.status === "publish" && !p.access && p.route?.path ? [p.route.path] : []));
 	// Sign-in sessions: R2 once every environment has its bucket (provision), else KV as before (src/scaffold/sessions.ts).

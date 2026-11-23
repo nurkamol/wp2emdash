@@ -57,7 +57,7 @@ Then rerun `pnpm wp2emdash run <slug> scaffold` so `wrangler.jsonc` picks the id
 
 ```bash
 cd sites/<slug>/project            # or the projectDir
-( set -a && . ../../../.env && set +a && pnpm deploy:production )
+pnpm deploy:production
 ```
 
 `deploy:production` runs, in this order:
@@ -67,9 +67,10 @@ cd sites/<slug>/project            # or the projectDir
 3. `wrangler deploy`.
 4. `emdash migrate --check` — must report nothing pending.
 
-With `projectDir` set (the project lives outside the kit), `cd` there and load the kit's file by its full path
-instead: `( set -a && . ~/path/to/wp-to-emdash-kit/.env && set +a && pnpm deploy:production )`. The subshell hands the
-Cloudflare token to these commands only; `emdash migrate` does not read `.env` files itself.
+`emdash migrate` reads no `.env` file, so `scripts/deploy-production.mjs` finds the credentials itself: what the shell
+has, else the project's `.env`, else the account recorded at provision (`cloudflare.json`) and the token of
+`npx wrangler login`. Nothing is printed. To use the kit's shared token instead, hand it over for one run:
+`( set -a && . ~/path/to/wp-to-emdash-kit/.env && set +a && pnpm deploy:production )`.
 
 The site is at `https://<slug>.<your-subdomain>.workers.dev`. A brand-new `workers.dev` address can take a minute or
 two to resolve. Before go-live it is production in every respect except that nothing public points at it: the

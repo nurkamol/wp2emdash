@@ -970,11 +970,12 @@ reviewed on a preview link first (below).
 5. **Warm-up** — \`node scripts/warm.mjs <address>\` requests every page in the sitemap once (and the image sizes they use), so the first visitors after a deploy get cached pages. It never fails the deploy.` : ""}
 6. **Deploy check** — \`node scripts/deploy-check.mjs <address>\` then checks the live site like a visitor: every sitemap page answers, the site's fonts are in its stylesheets, stylesheets, scripts and the hero picture load, pages have their content and footer. If anything is broken it rolls the Worker back to the version that was live before (\`wrangler rollback\`) and the deploy fails — visitors keep the working site. \`DEPLOY_ROLLBACK=0\` skips the rollback for one run.
 
-Run them with the Cloudflare token in the environment (\`emdash migrate\` does not read \`.env\` files):
-
 \`\`\`bash
-( set -a && . ./.env && set +a && pnpm deploy:production )
+pnpm deploy:production
 \`\`\`
+
+It finds its Cloudflare credentials itself (\`scripts/deploy-production.mjs\`): what the shell has, else \`.env\`, else
+this site's account and the token of your \`npx wrangler login\` (it never prints them).
 
 ## Reviewing a code change on a preview link (after the switch-over)
 
@@ -1295,6 +1296,32 @@ ${parts.join("\n\n")}
 }
 
 /**
+ * Generated deploy scripts' credentials (`emdash migrate` needs CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN and
+ * reads no .env file): what the shell has, else the project's .env (never overriding), else the account the site was
+ * provisioned in (ACCOUNT, from cloudflare.json) and the token of `wrangler login` (`wrangler auth token`). Never printed.
+ * Expects `spawnSync`, `existsSync`, `readFileSync` and `ACCOUNT` in scope.
+ */
+const CREDENTIALS_JS = `if (existsSync(".env"))
+	for (const line of readFileSync(".env", "utf8").split(/\\r?\\n/)) {
+		const m = /^\\s*(?:export\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*?)\\s*$/.exec(line);
+		if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(["'])(.*)\\1$/, "$2");
+	}
+if (!process.env.CLOUDFLARE_ACCOUNT_ID && ACCOUNT) process.env.CLOUDFLARE_ACCOUNT_ID = ACCOUNT;
+if (!process.env.CLOUDFLARE_API_TOKEN) {
+	const r = spawnSync("npx", ["wrangler", "auth", "token", "--json"], { encoding: "utf8", shell: process.platform === "win32" });
+	try {
+		const t = JSON.parse(r.stdout.slice(r.stdout.indexOf("{")));
+		if (typeof t.token === "string" && t.token) process.env.CLOUDFLARE_API_TOKEN = t.token;
+	} catch {}
+}
+const missing = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"].filter((k) => !process.env[k]);
+if (missing.length) {
+	console.error(\`Missing \${missing.join(" and ")}: run \\\`npx wrangler login\\\` (or put them in .env), then try again.\`);
+	process.exit(1);
+}
+`;
+
+/**
  * `pnpm versions:deploy <version-id>`: the reviewed version goes live without a prompt. The chain (migrations, then
  * `wrangler versions deploy`, then the warm-up and deploy check appended by withWarmup/withDeployCheck) moves into
  * scripts/versions-deploy.mjs, which puts the version where Wrangler reads it: appended to the package.json script, the
@@ -1323,25 +1350,7 @@ if (!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)) {
 	console.error("Usage: pnpm versions:deploy <version-id>   (the Worker Version ID printed by pnpm versions:upload)");
 	process.exit(1);
 }
-if (existsSync(".env"))
-	for (const line of readFileSync(".env", "utf8").split(/\\r?\\n/)) {
-		const m = /^\\s*(?:export\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*?)\\s*$/.exec(line);
-		if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(["'])(.*)\\1$/, "$2");
-	}
-if (!process.env.CLOUDFLARE_ACCOUNT_ID && ACCOUNT) process.env.CLOUDFLARE_ACCOUNT_ID = ACCOUNT;
-if (!process.env.CLOUDFLARE_API_TOKEN) {
-	const r = spawnSync("npx", ["wrangler", "auth", "token", "--json"], { encoding: "utf8", shell: process.platform === "win32" });
-	try {
-		const t = JSON.parse(r.stdout.slice(r.stdout.indexOf("{")));
-		if (typeof t.token === "string" && t.token) process.env.CLOUDFLARE_API_TOKEN = t.token;
-	} catch {}
-}
-const missing = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"].filter((k) => !process.env[k]);
-if (missing.length) {
-	console.error(\`Missing \${missing.join(" and ")}: run \\\`npx wrangler login\\\` (or put them in .env), then try again.\`);
-	process.exit(1);
-}
-for (const step of CHAIN.split(" && ")) {
+${CREDENTIALS_JS}for (const step of CHAIN.split(" && ")) {
 	const cmd = step.replace(/\\bwrangler versions deploy\\b/, \`wrangler versions deploy \${id}@100% --yes\`);
 	console.log(\`> \${cmd}\`);
 	const r = spawnSync(cmd, { stdio: "inherit", shell: true });
@@ -1349,4 +1358,34 @@ for (const step of CHAIN.split(" && ")) {
 }
 `;
 	return { scripts: { ...scripts, "versions:deploy": "node scripts/versions-deploy.mjs" }, file };
+}
+
+/**
+ * `pnpm deploy:production` with its credentials found the same way as versions:deploy (CREDENTIALS_JS): the chain
+ * (build, migrate, deploy, check, warm-up, deploy check) moves into scripts/deploy-production.mjs. Run from a terminal
+ * `emdash migrate` still asks to confirm the database (stdin is passed through). CI keeps ci:deploy:production.
+ */
+export function deployProductionScript(scripts: Record<string, string>, o: { accountId?: string } = {}): { scripts: Record<string, string>; file?: string } {
+	const chain = scripts["deploy:production"];
+	if (!chain || !/\bwrangler deploy\b/.test(chain)) return { scripts };
+	const account = o.accountId && /^[0-9a-f]{32}$/i.test(o.accountId) ? o.accountId : undefined;
+	const file = `#!/usr/bin/env node
+// Generated by wp2emdash scaffold. Usage: pnpm deploy:production
+// Build, migrations, deploy, migration check, then the warm-up and the deploy check, in this order; any failing step
+// stops the rest.
+//
+// Credentials (\`emdash migrate\` needs both; nothing is printed): what the shell already has, else this project's .env,
+// else the account this site was provisioned in and the token of your \`wrangler login\` (\`wrangler auth token\`).
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+
+const CHAIN = ${JSON.stringify(chain)};
+const ACCOUNT = ${JSON.stringify(account ?? "")};
+${CREDENTIALS_JS}for (const step of CHAIN.split(" && ")) {
+	console.log(\`> \${step}\`);
+	const r = spawnSync(step, { stdio: "inherit", shell: true });
+	if (r.status !== 0) process.exit(r.status ?? 1);
+}
+`;
+	return { scripts: { ...scripts, "deploy:production": "node scripts/deploy-production.mjs" }, file };
 }
