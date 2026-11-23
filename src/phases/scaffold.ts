@@ -33,7 +33,7 @@ import { writeBuildMarker } from "../core/build-marker.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
 import { missingFamilies, resolveGoogleHref, selfHostGoogleFonts, typekitKit } from "../scaffold/fonts.js";
-import { clientRepoFiles, deployScripts, writeClientRepo } from "../scaffold/client-repo.js";
+import { clientRepoFiles, deployScripts, versionsDeployScript, writeClientRepo } from "../scaffold/client-repo.js";
 import { loadOverrides } from "../config/overrides.js";
 import { pluginForm } from "../../packages/forms/src/index.js";
 import { applySensitivePolicy, applyUploadPolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
@@ -760,6 +760,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const envs = siteEnvironments(config, cf as never);
 	reporter.emit({ type: "log", level: "info", message: envs.staging ? `environments: staging + production (staging: ${envs.why})` : "environments: production only (single environment; staging is opt-in: target.staging)" });
 	const deployUrls = { staging: cf.staging?.worker?.url, production: cf.production?.live ? siteConfig.productionUrl : (cf.production as { worker?: { url?: string } } | undefined)?.worker?.url };
+	const versionsDeploy = versionsDeployScript(withDeployCheck(withWarmup(deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }), deployUrls, config.performance), deployUrls, config.performance));
 	write(join(project, "package.json"), {
 		name: `${config.slug}-site`,
 		version: "0.1.0",
@@ -771,7 +772,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		// The Cloudflare adapter flattens wrangler.jsonc at BUILD time: the environment is chosen with CLOUDFLARE_ENV during
 		// the build. EmDash core migrations run BEFORE the new build serves traffic; emdash migrate reads
 		// CLOUDFLARE_API_TOKEN/ACCOUNT_ID from the shell. Not named "deploy": that is a pnpm built-in command.
-		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...withDeployCheck(withWarmup(deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }), deployUrls, config.performance), deployUrls, config.performance) },
+		scripts: { dev: "astro dev", build: "astro build", preview: "astro preview", check: "astro check", ...versionsDeploy.scripts },
 		dependencies: {
 			"@astrojs/cloudflare": STACK["@astrojs/cloudflare"],
 			"@astrojs/react": STACK["@astrojs/react"],
@@ -797,6 +798,11 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Which kit built this project (kit version, build time, package versions): read by `wp2emdash fleet`.
 	writeBuildMarker(project);
 	writePerfFiles(project, config.performance);
+	const vdFile = join(project, "scripts", "versions-deploy.mjs");
+	if (versionsDeploy.file) {
+		mkdirSync(join(project, "scripts"), { recursive: true });
+		writeFileSync(vdFile, versionsDeploy.file);
+	} else rmSync(vdFile, { force: true });
 	// Password-protected pages never get a route-cache rule (the page itself refuses every cache: utils/access.ts).
 	const pagePaths = pages.flatMap((p) => (p.source.status === "publish" && !p.access && p.route?.path ? [p.route.path] : []));
 	// Sign-in sessions: R2 once every environment has its bucket (provision), else KV as before (src/scaffold/sessions.ts).

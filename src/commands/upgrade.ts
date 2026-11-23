@@ -295,7 +295,7 @@ export function emdashSequence(slug: string, project: string, rec: EmdashRecord)
 		`EmDash ${rec.from} → ${rec.to}: ${rec.pending.length ? `database change(s) to apply: ${rec.pending.join(", ")}` : "no database change"}.${rec.after.length ? ` After the release: ${rec.after.map((a) => a.id).join(", ")}.` : ""}`,
 		`${rec.prepared ? "✔" : "1."} Recovery point + database changes (the live site keeps working): pnpm wp2emdash upgrade ${slug} --prepare-db --yes`,
 		`${rec.previewVerified ? "✔" : "2."} Preview, required: cd ${project} && pnpm run versions:upload → pnpm wp2emdash upgrade ${slug} --verify <preview-url>`,
-		`3. Production (owner's approval, never run by the kit): cd ${project} && pnpm run versions:deploy — deploys the version that was previewed`,
+		`3. Production (owner's approval, never run by the kit): cd ${project} && pnpm run versions:deploy <version-id> — the Worker Version ID versions:upload printed: exactly the version that was previewed, no prompt`,
 		`4. Then: pnpm wp2emdash upgrade ${slug} --verify${rec.after.length ? `, and pnpm wp2emdash upgrade ${slug} --after-release --yes` : ""}`,
 		`Undo: cd ${project} && npx wrangler rollback (the older EmDash works on the changed database).${undo}`,
 	];

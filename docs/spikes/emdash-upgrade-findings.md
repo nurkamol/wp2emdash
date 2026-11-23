@@ -35,7 +35,7 @@ database cannot be recovered. Code: `src/upgrade/emdash.ts`, `src/commands/upgra
 2. `upgrade <slug> --prepare-db --yes`: D1 Time Travel bookmark + Backups marker (stops without a bookmark), then
    `emdash migrate --expected-target-fingerprint=…` and `--check`. The live site keeps serving the older version.
 3. `pnpm run versions:upload` → `upgrade <slug> --verify <preview-url>` (required; recorded as `previewVerified`).
-4. `pnpm run versions:deploy` (owner's approval): the previewed version goes live.
+4. `pnpm run versions:deploy <version-id>` (owner's approval): the previewed version goes live, no prompt (scripts/versions-deploy.mjs; before 2026-11-24 the script prompted for the version, so the first upgrade ran its steps by hand).
 5. `upgrade <slug> --verify`, then `upgrade <slug> --after-release --yes` (1.6.0: media usage repair).
 
 Undo: `npx wrangler rollback` in the project; restore the bookmark only if data went wrong

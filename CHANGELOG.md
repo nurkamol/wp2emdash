@@ -11,6 +11,7 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 - **Safe EmDash upgrades for delivered sites:** when `wp2emdash upgrade` sees the EmDash version change, it reads the production database's migration status (read-only) and stops on a change that needs a maintenance window, changes the new version does not know, another database (fingerprint), a downgrade, or a version the kit has not checked. Then the order: `--prepare-db --yes` (D1 bookmark + Backups marker, then the database changes alone while the live site keeps running) → `versions:upload` → `--verify <preview-url>` (required) → `versions:deploy` → `--verify` → `--after-release --yes` (the release's one-time steps, e.g. 1.6.0's media usage repair). Per-release table in `src/upgrade/emdash.ts`; findings in `docs/spikes/emdash-upgrade-findings.md`.
 
 ### Fixed
+- **`pnpm versions:deploy` asked which version to deploy:** the warm-up and deploy check appended to the script took the version id, so Wrangler prompted. It is now `scripts/versions-deploy.mjs`: `pnpm versions:deploy <version-id>` runs migrations, `wrangler versions deploy <id>@100% --yes`, the warm-up and the deploy check, stopping at the first failure.
 - **`performance.smartPlacement: true` did nothing:** it was never written to `wrangler.jsonc`. It is now.
 
 ### Changed

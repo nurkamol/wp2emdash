@@ -335,3 +335,37 @@ describe("load into a live production", () => {
 		expect(() => readFileSync(bookmarks())).toThrow();
 	});
 });
+
+describe("pnpm versions:deploy <version-id> (no prompt)", async () => {
+	const { versionsDeployScript } = await import("../src/scaffold/client-repo.js");
+	const { spawnSync } = await import("node:child_process");
+	const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+	const { tmpdir } = await import("node:os");
+	const { join } = await import("node:path");
+	it("moves the chain into scripts/versions-deploy.mjs, which deploys the given version and runs the rest in order", () => {
+		// Echo stands in for each command, so the test sees exactly what would run.
+		const chain = "echo emdash migrate && echo wrangler versions deploy && echo node scripts/warm.mjs https://x.example && echo node scripts/deploy-check.mjs https://x.example";
+		const r = versionsDeployScript({ "versions:upload": "astro build && wrangler versions upload", "versions:deploy": chain });
+		expect(r.scripts["versions:deploy"]).toBe("node scripts/versions-deploy.mjs");
+		expect(r.scripts["versions:upload"]).toBe("astro build && wrangler versions upload");
+		const dir = mkdtempSync(join(tmpdir(), "wp2emdash-vd-"));
+		try {
+			const file = join(dir, "versions-deploy.mjs");
+			writeFileSync(file, r.file as string);
+			const id = "aa70c567-ea03-4285-b6e2-c46c640a094e";
+			const ok = spawnSync(process.execPath, [file, id], { encoding: "utf8" });
+			expect(ok.status).toBe(0);
+			const ran = ok.stdout.split("\n").filter((l) => l && !l.startsWith(">"));
+			expect(ran).toEqual(["emdash migrate", `wrangler versions deploy ${id}@100% --yes`, "node scripts/warm.mjs https://x.example", "node scripts/deploy-check.mjs https://x.example"]);
+			expect(spawnSync(process.execPath, [file, `${id}@100%`], { encoding: "utf8" }).stdout).toContain(`deploy ${id}@100% --yes`);
+			const bad = spawnSync(process.execPath, [file], { encoding: "utf8" });
+			expect(bad.status).toBe(1);
+			expect(bad.stderr).toMatch(/Usage: pnpm versions:deploy <version-id>/);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+	it("leaves projects without a versions:deploy script alone", () => {
+		expect(versionsDeployScript({ "deploy:staging": "x" }).file).toBeUndefined();
+	});
+});
