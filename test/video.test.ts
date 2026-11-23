@@ -40,50 +40,32 @@ describe("video route", () => {
 		expect(await serveVideo(new Request("https://s.test/about"), bucket({}))).toBeUndefined();
 		expect(await serveVideo(new Request("https://s.test/_video/v1/720/../x.mp4"), bucket({}))).toBeUndefined();
 	});
-	it("serves the made size with ranges, immutable, and stores the whole file in the cache", async () => {
+	it("serves the made size with ranges, immutable and cacheable by the Worker cache", async () => {
 		const b = bucket({ "_video/v1/01ABC/720.mp4": bytes(1000) });
-		const puts: [string, Response][] = [];
-		const cache = { match: async () => undefined, put: async (k: string, r: Response) => void puts.push([k, r]) } as unknown as Cache;
-		const waits: Promise<unknown>[] = [];
-		const r = (await serveVideo(new Request("https://s.test/_video/v1/720/01ABC.mp4", { headers: { Range: "bytes=0-99" } }), b, { waitUntil: (p) => waits.push(p) }, cache)) as Response;
+		const r = (await serveVideo(new Request("https://s.test/_video/v1/720/01ABC.mp4", { headers: { Range: "bytes=0-99" } }), b)) as Response;
 		expect(r.status).toBe(206);
 		expect(r.headers.get("content-range")).toBe("bytes 0-99/1000");
 		expect(r.headers.get("cache-control")).toContain("immutable");
+		expect(r.headers.get("cloudflare-cdn-cache-control")).toBe("public, max-age=31536000");
 		expect(r.headers.get("x-video")).toBe("size");
 		expect((await r.arrayBuffer()).byteLength).toBe(100);
-		await Promise.all(waits);
-		expect(puts).toHaveLength(1);
-		expect(puts[0]![0]).toBe("https://s.test/_video/v1/720/01ABC.mp4");
-		expect(puts[0]![1].status).toBe(200);
-		expect(puts[0]![1].headers.get("content-length")).toBe("1000");
-		// A seek further in does not copy the file again.
-		await serveVideo(new Request("https://s.test/_video/v1/720/01ABC.mp4", { headers: { Range: "bytes=500-" } }), b, { waitUntil: (p) => waits.push(p) }, cache);
-		await Promise.all(waits);
-		expect(puts).toHaveLength(1);
+		const full = (await serveVideo(new Request("https://s.test/_video/v1/720/01ABC.mp4"), b)) as Response;
+		expect(full.status).toBe(200);
+		expect(full.headers.get("content-length")).toBe("1000");
 	});
-	it("answers from the cache when it holds the file", async () => {
-		const b = bucket({});
-		const cache = { match: async (req: Request) => (req.headers.get("range") ? new Response("x", { status: 206 }) : undefined), put: async () => {} } as unknown as Cache;
-		const r = (await serveVideo(new Request("https://s.test/_video/v1/480/01ABC.mp4", { headers: { Range: "bytes=0-0" } }), b, undefined, cache)) as Response;
-		expect(r.status).toBe(206);
-		expect(r.headers.get("x-video")).toBe("size; cached");
-		expect(b.gets).toEqual([]);
-	});
-	it("falls back to the upload, briefly cached and not stored", async () => {
+	it("falls back to the upload, briefly cached and kept out of the Worker cache", async () => {
 		const b = bucket({ "01ABC.mp4": bytes(50) });
-		const puts: unknown[] = [];
-		const cache = { match: async () => undefined, put: async (k: unknown) => void puts.push(k) } as unknown as Cache;
-		const r = (await serveVideo(new Request("https://s.test/_video/v1/720/01ABC.mp4"), b, { waitUntil: () => {} }, cache)) as Response;
+		const r = (await serveVideo(new Request("https://s.test/_video/v1/720/01ABC.mp4"), b)) as Response;
 		expect(r.status).toBe(200);
 		expect(r.headers.get("x-video")).toBe("original");
 		expect(r.headers.get("cache-control")).toBe("public, max-age=300");
-		expect(puts).toEqual([]);
+		expect(r.headers.get("cloudflare-cdn-cache-control")).toBe("no-store");
 	});
 	it("416 past the end, 404 when nothing is there, 304 on a matching ETag", async () => {
 		const b = bucket({ "_video/v1/01ABC/720.mp4": bytes(10) });
-		expect((await serveVideo(new Request("https://s.test/_video/v1/720/01ABC.mp4", { headers: { Range: "bytes=50-" } }), b, undefined, undefined))!.status).toBe(416);
-		expect((await serveVideo(new Request("https://s.test/_video/v1/720/NOPE.mp4"), b, undefined, undefined))!.status).toBe(404);
-		expect((await serveVideo(new Request("https://s.test/_video/v1/720/01ABC.mp4", { headers: { "If-None-Match": '"_video/v1/01ABC/720.mp4"' } }), b, undefined, undefined))!.status).toBe(304);
+		expect((await serveVideo(new Request("https://s.test/_video/v1/720/01ABC.mp4", { headers: { Range: "bytes=50-" } }), b))!.status).toBe(416);
+		expect((await serveVideo(new Request("https://s.test/_video/v1/720/NOPE.mp4"), b))!.status).toBe(404);
+		expect((await serveVideo(new Request("https://s.test/_video/v1/720/01ABC.mp4", { headers: { "If-None-Match": '"_video/v1/01ABC/720.mp4"' } }), b))!.status).toBe(304);
 	});
 });
 

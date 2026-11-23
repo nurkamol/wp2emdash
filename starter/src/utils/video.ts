@@ -7,10 +7,12 @@
  * The sizes are made by the kit (`wp2emdash videos <slug>`, and the load phase) with ffmpeg: H.264, no sound, index
  * first. A size not made yet falls back to the uploaded file (short cache, so the size takes over once it exists).
  *
- * Why here and not EmDash's media route: a player asks for byte ranges, EmDash serves those straight from R2 on every
- * request (a 206 cannot be stored with cache.put). This handler stores the whole file once per data centre and lets
- * cache.match answer each range from it (Cloudflare's Cache API returns a 206 for a Range request against a stored
- * 200 with Content-Length). Runs before Astro: no page render, no database.
+ * Why here and not EmDash's media route: EmDash keeps ranged video responses out of the cache, so every play read R2
+ * in the database's region. This route marks the sizes cacheable for Cloudflare's Worker cache (wrangler.jsonc
+ * `cache.enabled`, the layer in front of the Worker that also holds pages and images) with
+ * `Cloudflare-CDN-Cache-Control`. That layer fetches the whole file on a miss and answers each byte range itself
+ * (measured: a range request returns 206 MISS, then 206 HIT). The range handling below serves workers.dev and
+ * preview addresses, where the layer is not in front. Runs before Astro: no page render, no database.
  */
 
 const ROUTE = /^\/_video\/v1\/(720|480)\/([A-Za-z0-9_-]{1,80})\.(mp4|webm|m4v|mov)$/;
@@ -36,10 +38,6 @@ export interface VideoBucket {
 	head(key: string): Promise<R2ObjectLike | null>;
 	get(key: string, opts?: { range?: R2Range }): Promise<R2BodyLike | null>;
 }
-interface Ctx {
-	waitUntil(p: Promise<unknown>): void;
-}
-
 /** R2 key of a made size. */
 export const variantKey = (base: string, size: string) => `_video/v1/${base}/${size}.mp4`;
 
@@ -59,7 +57,7 @@ export function parseRange(header: string | null, size: number): R2Range | undef
 }
 
 /** The response for /_video/…, or undefined when the path is not one (the request goes on to EmDash). */
-export async function serveVideo(request: Request, bucket: VideoBucket | undefined, ctx?: Ctx, cache: Cache | undefined = (globalThis as { caches?: { default?: Cache } }).caches?.default): Promise<Response | undefined> {
+export async function serveVideo(request: Request, bucket: VideoBucket | undefined): Promise<Response | undefined> {
 	const url = new URL(request.url);
 	const m = ROUTE.exec(url.pathname);
 	if (!m) return undefined;
@@ -67,21 +65,6 @@ export async function serveVideo(request: Request, bucket: VideoBucket | undefin
 	if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405, headers: { Allow: "GET, HEAD" } });
 	if (!bucket) return new Response("Not found", { status: 404 });
 	const head = request.method === "HEAD";
-	const cacheUrl = `${url.origin}${url.pathname}`;
-
-	if (cache) {
-		const ask = new Headers();
-		for (const h of ["range", "if-none-match", "if-modified-since"]) {
-			const v = request.headers.get(h);
-			if (v) ask.set(h, v);
-		}
-		const hit = await cache.match(new Request(cacheUrl, { headers: ask })).catch(() => undefined);
-		if (hit) {
-			const headers = new Headers(hit.headers);
-			headers.set("X-Video", "size; cached");
-			return new Response(head ? null : hit.body, { status: hit.status, headers });
-		}
-	}
 
 	let key = variantKey(base, size);
 	let variant = true;
@@ -95,6 +78,9 @@ export async function serveVideo(request: Request, bucket: VideoBucket | undefin
 	const headers = new Headers({
 		"Content-Type": variant ? "video/mp4" : (obj.httpMetadata?.contentType ?? TYPES[ext] ?? "application/octet-stream"),
 		"Cache-Control": variant ? IMMUTABLE : FALLBACK,
+		// The Worker cache in front: a size for a year (purged by tag "video" or a deploy), the stand-in not at all.
+		"Cloudflare-CDN-Cache-Control": variant ? "public, max-age=31536000" : "no-store",
+		...(variant ? { "Cache-Tag": "video" } : {}),
 		"Accept-Ranges": "bytes",
 		ETag: obj.httpEtag,
 		"Last-Modified": obj.uploaded.toUTCString(),
@@ -102,22 +88,7 @@ export async function serveVideo(request: Request, bucket: VideoBucket | undefin
 		"X-Video": variant ? "size" : "original",
 	});
 	if (request.headers.get("if-none-match") === obj.httpEtag) return new Response(null, { status: 304, headers });
-
-	// Store the whole size once in this data centre (a fresh read: its length is known, which cache.match needs to
-	// answer ranges). Only from the start of a play, so a seek does not trigger a second copy.
 	const range = parseRange(request.headers.get("range"), obj.size);
-	if (variant && cache && ctx && !head && (!range || range.offset === 0)) {
-		ctx.waitUntil(
-			bucket.get(key).then((full) => {
-				if (!full) return;
-				const h = new Headers(headers);
-				h.set("Content-Length", String(full.size));
-				h.delete("X-Video");
-				return cache.put(cacheUrl, new Response(full.body, { status: 200, headers: h }));
-			}).catch(() => {}),
-		);
-	}
-
 	if (range === null) {
 		headers.set("Content-Range", `bytes */${obj.size}`);
 		return new Response(null, { status: 416, headers });

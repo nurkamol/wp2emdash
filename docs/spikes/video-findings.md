@@ -14,13 +14,16 @@ Code: `src/targets/emdash/video-sizes.ts` (kit), `starter/src/utils/video.ts` (W
   480p CRF 30 0.93 MB; another 5.88 MB loop → 0.91 / 0.51 MB. Frames compared side by side: no visible difference
   behind an overlay. CRF 28 at 720p gave 2.20 MB for no visible gain.
 
-## Cloudflare Cache API (developers.cloudflare.com/workers/runtime-apis/cache, read 2026-11-24)
+## Which cache
 
-- `cache.match` with a `Range` header against a stored 200 with `Content-Length` returns a 206.
-- `cache.put` throws on a 206, so the whole file is stored from a separate full R2 read (known length).
-- `If-None-Match` / `If-Modified-Since` on match give 304s. The cache is per data centre.
-- Dashboard / Playground previews have no cache; versioned preview URLs are not mentioned (the route serves from R2
-  when nothing is cached, so it works either way).
+- First version used `caches.default` (store the whole file, let `cache.match` answer ranges, per the Cache API
+  docs). On the live sites it never hit: these projects run with the Worker cache in front (`wrangler.jsonc`
+  `cache.enabled`, used by Astro's `cacheCloudflare` route cache via `Cloudflare-CDN-Cache-Control` + `Cache-Tag`).
+- That front layer handles ranges itself. Measured on an image never requested before: `Range: bytes=0-99` →
+  `206 MISS`, again → `206 HIT`, full → `200 HIT` (it fetches the whole file on a miss, even though EmDash turns the
+  route cache off for ranged requests). So the route only sets `Cloudflare-CDN-Cache-Control: public, max-age=31536000`
+  on a size (`no-store` on the stand-in) and tags it `video`. Per data centre; `cross_version_cache: false`, so a
+  deploy starts it empty.
 
 ## Design
 
