@@ -271,7 +271,7 @@ How:
 2. `pnpm wp2emdash provision <slug> staging --location <loc>` → `<slug>-staging-db`, `<slug>-stg-media`, outbox, `<slug>-staging-sessions`.
 3. Rerun scaffold: `wrangler.jsonc` gets `env.staging` (`STAGING=1`, form email only to `email.stagingTo` — or held in
    the outbox without it — and Cloudflare's always-pass Turnstile test keys), package.json the `deploy:staging` scripts.
-4. `( set -a && . ../../../.env && set +a && pnpm deploy:staging )` — `CLOUDFLARE_ENV=staging astro build` (the
+4. `pnpm deploy:staging` (credentials found like `deploy:production`, section 2) — `CLOUDFLARE_ENV=staging astro build` (the
    environment is chosen **at build time**: `wrangler deploy --env staging` after a normal build would deploy the
    production bindings), `emdash migrate … --wrangler-env staging` (check it names `<slug>-staging-db`),
    `wrangler deploy`, `emdash migrate --check`.

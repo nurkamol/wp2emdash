@@ -418,6 +418,13 @@ describe("pnpm versions:deploy <version-id> (no prompt)", async () => {
 			rmSync(dir, { recursive: true, force: true });
 		}
 		expect(deployProductionScript({ "deploy:staging": "x" }).file).toBeUndefined();
+		// deploy:staging the same way (sites with staging).
+		const { deployEnvScript } = await import("../src/scaffold/client-repo.js");
+		const st = deployEnvScript("staging", { "deploy:staging": "CLOUDFLARE_ENV=staging astro build && wrangler deploy", "deploy:production": "y" }, { accountId: account });
+		expect(st.scripts["deploy:staging"]).toBe("node scripts/deploy-staging.mjs");
+		expect(st.scripts["deploy:production"]).toBe("y");
+		expect(st.file).toContain('const CHAIN = "CLOUDFLARE_ENV=staging astro build && wrangler deploy";');
+		expect(st.file).toContain("wrangler auth token");
 	});
 	it("leaves projects without a versions:deploy script alone", () => {
 		expect(versionsDeployScript({ "deploy:staging": "x" }).file).toBeUndefined();
