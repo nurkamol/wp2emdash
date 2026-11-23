@@ -321,3 +321,28 @@ describe("client docs", () => {
 		expect(off["docs/editor-guide.md"]).not.toContain("within seconds");
 	});
 });
+
+describe("Workers placement (performance.smartPlacement / placementRegion)", async () => {
+	const { wranglerJsonc, placementJson } = await import("../src/phases/scaffold.js");
+	const parse = (perf: Record<string, unknown>) => kitConfigSchema.parse({ slug: "acme", name: "Acme", source: { url: "https://acme.example" }, target: { productionUrl: "https://acme.example" }, email: { to: ["owner@acme.example"], stagingTo: ["team@agency.example"] }, performance: perf });
+	// JSONC → JSON: drop // comments (none of the generated values contain "//" outside URLs, which are quoted with ":").
+	const json = (text: string) => JSON.parse(text.replace(/^\s*\/\/.*$/gm, "").replace(/,(\s*[}\]])/g, "$1"));
+	const wrangler = (perf: Record<string, unknown>) => {
+		const config = parse(perf);
+		return json(wranglerJsonc({ config, workerName: "acme", compatibilityDate: "2026-11-24", cf: { production: { d1: { name: "acme-db", id: "d1" } } }, staging: false, sandboxedEnvs: [], seoPanel: false, productionHost: "acme.example", perf: config.performance }));
+	};
+	it("is off by default: no placement in wrangler.jsonc", () => {
+		expect(wrangler({}).placement).toBeUndefined();
+		expect(placementJson(undefined)).toBe("");
+	});
+	it("smartPlacement: true reaches wrangler.jsonc (it was declared but never written before)", () => {
+		expect(wrangler({ smartPlacement: true }).placement).toEqual({ mode: "smart" });
+	});
+	it("placementRegion writes a Placement Hint next to the database's region", () => {
+		expect(wrangler({ placementRegion: "aws:us-east-1" }).placement).toEqual({ region: "aws:us-east-1" });
+	});
+	it("refuses both at once and a region that is not <provider>:<region>", () => {
+		expect(() => parse({ smartPlacement: true, placementRegion: "aws:us-east-1" })).toThrow(/smartPlacement or placementRegion, not both/);
+		expect(() => parse({ placementRegion: "ENAM" })).toThrow(/cloud region/);
+	});
+});

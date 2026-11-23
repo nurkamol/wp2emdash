@@ -64,6 +64,16 @@ export function outboxVars(outbox: { days: number; hold: boolean; keepSent?: boo
 	return { FORM_OUTBOX_DAYS: String(outbox.days), ...(outbox.hold ? { FORM_OUTBOX_HOLD: "1" } : {}), ...(outbox.keepSent ? { FORM_OUTBOX_KEEP_SENT: "1" } : {}) };
 }
 
+/**
+ * Workers placement (kit.config performance.smartPlacement / placementRegion; docs/spikes/performance-findings.md).
+ * Wrangler 4.163.0 accepts `{ "mode": "smart" }` or one hint (`{ "region": "aws:us-east-1" }`), not both.
+ */
+export function placementJson(perf: Pick<PerfConfig, "smartPlacement" | "placementRegion"> | undefined): string {
+	if (perf?.placementRegion) return `\n\t// Placement Hint (performance.placementRegion): uncached renders run next to the database's region.\n\t"placement": ${JSON.stringify({ region: perf.placementRegion })},`;
+	if (perf?.smartPlacement) return `\n\t// Smart Placement (performance.smartPlacement): Cloudflare may run the Worker nearer its database.\n\t"placement": { "mode": "smart" },`;
+	return "";
+}
+
 /** Versions verified together in docs/spikes (M0 + M5). Upgrades are deliberate: bump here, rerun verify. */
 export const STACK = {
 	node: ">=24",
@@ -196,7 +206,7 @@ export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms"> & 
 	"r2_buckets": [${r2("production", `${workerName}-media`)}],
 	"vars": ${JSON.stringify(vars.production)},
 	"ratelimits": ${limiter(ns)}${kvJson("production")},
-	"triggers": { "crons": ["*/5 * * * *"] },${ai}${loader("production") ? `
+	"triggers": { "crons": ["*/5 * * * *"] },${placementJson(o.perf)}${ai}${loader("production") ? `
 	// Runs the sandboxed plugins (Cloudflare Worker Loader, Workers Paid).
 	"worker_loaders": [{ "binding": "LOADER" }],` : ""}${self ? `
 	// The SEO dashboard and Site health read this site's pages, robots.txt and sitemap through itself (a fetch to its own

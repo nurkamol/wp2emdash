@@ -16,7 +16,7 @@ database, close to the worst case the owner measured. Nothing was deployed to pr
 | Hashed brand files (WebP logo with size, small favicons), immutable fonts/brand (`public/_headers`) | always | — |
 | Hero/background video deferred (poster first) | always (starter) | — |
 | Announcement schedule checked in the browser, script allowed by CSP hash | always (starter) | — |
-| Smart Placement | **off** (below) | `performance: { smartPlacement: true }` turns it on |
+| Smart Placement / Placement Hint | **off** (below) | `performance: { smartPlacement: true }` or `{ placementRegion: "aws:us-east-1" }` |
 | Verify gates `route-cache`, `cached-ttfb` (≤ `gates.maxCachedTtfbMs`, 600), `payload` (≤ `gates.maxPayloadKb`, 1500) | on | thresholds in `gates` |
 
 ## Route caching — how it works in this stack
@@ -153,6 +153,15 @@ cached pages do not run the Worker at all. The staging Worker had been left with
 experiment (`cf-placement: local-FRA` on the first measurement); the kit's deploy removes it. A site whose visitors
 are far from its database and whose pages are mostly uncached could try `performance: { smartPlacement: true }` and
 compare with the same method (`cf-placement`, `server-timing`).
+
+**2026-11-24:** `smartPlacement: true` had never reached `wrangler.jsonc` (declared in the schema, not written by the
+scaffold); it is now. Added `performance.placementRegion`, a Placement Hint (`"placement": { "region": "aws:us-east-1" }`,
+accepted by Wrangler 4.163.0's schema; exclusive with `mode: "smart"`), because Smart Placement only considers
+locations where the Worker already runs. Why it matters: both live sites' D1 databases run in ENAM; from Europe an
+uncached page took ~2.8 s TTFB (served from `ARN`, ~20 D1 queries, `db.total` ~3 s), identical on both sites, while
+cached pages answered in ~0.3 s. A hint near the database turns those ~20 ocean crossings into one for far visitors;
+visitors near the database and cached pages are unchanged. Both stay off by default until measured on a live site
+with the method above.
 
 ## Verify on staging (preview run, 2026-11-20)
 
