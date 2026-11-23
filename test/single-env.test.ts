@@ -425,6 +425,25 @@ describe("pnpm versions:deploy <version-id> (no prompt)", async () => {
 		expect(st.scripts["deploy:production"]).toBe("y");
 		expect(st.file).toContain('const CHAIN = "CLOUDFLARE_ENV=staging astro build && wrangler deploy";');
 		expect(st.file).toContain("wrangler auth token");
+		// ci:deploy:production too: CI's secrets come from the shell and win.
+		const { deployChainScript } = await import("../src/scaffold/client-repo.js");
+		const ci = deployChainScript("ci:deploy:production", { "ci:deploy:production": "echo acct=$CLOUDFLARE_ACCOUNT_ID tok=$CLOUDFLARE_API_TOKEN && echo wrangler deploy", "deploy:production": "z" }, { accountId: account });
+		expect(ci.scripts["ci:deploy:production"]).toBe("node scripts/ci-deploy-production.mjs");
+		expect(ci.scripts["deploy:production"]).toBe("z");
+		const dir2 = mkdtempSync(join(tmpdir(), "wp2emdash-ci-"));
+		try {
+			const f = join(dir2, "ci-deploy-production.mjs");
+			writeFileSync(f, ci.file as string);
+			const out = spawnSync(process.execPath, [f], { cwd: dir2, encoding: "utf8", env: { PATH: process.env.PATH ?? "", CLOUDFLARE_API_TOKEN: "secret", CLOUDFLARE_ACCOUNT_ID: "var" } });
+			expect(out.status).toBe(0);
+			expect(out.stdout).toContain("acct=var tok=secret");
+			// An empty secret (not set in the repository): stops before the build.
+			const empty = spawnSync(process.execPath, [f], { cwd: dir2, encoding: "utf8", env: { PATH: "", CLOUDFLARE_API_TOKEN: "", CLOUDFLARE_ACCOUNT_ID: "var" } });
+			expect(empty.status).toBe(1);
+			expect(empty.stderr).toMatch(/Missing CLOUDFLARE_API_TOKEN/);
+		} finally {
+			rmSync(dir2, { recursive: true, force: true });
+		}
 	});
 	it("leaves projects without a versions:deploy script alone", () => {
 		expect(versionsDeployScript({ "deploy:staging": "x" }).file).toBeUndefined();

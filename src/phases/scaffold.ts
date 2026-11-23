@@ -33,7 +33,7 @@ import { writeBuildMarker } from "../core/build-marker.js";
 import type { GateCheck } from "../core/state.js";
 import type { IrPage, IrSite } from "../ir/schema.js";
 import { missingFamilies, resolveGoogleHref, selfHostGoogleFonts, typekitKit } from "../scaffold/fonts.js";
-import { clientRepoFiles, deployScripts, deployEnvScript, deployProductionScript, versionsDeployScript, writeClientRepo } from "../scaffold/client-repo.js";
+import { clientRepoFiles, deployScripts, deployChainScript, deployEnvScript, deployProductionScript, versionsDeployScript, writeClientRepo } from "../scaffold/client-repo.js";
 import { loadOverrides } from "../config/overrides.js";
 import { pluginForm } from "../../packages/forms/src/index.js";
 import { applySensitivePolicy, applyUploadPolicy, fluentFormToDefinition, type FormDefinitionOut } from "../scaffold/forms.js";
@@ -769,7 +769,9 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	// Same for deploy:staging (sites with staging), in staging's account when it has its own.
 	const stagingAccount = (cfRecord as { staging?: { accountId?: string } }).staging?.accountId;
 	const deployStaging = deployEnvScript("staging", deployProduction.scripts, stagingAccount ? { accountId: stagingAccount } : deployAccount);
-	const versionsDeploy = { scripts: deployStaging.scripts, file: versionsDeploy0.file };
+	// And the unattended production deploy CI runs (ci:deploy:production, with the pinned fingerprint).
+	const ciDeployProduction = deployChainScript("ci:deploy:production", deployStaging.scripts, deployAccount);
+	const versionsDeploy = { scripts: ciDeployProduction.scripts, file: versionsDeploy0.file };
 	write(join(project, "package.json"), {
 		name: `${config.slug}-site`,
 		version: "0.1.0",
@@ -812,8 +814,8 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 		mkdirSync(join(project, "scripts"), { recursive: true });
 		writeFileSync(vdFile, versionsDeploy.file);
 	} else rmSync(vdFile, { force: true });
-	for (const [envName, made] of [["production", deployProduction], ["staging", deployStaging]] as const) {
-		const f = join(project, "scripts", `deploy-${envName}.mjs`);
+	for (const [fileName, made] of [["deploy-production.mjs", deployProduction], ["deploy-staging.mjs", deployStaging], ["ci-deploy-production.mjs", ciDeployProduction]] as const) {
+		const f = join(project, "scripts", fileName);
 		if (made.file) {
 			mkdirSync(join(project, "scripts"), { recursive: true });
 			writeFileSync(f, made.file);
