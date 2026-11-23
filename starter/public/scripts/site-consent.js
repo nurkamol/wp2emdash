@@ -257,10 +257,18 @@
 	}
 
 	if (!used.length && !preview) return;
-	// "Cookie settings": the site's own [data-consent-open] link if it has one, else one at the end of the footer.
+	// "Cookie settings": the site's own [data-consent-open] link if it has one; else next to the footer's privacy policy
+	// link, dressed like it (same classes, same inner <span>), so it joins the legal links row; else at the end of the footer.
 	if (c.footer !== false && !document.querySelector("[data-consent-open]")) {
 		const f = document.querySelector("footer.site-footer") || document.querySelector("footer");
-		if (f) f.appendChild(el("p", { class: "consent-footer" }, [el("button", { type: "button", class: "consent-link", "data-consent-open": true, text: text("settings", "Cookie settings") })]));
+		const slash = (p) => p.replace(/\/?$/, "/");
+		const pl = f && policy ? Array.from(f.querySelectorAll("a[href]")).find((a) => { try { const u = new URL(a.href, location.href); return u.origin === location.origin && slash(u.pathname) === slash(policy); } catch { return false; } }) : null;
+		if (pl && pl.parentElement) {
+			const label = text("settings", "Cookie settings");
+			const span = pl.children.length === 1 && pl.firstElementChild.tagName === "SPAN" && pl.textContent.trim() === pl.firstElementChild.textContent.trim();
+			const b = el("button", { type: "button", class: `${pl.className} consent-link--inline`.trim(), style: pl.getAttribute("style"), "data-consent-open": true, ...(span ? {} : { text: label }) }, span ? [el("span", { text: label })] : []);
+			pl.parentElement.insertBefore(b, pl);
+		} else if (f) f.appendChild(el("p", { class: "consent-footer" }, [el("button", { type: "button", class: "consent-link", "data-consent-open": true, text: text("settings", "Cookie settings") })]));
 	}
 	document.addEventListener("click", (e) => {
 		const t = e.target && typeof e.target.closest === "function" ? e.target.closest("[data-consent-open]") : null;

@@ -42,6 +42,8 @@ const { runtime } = await pageConsent(Astro.locals, isEditor(Astro.cookies, Astr
 	.consent__btn:focus-visible { outline: 2px solid var(--color-text, #1a1a1a); outline-offset: 3px; }
 	.consent-footer { margin: 0; padding: 0.75rem var(--gutter, 1rem); text-align: center; background: var(--color-bg, #fff); color: var(--color-text, #1a1a1a); font-size: var(--font-size-small, 0.8125rem); }
 	.consent-link { background: none; border: 0; padding: 0.4rem; font: inherit; cursor: pointer; min-height: 24px; }
+	/* Placed among the footer's legal links: the site's link classes style it; only undo the button defaults they may not cover. */
+	:where(.consent-link--inline) { background: none; border: 0; font: inherit; color: inherit; cursor: pointer; }
 	@media (max-width: 600px) { .consent__btn { flex: 1 1 100%; } }
 	@media print { .consent { display: none; } }
 </style>

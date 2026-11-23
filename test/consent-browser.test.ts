@@ -21,13 +21,13 @@ const attr = (v: unknown) => JSON.stringify(v).replace(/&/g, "&amp;").replace(/"
 const services = { analytics: ["Google Analytics", "Microsoft Clarity"], marketing: ["Meta Pixel"], preferences: [], cookieless: [] };
 const analytics = { google: ["G-ABC123DEF4"], gtm: [], meta: ["123456789012345"], clarity: "abcd1234ef", consent: true, banner: true };
 
-function html(mode: "opt-in" | "notice"): string {
+function html(mode: "opt-in" | "notice", legal = false): string {
 	const consent = runtimeConsent({ ...defaultSettings(), mode, policy: "/privacy-policy" }, services, { logUrl: LOG_PATH });
 	return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fixture</title>
 <meta name="site-consent" content="${attr(consent)}"><script src="/scripts/site-consent.js" defer></script>
 <meta name="site-analytics" content="${attr(analytics)}"><script src="/scripts/site-analytics.js" defer></script>
 <style>:root{--color-bg:#fbf8f3;--color-text:#2b2622;--color-line:rgb(43 38 34 / .14)}body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:system-ui}.skip-link{position:absolute;top:-4rem}${style}</style></head>
-<body><a href="#main" class="skip-link">Skip to content</a><header><nav aria-label="Main"><a href="/">Home</a></nav></header><main id="main" tabindex="-1"><h1>Fixture page</h1><p>Content.</p></main><footer class="site-footer"><p>© Acme</p></footer></body></html>`;
+<body><a href="#main" class="skip-link">Skip to content</a><header><nav aria-label="Main"><a href="/">Home</a></nav></header><main id="main" tabindex="-1"><h1>Fixture page</h1><p>Content.</p></main><footer class="site-footer"><p>© Acme</p>${legal ? '<div class="actions"><a href="/privacy-policy/" class="btn btn--link" style="--btn-inset:25px"><span>Privacy Policy</span></a><a href="/terms/" class="btn btn--link"><span>Terms</span></a></div>' : ""}</footer></body></html>`;
 }
 
 let server: Server;
@@ -45,7 +45,7 @@ beforeAll(async () => {
 			res.end('{"strict":true}');
 		} else {
 			res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-			res.end(html(u.searchParams.get("mode") === "notice" ? "notice" : "opt-in"));
+			res.end(html(u.searchParams.get("mode") === "notice" ? "notice" : "opt-in", u.searchParams.has("legal")));
 		}
 	});
 	await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -73,6 +73,22 @@ describe("consent banner in Chromium", () => {
 		const r = await consentRun(browser, `${base}/?mode=notice`, { waitMs: 800, route: thirdParty });
 		expect(r.before.length).toBeGreaterThan(0);
 		expect(consentProblem(r, true).applies).toBe(false);
+	}, 30_000);
+	it("Cookie settings joins the footer's legal links, dressed like the privacy policy link; without one it ends the footer", async (t) => {
+		if (!browser) return t.skip();
+		const page = await browser.newPage();
+		try {
+			await page.goto(`${base}/?legal=1`);
+			await page.waitForSelector("[data-consent-open]", { state: "attached" });
+			const row = await page.$$eval("footer .actions > *", (els) => els.map((e) => ({ tag: e.tagName, cls: e.className, style: e.getAttribute("style"), html: e.innerHTML })));
+			expect(row.map((r) => r.tag)).toEqual(["BUTTON", "A", "A"]);
+			expect(row[0]).toMatchObject({ cls: "btn btn--link consent-link--inline", style: "--btn-inset:25px", html: "<span>Cookie settings</span>" });
+			expect(await page.$$eval(".consent-footer", (e) => e.length)).toBe(0);
+			await page.goto(`${base}/`);
+			await page.waitForSelector(".consent-footer [data-consent-open]", { state: "attached" });
+		} finally {
+			await page.close();
+		}
 	}, 30_000);
 	it("a gate failure names what was requested before consent", () => {
 		expect(consentProblem({ banner: true, style: "strict", shown: true, before: ["https://connect.facebook.net/en_US/fbevents.js"], after: [] }, true).problem).toContain("requested before consent: https://connect.facebook.net");

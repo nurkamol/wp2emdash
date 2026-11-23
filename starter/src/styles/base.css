@@ -713,7 +713,8 @@ body.over-hero { padding-top: var(--announce-h, 0px); }
 .popup__close { position: absolute; right: 0.75rem; top: 0.5rem; background: none; border: 0; font-size: 2rem; line-height: 1; cursor: pointer; color: inherit; }
 .popup .section { padding-block: 0; background: none; }
 .popup .section__inner { width: auto; }
-.popup .actions { flex-direction: column; align-items: stretch; }
+/* Popup choices side by side in equal columns; they stack once a column would be narrower than 12rem. */
+.popup .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr)); align-items: start; justify-items: start; }
 
 /* footer */
 .site-footer { background: var(--footer-bg, var(--color-surface)); }
