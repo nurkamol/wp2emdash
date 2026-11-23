@@ -5,7 +5,7 @@ export default defineConfig({
 	// which is only installed in generated projects, so the transform skips tsconfig lookup.
 	oxc: { tsconfig: false },
 	// Agent worktrees (.claude/worktrees) hold full copies of the repo: their tests are not this checkout's.
-	test: { exclude: ["**/node_modules/**", "**/.claude/**", "sites/**"] },
+	test: { exclude: ["**/node_modules/**", "**/.claude/**", "sites/**"], env: { WP2EMDASH_VIDEO_SIZES: "0" } },
 	// Starter modules that run inside the generated site import these; tests use small stand-ins.
 	// "emdash/middleware" before "emdash": an alias also matches its subpaths, and the first match wins.
 	// Kit packages importing each other (@wp2emdash/health → forms, seo) resolve to their sources, as `link:` does in a site.

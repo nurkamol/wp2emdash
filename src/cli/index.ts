@@ -361,6 +361,24 @@ program
 	});
 
 program
+	.command("videos <slug>")
+	.description("Web sizes of the site's videos (720p; 480p for phones; H.264 without sound, index first) stored next to the uploads in its media bucket and served by the project's /_video route from Cloudflare's cache. Production once provisioned (--local: the local dev site). Dry run unless --yes; only adds files")
+	.option("--yes", "make and store the missing sizes")
+	.option("--local", "the local dev database and bucket")
+	.option("--force", "make them again (after a change of settings)")
+	.option("--json", "print the result as JSON")
+	.action(async (slug: string, o: { yes?: boolean; local?: boolean; force?: boolean; json?: boolean }) => {
+		const { videosCommand, videosText } = await import("../commands/videos.js");
+		try {
+			const r = await videosCommand(slug, { ...(o.yes ? { yes: true } : {}), ...(o.local ? { local: true } : {}), ...(o.force ? { force: true } : {}), ...(o.json ? {} : { log: (l: string) => console.log(pc.dim(l)) }) });
+			console.log(o.json ? JSON.stringify(r, null, 2) : videosText(r));
+			process.exit(r.exitCode);
+		} catch (e) {
+			fail((e as Error).message);
+		}
+	});
+
+program
 	.command("ui")
 	.description("Local dashboard: portfolio, launch readiness, live runs, visual diff viewer (127.0.0.1 only, token-protected)")
 	.option("--no-open", "print the URL without opening the browser")

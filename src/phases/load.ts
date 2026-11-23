@@ -10,7 +10,7 @@ import { defaultTarget, noProductionTargets, readCf, siteEnvironments } from "..
 import { guardLiveProductionWrite } from "../targets/d1-backup.js";
 import { remoteTarget, targetName } from "../targets/remote.js";
 import { createHash } from "node:crypto";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 import { externalMediaDecision, loadOverrides } from "../config/overrides.js";
@@ -38,6 +38,7 @@ import { type ContentItem, EmDashApi, EmDashHttpError, type MediaItem } from "..
 import { type CommentMapEntry, type CommentsFile, loadComments } from "../targets/emdash/comments.js";
 import { blockKey, sectionToBlock } from "../targets/emdash/blocks.js";
 import { faststart, needsFaststart } from "../targets/emdash/faststart.js";
+import { makeVideoSizes } from "../targets/emdash/video-sizes.js";
 import { desiredSettings, planSettings, type SettingsRecord } from "../targets/emdash/settings.js";
 import type { IrSettings } from "../transform/settings.js";
 import { kitFetch, pinHost } from "../targets/emdash/net.js";
@@ -644,7 +645,18 @@ export async function runLoad({ config, paths, reporter, force, overwriteSetting
 			if (!folderResult.errors.some((x) => x.startsWith("folders:"))) await fileUnfiledMedia(api, folderPlan, folderIds, (wpId) => idMap.media[`wp:${wpId}`]?.id, currentFolder, folderResult);
 			check("media-folders", "Media folders from WordPress on the target (editors' folders and filing kept)", folderResult.errors.length === 0, folderResult.errors.slice(0, 6).join("; ") || folderSummary(folderResult, folderPlan));
 		}
-		check("media", "Every referenced media item is on the target", mediaErrors.length === 0, mediaErrors.slice(0, 6).join("; ") || `${refs.size} items (${uploaded} uploaded, ${reused} already there${duplicates ? `, ${duplicates} duplicate file(s) of the WordPress library share one media item` : ""})`);
+		// Web sizes of the videos (720p, 480p for phones), next to the uploads in the media bucket (video-sizes.ts).
+		// Local and production (Wrangler); a staging site runs `wp2emdash videos` by hand. Needs ffmpeg.
+		if (target !== "staging" && Object.values(idMap.media).some((e) => e.mime.startsWith("video/")) && process.env.WP2EMDASH_VIDEO_SIZES !== "0") {
+			if (spawnSync("ffmpeg", ["-version"]).error) reporter.emit({ type: "log", level: "warn", message: "ffmpeg not installed: videos are served at their uploaded size. Install ffmpeg, then `wp2emdash videos <slug> --yes`." });
+			else {
+				reporter.emit({ type: "step:start", step: "Video sizes" });
+				const vs = makeVideoSizes({ project: paths.project, recordFile: join(paths.root, "load", "video-sizes.json"), remote: target === "production", log: (m) => reporter.emit({ type: "log", level: "info", message: `video: ${m}` }) });
+				reporter.emit({ type: "step:end", step: "Video sizes", ok: vs.errors.length === 0, detail: `${vs.done.length} made, ${vs.skipped} already done` });
+				check("video-sizes", "Every video has its web sizes (720p, 480p) in the media bucket", vs.errors.length === 0, vs.errors.slice(0, 4).join("; ") || `${vs.done.length} made, ${vs.skipped} already done${vs.done.map((d) => `; ${d.filename} ${(d.original / 1e6).toFixed(1)} MB → ${Object.entries(d.sizes).map(([s, b]) => `${s}p ${(b / 1e6).toFixed(1)} MB`).join(", ")}`).join("")}`);
+			}
+		}
+		check("media", "Every referenced media item is on the target",mediaErrors.length === 0, mediaErrors.slice(0, 6).join("; ") || `${refs.size} items (${uploaded} uploaded, ${reused} already there${duplicates ? `, ${duplicates} duplicate file(s) of the WordPress library share one media item` : ""})`);
 		// Files linked from content: each one in the media library (the links are rewritten below); a link to an upload
 		// extract could not download was already broken on the live site (extract's brokenUploads).
 		const linkProblems = [...[...linked].filter(([, key]) => !idMap.media[key]).map(([u]) => `${u}: not uploaded`), ...linkedMissing.map((u) => `${u}: not in raw/media (broken on the live site, or rerun extract)`)];

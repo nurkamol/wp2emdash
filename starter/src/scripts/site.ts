@@ -448,39 +448,68 @@ for (const faq of document.querySelectorAll<HTMLElement>(".faq--panel")) {
 }
 
 // Background videos: never part of the first load. The section's picture paints first (LCP); the file is attached
-// after the load event, when the browser is idle — and not at all on small screens (< 768px), with data saver
-// (Save-Data) or reduced motion, where the picture stays. A video without a picture (data-always) is attached
-// everywhere, showing its first frame instead of playing under reduced motion. Started even where autoplay was
-// deferred (iOS Low Power Mode, a tab opened in the background): retried on the first touch, scroll or return.
+// after the load event, when the browser is idle and the section is near the screen (a video further down the page
+// is not downloaded until the visitor scrolls towards it) — and not at all on small screens (< 768px), with data
+// saver (Save-Data) or reduced motion, where the picture stays. A video without a picture (data-always) is attached
+// everywhere, showing its first frame instead of playing under reduced motion. Phones that play it get the 480p size
+// (data-src-small). Off screen it pauses; started even where autoplay was deferred (iOS Low Power Mode, a tab opened
+// in the background): retried on the first touch, scroll or return.
 const bgVideos = [...document.querySelectorAll<HTMLVideoElement>("video[data-bg-video]")];
 if (bgVideos.length) {
 	const saveData = (navigator as { connection?: { saveData?: boolean } }).connection?.saveData === true;
+	const phone = window.matchMedia("(max-width: 767.98px)").matches;
 	// html.video-phones (performance.phoneVideo): phones play it too, still after load.
-	const small = !document.documentElement.classList.contains("video-phones") && window.matchMedia("(max-width: 767.98px)").matches;
-	const playing: HTMLVideoElement[] = [];
+	const small = !document.documentElement.classList.contains("video-phones") && phone;
+	const playing = new Set<HTMLVideoElement>();
+	const visible = new Set<HTMLVideoElement>();
 	const start = () => {
 		for (const v of playing) {
+			if (!visible.has(v)) continue;
 			v.muted = true;
 			if (v.paused) v.play().catch(() => {});
 		}
 	};
-	const attach = () => {
-		for (const v of bgVideos) {
-			const src = v.dataset.src;
-			const always = v.hasAttribute("data-always");
-			if (!src || (!always && (reduce || saveData || small))) continue;
-			v.addEventListener(reduce ? "loadeddata" : "playing", () => v.classList.add("is-playing"), { once: true });
-			if (reduce) v.preload = "metadata";
-			v.src = src;
-			v.removeAttribute("data-src");
-			if (!reduce) playing.push(v);
-		}
-		if (!playing.length) return;
-		start();
+	const attach = (v: HTMLVideoElement) => {
+		const src = (phone && v.dataset.srcSmall) || v.dataset.src;
+		if (!src) return;
+		v.addEventListener(reduce ? "loadeddata" : "playing", () => v.classList.add("is-playing"), { once: true });
+		if (reduce) v.preload = "metadata";
+		v.src = src;
+		v.removeAttribute("data-src");
+		v.removeAttribute("data-src-small");
+		if (!reduce) playing.add(v);
+	};
+	const wanted = bgVideos.filter((v) => v.dataset.src && (v.hasAttribute("data-always") || !(reduce || saveData || small)));
+	const begin = () => {
+		if (!wanted.length) return;
+		const near = (v: HTMLVideoElement, on: boolean) => {
+			if (on) {
+				visible.add(v);
+				if (v.dataset.src) attach(v);
+				start();
+			} else {
+				visible.delete(v);
+				if (playing.has(v) && !v.paused) v.pause();
+			}
+		};
+		if (typeof IntersectionObserver === "function") {
+			// Watched through its .section__bg box (the video itself is invisible until it plays).
+			const byBox = new Map<Element, HTMLVideoElement>(wanted.map((v) => [v.closest(".section__bg") ?? v, v]));
+			const io = new IntersectionObserver(
+				(entries) => {
+					for (const e of entries) {
+						const v = byBox.get(e.target);
+						if (v) near(v, e.isIntersecting);
+					}
+				},
+				{ rootMargin: "300px 0px" },
+			);
+			for (const box of byBox.keys()) io.observe(box);
+		} else for (const v of wanted) near(v, true);
 		for (const ev of ["pointerdown", "touchstart", "scroll", "keydown"]) window.addEventListener(ev, start, { once: true, passive: true });
 		document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && start());
 	};
-	const idle = () => (typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(attach, { timeout: 3000 }) : setTimeout(attach, 300));
+	const idle = () => (typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(begin, { timeout: 3000 }) : setTimeout(begin, 300));
 	if (document.readyState === "complete") idle();
 	else window.addEventListener("load", idle, { once: true });
 }

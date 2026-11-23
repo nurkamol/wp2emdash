@@ -2,6 +2,7 @@
 /** Shell shared by every section: tone, background (colour/image/video + overlay), spacing, full height, anchor. */
 import { Image } from "emdash/ui";
 import { mediaUrl } from "../utils/media";
+import { videoSources } from "../utils/video";
 
 interface Props {
 	value: Record<string, any>;
@@ -14,6 +15,8 @@ const { value: v, type, class: extra, vars } = Astro.props;
 const bg = v.bg_color || undefined;
 const resolve = (Astro.locals as any).emdash?.getPublicMediaUrl as ((k: string) => string) | undefined;
 const videoSrc = v.bg_video ? mediaUrl(v.bg_video, resolve) : undefined;
+// Web sizes of the upload (720p, 480p for phones; src/utils/video.ts), the upload itself until they are made.
+const video = videoSources(videoSrc);
 const overlay = typeof v.bg_overlay === "number" ? v.bg_overlay : v.bg_image || v.bg_video ? 0 : undefined;
 const gradient = /^(?:linear|radial)-gradient\([^;{}<>]*\)$/.test(v.bg_gradient ?? "") ? v.bg_gradient : undefined;
 const PAD = /^(?:\d+(?:\.\d+)?px|clamp\([\d.]+px, -?[\d.]+px \+ -?[\d.]+vw, [\d.]+px\))$/;
@@ -41,10 +44,11 @@ const style = [minH ? `--section-min-h:${minH}` : "", padTopT ? `--pad-top-t:${p
 			<div class="section__bg" aria-hidden="true" data-motion={v.bg_motion === "parallax" ? "parallax" : undefined}>
 				{v.bg_image && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" priority={type === "hero" || v._lead === true} fetchpriority={type === "hero" || v._lead === true ? "high" : undefined} />}
 				{/* Background video: the picture above is the first paint (LCP) and stays for phones, data saver and reduced
-				   motion; scripts/site.ts attaches the file (data-src) once the page has loaded and the browser is idle.
+				   motion; scripts/site.ts attaches the file (data-src, data-src-small on phones) once the page has loaded, the
+				   browser is idle and the section is near the screen.
 				   data-always: no picture to fall back on, so the video is attached everywhere. */}
 				{videoSrc && (
-					<video class="section__bg-media section__bg-video" data-src={videoSrc} muted loop playsinline preload="none" disablepictureinpicture data-bg-video data-always={v.bg_image ? undefined : ""} />
+					<video class="section__bg-media section__bg-video" data-src={video.src} data-src-small={video.small} muted loop playsinline preload="none" disablepictureinpicture data-bg-video data-always={v.bg_image ? undefined : ""} />
 				)}
 				{overlay ? <span class="section__overlay" /> : null}
 			</div>

@@ -270,13 +270,16 @@ describe("starter: route cache, CSP, announcement schedule, background video", (
 		expect(s).toContain('{v.bg_image && <Image image={v.bg_image} class="section__bg-media" sizes="100vw" priority={type === "hero" || v._lead === true} fetchpriority={type === "hero" || v._lead === true ? "high" : undefined} />}');
 		const video = /<video [^>]*\/>/.exec(s)?.[0] ?? "";
 		expect(video).toContain('preload="none"');
-		expect(video).toContain("data-src={videoSrc}");
+		expect(video).toContain("data-src={video.src} data-src-small={video.small}");
 		expect(video).not.toMatch(/\ssrc=|autoplay|poster=/);
 		const js = starter("scripts/site.ts");
 		expect(js).toContain('window.matchMedia("(max-width: 767.98px)").matches');
 		expect(js).toContain("connection?: { saveData?: boolean }");
-		expect(js).toContain("if (!src || (!always && (reduce || saveData || small))) continue;");
-		expect(js).toContain('window.requestIdleCallback(attach, { timeout: 3000 })');
+		expect(js).toContain('const wanted = bgVideos.filter((v) => v.dataset.src && (v.hasAttribute("data-always") || !(reduce || saveData || small)));');
+		expect(js).toContain('window.requestIdleCallback(begin, { timeout: 3000 })');
+		// Near the screen only (a video further down waits for the scroll), phones get the 480p size.
+		expect(js).toContain('{ rootMargin: "300px 0px" }');
+		expect(js).toContain("(phone && v.dataset.srcSmall) || v.dataset.src");
 		expect(js).toContain('window.addEventListener("load", idle, { once: true });');
 		expect(starter("styles/base.css")).toContain(".section__bg-video { opacity: 0;");
 	});

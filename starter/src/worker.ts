@@ -6,6 +6,7 @@ import { flushOutbox, type OutboxEnv } from "@wp2emdash/forms/outbox";
 import { purgeUploads, type UploadEnv } from "@wp2emdash/forms/uploads";
 import site from "./site.config.json";
 import { rewarmTick } from "./utils/rewarm";
+import { serveVideo, type VideoBucket } from "./utils/video";
 
 export { PluginBridge };
 
@@ -13,6 +14,8 @@ const emdashScheduled = createScheduledHandler();
 
 export default {
 	...handler,
+	// Background videos in web sizes, from Cloudflare's cache (src/utils/video.ts); everything else is EmDash's.
+	fetch: async (request, env, ctx) => (await serveVideo(request, (workerEnv as { MEDIA?: VideoBucket }).MEDIA, ctx)) ?? handler.fetch!(request, env, ctx),
 	// EmDash's own cron work, plus the form outbox (queued messages are emailed once delivery works) and, on sites with
 	// file upload fields, once an hour: files visitors sent that are past their retention period are deleted.
 	scheduled: async (controller, env, ctx) => {
