@@ -132,7 +132,9 @@ export function deployScripts(o: { staging: boolean; stagingFingerprint?: string
 					// No migration here: the preview shares production's D1, R2 and KV (data), so it is for code and layout review.
 					"versions:upload": "astro build && wrangler versions upload",
 					// Promote a reviewed version: migrations first (as deploy:production). Becomes scripts/versions-deploy.mjs (versionsDeployScript): `pnpm versions:deploy <version-id>`.
-					"versions:deploy": `emdash migrate ${prod} && wrangler versions deploy`,
+					// With the recorded fingerprint, unattended (emdash migrate refuses a noninteractive apply without it, even when
+					// nothing is pending: found 2026-11-24); without one it asks, so run it from a terminal.
+					"versions:deploy": `emdash migrate ${prod}${o.productionFingerprint ? ` --expected-target-fingerprint=${o.productionFingerprint}` : ""} && wrangler versions deploy`,
 				}),
 	};
 }

@@ -95,7 +95,8 @@ describe("scaffold output without staging", () => {
 		expect(Object.keys(s).filter((k) => k.includes("staging"))).toEqual([]);
 		expect(s["ci:deploy:production"]).toContain("--expected-target-fingerprint=fp1");
 		expect(s["versions:upload"]).toBe("astro build && wrangler versions upload");
-		expect(s["versions:deploy"]).toBe("emdash migrate --wrangler-config wrangler.jsonc && wrangler versions deploy");
+		expect(s["versions:deploy"]).toBe("emdash migrate --wrangler-config wrangler.jsonc --expected-target-fingerprint=fp1 && wrangler versions deploy");
+		expect(deployScripts({ staging: false })["versions:deploy"]).toBe("emdash migrate --wrangler-config wrangler.jsonc && wrangler versions deploy");
 		expect(deployScripts({ staging: false })["ci:deploy:production"]).toBeUndefined();
 	});
 });
