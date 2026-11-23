@@ -168,6 +168,33 @@ export function redirectRule(alias: string, primary: string): Required<Pick<Redi
 	};
 }
 
+export const hostRuleRef = (host: string) => `wp2emdash_host_${host.replace(/[^a-z0-9]+/gi, "_")}`;
+
+/**
+ * The primary domain's other host (www ↔ apex) → the canonical one, as a zone Single Redirect rule: 301, path and query
+ * kept. The site's middleware redirects it too, but Cloudflare's cache in front of the Worker shares a page between both
+ * hosts (verified 2026-11-23: www answered a cached 200 copy of the apex page), so only a rule, which runs before the
+ * cache, redirects every request.
+ */
+export function hostRedirectRule(other: string, canonical: string): Required<Pick<RedirectRule, "ref" | "description" | "expression" | "action" | "enabled">> & { action_parameters: unknown } {
+	return {
+		ref: hostRuleRef(other),
+		description: `wp2emdash: ${other} → ${canonical} (301, path and query kept)`,
+		expression: `(http.host eq "${other}")`,
+		action: "redirect",
+		action_parameters: { from_value: { status_code: 301, target_url: { expression: `concat("https://${canonical}", http.request.uri.path)` }, preserve_query_string: true } },
+		enabled: true,
+	};
+}
+
+/** The kit's host rule, or an equivalent one made by hand (same host, same target), so it is adopted, not doubled. */
+export function findHostRule(rules: RedirectRule[], other: string, canonical: string): RedirectRule | undefined {
+	return (
+		rules.find((r) => r.ref === hostRuleRef(other)) ??
+		rules.find((r) => r.enabled !== false && r.action === "redirect" && r.expression.replace(/\s+/g, " ").trim() === `(http.host eq "${other}")` && JSON.stringify(r.action_parameters ?? "").includes(`https://${canonical}`))
+	);
+}
+
 /** Runbook section for the alias domains (appended to cutover/runbook.md). Never changes DNS. */
 export function aliasRunbook(plans: AliasPlan[], primary: string): string {
 	if (!plans.length) return "";

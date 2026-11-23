@@ -75,6 +75,7 @@ weeks out. Name it e.g. `wp2emdash go-live <domain>`.
 | Zone | Zone | Read | Read the zone and its settings during preflight |
 | Zone | DNS | Read | Preflight: record MX, SPF, DKIM, DMARC and verification TXT so cutover can prove they stayed unchanged |
 | Zone | Workers Routes | Edit | Route-first cutover: add the Worker routes for the apex and `www`; rollback = delete them |
+| Zone | Single Redirect | Edit | The `www` ↔ apex redirect as a zone rule, made before the routes: Cloudflare's cache in front of the Worker shares pages between both hosts, so the site's own redirect alone let `www` answer a cached copy (2026-11-23). Rollback deletes it |
 | Zone | DNS | Edit | **Only** for the optional final step (Worker Custom Domain replaces the WordPress record after the monitoring window). Leave it out until then. |
 
 **Zone Resources:** Include → Specific zone → the client's domain. Revoke the token after the

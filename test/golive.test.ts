@@ -22,6 +22,8 @@ interface World {
 	noindexPasses: number;
 	dns: typeof MAIL;
 	aliasRuleset?: { id: string; rules: { id: string; ref?: string; expression: string }[] };
+	/** The primary zone's redirect entry point (www ↔ apex rule). */
+	hostRuleset?: { id: string; rules: { id: string; ref?: string; expression: string; action?: string; action_parameters?: unknown }[] };
 	calls: string[];
 	redirectLive: boolean;
 }
@@ -48,6 +50,22 @@ function fakeFetch(w: World) {
 				const had = w.routes.some((r) => r.id === id);
 				w.routes = w.routes.filter((r) => r.id !== id);
 				return had ? json({ id }) : json(null, 404);
+			}
+			if (p === "/zones/z1/rulesets/phases/http_request_dynamic_redirect/entrypoint" && method === "GET") return w.hostRuleset ? json(w.hostRuleset) : json(null, 404);
+			if (p === "/zones/z1/rulesets/phases/http_request_dynamic_redirect/entrypoint" && method === "PUT") {
+				const body = JSON.parse(String(init?.body));
+				w.hostRuleset = { id: "hrs-new", rules: body.rules.map((r: { ref: string; expression: string }, i: number) => ({ ...r, id: `hrule-${i}` })) };
+				return json(w.hostRuleset);
+			}
+			if (p === `/zones/z1/rulesets/${w.hostRuleset?.id}/rules` && method === "POST") {
+				const body = JSON.parse(String(init?.body));
+				w.hostRuleset?.rules.push({ ...body, id: "hrule-ours" });
+				return json(w.hostRuleset);
+			}
+			if (p.startsWith("/zones/z1/rulesets/") && method === "DELETE") {
+				const id = p.split("/").pop();
+				if (w.hostRuleset) w.hostRuleset.rules = w.hostRuleset.rules.filter((r) => r.id !== id);
+				return json(w.hostRuleset);
 			}
 			if (p === "/zones/z1/dns_records") return json([...WEB, ...w.dns]);
 			if (p === "/zones/z2/dns_records") return json(ALIAS_DNS);
@@ -208,6 +226,26 @@ describe("golive", () => {
 		expect(dns?.detail).toMatch(/added: TXT acme\.example; removed: TXT acme\.example/);
 	});
 
+	it("adds the www → apex redirect rule before the routes (the cache shares pages between hosts) and records it", async () => {
+		const r = await run({ yes: true });
+		expect(r.ok).toBe(true);
+		const put = w.calls.indexOf("PUT /zones/z1/rulesets/phases/http_request_dynamic_redirect/entrypoint");
+		expect(put).toBeGreaterThan(-1);
+		expect(put).toBeLessThan(w.calls.indexOf("POST /zones/z1/workers/routes"));
+		expect(w.hostRuleset?.rules).toMatchObject([{ ref: "wp2emdash_host_www_acme_example", expression: '(http.host eq "www.acme.example")' }]);
+		expect(record().hostRule).toMatchObject({ alias: "www.acme.example", ruleId: "hrule-0", adopted: false, createdEntrypoint: true });
+	});
+
+	it("adopts an equivalent rule made by hand instead of adding a second one; other rules stay", async () => {
+		w.hostRuleset = { id: "hrs1", rules: [{ id: "keep", expression: '(http.host eq "promo.acme.example")', action: "redirect" }, { id: "byhand", expression: '(http.host eq "www.acme.example")', action: "redirect", action_parameters: { from_value: { target_url: { expression: 'concat("https://acme.example", http.request.uri.path)' } } } }] };
+		const r = await run({ yes: true });
+		expect(r.ok).toBe(true);
+		expect(w.calls.some((c) => c.includes("/rulesets/") && !c.startsWith("GET"))).toBe(false);
+		expect(record().hostRule).toMatchObject({ ruleId: "byhand", adopted: true });
+		await run({ rollback: true, yes: true });
+		expect(w.hostRuleset.rules.map((x) => x.id)).toEqual(["keep"]);
+	});
+
 	it("rollback deletes exactly the recorded routes and sets live = false", async () => {
 		await run({ yes: true });
 		w.routes.push({ id: "other", pattern: "acme.example/api/*", script: "acme" }); // not ours to delete
@@ -217,7 +255,8 @@ describe("golive", () => {
 		const r = await run({ rollback: true, yes: true });
 		expect(r.ok).toBe(true);
 		expect(w.routes.map((x) => x.id)).toEqual(["other"]);
-		expect(w.calls.filter((c) => c.startsWith("DELETE"))).toEqual(["DELETE /zones/z1/workers/routes/r1", "DELETE /zones/z1/workers/routes/r2"]);
+		expect(w.calls.filter((c) => c.startsWith("DELETE"))).toEqual(["DELETE /zones/z1/workers/routes/r1", "DELETE /zones/z1/workers/routes/r2", "DELETE /zones/z1/rulesets/hrs-new/rules/hrule-0"]);
+		expect(w.hostRuleset?.rules).toEqual([]);
 		expect(cf().production.live).toBe(false);
 		expect(cf().production.liveSince).toBeUndefined();
 	});
@@ -237,7 +276,7 @@ describe("golive", () => {
 			const r = await run({ aliases: true, yes: true });
 			expect(r.ok).toBe(true);
 			expect(w.calls).toContain("POST /zones/z2/rulesets/rs1/rules");
-			expect(w.calls.some((c) => c.startsWith("PUT"))).toBe(false);
+			expect(w.calls.some((c) => c.startsWith("PUT /zones/z2"))).toBe(false);
 			expect(w.aliasRuleset?.rules.map((x) => x.id)).toEqual(["keep-me", "rule-ours"]);
 			expect(r.checks.map((c) => `${c.id}:${c.ok}`)).toEqual(["alias-redirects:true", "dns-unchanged:old.example:true"]);
 			expect(record().aliasRules[0]).toMatchObject({ alias: "old.example", rulesetId: "rs1", ruleId: "rule-ours", createdEntrypoint: false });

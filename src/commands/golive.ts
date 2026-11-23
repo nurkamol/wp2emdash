@@ -27,7 +27,7 @@ import { siteEnvironments } from "../core/environments.js";
 import { type SitePaths, sitePaths } from "../core/paths.js";
 import { type GateCheck, phaseState, readState } from "../core/state.js";
 import { checkAliases } from "./check-aliases.js";
-import { type DnsRecord, REDIRECT_PHASE, type RedirectRule, primaryHost, redirectRule, ruleRef } from "../cutover/aliases.js";
+import { type DnsRecord, findHostRule, hostRedirectRule, REDIRECT_PHASE, type RedirectRule, primaryHost, redirectRule, ruleRef } from "../cutover/aliases.js";
 import { sameAsBuildToken } from "../cutover/token.js";
 import { loadEnv, loadSiteEnv } from "../extract/credentials.js";
 import { preChangeMarker } from "../targets/d1-backup.js";
@@ -83,6 +83,8 @@ export interface GoliveRecord {
 	zoneId?: string;
 	routes: RecordedRoute[];
 	aliasRules: RecordedRule[];
+	/** The primary zone's www ↔ apex redirect rule (removed by a full rollback, never by --rollback --aliases). */
+	hostRule?: RecordedRule;
 	switchedAt?: string;
 	liveSince?: string;
 	smoke?: { at: string; ok: boolean; checked: number; failures: string[] };
@@ -407,6 +409,14 @@ async function primarySwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult>
 	const want = [`${c.domain}/*`, `www.${c.domain}/*`];
 	const adopt = want.map((p) => ours.find((r) => r.pattern === p && r.script === c.worker)).filter((r): r is { id: string; pattern: string; script?: string } => !!r);
 	const create = want.filter((p) => !adopt.some((r) => r.pattern === p));
+	// The other host → canonical as a zone rule, before the routes: the cache in front of the Worker shares pages between
+	// www and apex, so the middleware's redirect alone lets www answer a cached 200 copy.
+	const ep = await c.call<{ id: string; rules?: RedirectRule[] }>("GET", `/zones/${zone.id}/rulesets/phases/${REDIRECT_PHASE}/entrypoint`);
+	if (!ep.ok && ep.status !== 404) blockers.push(`Cannot read the redirect rules of ${c.domain} (${ep.error}): the go-live token needs Zone · Single Redirect · Edit on ${c.domain} (docs/cloudflare-api-token.md, token B)`);
+	const hostRulesetId = ep.ok ? ep.result?.id : undefined;
+	const hostOurs = findHostRule(ep.result?.rules ?? [], c.other, c.canonical);
+	if (hostOurs) plan.push(`Keep redirect rule ${c.other} → https://${c.canonical} (already in place, id ${hostOurs.id}; recorded for rollback)`);
+	else plan.push(`Add a Single Redirect rule ${c.other} → https://${c.canonical}<same path> (301, query kept) ${hostRulesetId ? `to ruleset ${hostRulesetId}; its ${ep.result?.rules?.length ?? 0} other rule(s) stay` : "(creates the zone's redirect entry point)"}`);
 	for (const p of create) plan.push(`Create Worker route ${p} → ${c.worker} (zone ${c.domain})`);
 	for (const r of adopt) plan.push(`Keep route ${r.pattern} → ${c.worker} (already in place, id ${r.id}; recorded for rollback)`);
 	plan.push(`Smoke-test https://${c.canonical}: audited paths answer 200, ${c.other} and http redirect to it, no robots noindex (up to ${c.attempts} attempts)`);
@@ -433,6 +443,26 @@ async function primarySwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult>
 	// Backups: record the moment (D1 bookmark + a marker on the Backups admin page) with the build token. Best effort.
 	const mark = await preChangeMarker({ reason: `Go-live: ${c.domain} switched to this site`, cf: (readJson<CfFile>(c.cfFile) ?? {}) as never, vars: c.merged, bookmarksFile: join(c.paths.root, "load", "d1-bookmarks.jsonl"), now: c.now() }, c.f);
 	c.log(`${mark.ok ? "✔" : "…"} ${mark.detail}`);
+	if (hostOurs?.id && hostRulesetId) {
+		if (record.hostRule?.ruleId !== hostOurs.id) record.hostRule = { alias: c.other, zoneId: zone.id, rulesetId: hostRulesetId, ruleId: hostOurs.id, ref: hostOurs.ref ?? "", adopted: true, createdEntrypoint: false, at: at() };
+		saveRecord(c, record);
+	} else if (!hostOurs) {
+		const rule = hostRedirectRule(c.other, c.canonical);
+		const r = hostRulesetId
+			? await c.call<{ id: string; rules?: RedirectRule[] }>("POST", `/zones/${zone.id}/rulesets/${hostRulesetId}/rules`, rule)
+			: await c.call<{ id: string; rules?: RedirectRule[] }>("PUT", `/zones/${zone.id}/rulesets/phases/${REDIRECT_PHASE}/entrypoint`, { rules: [rule] });
+		const made = r.result?.rules?.find((x) => x.ref === rule.ref);
+		if (!r.ok || !r.result?.id || !made?.id) {
+			record.history.push({ at: at(), action: `redirect rule ${c.other} failed: ${r.error ?? "rule not in the response"}` });
+			saveRecord(c, record);
+			c.log(`✖ Redirect rule ${c.other} → ${c.canonical}: ${r.error ?? "rule not in the response"}. No route was created.`);
+			return { applied: false, ok: false, plan, blockers: [`redirect rule ${c.other}: ${r.error ?? "rule not in the response"}`], checks, next: [], record };
+		}
+		record.hostRule = { alias: c.other, zoneId: zone.id, rulesetId: r.result.id, ruleId: made.id, ref: rule.ref, adopted: false, createdEntrypoint: !hostRulesetId, at: at() };
+		record.history.push({ at: at(), action: `redirect rule ${c.other} → ${c.canonical} (${made.id})` });
+		saveRecord(c, record);
+		c.log(`✔ Redirect rule ${c.other} → https://${c.canonical} (${made.id})`);
+	}
 	for (const pattern of create) {
 		const made = await c.call<{ id: string }>("POST", `/zones/${zone.id}/workers/routes`, { pattern, script: c.worker });
 		if (!made.ok || !made.result?.id) {
@@ -597,12 +627,14 @@ async function aliasSwitch(c: Ctx, opts: GoliveOptions): Promise<GoliveResult> {
 
 async function rollback(c: Ctx, opts: GoliveOptions): Promise<GoliveResult> {
 	const record = readJson<GoliveRecord>(c.recordFile);
-	if (!record || (!record.routes.length && !record.aliasRules.length)) return refuse(c, [], ["Nothing recorded in cutover/golive.json: nothing to roll back (routes made by hand: see cutover/runbook.md §2)"]);
+	if (!record || (!record.routes.length && !record.aliasRules.length && !record.hostRule)) return refuse(c, [], ["Nothing recorded in cutover/golive.json: nothing to roll back (routes made by hand: see cutover/runbook.md §2)"]);
 	const routes = opts.aliases ? [] : record.routes;
 	const rules = record.aliasRules;
+	const hostRule = opts.aliases ? undefined : record.hostRule;
 	const plan = [
 		...rules.map((r) => `${r.alias}: delete redirect rule ${r.ruleId} from ruleset ${r.rulesetId} (other rules and DNS untouched)`),
 		...routes.map((r) => `Delete Worker route ${r.pattern} (${r.id})${r.adopted ? " — it was made by hand before golive and recorded" : ""}; traffic returns to the proxied WordPress records`),
+		...(hostRule ? [`Delete redirect rule ${hostRule.alias} → ${c.domain} (${hostRule.ruleId}); WordPress handles that host again`] : []),
 		...(opts.aliases ? [] : ["Set cloudflare.json → production.live = false"]),
 	];
 	c.log(`Rollback for ${c.domain}${opts.yes ? "" : " (plan only)"}:`);
@@ -634,6 +666,17 @@ async function rollback(c: Ctx, opts: GoliveOptions): Promise<GoliveResult> {
 		}
 		saveRecord(c, record);
 		c.log(`${gone ? "✔" : "✖"} Route ${r.pattern}${gone ? " removed" : `: ${d.error}`}`);
+	}
+	if (hostRule) {
+		const d = await c.call("DELETE", `/zones/${hostRule.zoneId}/rulesets/${hostRule.rulesetId}/rules/${hostRule.ruleId}`);
+		const gone = d.ok || d.status === 404;
+		checks.push({ id: `rollback-rule:${hostRule.alias}`, label: `${hostRule.alias}: redirect rule removed`, ok: gone, ...(d.ok ? {} : { detail: d.status === 404 ? "already gone" : d.error ?? "" }) });
+		if (gone) {
+			delete record.hostRule;
+			record.history.push({ at: at(), action: `${hostRule.alias}: rule ${hostRule.ruleId} deleted` });
+		}
+		saveRecord(c, record);
+		c.log(`${gone ? "✔" : "✖"} ${hostRule.alias}: rule ${hostRule.ruleId}${gone ? " removed" : `: ${d.error}`}`);
 	}
 	if (!opts.aliases && checks.every((x) => x.ok)) {
 		setLive(c, false);
