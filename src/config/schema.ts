@@ -242,9 +242,11 @@ export const kitConfigSchema = z.object({
 	 *   so pages an edit purged render once there instead of for the next visitor. 0 = off; at least 5 (the cron's step).
 	 * - smartPlacement: Workers Smart Placement (off: not shown to help this stack, see the findings — it only moves the
 	 *   Worker to locations where it already gets traffic, so visitors far from the database stay far).
-	 * - placementRegion: a Placement Hint instead, "<provider>:<region>" (e.g. "aws:us-east-1" for a database in ENAM):
-	 *   every uncached render runs next to that region, so a far visitor pays one long round trip instead of one per
-	 *   database query. Cached pages never run the Worker. Excludes smartPlacement (Wrangler accepts one placement).
+	 * - placementRegion: a Placement Hint, "<provider>:<region>": every uncached render runs next to that region, so a far
+	 *   visitor pays one long round trip instead of one per database query (measured 2.9 s → 0.95 s from Europe for a
+	 *   database in ENAM). Cached pages never run the Worker. Default (unset): picked from the database's location that
+	 *   provision recorded (enam → aws:us-east-1, …; src/phases/scaffold.ts placementFor). false = no hint. Excludes
+	 *   smartPlacement (Wrangler accepts one placement); smartPlacement: true replaces the default hint.
 	 */
 	performance: z
 		.object({
@@ -263,13 +265,12 @@ export const kitConfigSchema = z.object({
 			prefetch: z.boolean().default(true),
 			smartPlacement: z.boolean().default(false),
 			placementRegion: z
-				.string()
-				.regex(/^(aws|gcp|azure):[a-z0-9-]+$/, 'a cloud region, e.g. "aws:us-east-1"')
+				.union([z.string().regex(/^(aws|gcp|azure):[a-z0-9-]+$/, 'a cloud region, e.g. "aws:us-east-1"'), z.literal(false)])
 				.optional(),
 			/** Background videos also play on phones (< 768px) after load; default false: phones keep the picture. */
 			phoneVideo: z.boolean().default(false),
 		})
-		.refine((p) => !(p.smartPlacement && p.placementRegion), { message: "performance: set smartPlacement or placementRegion, not both (Wrangler accepts one placement)" })
+		.refine((p) => !(p.smartPlacement && typeof p.placementRegion === "string"), { message: "performance: set smartPlacement or placementRegion, not both (Wrangler accepts one placement)" })
 		.prefault({}),
 	/**
 	 * Where Astro sessions (EmDash admin sign-in) are stored (docs/spikes/sessions-findings.md). Default "r2": a private

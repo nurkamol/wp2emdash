@@ -68,10 +68,20 @@ export function outboxVars(outbox: { days: number; hold: boolean; keepSent?: boo
  * Workers placement (kit.config performance.smartPlacement / placementRegion; docs/spikes/performance-findings.md).
  * Wrangler 4.163.0 accepts `{ "mode": "smart" }` or one hint (`{ "region": "aws:us-east-1" }`), not both.
  */
-export function placementJson(perf: Pick<PerfConfig, "smartPlacement" | "placementRegion"> | undefined): string {
-	if (perf?.placementRegion) return `\n\t// Placement Hint (performance.placementRegion): uncached renders run next to the database's region.\n\t"placement": ${JSON.stringify({ region: perf.placementRegion })},`;
+export function placementJson(perf: Pick<PerfConfig, "smartPlacement" | "placementRegion"> | undefined, d1Location?: string): string {
+	if (typeof perf?.placementRegion === "string") return `\n\t// Placement Hint (performance.placementRegion): uncached renders run next to the database's region.\n\t"placement": ${JSON.stringify({ region: perf.placementRegion })},`;
 	if (perf?.smartPlacement) return `\n\t// Smart Placement (performance.smartPlacement): Cloudflare may run the Worker nearer its database.\n\t"placement": { "mode": "smart" },`;
-	return "";
+	const auto = perf?.placementRegion === false ? undefined : placementFor(d1Location);
+	return auto ? `\n\t// Placement Hint, from the database's location (${d1Location}): uncached renders run next to it. performance.placementRegion: false turns it off.\n\t"placement": ${JSON.stringify({ region: auto })},` : "";
+}
+
+/**
+ * D1 location hint (recorded by provision) → the nearest cloud region a Placement Hint accepts. Unknown → no hint.
+ * Within a continent the choice costs a few milliseconds; across an ocean it is the difference measured above.
+ */
+export function placementFor(d1Location: string | undefined): string | undefined {
+	const map: Record<string, string> = { enam: "aws:us-east-1", wnam: "aws:us-west-1", weur: "aws:eu-central-1", eeur: "aws:eu-central-1", apac: "aws:ap-southeast-1", oc: "aws:ap-southeast-2" };
+	return d1Location ? map[d1Location.toLowerCase()] : undefined;
 }
 
 /** Versions verified together in docs/spikes (M0 + M5). Upgrades are deliberate: bump here, rerun verify. */
@@ -96,7 +106,7 @@ export const STACK = {
 
 export interface CloudflareResources {
 	staging?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; outbox?: { id: string }; session?: { id: string }; sessions?: { bucket: string } };
-	production?: { d1?: { name: string; id: string; fingerprint?: string }; r2?: { bucket: string }; worker?: { url?: string }; live?: boolean; outbox?: { id: string }; session?: { id: string }; sessions?: { bucket: string }; restoreDrill?: { name: string; id: string } };
+	production?: { d1?: { name: string; id: string; fingerprint?: string; location?: string }; r2?: { bucket: string }; worker?: { url?: string }; live?: boolean; outbox?: { id: string }; session?: { id: string }; sessions?: { bucket: string }; restoreDrill?: { name: string; id: string } };
 }
 
 /**
@@ -206,7 +216,7 @@ export function wranglerJsonc(o: { config: Pick<KitConfig, "email" | "forms"> & 
 	"r2_buckets": [${r2("production", `${workerName}-media`)}],
 	"vars": ${JSON.stringify(vars.production)},
 	"ratelimits": ${limiter(ns)}${kvJson("production")},
-	"triggers": { "crons": ["*/5 * * * *"] },${placementJson(o.perf)}${ai}${loader("production") ? `
+	"triggers": { "crons": ["*/5 * * * *"] },${placementJson(o.perf, cf.production?.d1?.location)}${ai}${loader("production") ? `
 	// Runs the sandboxed plugins (Cloudflare Worker Loader, Workers Paid).
 	"worker_loaders": [{ "binding": "LOADER" }],` : ""}${self ? `
 	// The SEO dashboard and Site health read this site's pages, robots.txt and sitemap through itself (a fetch to its own

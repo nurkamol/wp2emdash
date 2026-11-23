@@ -323,17 +323,23 @@ describe("client docs", () => {
 });
 
 describe("Workers placement (performance.smartPlacement / placementRegion)", async () => {
-	const { wranglerJsonc, placementJson } = await import("../src/phases/scaffold.js");
+	const { wranglerJsonc, placementJson, placementFor } = await import("../src/phases/scaffold.js");
 	const parse = (perf: Record<string, unknown>) => kitConfigSchema.parse({ slug: "acme", name: "Acme", source: { url: "https://acme.example" }, target: { productionUrl: "https://acme.example" }, email: { to: ["owner@acme.example"], stagingTo: ["team@agency.example"] }, performance: perf });
 	// JSONC → JSON: drop // comments (none of the generated values contain "//" outside URLs, which are quoted with ":").
 	const json = (text: string) => JSON.parse(text.replace(/^\s*\/\/.*$/gm, "").replace(/,(\s*[}\]])/g, "$1"));
-	const wrangler = (perf: Record<string, unknown>) => {
+	const wrangler = (perf: Record<string, unknown>, location: string | null = "enam") => {
 		const config = parse(perf);
-		return json(wranglerJsonc({ config, workerName: "acme", compatibilityDate: "2026-11-24", cf: { production: { d1: { name: "acme-db", id: "d1" } } }, staging: false, sandboxedEnvs: [], seoPanel: false, productionHost: "acme.example", perf: config.performance }));
+		return json(wranglerJsonc({ config, workerName: "acme", compatibilityDate: "2026-11-24", cf: { production: { d1: { name: "acme-db", id: "d1", ...(location ? { location } : {}) } } }, staging: false, sandboxedEnvs: [], seoPanel: false, productionHost: "acme.example", perf: config.performance }));
 	};
-	it("is off by default: no placement in wrangler.jsonc", () => {
-		expect(wrangler({}).placement).toBeUndefined();
+	it("by default hints the cloud region nearest the database's recorded location", () => {
+		expect(wrangler({}).placement).toEqual({ region: "aws:us-east-1" });
+		expect(wrangler({}, "weur").placement).toEqual({ region: "aws:eu-central-1" });
+		expect(wrangler({}, null).placement).toBeUndefined(); // not provisioned yet: no guess
+		expect(placementFor("mars")).toBeUndefined();
 		expect(placementJson(undefined)).toBe("");
+	});
+	it("placementRegion: false turns the default hint off", () => {
+		expect(wrangler({ placementRegion: false }).placement).toBeUndefined();
 	});
 	it("smartPlacement: true reaches wrangler.jsonc (it was declared but never written before)", () => {
 		expect(wrangler({ smartPlacement: true }).placement).toEqual({ mode: "smart" });

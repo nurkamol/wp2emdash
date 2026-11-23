@@ -16,7 +16,7 @@ database, close to the worst case the owner measured. Nothing was deployed to pr
 | Hashed brand files (WebP logo with size, small favicons), immutable fonts/brand (`public/_headers`) | always | — |
 | Hero/background video deferred (poster first) | always (starter) | — |
 | Announcement schedule checked in the browser, script allowed by CSP hash | always (starter) | — |
-| Smart Placement / Placement Hint | **off** (below) | `performance: { smartPlacement: true }` or `{ placementRegion: "aws:us-east-1" }` |
+| Placement Hint (region nearest the database) | **on** since 2026-11-24 (below) | `performance: { placementRegion: false }` off, `"aws:…"` another region, `smartPlacement: true` instead |
 | Verify gates `route-cache`, `cached-ttfb` (≤ `gates.maxCachedTtfbMs`, 600), `payload` (≤ `gates.maxPayloadKb`, 1500) | on | thresholds in `gates` |
 
 ## Route caching — how it works in this stack
