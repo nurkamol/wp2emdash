@@ -762,7 +762,7 @@ export async function runScaffold({ config, paths, reporter }: PhaseContext, opt
 	const envs = siteEnvironments(config, cf as never);
 	reporter.emit({ type: "log", level: "info", message: envs.staging ? `environments: staging + production (staging: ${envs.why})` : "environments: production only (single environment; staging is opt-in: target.staging)" });
 	const deployUrls = { staging: cf.staging?.worker?.url, production: cf.production?.live ? siteConfig.productionUrl : (cf.production as { worker?: { url?: string } } | undefined)?.worker?.url };
-	const versionsDeploy = versionsDeployScript(withDeployCheck(withWarmup(deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }), deployUrls, config.performance), deployUrls, config.performance));
+	const versionsDeploy = versionsDeployScript(withDeployCheck(withWarmup(deployScripts({ staging: envs.staging, stagingFingerprint: cf.staging?.d1?.fingerprint, productionFingerprint: cf.production?.d1?.fingerprint }), deployUrls, config.performance), deployUrls, config.performance), { ...((cfRecord.production?.accountId ?? cfRecord.accountId) ? { accountId: (cfRecord.production?.accountId ?? cfRecord.accountId) as string } : {}) });
 	write(join(project, "package.json"), {
 		name: `${config.slug}-site`,
 		version: "0.1.0",

@@ -354,17 +354,44 @@ describe("pnpm versions:deploy <version-id> (no prompt)", async () => {
 			const file = join(dir, "versions-deploy.mjs");
 			writeFileSync(file, r.file as string);
 			const id = "aa70c567-ea03-4285-b6e2-c46c640a094e";
-			const ok = spawnSync(process.execPath, [file, id], { encoding: "utf8" });
+			const creds = { ...process.env, CLOUDFLARE_API_TOKEN: "t", CLOUDFLARE_ACCOUNT_ID: "a" };
+			const ok = spawnSync(process.execPath, [file, id], { encoding: "utf8", env: creds });
 			expect(ok.status).toBe(0);
 			const ran = ok.stdout.split("\n").filter((l) => l && !l.startsWith(">"));
 			expect(ran).toEqual(["emdash migrate", `wrangler versions deploy ${id}@100% --yes`, "node scripts/warm.mjs https://x.example", "node scripts/deploy-check.mjs https://x.example"]);
-			expect(spawnSync(process.execPath, [file, `${id}@100%`], { encoding: "utf8" }).stdout).toContain(`deploy ${id}@100% --yes`);
+			expect(spawnSync(process.execPath, [file, `${id}@100%`], { encoding: "utf8", env: creds }).stdout).toContain(`deploy ${id}@100% --yes`);
 			const bad = spawnSync(process.execPath, [file], { encoding: "utf8" });
 			expect(bad.status).toBe(1);
 			expect(bad.stderr).toMatch(/Usage: pnpm versions:deploy <version-id>/);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
+	});
+	it("finds its credentials itself: the shell, then the project's .env, then the provisioned account; says what is missing", () => {
+		const account = "0123456789abcdef0123456789abcdef";
+		const r = versionsDeployScript({ "versions:deploy": "echo acct=$CLOUDFLARE_ACCOUNT_ID tok=$CLOUDFLARE_API_TOKEN && echo wrangler versions deploy" }, { accountId: account });
+		const dir = mkdtempSync(join(tmpdir(), "wp2emdash-vd-"));
+		try {
+			const file = join(dir, "versions-deploy.mjs");
+			writeFileSync(file, r.file as string);
+			const id = "aa70c567-ea03-4285-b6e2-c46c640a094e";
+			const base = { PATH: process.env.PATH ?? "", HOME: dir };
+			// .env in the project: read, never overriding what the shell has.
+			writeFileSync(join(dir, ".env"), 'CLOUDFLARE_API_TOKEN="from-env-file"\n# comment\nexport OTHER=1\n');
+			const a = spawnSync(process.execPath, [file, id], { cwd: dir, encoding: "utf8", env: base });
+			expect(a.stdout).toContain(`acct=${account} tok=from-env-file`);
+			const b = spawnSync(process.execPath, [file, id], { cwd: dir, encoding: "utf8", env: { ...base, CLOUDFLARE_API_TOKEN: "shell", CLOUDFLARE_ACCOUNT_ID: "mine" } });
+			expect(b.stdout).toContain("acct=mine tok=shell");
+			// No token anywhere and no wrangler to ask: stops before any step, without printing a secret.
+			rmSync(join(dir, ".env"));
+			const c = spawnSync(process.execPath, [file, id], { cwd: dir, encoding: "utf8", env: { PATH: "", HOME: dir } });
+			expect(c.status).toBe(1);
+			expect(c.stderr).toMatch(/Missing CLOUDFLARE_API_TOKEN: run `npx wrangler login`/);
+			expect(c.stdout).not.toContain("acct=");
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+		expect(versionsDeployScript({ "versions:deploy": "wrangler versions deploy" }, { accountId: "not-an-id" }).file).toContain('const ACCOUNT = "";');
 	});
 	it("leaves projects without a versions:deploy script alone", () => {
 		expect(versionsDeployScript({ "deploy:staging": "x" }).file).toBeUndefined();
