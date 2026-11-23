@@ -163,6 +163,18 @@ cached pages answered in ~0.3 s. A hint near the database turns those ~20 ocean 
 visitors near the database and cached pages are unchanged. Both stay off by default until measured on a live site
 with the method above.
 
+**Measured on a live site (2026-11-24, `placementRegion: "aws:us-east-1"`, D1 in ENAM, requests from Europe via `ARN`,
+uncached `/about-us/` with a fresh query string):**
+
+| | TTFB | `db.total` | `cf-placement` |
+|---|---|---|---|
+| No placement, 6 requests | 2.4–4.0 s (median ~2.9 s) | 3.2–4.1 s | — |
+| Placement Hint, 8 requests (right after the deploy) | 0.77–1.5 s (median ~0.95 s) | 0.4–1.2 s | `remote-IAD` |
+| Cached (HIT), with the hint | ~0.3 s | — | (served at `ARN`; a hit never runs the Worker) |
+
+The hint took effect at once (no analysis period, unlike Smart Placement). Uncached renders for far visitors are ~3×
+faster; cached pages unchanged.
+
 ## Verify on staging (preview run, 2026-11-20)
 
 `WP2EMDASH_TARGET=staging wp2emdash run <slug> verify --preview`: the new gates pass — `route-cache` (11 pages
