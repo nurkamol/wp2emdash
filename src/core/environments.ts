@@ -13,7 +13,7 @@ import type { KitConfig } from "../config/schema.js";
 export type TargetName = "local" | "staging" | "production";
 
 interface CfEnv {
-	d1?: { id?: string; name?: string };
+	d1?: { id?: string; name?: string; fingerprint?: string; location?: string };
 	worker?: { url?: string };
 	live?: boolean;
 }

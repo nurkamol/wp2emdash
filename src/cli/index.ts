@@ -221,17 +221,20 @@ program
 	.option("--limit <n>", "snapshot at most n pages (default 300)")
 	.option("--preview", "rebuild like `run <slug> scaffold --preview` (earlier gates not required, state.json untouched): sites delivered before the kit recorded every phase")
 	.option("--sync-staging", "with --deploy-staging: first refresh staging with production's content (wp2emdash sync-staging), so the comparison runs on real content. Shows the plan and stops unless --yes is given too")
-	.option("--yes", "with --sync-staging: apply the sync (staging bookmark first)")
+	.option("--prepare-db", "EmDash version change: recovery point (D1 bookmark + Backups marker), then the new version's database changes alone while the live site keeps running. Shows the plan and stops unless --yes is given too")
+	.option("--after-release", "EmDash version change, last step: the release's one-time steps (e.g. media usage repair). Shows the plan and stops unless --yes is given too")
+	.option("--yes", "with --sync-staging, --prepare-db or --after-release: apply it")
 	.option("--json", "print the result as JSON")
-	.action(async (slug: string, o: { deployStaging?: boolean; verify?: string | boolean; limit?: string; preview?: boolean; syncStaging?: boolean; yes?: boolean; json?: boolean }) => {
+	.action(async (slug: string, o: { deployStaging?: boolean; verify?: string | boolean; limit?: string; preview?: boolean; syncStaging?: boolean; prepareDb?: boolean; afterRelease?: boolean; yes?: boolean; json?: boolean }) => {
 		const { upgrade } = await import("../commands/upgrade.js");
 		if (o.verify !== undefined && o.deployStaging) fail("--verify and --deploy-staging are separate steps");
 		if (o.syncStaging && !o.deployStaging) fail("--sync-staging goes with --deploy-staging (the sync is for the staging comparison)");
-		if (o.yes && !o.syncStaging) fail("--yes belongs to --sync-staging");
+		if (o.yes && !o.syncStaging && !o.prepareDb && !o.afterRelease) fail("--yes belongs to --sync-staging, --prepare-db or --after-release");
+		if ([o.prepareDb, o.afterRelease, o.verify !== undefined, o.deployStaging].filter(Boolean).length > 1) fail("--prepare-db, --after-release, --verify and --deploy-staging are separate steps");
 		const limit = o.limit ? Number(o.limit) : undefined;
 		if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) fail("--limit must be a positive whole number");
 		try {
-			const r = await upgrade(slug, { ...(o.verify !== undefined ? { verify: o.verify === true ? "production" : String(o.verify) } : {}), ...(o.deployStaging ? { deployStaging: true } : {}), ...(limit ? { limit } : {}), ...(o.preview ? { preview: true } : {}), ...(o.syncStaging ? { syncStaging: true } : {}), ...(o.yes ? { yes: true } : {}), ...(o.json ? {} : { log: (l: string) => console.log(pc.dim(l)) }) });
+			const r = await upgrade(slug, { ...(o.verify !== undefined ? { verify: o.verify === true ? "production" : String(o.verify) } : {}), ...(o.deployStaging ? { deployStaging: true } : {}), ...(limit ? { limit } : {}), ...(o.preview ? { preview: true } : {}), ...(o.syncStaging ? { syncStaging: true } : {}), ...(o.prepareDb ? { prepareDb: true } : {}), ...(o.afterRelease ? { afterRelease: true } : {}), ...(o.yes ? { yes: true } : {}), ...(o.json ? {} : { log: (l: string) => console.log(pc.dim(l)) }) });
 			if (o.json) console.log(JSON.stringify(r, null, 2));
 			else {
 				if (r.syncStaging) {

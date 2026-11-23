@@ -6,6 +6,10 @@ milestone, reconstructed from the git history. Package versions (`@wp2emdash/*`)
 
 ## [Unreleased]
 
+### Added
+- **EmDash 1.6.0** (with `@emdash-cms/cloudflare` 1.6.0): built and type-checked on a delivered site; one new database change (`098_user_last_login`), no template changes needed.
+- **Safe EmDash upgrades for delivered sites:** when `wp2emdash upgrade` sees the EmDash version change, it reads the production database's migration status (read-only) and stops on a change that needs a maintenance window, changes the new version does not know, another database (fingerprint), a downgrade, or a version the kit has not checked. Then the order: `--prepare-db --yes` (D1 bookmark + Backups marker, then the database changes alone while the live site keeps running) → `versions:upload` → `--verify <preview-url>` (required) → `versions:deploy` → `--verify` → `--after-release --yes` (the release's one-time steps, e.g. 1.6.0's media usage repair). Per-release table in `src/upgrade/emdash.ts`; findings in `docs/spikes/emdash-upgrade-findings.md`.
+
 ### Fixed
 - **`performance.smartPlacement: true` did nothing:** it was never written to `wrangler.jsonc`. It is now.
 

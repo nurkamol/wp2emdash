@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { initSite } from "../src/commands/init.js";
 import { assertStagingScript, defaultRunScript, latestUpgradeDir, productionDeployCommand, upgrade, upgradeAddresses } from "../src/commands/upgrade.js";
+import { STACK } from "../src/phases/scaffold.js";
+import { EMDASH_RELEASES, type EmdashRunner, parseMigrateStatus, planEmdashStep } from "../src/upgrade/emdash.js";
 import { sitePaths } from "../src/core/paths.js";
 import { newState, writeState } from "../src/core/state.js";
 import { upgradeVerifyTool } from "../src/mcp/tools.js";
@@ -322,5 +324,116 @@ describe("wp2emdash upgrade", () => {
 		expect(r.exitCode).toBe(0);
 		expect(r.scaffold).toBeUndefined();
 		await expect(upgradeVerifyTool({ slug: "nope" }, { sitesDir: sites, kitRoot: join(dir, "kit") })).rejects.toThrow(/No site/);
+	});
+	describe("EmDash version change", () => {
+		const FP = "f".repeat(64);
+		const status = (pending: string[], o: { fp?: string; unknown?: string[] } = {}) => JSON.stringify({ target: { kind: "d1", label: "acct/acme-db/id", fingerprint: o.fp ?? FP }, knownApplied: ["001_initial"], pending, unknownApplied: o.unknown ?? [], executed: [] });
+		const calls: string[] = [];
+		const runner = (pendingFirst: string[], o: { fp?: string; unknown?: string[]; migrateCode?: number } = {}): EmdashRunner => {
+			let pending = pendingFirst;
+			return {
+				status: async () => (calls.push("status"), { code: 0, out: `Migration target…\n${status(pending, o)}` }),
+				migrate: async (_p, _e, fp) => (calls.push(`migrate ${fp.slice(0, 4)}`), o.migrateCode ? { code: o.migrateCode, out: "lock held" } : ((pending = []), { code: 0, out: "Executed" })),
+				repairMediaUsage: async (_p, url, token) => (calls.push(`repair ${url} ${token ? "token" : "none"}`), { code: 0, out: '{"status":"complete"}' }),
+			};
+		};
+		const marker = (async () => (calls.push("bookmark"), { ok: true, detail: "Before the change: D1 bookmark bm-1; marker m", bookmark: "bm-1" })) as never;
+		const from = "1.5.0";
+		const to = STACK.emdash;
+		beforeEach(() => {
+			calls.length = 0;
+			writeCf({ production: { d1: { id: "d", name: "acme-db", fingerprint: FP }, worker: { url: prodUrl } } });
+			writeProject({ "ci:deploy:production": "y", "versions:upload": "u", "versions:deploy": "d" });
+		});
+
+		it("plans the database change read-only, deploys nothing and prints the safe order instead of the production command", async () => {
+			const r = await upgrade(slug, { sitesDir: sites }, { runScaffold: okScaffold, now, installedEmdash: () => from, emdash: runner(["098_user_last_login"]) });
+			expect(r.exitCode).toBe(0);
+			expect(calls).toEqual(["status"]);
+			expect(r.emdash).toMatchObject({ from, to, pending: ["098_user_last_login"], blockers: [], after: [{ id: "media-repair-usage" }] });
+			const next = r.next.join("\n");
+			expect(next).toContain("--prepare-db --yes");
+			expect(next).toContain("pnpm run versions:upload");
+			expect(next).toContain("pnpm run versions:deploy");
+			expect(next).toContain("--after-release --yes");
+			expect(next).not.toContain("ci:deploy:production");
+			expect(existsSync(join(paths().root, r.dir, "emdash.json"))).toBe(true);
+		});
+
+		it("same EmDash version: the usual upgrade (no database check)", async () => {
+			const r = await upgrade(slug, { sitesDir: sites }, { runScaffold: okScaffold, now, installedEmdash: () => to, emdash: runner([]) });
+			expect(calls).toEqual([]);
+			expect(r.emdash).toBeUndefined();
+			expect(r.next.join("\n")).toContain("ci:deploy:production");
+		});
+
+		it("stops before anything is applied: a maintenance-window change, another database, changes it does not know", async () => {
+			for (const [run, why] of [
+				[runner(["095_plugin_storage_unique_scope", "098_user_last_login"]), /maintenance window/],
+				[runner(["098_user_last_login"], { fp: "0".repeat(64) }), /not the one provision recorded/],
+				[runner([], { unknown: ["099_future"] }), /does not know/],
+			] as const) {
+				const r = await upgrade(slug, { sitesDir: sites }, { runScaffold: okScaffold, now, installedEmdash: () => from, emdash: run });
+				expect(r.exitCode).toBe(2);
+				expect(r.next.join("\n")).toMatch(why);
+			}
+			expect(calls.some((c) => c.startsWith("migrate"))).toBe(false);
+		});
+
+		it("--prepare-db: dry run first; with --yes a bookmark before the database changes, and it stops without one", async () => {
+			const run = runner(["098_user_last_login"]);
+			await upgrade(slug, { sitesDir: sites }, { runScaffold: okScaffold, now, installedEmdash: () => from, emdash: run });
+			calls.length = 0;
+			const dry = await upgrade(slug, { sitesDir: sites, prepareDb: true }, { now, emdash: run, marker });
+			expect(dry.exitCode).toBe(1);
+			expect(calls).toEqual(["status"]);
+			const noBookmark = await upgrade(slug, { sitesDir: sites, prepareDb: true, yes: true }, { now, emdash: run, marker: (async () => ({ ok: false, detail: "no D1 bookmark" })) as never });
+			expect(noBookmark.error).toBe("no bookmark");
+			expect(calls.some((c) => c.startsWith("migrate"))).toBe(false);
+			calls.length = 0;
+			const r = await upgrade(slug, { sitesDir: sites, prepareDb: true, yes: true }, { now, emdash: run, marker });
+			expect(r.exitCode).toBe(0);
+			expect(calls).toEqual(["status", "bookmark", "migrate ffff", "status"]);
+			expect(r.emdash?.prepared).toMatchObject({ bookmark: "bm-1", applied: ["098_user_last_login"] });
+			expect(r.next.join("\n")).toContain("--bookmark=bm-1");
+		});
+
+		it("--prepare-db reports a failed apply and keeps the bookmark in the message", async () => {
+			const run = runner(["098_user_last_login"], { migrateCode: 4 });
+			await upgrade(slug, { sitesDir: sites }, { runScaffold: okScaffold, now, installedEmdash: () => from, emdash: run });
+			const r = await upgrade(slug, { sitesDir: sites, prepareDb: true, yes: true }, { now, emdash: run, marker });
+			expect(r.exitCode).toBe(1);
+			expect(r.next.join("\n")).toMatch(/bookmark bm-1/);
+		});
+
+		it("a matching preview is recorded; --after-release runs the release's steps with the admin token", async () => {
+			const run = runner(["098_user_last_login"]);
+			await upgrade(slug, { sitesDir: sites }, { runScaffold: okScaffold, now, installedEmdash: () => from, emdash: run });
+			const v = await upgrade(slug, { sitesDir: sites, verify: stgUrl }, { now });
+			expect(v.emdash?.previewVerified?.url).toBe(stgUrl);
+			expect(v.next.join("\n")).toContain("versions:deploy");
+			const dry = await upgrade(slug, { sitesDir: sites, afterRelease: true }, { now, emdash: run });
+			expect(dry.exitCode).toBe(1);
+			writeFileSync(join(paths().root, ".env"), "EMDASH_TOKEN_PRODUCTION=ec_test\n");
+			calls.length = 0;
+			const r = await upgrade(slug, { sitesDir: sites, afterRelease: true, yes: true }, { now, emdash: run });
+			expect(r.exitCode).toBe(0);
+			expect(calls).toEqual([`repair ${prodUrl} token`]);
+			expect(r.emdash?.afterRelease?.steps).toEqual([{ id: "media-repair-usage", ok: true, detail: "status complete" }]);
+		});
+	});
+});
+
+describe("EmDash release plan", () => {
+	it("reads the migrate status report, also after other output", () => {
+		expect(parseMigrateStatus('Target: d1\n{"target":{"fingerprint":"ab"},"knownApplied":["001"],"pending":["098_user_last_login"],"unknownApplied":[]}')).toEqual({ fingerprint: "ab", pending: ["098_user_last_login"], unknownApplied: [], knownApplied: 1 });
+	});
+	it("an EmDash version the kit has not checked, or a downgrade, is a blocker", () => {
+		const st = { pending: [], unknownApplied: [], knownApplied: 98 };
+		expect(planEmdashStep({ from: "1.6.0", to: "1.7.0", status: st }).blockers.join(" ")).toMatch(/not been checked/);
+		expect(planEmdashStep({ from: "1.6.0", to: "1.5.0", status: st }).blockers.join(" ")).toMatch(/go down/);
+	});
+	it("knows the release the kit is pinned to", () => {
+		expect(EMDASH_RELEASES[STACK.emdash]).toBeDefined();
 	});
 });

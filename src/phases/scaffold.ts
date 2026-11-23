@@ -88,8 +88,8 @@ export function placementFor(d1Location: string | undefined): string | undefined
 export const STACK = {
 	node: ">=24",
 	astro: "7.4.12",
-	emdash: "1.5.0",
-	"@emdash-cms/cloudflare": "1.5.0",
+	emdash: "1.6.0",
+	"@emdash-cms/cloudflare": "1.6.0",
 	"@astrojs/cloudflare": "14.4.8",
 	"@astrojs/react": "7.1.9",
 	react: "19.2.4",

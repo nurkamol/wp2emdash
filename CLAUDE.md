@@ -25,6 +25,7 @@ pnpm wp2emdash run <slug> load      # single environment (default): production o
 WP2EMDASH_LOAD_TARGET=staging pnpm wp2emdash run <slug> load   # sites that opted into staging (target.staging: true)
 pnpm wp2emdash sync-staging <slug> [--yes]   # staging sites: production content → staging (production read-only; allowlisted tables; never users/sessions/tokens/form data); dry run without --yes, staging D1 bookmark first
 pnpm wp2emdash upgrade <slug> --deploy-staging --sync-staging --yes   # sync staging first, then the staging upgrade check
+pnpm wp2emdash upgrade <slug> --prepare-db --yes   # EmDash version change: D1 bookmark, then the new version's database changes alone (live site keeps running); then versions:upload → --verify <preview-url> → versions:deploy → --verify → --after-release --yes (docs/spikes/emdash-upgrade-findings.md)
 pnpm test && pnpm typecheck   # run both before saying a change is done
 pnpm privacy                  # public repo: no client names/domains/emails (patterns from local sites/, .privacy-patterns, CI secret PRIVACY_PATTERNS); pre-commit hook: git config core.hooksPath .githooks
 ```

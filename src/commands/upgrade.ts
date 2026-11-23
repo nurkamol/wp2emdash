@@ -28,6 +28,9 @@ import { KIT_ROOT, sitePaths } from "../core/paths.js";
 import { blockingPhase, type GateCheck, readState } from "../core/state.js";
 import { loadSiteEnv, scrubSecrets } from "../extract/credentials.js";
 import { type Comparison, compareSnapshots, comparisonReport, htmlToSnapshot, locationKey, type PageSnapshot, type SiteSnapshot, sitemapLocs, statusSnapshot } from "../upgrade/snapshot.js";
+import { STACK } from "../phases/scaffold.js";
+import { preChangeMarker } from "../targets/d1-backup.js";
+import { defaultEmdashRunner, type EmdashPlan, type EmdashRunner, parseMigrateStatus, planEmdashStep, projectEmdashVersion } from "../upgrade/emdash.js";
 import { credentialsFor } from "./provision.js";
 import { runPhase } from "./run.js";
 import { syncStaging, type SyncStagingOptions, type SyncStagingResult } from "./sync-staging.js";
@@ -48,8 +51,14 @@ export interface UpgradeOptions {
 	preview?: boolean;
 	/** With deployStaging: refresh staging with production's content first (wp2emdash sync-staging). */
 	syncStaging?: boolean;
-	/** Apply the sync; without it the sync plan is printed and upgrade stops before anything else. */
+	/** Apply the sync; without it the sync plan is printed and upgrade stops before anything else. Also confirms
+	 * --prepare-db and --after-release. */
 	yes?: boolean;
+	/** EmDash version change, step 2: recovery point (D1 bookmark + Backups marker), then the new version's database
+	 * changes alone, while the older Worker keeps serving (src/upgrade/emdash.ts). Dry run without --yes. */
+	prepareDb?: boolean;
+	/** EmDash version change, last step: the release's one-time steps (e.g. media usage repair). Dry run without --yes. */
+	afterRelease?: boolean;
 	/** Progress lines (the CLI prints them; --json and the MCP server leave it out). */
 	log?: (line: string) => void;
 }
@@ -65,6 +74,20 @@ export interface UpgradeDeps {
 	syncStaging?: (slug: string, opts: SyncStagingOptions) => Promise<SyncStagingResult>;
 	/** Wait after a sync before staging is snapshotted (isolates keep settings 30 s). Default: setTimeout. */
 	sleep?: (ms: number) => Promise<void>;
+	/** EmDash CLI calls (status, migrate, media repair). Default: npx emdash in the project. */
+	emdash?: EmdashRunner;
+	/** The EmDash version the project runs before the rebuild. Default: its installed package. */
+	installedEmdash?: (project: string) => string | undefined;
+	/** Recovery point before the database changes. Default: preChangeMarker (D1 bookmark + Backups marker). */
+	marker?: typeof preChangeMarker;
+}
+
+/** reports/upgrade/<timestamp>/emdash.json: the EmDash step's plan and what has been done. */
+export interface EmdashRecord extends EmdashPlan {
+	at: string;
+	previewVerified?: { at: string; url: string };
+	prepared?: { at: string; bookmark?: string; marker: string; applied: string[] };
+	afterRelease?: { at: string; steps: { id: string; ok: boolean; detail: string }[] };
 }
 
 /** After a sync: Worker isolates keep a 30 s stale-while-revalidate copy of the settings (docs/spikes/settings-findings.md). */
@@ -82,7 +105,7 @@ export interface ComparisonSummary {
 
 export interface UpgradeResult {
 	slug: string;
-	mode: "upgrade" | "verify";
+	mode: "upgrade" | "verify" | "prepare-db" | "after-release";
 	/** reports/upgrade/<timestamp>/ */
 	dir: string;
 	production: string;
@@ -92,6 +115,8 @@ export interface UpgradeResult {
 	stagingDeploy?: { ran: boolean; ok?: boolean; reason?: string };
 	/** --sync-staging: the sync's result (counts and table names only). */
 	syncStaging?: SyncStagingResult;
+	/** The EmDash version changes with this upgrade: plan and progress (emdash.json). */
+	emdash?: EmdashRecord;
 	comparisons: ComparisonSummary[];
 	next: string[];
 	ok: boolean;
@@ -257,6 +282,25 @@ export function productionDeployCommand(project: string): string {
 	return `cd ${project} && pnpm run ${scripts["ci:deploy:production"] ? "ci:deploy:production" : "deploy:production"}`;
 }
 
+const EMDASH_FILE = "emdash.json";
+function readEmdash(dir: string | undefined): EmdashRecord | undefined {
+	if (!dir || !existsSync(join(dir, EMDASH_FILE))) return undefined;
+	return JSON.parse(readFileSync(join(dir, EMDASH_FILE), "utf8")) as EmdashRecord;
+}
+
+/** The safe order once the EmDash version changes (src/upgrade/emdash.ts), as the owner reads it. */
+export function emdashSequence(slug: string, project: string, rec: EmdashRecord): string[] {
+	const undo = rec.prepared?.bookmark ? ` Restore the database only if data went wrong: npx wrangler d1 time-travel restore <database> --bookmark=${rec.prepared.bookmark}` : "";
+	return [
+		`EmDash ${rec.from} → ${rec.to}: ${rec.pending.length ? `database change(s) to apply: ${rec.pending.join(", ")}` : "no database change"}.${rec.after.length ? ` After the release: ${rec.after.map((a) => a.id).join(", ")}.` : ""}`,
+		`${rec.prepared ? "✔" : "1."} Recovery point + database changes (the live site keeps working): pnpm wp2emdash upgrade ${slug} --prepare-db --yes`,
+		`${rec.previewVerified ? "✔" : "2."} Preview, required: cd ${project} && pnpm run versions:upload → pnpm wp2emdash upgrade ${slug} --verify <preview-url>`,
+		`3. Production (owner's approval, never run by the kit): cd ${project} && pnpm run versions:deploy — deploys the version that was previewed`,
+		`4. Then: pnpm wp2emdash upgrade ${slug} --verify${rec.after.length ? `, and pnpm wp2emdash upgrade ${slug} --after-release --yes` : ""}`,
+		`Undo: cd ${project} && npx wrangler rollback (the older EmDash works on the changed database).${undo}`,
+	];
+}
+
 export async function upgrade(slug: string, opts: UpgradeOptions = {}, deps: UpgradeDeps = {}): Promise<UpgradeResult> {
 	const paths = sitePaths(slug, opts.sitesDir);
 	if (!existsSync(paths.config)) throw new Error(`No site "${slug}" (sites/${slug}/kit.config.ts)`);
@@ -273,6 +317,83 @@ export async function upgrade(slug: string, opts: UpgradeOptions = {}, deps: Upg
 	if (!addr.production) throw new Error(`No production address for ${slug}: production is neither live (cloudflare.json production.live) nor provisioned with a workers.dev address. upgrade is for delivered sites.`);
 	const production = addr.production;
 	const base = { slug, production, ...(addr.staging ? { staging: addr.staging } : {}) };
+
+	const em = deps.emdash ?? defaultEmdashRunner;
+	const prodCreds = () => {
+		const c = credentialsFor("production", vars, cf as never);
+		return { ...(c.token ? { CLOUDFLARE_API_TOKEN: c.token } : {}), ...(c.accountId ? { CLOUDFLARE_ACCOUNT_ID: c.accountId } : {}) } as Record<string, string>;
+	};
+
+	// ── --prepare-db: recovery point, then the new EmDash version's database changes alone ──
+	if (opts.prepareDb) {
+		const dir = latestUpgradeDir(paths.reports);
+		const rec = readEmdash(dir);
+		if (!dir || !rec) throw new Error(`No EmDash step recorded: run \`wp2emdash upgrade ${slug}\` first (it plans the database changes when the EmDash version changes).`);
+		const rel = relative(paths.root, dir);
+		const done = (r: Partial<UpgradeResult> & { next: string[]; ok: boolean; exitCode: 0 | 1 | 2 }) => ({ ...base, mode: "prepare-db" as const, dir: rel, emdash: rec, comparisons: [], ...r });
+		if (rec.blockers.length) return done({ next: ["The plan has blockers; nothing was applied.", ...rec.blockers], ok: false, exitCode: 2, error: "blockers" });
+		if (projectEmdashVersion(paths.project) !== rec.to && !deps.emdash) return done({ next: [`The project is not on EmDash ${rec.to} (rebuild with \`wp2emdash upgrade ${slug}\`).`], ok: false, exitCode: 1, error: "project not rebuilt" });
+		// The database must still be the one planned against, with nothing unexpected since.
+		const st = await em.status(paths.project, prodCreds());
+		if (st.code !== 0) return done({ next: [`emdash migrate --status failed (exit ${st.code}): ${scrub(st.out).slice(-400)}`], ok: false, exitCode: 1, error: "status failed" });
+		const now1 = parseMigrateStatus(st.out);
+		if (rec.fingerprint && now1.fingerprint !== rec.fingerprint) return done({ next: [`The database answering is not the one planned against (fingerprint changed). Nothing was applied; rerun \`wp2emdash upgrade ${slug}\`.`], ok: false, exitCode: 2, error: "fingerprint changed" });
+		if (now1.unknownApplied.length) return done({ next: [`Unknown database changes appeared: ${now1.unknownApplied.join(", ")}. Nothing was applied.`], ok: false, exitCode: 2, error: "unknown applied" });
+		if (!now1.pending.length) {
+			rec.prepared ??= { at: now().toISOString(), marker: "nothing to apply", applied: [] };
+			writeJson(join(dir, EMDASH_FILE), rec);
+			return done({ next: ["No database change is pending.", ...emdashSequence(slug, paths.project, rec)], ok: true, exitCode: 0 });
+		}
+		const plan = [`Recovery point: D1 Time Travel bookmark of ${cf.production?.d1?.name ?? "the production database"} + a marker on the Backups page`, `Apply: ${now1.pending.join(", ")} (emdash migrate --expected-target-fingerprint=${(now1.fingerprint ?? "").slice(0, 12)}…, then --check)`, "The live Worker keeps serving the older EmDash, which accepts the changed database"];
+		for (const p of plan) log(`  - ${p}`);
+		if (!opts.yes) return done({ next: [...plan, `Nothing changed. After the owner's go-ahead: pnpm wp2emdash upgrade ${slug} --prepare-db --yes`], ok: false, exitCode: 1, error: "dry run without --yes" });
+		const mark = await (deps.marker ?? preChangeMarker)({ reason: `EmDash ${rec.from} → ${rec.to}: before the database changes`, cf: cf as never, vars, bookmarksFile: join(paths.root, "load", "d1-bookmarks.jsonl"), now: now() });
+		log(`${mark.ok ? "✔" : "✖"} ${mark.detail}`);
+		if (!mark.bookmark) return done({ next: [`No recovery point (${mark.detail}); nothing was applied. Fix the Cloudflare token (D1 read) and rerun.`], ok: false, exitCode: 1, error: "no bookmark" });
+		const m = await em.migrate(paths.project, prodCreds(), now1.fingerprint as string);
+		writeFileSync(join(dir, "prepare-db.log"), scrub(m.out));
+		const after1 = await em.status(paths.project, prodCreds());
+		const left = after1.code === 0 ? parseMigrateStatus(after1.out).pending : now1.pending;
+		if (m.code !== 0 || left.length) return done({ next: [`Applying the database changes failed (exit ${m.code}; still pending: ${left.join(", ") || "none"}; log ${rel}/prepare-db.log). The live site runs the older EmDash. Recovery point: bookmark ${mark.bookmark}.`], ok: false, exitCode: 1, error: "migrate failed" });
+		rec.prepared = { at: now().toISOString(), bookmark: mark.bookmark, marker: mark.detail, applied: now1.pending };
+		writeJson(join(dir, EMDASH_FILE), rec);
+		log(`✔ Applied ${now1.pending.join(", ")}`);
+		return done({ next: emdashSequence(slug, paths.project, rec), ok: true, exitCode: 0 });
+	}
+
+	// ── --after-release: the release's one-time steps, after production runs the new version ──
+	if (opts.afterRelease) {
+		const dir = latestUpgradeDir(paths.reports);
+		const rec = readEmdash(dir);
+		if (!dir || !rec) throw new Error(`No EmDash step recorded for ${slug}: nothing to run after a release.`);
+		const rel = relative(paths.root, dir);
+		const done = (r: Partial<UpgradeResult> & { next: string[]; ok: boolean; exitCode: 0 | 1 | 2 }) => ({ ...base, mode: "after-release" as const, dir: rel, emdash: rec, comparisons: [], ...r });
+		if (!rec.after.length) return done({ next: [`EmDash ${rec.to} asks for nothing after its release.`], ok: true, exitCode: 0 });
+		const token = vars.EMDASH_TOKEN_PRODUCTION;
+		const plan = rec.after.map((a) => `${a.id}: ${a.label} on ${production}`);
+		for (const p of plan) log(`  - ${p}`);
+		if (!opts.yes) return done({ next: [...plan, `Nothing changed. After production runs EmDash ${rec.to}: pnpm wp2emdash upgrade ${slug} --after-release --yes`], ok: false, exitCode: 1, error: "dry run without --yes" });
+		if (!token) return done({ next: ["EMDASH_TOKEN_PRODUCTION (an admin token) is not set in the site's .env."], ok: false, exitCode: 1, error: "no token" });
+		const steps: { id: string; ok: boolean; detail: string }[] = [];
+		for (const a of rec.after) {
+			if (a.id === "media-repair-usage") {
+				const r = await em.repairMediaUsage(paths.project, production, token);
+				let detail = `exit ${r.code}`;
+				try {
+					const j = JSON.parse(r.out.slice(r.out.indexOf("{"))) as { status?: string };
+					detail = `status ${j.status ?? "?"}`;
+				} catch {
+					detail = scrub(r.out).trim().slice(-200) || detail;
+				}
+				steps.push({ id: a.id, ok: r.code === 0, detail });
+				log(`${r.code === 0 ? "✔" : "✖"} ${a.id}: ${detail}`);
+			}
+		}
+		rec.afterRelease = { at: now().toISOString(), steps };
+		writeJson(join(dir, EMDASH_FILE), rec);
+		const ok = steps.every((x) => x.ok);
+		return done({ next: ok ? [`EmDash ${rec.to} upgrade complete.`] : ["A step failed; rerun it (each is safe to repeat)."], ok, exitCode: ok ? 0 : 1 });
+	}
 
 	// ── --verify: compare an address now with the saved before.json ──
 	if (opts.verify !== undefined) {
@@ -300,8 +421,14 @@ export async function upgrade(slug: string, opts: UpgradeOptions = {}, deps: Upg
 		writeJson(join(dir, `after-${name}.json`), after);
 		const c = compareSnapshots(before, after);
 		const summary = writeComparison(dir, name, `Upgrade check: ${name} vs before (${slug})`, c, paths.root);
-		const next = c.identical ? (name === "production" ? ["Production matches the snapshot taken before the upgrade. Done."] : [`${name} matches. Deploy production when the owner approves: ${productionDeployCommand(paths.project)}`, `Then: pnpm wp2emdash upgrade ${slug} --verify`]) : [`Read ${summary.md} — every difference is listed per page.`, ...(name === "production" ? ["If the upgrade broke something, roll back the Worker to the previous version (`npx wrangler rollback` in the project, owner step) and fix the cause in the kit."] : [])];
-		return { ...base, mode: "verify", dir: relative(paths.root, dir), before: { file: relative(paths.root, join(dir, "before.json")), pages: before.pages.length }, comparisons: [summary], next, ok: c.identical, exitCode: c.identical ? 0 : 2 };
+		const rec = readEmdash(dir);
+		if (rec && c.identical && name !== "production" && name !== "staging") {
+			rec.previewVerified = { at: now().toISOString(), url: target };
+			writeJson(join(dir, EMDASH_FILE), rec);
+		}
+		let next = c.identical ? (name === "production" ? ["Production matches the snapshot taken before the upgrade. Done."] : [`${name} matches. Deploy production when the owner approves: ${productionDeployCommand(paths.project)}`, `Then: pnpm wp2emdash upgrade ${slug} --verify`]) : [`Read ${summary.md} — every difference is listed per page.`, ...(name === "production" ? ["If the upgrade broke something, roll back the Worker to the previous version (`npx wrangler rollback` in the project, owner step) and fix the cause in the kit."] : [])];
+		if (rec && c.identical) next = name === "production" ? [`Production matches the snapshot taken before the upgrade.${rec.after.length && !rec.afterRelease ? ` Last step: pnpm wp2emdash upgrade ${slug} --after-release --yes` : " Done."}`] : emdashSequence(slug, paths.project, rec);
+		return { ...base, mode: "verify", ...(rec ? { emdash: rec } : {}), dir: relative(paths.root, dir), before: { file: relative(paths.root, join(dir, "before.json")), pages: before.pages.length }, comparisons: [summary], next, ok: c.identical, exitCode: c.identical ? 0 : 2 };
 	}
 
 	// ── upgrade: before snapshot, scaffold, optional staging deploy + comparison ──
@@ -346,6 +473,7 @@ export async function upgrade(slug: string, opts: UpgradeOptions = {}, deps: Upg
 		writeJson(join(dir, "before-staging.json"), stagingBefore);
 	}
 
+	const emdashBefore = (deps.installedEmdash ?? projectEmdashVersion)(paths.project);
 	log("Rebuild: scaffold phase");
 	const runScaffold = deps.runScaffold ?? ((s: string) => runPhase(s, "scaffold", { ...(opts.sitesDir ? { sitesDir: opts.sitesDir } : {}), ...(opts.preview ? { preview: true } : {}), quiet: !opts.log }));
 	const sc = await runScaffold(slug);
@@ -354,6 +482,21 @@ export async function upgrade(slug: string, opts: UpgradeOptions = {}, deps: Upg
 	if (!sc.ok) {
 		out.next = [`The scaffold gate failed (${scaffold.failing.map((c) => c.id).join(", ")}): fix it, then run \`wp2emdash upgrade ${slug}\` again. Nothing was deployed.`];
 		return out;
+	}
+
+	// The EmDash version changes: read-only check of the production database, then the safe order instead of a deploy.
+	if (emdashBefore && emdashBefore !== STACK.emdash) {
+		log(`EmDash ${emdashBefore} → ${STACK.emdash}: checking the production database (read-only)`);
+		const st = await em.status(paths.project, prodCreds());
+		if (st.code !== 0) return { ...out, exitCode: 1, error: "emdash migrate --status failed", next: [`Could not read the production database's migration status (exit ${st.code}): ${scrub(st.out).slice(-400)}. Nothing was applied or deployed.`] };
+		const plan = planEmdashStep({ from: emdashBefore, to: STACK.emdash, status: parseMigrateStatus(st.out), ...(cf.production?.d1?.fingerprint ? { recordedFingerprint: cf.production.d1.fingerprint } : {}) });
+		const rec: EmdashRecord = { ...plan, at: now().toISOString() };
+		writeJson(join(dir, EMDASH_FILE), rec);
+		out.emdash = rec;
+		for (const n of plan.notes) log(`! ${n}`);
+		if (plan.blockers.length) return { ...out, exitCode: 2, next: ["Stopped before anything was applied or deployed:", ...plan.blockers] };
+		out.next.push(...emdashSequence(slug, paths.project, rec));
+		return { ...out, ok: true, exitCode: 0 };
 	}
 
 	const prodCmd = productionDeployCommand(paths.project);
